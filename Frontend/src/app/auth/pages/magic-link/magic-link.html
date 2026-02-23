@@ -1,0 +1,53 @@
+<div class="auth-page">
+  <div class="auth-logo">finRecon360</div>
+
+  <div class="auth-card auth-card--narrow">
+    <div class="auth-card-icon--key">
+      <div class="auth-card-icon-inner">
+        LINK
+      </div>
+    </div>
+
+    <h1 class="auth-title">Magic Link</h1>
+    <p class="auth-subtitle" *ngIf="purpose === 'EmailVerify'">Verifying your email...</p>
+    <p class="auth-subtitle" *ngIf="purpose === 'PasswordReset'">Set a new password</p>
+    <p class="auth-subtitle" *ngIf="purpose === 'ChangePassword'">Confirm your password change</p>
+
+    <div *ngIf="state === 'loading'" class="auth-helper-text text-center" style="margin-top: 24px;">
+      Please wait while we process your request.
+    </div>
+
+    <div *ngIf="state === 'error'" class="auth-helper-text text-center" style="margin-top: 24px;">
+      {{ errorMessage || 'This link is invalid or expired.' }}
+    </div>
+
+    <div *ngIf="state === 'success'" class="auth-helper-text text-center" style="margin-top: 24px;">
+      Your request was completed successfully.
+      <div style="margin-top: 16px;">
+        <a routerLink="/auth/login" class="auth-link">Go to Sign In</a>
+      </div>
+    </div>
+
+    <form *ngIf="state === 'ready' && purpose === 'PasswordReset'" [formGroup]="resetForm" class="auth-form" style="margin-top: 24px;">
+      <label class="field-label">New Password</label>
+      <input type="password" class="auth-input" formControlName="newPassword" placeholder="New password">
+      <label class="field-label" style="margin-top: 12px;">Confirm Password</label>
+      <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm new password">
+      <button class="primary-btn" type="button" style="margin-top: 20px;" (click)="submitPasswordReset()">
+        Update Password
+      </button>
+    </form>
+
+    <form *ngIf="state === 'ready' && purpose === 'ChangePassword'" [formGroup]="changeForm" class="auth-form" style="margin-top: 24px;">
+      <label class="field-label">Current Password</label>
+      <input type="password" class="auth-input" formControlName="currentPassword" placeholder="Current password">
+      <label class="field-label" style="margin-top: 12px;">New Password</label>
+      <input type="password" class="auth-input" formControlName="newPassword" placeholder="New password">
+      <label class="field-label" style="margin-top: 12px;">Confirm Password</label>
+      <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm new password">
+      <button class="primary-btn" type="button" style="margin-top: 20px;" (click)="submitChangePassword()">
+        Update Password
+      </button>
+    </form>
+  </div>
+</div>

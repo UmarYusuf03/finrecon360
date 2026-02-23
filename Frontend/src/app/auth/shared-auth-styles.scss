@@ -1,0 +1,175 @@
+@use 'sass:color';
+
+// === Tokens (feel free to tweak) ===
+$brand-text: #111827;
+$muted-text: #6b7280;
+$surface: #ffffff;
+$bg: #f6f7fb;
+
+$primary-blue: #1e88e5;
+$primary-blue-600: color.adjust($primary-blue, $lightness: -4%);
+
+// === Layout ===
+.auth-page {
+  min-height: 100vh;
+  background: $bg;
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+}
+
+.auth-logo {
+  position: fixed;
+  top: 20px;
+  left: 24px;
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: .2px;
+  color: $brand-text;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 920px; // wide enough for the two-column register card
+  background: $surface;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow:
+    0 6px 18px rgba(0,0,0,.06),
+    0 14px 44px rgba(0,0,0,.08);
+}
+
+// Narrow card variant (login, verify, forgot)
+.auth-card--narrow {
+  max-width: 520px;
+}
+
+.auth-title {
+  margin: 8px 0 4px;
+  font-weight: 800;
+  font-size: 28px;
+  color: $brand-text;
+  text-align: center;
+}
+
+.auth-subtitle {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: $muted-text;
+  text-align: center;
+}
+
+// Divider with label
+.or-divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 16px;
+
+  &::before,
+  &::after {
+    content: "";
+    height: 1px;
+    background: #e5e7eb;
+  }
+
+  > span {
+    color: $muted-text;
+    font-size: 12px;
+    letter-spacing: .08em;
+  }
+}
+
+// Generic helpers
+.full-width { width: 100%; }
+.field-label { font-weight: 700; }
+.auth-helper-text { font-size: 13px; color: $muted-text; }
+.auth-helper-text--center { text-align: center; }
+
+.primary-btn {
+  background: $primary-blue;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  height: 48px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover { background: $primary-blue-600; }
+}
+
+.ghost-btn {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  height: 48px;
+  font-weight: 600;
+  color: $brand-text;
+  cursor: pointer;
+}
+
+.auth-footer-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+// Social buttons row
+.social-row { display: flex; gap: 12px; margin: 18px 0; }
+.social-btn {
+  flex: 1;
+  justify-content: center;
+  height: 44px;
+}
+
+// Forgot‑password method pills
+.method-options {
+  display: flex;
+  gap: 12px;
+  margin: 10px 0 18px;
+
+  .method-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    cursor: pointer;
+    user-select: none;
+
+    input { accent-color: $primary-blue; }
+
+    &--active {
+      background: #e8f3ff;
+      border-color: #bfddff;
+    }
+  }
+}
+
+// Verify-code OTP inputs
+.otp {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 12px 0 18px;
+
+  input {
+    width: 56px;
+    height: 56px;
+    text-align: center;
+    font-size: 20px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+
+    &:focus {
+      outline: none;
+      border-color: #c7dafc;
+      box-shadow: 0 0 0 3px rgba(30,136,229,.15);
+      background: #fff;
+    }
+  }
+}

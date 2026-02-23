@@ -1,0 +1,111 @@
+<div class="auth-page">
+  <div class="auth-logo">finRecon360</div>
+
+  <div class="auth-card" style="max-width: 600px;">
+    <div class="auth-card-icon--key">
+      <div class="auth-card-icon-inner">
+        <mat-icon>person_add</mat-icon>
+      </div>
+    </div>
+
+    <h1 class="auth-title">Create Account</h1>
+    <p class="auth-subtitle">Join FinRecon360 today</p>
+
+    <div *ngIf="isSubmitted" class="auth-helper-text text-center">
+      Check your email to verify your account. If the email exists, you will receive a verification link shortly.
+    </div>
+
+    <form *ngIf="!isSubmitted" [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
+      <div class="form-row">
+        <div class="form-col">
+          <label class="field-label">Full Name</label>
+          <input type="text" class="auth-input" formControlName="fullName" placeholder="John Doe">
+        </div>
+
+        <div class="form-col">
+          <label class="field-label">Date of Birth</label>
+          <input type="date" class="auth-input" formControlName="dob">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col">
+          <label class="field-label">Country</label>
+           <select class="auth-input" formControlName="country">
+             <option value="" disabled selected>Select Country</option>
+             <option *ngFor="let c of countries" [value]="c">{{ c }}</option>
+           </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Email</label>
+        <input type="email" class="auth-input" formControlName="email" placeholder="name@example.com">
+      </div>
+
+      <div class="form-row">
+        <div class="form-col">
+          <label class="field-label">Password</label>
+          <div class="password-wrapper">
+            <input [type]="hidePassword ? 'password' : 'text'" class="auth-input" formControlName="password" placeholder="Create">
+            <button type="button" class="toggle-btn" (click)="hidePassword = !hidePassword">
+              <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </div>
+        </div>
+        <div class="form-col">
+          <label class="field-label">Confirm</label>
+          <div class="password-wrapper">
+            <input [type]="hideConfirmPassword ? 'password' : 'text'" class="auth-input" formControlName="confirmPassword" placeholder="Confirm">
+            <button type="button" class="toggle-btn" (click)="hideConfirmPassword = !hideConfirmPassword">
+              <mat-icon>{{ hideConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Gender</label>
+        <div class="gender-options">
+          <label class="radio-label">
+            <input type="radio" value="male" formControlName="gender"> Male
+          </label>
+          <label class="radio-label">
+            <input type="radio" value="female" formControlName="gender"> Female
+          </label>
+          <label class="radio-label">
+            <input type="radio" value="other" formControlName="gender"> Other
+          </label>
+        </div>
+      </div>
+
+      <div *ngIf="errorMessage" class="auth-helper-text text-center">
+        {{ errorMessage }}
+      </div>
+
+      <button class="primary-btn mt-4" type="submit" [disabled]="registerForm.invalid || isSubmitting">
+        {{ isSubmitting ? 'Submitting...' : 'Create Account' }}
+      </button>
+    </form>
+
+    <div *ngIf="!isSubmitted">
+      <div class="or-divider"><span>OR</span></div>
+
+      <div class="social-row">
+        <button class="ghost-btn social-btn">
+          <span class="social-icon google-g">G</span> Google
+        </button>
+        <button class="ghost-btn social-btn">
+          <span class="social-icon microsoft-m">M</span> Microsoft
+        </button>
+        <button class="ghost-btn social-btn">
+          <span class="social-icon okta-o">O</span> Okta
+        </button>
+      </div>
+    </div>
+
+    <p class="auth-helper-text mt-4 text-center">
+      Already have an account? <a routerLink="/auth/login" class="auth-link">Sign In</a>
+    </p>
+  </div>
+</div>
