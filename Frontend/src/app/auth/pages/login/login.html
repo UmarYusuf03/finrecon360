@@ -1,0 +1,71 @@
+<div class="auth-page">
+  <div class="auth-logo">finRecon360</div>
+
+  <div class="auth-card text-center">
+
+    <div class="auth-card-icon--key">
+      <div class="auth-card-icon-inner">
+        <mat-icon>lock</mat-icon>
+      </div>
+    </div>
+
+    <h1 class="auth-title">{{ 'AUTH.LOGIN.TITLE' | translate }}</h1>
+    <p class="auth-subtitle">{{ 'AUTH.LOGIN.SUBTITLE' | translate }}</p>
+
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="auth-form">
+
+      <div class="form-group">
+        <label class="field-label">{{ 'AUTH.LOGIN.EMAIL_LABEL' | translate }}</label>
+        <input type="email" class="auth-input" formControlName="email"
+          [placeholder]="'AUTH.LOGIN.EMAIL_PLACEHOLDER' | translate" />
+        <div *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid" class="error-text">
+          {{ 'ERRORS.EMAIL_REQUIRED' | translate }}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">{{ 'AUTH.LOGIN.PASSWORD_LABEL' | translate }}</label>
+        <div class="password-wrapper">
+          <input [type]="hide ? 'password' : 'text'" class="auth-input" formControlName="password"
+            [placeholder]="'AUTH.LOGIN.PASSWORD_PLACEHOLDER' | translate" />
+          <button type="button" class="toggle-btn" (click)="hide = !hide">
+            <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="forgot-row">
+        <a routerLink="/auth/forgot-password" class="auth-link">{{ 'AUTH.LOGIN.FORGOT_PASSWORD' | translate }}</a>
+      </div>
+
+      <button class="primary-btn mt-4" type="submit" [disabled]="loginForm.invalid || isSubmitting">
+        {{ 'AUTH.LOGIN.SIGN_IN_BTN' | translate }}
+      </button>
+
+      <div *ngIf="errorMessageKey" class="error-text mt-2 text-center">
+        {{ errorMessageKey | translate }}
+      </div>
+
+    </form>
+
+    <div class="or-divider"><span>{{ 'AUTH.LOGIN.OR_CONTINUE' | translate }}</span></div>
+
+    <div class="social-row">
+      <button class="ghost-btn social-btn">
+        <span class="social-icon google-g">G</span> {{ 'AUTH.LOGIN.SOCIAL_GOOGLE' | translate }}
+      </button>
+      <button class="ghost-btn social-btn">
+        <span class="social-icon microsoft-m">M</span> {{ 'AUTH.LOGIN.SOCIAL_MICROSOFT' | translate }}
+      </button>
+      <button class="ghost-btn social-btn">
+        <span class="social-icon okta-o">O</span> {{ 'AUTH.LOGIN.SOCIAL_OKTA' | translate }}
+      </button>
+    </div>
+
+    <p class="auth-helper-text mt-4">
+      {{ 'AUTH.LOGIN.NO_ACCOUNT' | translate }}
+      <a routerLink="/auth/register" class="auth-link">{{ 'AUTH.LOGIN.SIGN_UP_LINK' | translate }}</a>
+    </p>
+
+  </div>
+</div>
