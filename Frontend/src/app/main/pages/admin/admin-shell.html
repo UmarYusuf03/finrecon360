@@ -1,0 +1,20 @@
+<div class="admin-shell">
+  <nav mat-tab-nav-bar backgroundColor="primary" color="primary">
+    <a
+      mat-tab-link
+      *ngFor="let link of links"
+      [routerLink]="link.path"
+      routerLinkActive="active-link"
+      [routerLinkActiveOptions]="{ exact: true }"
+      #rla="routerLinkActive"
+      [active]="rla.isActive"
+      [class.active-link]="rla.isActive"
+    >
+      {{ link.label | translate }}
+    </a>
+  </nav>
+
+  <div class="admin-shell__content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

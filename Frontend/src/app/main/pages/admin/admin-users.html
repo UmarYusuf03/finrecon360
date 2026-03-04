@@ -1,0 +1,120 @@
+<mat-card>
+  <div class="users__header">
+    <div>
+      <h2>{{ 'ADMIN.USERS.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.USERS.COPY' | translate }}</p>
+    </div>
+    <button
+      mat-flat-button
+      color="primary"
+      *appHasPermission="'ADMIN.USERS.MANAGE'"
+      (click)="openAdd(userDialog)"
+    >
+      {{ 'ADMIN.USERS.ADD' | translate }}
+    </button>
+  </div>
+
+  <table mat-table [dataSource]="users" class="mat-elevation-z1">
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.USERS.NAME' | translate }}</th>
+      <td mat-cell *matCellDef="let user">{{ user.displayName }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="email">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.USERS.EMAIL' | translate }}</th>
+      <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="roles">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.USERS.ROLES' | translate }}</th>
+      <td mat-cell *matCellDef="let user">
+        <mat-chip-set>
+          <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
+        </mat-chip-set>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.USERS.STATUS' | translate }}</th>
+      <td mat-cell *matCellDef="let user">
+        <span [ngClass]="user.isActive ? 'status-active' : 'status-inactive'">
+          {{ user.isActive ? ('ADMIN.USERS.ACTIVE' | translate) : ('ADMIN.USERS.INACTIVE' | translate) }}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let user" class="users__actions">
+        <button
+          mat-icon-button
+          *appHasPermission="'ADMIN.USERS.MANAGE'"
+          (click)="openEdit(user, userDialog)"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          *appHasPermission="'ADMIN.USERS.MANAGE'"
+          (click)="toggleActive(user)"
+        >
+          <mat-icon>{{ user.isActive ? 'block' : 'check_circle' }}</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+</mat-card>
+
+<ng-template #userDialog>
+  <h2 mat-dialog-title>
+    {{ editingId ? ('ADMIN.USERS.EDIT' | translate) : ('ADMIN.USERS.ADD' | translate) }}
+  </h2>
+  <div mat-dialog-content>
+    <form [formGroup]="form" class="users__form">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.USERS.NAME' | translate }}</mat-label>
+        <input matInput formControlName="displayName" />
+        <mat-error *ngIf="form.get('displayName')?.hasError('required')">
+          {{ 'ADMIN.USERS.REQUIRED' | translate }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.USERS.EMAIL' | translate }}</mat-label>
+        <input matInput formControlName="email" />
+        <mat-error *ngIf="form.get('email')?.hasError('required')">
+          {{ 'ADMIN.USERS.REQUIRED' | translate }}
+        </mat-error>
+        <mat-error *ngIf="form.get('email')?.hasError('email')">
+          {{ 'ADMIN.USERS.EMAIL_INVALID' | translate }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" *ngIf="!editingId">
+        <mat-label>{{ 'ADMIN.USERS.PASSWORD' | translate }}</mat-label>
+        <input matInput formControlName="password" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.USERS.ROLES' | translate }}</mat-label>
+        <mat-select formControlName="roles" multiple>
+          <mat-option *ngFor="let role of roles" [value]="role.code">{{ role.name }}</mat-option>
+        </mat-select>
+        <mat-error *ngIf="form.get('roles')?.hasError('required')">
+          {{ 'ADMIN.USERS.REQUIRED' | translate }}
+        </mat-error>
+      </mat-form-field>
+    </form>
+  </div>
+  <div mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>
+      {{ 'ADMIN.USERS.CANCEL' | translate }}
+    </button>
+    <button mat-flat-button color="primary" (click)="save()" [disabled]="form.invalid">
+      {{ 'ADMIN.USERS.SAVE' | translate }}
+    </button>
+  </div>
+</ng-template>

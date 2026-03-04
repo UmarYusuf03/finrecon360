@@ -1,0 +1,68 @@
+<div class="shell">
+  <header class="shell__top">
+    <div class="shell__brand">
+      {{ 'NAV.LOGO' | translate }}
+    </div>
+
+    <nav class="shell__nav">
+      <a
+        routerLink="/app/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        {{ 'NAV.DASHBOARD' | translate }}
+      </a>
+      <a
+        routerLink="/app/matcher"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        *appHasPermission="'MATCHER.VIEW'"
+      >
+        {{ 'NAV.MATCHER' | translate }}
+      </a>
+      <a
+        routerLink="/app/admin"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: false }"
+        *appHasPermission="'ADMIN.DASHBOARD.VIEW'"
+      >
+        {{ 'NAV.ADMIN' | translate }}
+      </a>
+      <a
+        routerLink="/app/profile"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        {{ 'NAV.PROFILE' | translate }}
+      </a>
+    </nav>
+
+    <div class="shell__actions">
+      <app-language-switcher></app-language-switcher>
+      <ng-container *ngIf="user$ | async as user">
+        <button mat-icon-button [matMenuTriggerFor]="userMenu" class="shell__avatar-btn">
+          <ng-container *ngIf="profileImageUrl; else initials">
+            <img [src]="profileImageUrl" alt="Profile" class="shell__avatar-img" />
+          </ng-container>
+          <ng-template #initials>
+            <span class="shell__avatar-fallback">{{ getInitials(user.displayName) }}</span>
+          </ng-template>
+        </button>
+        <mat-menu #userMenu="matMenu" xPosition="before">
+          <div class="shell__menu-header">
+            <div class="shell__menu-name">{{ user.displayName }}</div>
+            <div class="shell__menu-email">{{ user.email }}</div>
+          </div>
+          <button mat-menu-item (click)="logout()">
+            <mat-icon>logout</mat-icon>
+            <span>{{ 'NAV.SIGN_OUT' | translate }}</span>
+          </button>
+        </mat-menu>
+      </ng-container>
+    </div>
+  </header>
+
+  <main class="shell__content">
+    <router-outlet></router-outlet>
+  </main>
+</div>
