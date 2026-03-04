@@ -1,0 +1,48 @@
+table {
+  width: 100%;
+  margin-top: 12px;
+}
+
+h2 {
+  margin: 0 0 4px;
+  font-weight: 800;
+}
+
+p {
+  margin: 0 0 12px;
+  color: #6b7280;
+}
+
+.perm__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.perm__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.perm__matrix {
+  overflow: auto;
+}
+
+.perm__component {
+  display: flex;
+  flex-direction: column;
+}
+
+.perm__component-name {
+  font-weight: 700;
+  color: #111827;
+}
+
+.perm__component-code {
+  color: #6b7280;
+  font-size: 12px;
+}
