@@ -1,0 +1,25 @@
+<div class="onboarding-page">
+  <div class="onboarding-card">
+    <h1>Choose a Subscription</h1>
+    <p class="subtitle" *ngIf="tenantName">Tenant: {{ tenantName }}</p>
+
+    <div *ngIf="loading" class="loading">Loading plans...</div>
+    <div *ngIf="error" class="error">{{ error }}</div>
+
+    <div class="plans" *ngIf="!loading && !error">
+      <div class="plan" *ngFor="let plan of plans">
+        <h3>{{ plan.name }}</h3>
+        <div class="price">
+          {{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}
+        </div>
+        <div class="meta">
+          Duration: {{ plan.durationDays }} days
+        </div>
+        <div class="meta">
+          Max accounts: {{ plan.maxAccounts }}
+        </div>
+        <button class="primary-btn" (click)="selectPlan(plan)">Select</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,26 @@
+// Global Angular Material theme setup
+
+@use '@angular/material' as mat;
+
+// Apply a single light theme to the whole app
+html {
+  color-scheme: light;
+
+  @include mat.theme((
+    color: (
+      primary: mat.$azure-palette,
+      tertiary: mat.$blue-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+}
+
+// Base body styling (you can keep tuning this)
+body {
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font-family: Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  margin: 0;
+}

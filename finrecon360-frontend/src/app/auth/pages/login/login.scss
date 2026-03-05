@@ -1,0 +1,149 @@
+@use '../../shared-auth-styles' as *;
+
+// Icon circle style
+.auth-card-icon--key {
+  background: #e8f3ff;
+  color: #1d9bf0;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.auth-card-icon-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #e8f3ff;
+  font-size: 24px;
+}
+
+.text-center { text-align: center; }
+.form-group { margin-bottom: 16px; text-align: left; }
+.mt-4 { margin-top: 24px; }
+.mt-2 { margin-top: 12px; }
+
+.field-label {
+  font-weight: 600;
+  font-size: 14px;
+  display: block;
+  margin-bottom: 6px;
+  color: #0f1419;
+}
+
+.auth-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: #1d9bf0;
+    box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
+  }
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+// Password Toggle
+.password-wrapper {
+  position: relative;
+  
+  .toggle-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #536471;
+    display: flex;
+    align-items: center;
+    
+    mat-icon { font-size: 20px; width: 20px; height: 20px; }
+  }
+}
+
+.forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.auth-link {
+  color: #1d9bf0;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  &:hover { text-decoration: underline; }
+}
+
+.primary-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 999px;
+  background-color: #1d9bf0 !important; /* Force Blue */
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+  &:hover { background-color: #1a8cd8 !important; }
+  &:disabled { background-color: #93c5fd !important; cursor: not-allowed; }
+}
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  margin: 24px 0;
+  color: #536471;
+  font-size: 12px;
+  font-weight: 600;
+  &::before, &::after { content: ""; flex: 1; height: 1px; background: #eff3f4; }
+  span { padding: 0 10px; }
+}
+
+/* Horizontal Social Row */
+.social-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ghost-btn {
+  flex: 1; /* Makes them equal width */
+  height: 44px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #0f1419;
+  border: 1px solid #cfd9de;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  
+  &:hover { background-color: #f7f9f9; }
+
+  .social-icon { font-weight: bold; font-size: 16px; }
+  .google-g { color: #DB4437; }
+  .microsoft-m { color: #F25022; }
+  .okta-o { color: #00297A; }
+}

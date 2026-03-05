@@ -1,0 +1,138 @@
+@use 'sass:color';
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dashboard__title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.dashboard__subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.dash-card {
+  border-radius: 12px;
+}
+
+.dash-card__header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.dash-card__header h3 {
+  margin: 0;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.dash-card__header p {
+  margin: 2px 0 0;
+  color: #6b7280;
+}
+
+.dash-card__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat__label {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.stat__value {
+  font-weight: 800;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.stat__chip {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.stat__chip.success {
+  background: #e0f2fe;
+  color: #0ea5e9;
+}
+
+.stat__chip.neutral {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.kpi {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.kpi__label {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.kpi__value {
+  display: block;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.kpi__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6b7280;
+}
+
+.kpi__trend.up {
+  color: #16a34a;
+}
+
+.kpi__trend.down {
+  color: #dc2626;
+}

@@ -1,1 +1,18 @@
 .DS_Store
+**/.DS_Store
+
+# Node/Angular
+**/node_modules/
+**/dist/
+**/.angular/
+**/.git.bak/
+
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Local tooling
+**/.dotnet-home/
+
+# Environment files
+**/.env

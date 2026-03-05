@@ -1,0 +1,287 @@
+{
+  "AUTH": {
+    "LOGIN": {
+      "TITLE": "නැවත සාදරයෙන් පිළිගනිමු",
+      "SUBTITLE": "FinRecon360 වෙත පිවිසීමට ලොග් වන්න",
+      "EMAIL_LABEL": "විද්‍යුත් තැපැල් ලිපිනය",
+      "EMAIL_PLACEHOLDER": "name@example.com",
+      "PASSWORD_LABEL": "මුරපදය",
+      "PASSWORD_PLACEHOLDER": "ඔබේ මුරපදය ඇතුළු කරන්න",
+      "FORGOT_PASSWORD": "මුරපදය අමතකද?",
+      "SIGN_IN_BTN": "ඇතුල් වන්න",
+      "OR_CONTINUE": "හෝ සමඟ ඉදිරියට යන්න",
+      "SOCIAL_GOOGLE": "Google",
+      "SOCIAL_MICROSOFT": "Microsoft",
+      "SOCIAL_OKTA": "Okta",
+      "NO_ACCOUNT": "ගිණුමක් නොමැතිද?",
+      "SIGN_UP_LINK": "ලියාපදිංචි වන්න"
+    },
+    "REGISTER": {
+      "TITLE": "ඔබේ ගිණුම සාදන්න",
+      "SUBTITLE": "ආරම්භ කිරීමට FinRecon360 වෙත එක්වන්න",
+      "FULL_NAME_LABEL": "සම්පූර්ණ නම",
+      "FULL_NAME_PLACEHOLDER": "ඔබේ සම්පූර්ණ නම ඇතුළු කරන්න",
+      "DOB_LABEL": "උපන් දිනය",
+      "DOB_PLACEHOLDER": "ඔබේ උපන් දිනය තෝරන්න",
+      "COUNTRY_LABEL": "රට",
+      "COUNTRY_PLACEHOLDER": "ඔබේ රට තෝරන්න",
+      "EMAIL_LABEL": "විද්‍යුත් තැපැල් ලිපිනය",
+      "EMAIL_PLACEHOLDER": "name@example.com",
+      "GENDER_LABEL": "ස්ත්‍රී පුරුෂ භාවය",
+      "GENDER_MALE": "පුරුෂ",
+      "GENDER_FEMALE": "ස්ත්‍රී",
+      "GENDER_OTHER": "වෙනත්",
+      "PASSWORD_LABEL": "මුරපදය",
+      "PASSWORD_PLACEHOLDER": "ශක්තිමත් මුරපදයක් සාදන්න",
+      "CONFIRM_PASSWORD_LABEL": "මුරපදය තහවුරු කරන්න",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "ඔබේ මුරපදය නැවත ඇතුළු කරන්න",
+      "CREATE_ACCOUNT_BTN": "ගිණුම සාදන්න",
+      "HAVE_ACCOUNT": "දැනටමත් ගිණුමක් තිබේද?",
+      "SIGN_IN_LINK": "ඇතුල් වන්න"
+    },
+    "FORGOT_PASSWORD": {
+      "TITLE": "මුරපදය අමතකද?",
+      "SUBTITLE": "සත්‍යාපන කේතයක් ලබා ගැනීමට ඔබේ විද්‍යුත් තැපෑල ඇතුළු කරන්න",
+      "EMAIL_LABEL": "විද්‍යුත් තැපැල් ලිපිනය",
+      "EMAIL_PLACEHOLDER": "name@example.com",
+      "SEND_CODE_BTN": "කේතය යවන්න",
+      "BACK_TO_LOGIN": "පිවිසුමට ආපසු"
+    },
+    "VERIFY_CODE": {
+      "TITLE": "කේතය සත්‍යාපනය කරන්න",
+      "SUBTITLE": "ඔබේ විද්‍යුත් තැපෑලට එවූ ඉලක්කම් 6 කේතය ඇතුළු කරන්න",
+      "CODE_LABEL": "සත්‍යාපන කේතය",
+      "CODE_PLACEHOLDER": "ඉලක්කම් 6 කේතය ඇතුළු කරන්න",
+      "VERIFY_BTN": "කේතය සත්‍යාපනය කරන්න",
+      "RESEND_CODE": "කේතයක් නොලැබුණාද?",
+      "RESEND_BTN": "කේතය නැවත යවන්න"
+    },
+    "LOGIN_SUCCESS": "ඇතුල් වීම සාර්ථකයි",
+    "LOGIN_FAILED": "ඇතුල් වීම අසාර්ථකයි",
+    "ERROR_INVALID_CREDENTIALS": "සාවද්‍ය සනාථීකරණ. admin@finrecon.local හෝ user@finrecon.local භාවිතා කරන්න."
+  },
+  "ADMIN": {
+    "PERMISSIONS": {
+      "TITLE": "අවසර",
+      "COPY": "භූමිකා - සංරචක - ක්‍රියා මැට්‍රික්ස්.",
+      "ROLE": "භූමිකාව",
+      "COMPONENT": "සංරචකය",
+      "ACTIONS": "ක්‍රියා",
+      "SEARCH": "සංරචක සෙවීම",
+      "SAVE": "අවසර සුරකින්න",
+      "ACTION_VIEW": "දැක්ම",
+      "ACTION_VIEW_LIST": "ලැයිස්තුව",
+      "ACTION_CREATE": "තනාදීම",
+      "ACTION_EDIT": "සංස්කරණය",
+      "ACTION_DELETE": "මකා දමන්න",
+      "ACTION_APPROVE": "අනුමත කරන්න",
+      "ACTION_MANAGE": "කළමනාකරණය",
+      "NONE": "කිසිවක් නැත"
+    }
+  },
+  "DASHBOARD": {
+    "TITLE": "උපකරණ පුවරුව",
+    "WELCOME": "FinRecon360 වෙත සාදරයෙන් පිළිගනිමු",
+    "OVERVIEW": "දළ විශ්ලේෂණය",
+    "RECENT_ACTIVITY": "මෑත ක්‍රියාකාරකම්",
+    "STATS": "සංඛ්‍යාලේඛන",
+    "SUBTITLE": "සමතා, ගැලපුම්, කාර්යයන් පරීක්ෂා කරන්න.",
+    "MATCHER": {
+      "TITLE": "ගැළපුම්කරු",
+      "DESCRIPTION": "ගැළපුම් ප්‍රගතිය හා අපවෘත්තීන්.",
+      "TOTAL": "ගනුදෙනු එකතුව",
+      "MATCHED": "ගැළපුම්",
+      "UNMATCHED": "නොගැළපුම්",
+      "EXCEPTIONS": "අපවෘත්තීන්"
+    },
+    "BALANCER": {
+      "TITLE": "ශේෂ පරීක්ෂක",
+      "DESCRIPTION": "ගිණුම් සමතුලිතතා.",
+      "RECONCILED": "සමතුලිත",
+      "PENDING": "සිදුවේ නැති සමතුලිතතා"
+    },
+    "TASKS": {
+      "TITLE": "කාර්ය කළමනාකරු",
+      "DESCRIPTION": "වැසිය යුතු කාර්යයන්.",
+      "OPEN": "විවෘත කාර්යයන්",
+      "DUE_TODAY": "අදට බැඳී ඇති",
+      "COMPLETION": "සම්පූර්ණ කිරීම",
+      "ON_TRACK": "මාර්ගගත"
+    },
+    "JOURNAL": {
+      "TITLE": "ජර්නල් ඇතුළත් කිරීම",
+      "DESCRIPTION": "පළ කිරීම් හා අනුමැතිය.",
+      "PENDING": "අනුමැතියට",
+      "POSTED": "පළ කළා"
+    },
+    "ANALYTICS": {
+      "TITLE": "විශ්ලේෂණ",
+      "DESCRIPTION": "ප්‍රධාන KPI.",
+      "CYCLE_TIME": "සමීප කාලය",
+      "MATCH_RATE": "ගැළපුම් අනුපාතය",
+      "RECON_COMPLETION": "සමතුලිත සම්පූර්ණතාව"
+    }
+  },
+  "PROFILE": {
+    "TITLE": "පැතිකඩ",
+    "MY_PROFILE": "මගේ පැතිකඩ",
+    "EDIT_PROFILE": "පැතිකඩ සංස්කරණය කරන්න",
+    "PERSONAL_INFO": "පෞද්ගලික තොරතුරු",
+    "ACCOUNT_SETTINGS": "ගිණුම් සැකසීම්",
+    "SUBTITLE": "ඔබගේ පෞද්ගලික සැකසීම් කළමනාකරණය කරන්න.",
+    "DISPLAY_NAME": "ප්‍රදර්ශන නම",
+    "EMAIL": "විද්‍යුත් තැපැල්",
+    "PREFERRED_LANGUAGE": "භාෂාව",
+    "TIME_ZONE": "වේලා කලාපය",
+    "EMAIL_NOTIFICATIONS": "විද්‍යුත් තැපැල් දැනුම්දීම්",
+    "ROLES": "කාර්යභාර",
+    "SAVE": "වෙනස්කම් සුරකින්න",
+    "ERRORS": {
+      "REQUIRED": "මෙම ක්ෂේත්‍රය අවශ්‍යයි"
+    }
+  },
+  "NAV": {
+    "DASHBOARD": "උපකරණ පුවරුව",
+    "MATCHER": "ගැළපුම්කරු",
+    "BALANCER": "ශේෂ පරීක්ෂක",
+    "TASK_MANAGER": "කාර්ය කළමනාකරු",
+    "JOURNAL_ENTRY": "ජර්නල් ඇතුළත් කිරීම",
+    "ANALYTICS": "විශ්ලේෂණ",
+    "USER_MANAGEMENT": "පරිශීලක කළමනාකරණය",
+    "ADMIN": "පරිපාලක",
+    "PROFILE": "පැතිකඩ",
+    "SETTINGS": "සැකසීම්",
+    "LOGOUT": "පිටවීම"
+  },
+  "COMMON": {
+    "SAVE": "සුරකින්න",
+    "CANCEL": "අවලංගු කරන්න",
+    "SUBMIT": "ඉදිරිපත් කරන්න",
+    "DELETE": "මකන්න",
+    "EDIT": "සංස්කරණය කරන්න",
+    "ADD": "එකතු කරන්න",
+    "REMOVE": "ඉවත් කරන්න",
+    "BACK": "ආපසු",
+    "NEXT": "ඊළඟ",
+    "PREVIOUS": "පෙර",
+    "CLOSE": "වසන්න",
+    "CONFIRM": "තහවුරු කරන්න",
+    "SEARCH": "සොයන්න",
+    "FILTER": "පෙරහන",
+    "RESET": "යළි පිහිටුවන්න",
+    "REFRESH": "නැවුම් කරන්න",
+    "EXPORT": "අපනයනය කරන්න",
+    "IMPORT": "ආනයනය කරන්න",
+    "DOWNLOAD": "බාගන්න",
+    "UPLOAD": "උඩුගත කරන්න",
+    "SELECT": "තෝරන්න",
+    "LOADING": "පූරණය වෙමින්...",
+    "NO_DATA": "දත්ත නොමැත",
+    "YES": "ඔව්",
+    "NO": "නැත"
+  },
+  "ERRORS": {
+    "EMAIL_REQUIRED": "විද්‍යුත් තැපෑල අවශ්‍යයි",
+    "EMAIL_INVALID": "කරුණාකර වලංගු විද්‍යුත් තැපැල් ලිපිනයක් ඇතුළු කරන්න",
+    "PASSWORD_REQUIRED": "මුරපදය අවශ්‍යයි",
+    "PASSWORD_MIN_LENGTH": "මුරපදය අවම වශයෙන් අක්ෂර 8ක් විය යුතුය",
+    "PASSWORD_MISMATCH": "මුරපද නොගැලපේ",
+    "REQUIRED_FIELD": "මෙම ක්ෂේත්‍රය අවශ්‍යයි",
+    "INVALID_FORMAT": "වලංගු නොවන ආකෘතිය",
+    "NETWORK_ERROR": "ජාල දෝෂයකි. කරුණාකර නැවත උත්සාහ කරන්න.",
+    "UNAUTHORIZED": "මෙම ක්‍රියාව සිදු කිරීමට ඔබට අවසර නැත",
+    "SERVER_ERROR": "සේවාදායක දෝෂයකි. කරුණාකර පසුව නැවත උත්සාහ කරන්න.",
+    "SESSION_EXPIRED": "ඔබේ සැසිය කල් ඉකුත් වී ඇත. කරුණාකර නැවත පිවිසෙන්න."
+  },
+  "VALIDATION": {
+    "MIN_LENGTH": "අවම දිග අක්ෂර {{min}} කි",
+    "MAX_LENGTH": "උපරිම දිග අක්ෂර {{max}} කි",
+    "MIN_VALUE": "අවම අගය {{min}} කි",
+    "MAX_VALUE": "උපරිම අගය {{max}} කි",
+    "PATTERN_MISMATCH": "කරුණාකර ඉල්ලූ ආකෘතියට ගැලපෙන්න",
+    "DATE_INVALID": "කරුණාකර වලංගු දිනයක් ඇතුළු කරන්න",
+    "NUMBER_INVALID": "කරුණාකර වලංගු සංඛ්‍යාවක් ඇතුළු කරන්න"
+  },
+  "ADMIN": {
+    "OVERVIEW": "පරිපාලක පුවරුව",
+    "SUBTITLE": "කාර්යභාර, අවසර, ප්‍රවේශයන් කළමනාකරණය කරන්න.",
+    "ROLES": {
+      "TITLE": "කාර්යභාර",
+      "COPY": "කණ්ඩායම් කාර්යභාර සහ වගකීම් සකසන්න.",
+      "ADD": "කාර්යභාරයක් එක් කරන්න",
+      "EDIT": "කාර්යභාරය සංස්කරණය",
+      "NAME": "කාර්යභාරය",
+      "CODE": "කේතය",
+      "DESCRIPTION": "විස්තරය",
+      "PERMISSIONS": "අවසර",
+      "PERMISSIONS_COUNT": "අවසර",
+      "STATUS": "තත්ත්වය",
+      "ACTIVE": "සක්‍රිය",
+      "INACTIVE": "අක්‍රිය",
+      "SYSTEM": "පද්ධති කාර්යභාර",
+      "SYSTEM_ROLE": "පද්ධති",
+      "CUSTOM_ROLE": "අභිරුචි",
+      "ACTIONS": "ක්‍රියා",
+      "SAVE": "සුරකින්න",
+      "CANCEL": "අවලංගු කරන්න",
+      "REQUIRED": "මෙම ක්ෂේත්‍රය අවශ්‍යයි"
+    },
+    "COMPONENTS": {
+      "TITLE": "මොඩියුල",
+      "COPY": "ආරක්ෂා කළ යුතු මොඩියුල/සම්පත්.",
+      "ADD": "මොඩියුලයක් එක් කරන්න",
+      "EDIT": "මොඩියුලය සංස්කරණය",
+      "NAME": "මොඩියුලය",
+      "CODE": "කේතය",
+      "ROUTE": "මාර්ගය",
+      "CATEGORY": "කාණ්ඩය",
+      "DESCRIPTION": "විස්තරය",
+      "STATUS": "තත්ත්වය",
+      "ACTIVE": "සක්‍රිය",
+      "INACTIVE": "අක්‍රිය",
+      "ACTIONS": "ක්‍රියා",
+      "SAVE": "සුරකින්න",
+      "CANCEL": "අවලංගු කරන්න",
+      "REQUIRED": "මෙම ක්ෂේත්‍රය අවශ්‍යයි"
+    },
+    "PERMISSIONS": {
+      "TITLE": "අවසර",
+      "COPY": "කාර්යභාර × මොඩියුල × ක්‍රියා වගුව.",
+      "ROLE": "කාර්යභාරය",
+      "COMPONENT": "මොඩියුලය",
+      "ACTIONS": "ක්‍රියා",
+      "NO_CHANGES": "සුරැකීමට වෙනස්කම් නොමැත.",
+      "CONFIRM_SAVE": "මෙම කාර්යභාරයට අවසර වෙනස්කම් සුරකින්නද?",
+      "NONE": "නොමැත"
+    },
+    "USERS": {
+      "TITLE": "පරිශීලකයින්",
+      "COPY": "පුද්ගලයන් සහ ඔවුන්ගේ කාර්යභාර.",
+      "NAME": "නම",
+      "EMAIL": "විද්‍යුත් තැපැල්",
+      "ROLES": "කාර්යභාර",
+      "STATUS": "තත්ත්වය",
+      "ADD": "පරිශීලකයෙක් එක් කරන්න",
+      "EDIT": "පරිශීලකය සංස්කරණය",
+      "PASSWORD": "මුල් මුරපදය",
+      "ACTIVE": "සක්‍රිය",
+      "INACTIVE": "අක්‍රිය",
+      "SAVE": "සුරකින්න",
+      "CANCEL": "අවලංගු කරන්න",
+      "EMAIL_INVALID": "වලංගු විද්‍යුත් තැපෑලක් ඇතුළත් කරන්න",
+      "REQUIRED": "මෙම ක්ෂේත්‍රය අවශ්‍යයි"
+    },
+    "TENANT_REGISTRATIONS": {
+      "TITLE": "Tenant Registrations"
+    },
+    "TENANTS": {
+      "TITLE": "Tenants"
+    },
+    "PLANS": {
+      "TITLE": "Subscription Plans"
+    },
+    "ENFORCEMENT": {
+      "TITLE": "Enforcement"
+    }
+  }
+}
