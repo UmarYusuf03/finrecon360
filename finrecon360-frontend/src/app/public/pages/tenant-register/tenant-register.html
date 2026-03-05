@@ -1,0 +1,71 @@
+<div class="auth-page">
+  <div class="auth-logo">finRecon360</div>
+
+  <div class="auth-card auth-card--narrow">
+    <div class="auth-card-icon--key">
+      <div class="auth-card-icon-inner">
+        <mat-icon>business</mat-icon>
+      </div>
+    </div>
+
+    <h1 class="auth-title">Register Your Business</h1>
+    <p class="auth-subtitle">Submit your tenant details to begin onboarding.</p>
+
+    <div *ngIf="success" class="success">
+      Registration submitted. Our team will review and send an onboarding link.
+    </div>
+
+    <div *ngIf="error" class="error">
+      {{ error }}
+    </div>
+
+    <form *ngIf="!success" [formGroup]="form" (ngSubmit)="submit()" class="auth-form">
+      <div class="form-group">
+        <label class="field-label">Business Name</label>
+        <input class="auth-input" formControlName="businessName" placeholder="Acme Finance LLC" />
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Tenant Admin Email</label>
+        <input class="auth-input" formControlName="adminEmail" placeholder="admin@acme.com" />
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Phone Number</label>
+        <input class="auth-input" formControlName="phoneNumber" placeholder="+1 555 123 4567" />
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Business Registration Number</label>
+        <input class="auth-input" formControlName="businessRegistrationNumber" placeholder="BRN-12345678" />
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Type of Business</label>
+        <select class="auth-input" formControlName="businessType">
+          <option value="" disabled>Select Business Type</option>
+          <option *ngFor="let type of businessTypes" [value]="type.value">{{ type.label }}</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col">
+          <label class="field-label">Number of Bank Accounts</label>
+          <input class="auth-input" type="number" formControlName="bankAccounts" min="1" />
+        </div>
+        <div class="form-col">
+          <label class="field-label">Notes</label>
+          <input class="auth-input" formControlName="notes" placeholder="Optional notes" />
+        </div>
+      </div>
+
+      <button class="primary-btn" type="submit" [disabled]="submitting || form.invalid">
+        {{ submitting ? 'Submitting...' : 'Submit Registration' }}
+      </button>
+    </form>
+
+    <p class="auth-helper-text mt-4 text-center">
+      Already have an account? <a routerLink="/auth/login" class="auth-link">Sign In</a>
+    </p>
+  </div>
+</div>

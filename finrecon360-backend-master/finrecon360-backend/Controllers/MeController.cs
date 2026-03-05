@@ -1,12 +1,10 @@
 using finrecon360_backend.Data;
-using finrecon360_backend.Dtos.Subscriptions;
 using finrecon360_backend.Dtos.Me;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
-using finrecon360_backend.Authorization;
 
 namespace finrecon360_backend.Controllers
 {
@@ -19,32 +17,21 @@ namespace finrecon360_backend.Controllers
         private readonly AppDbContext _dbContext;
         private readonly IUserContext _userContext;
         private readonly IPermissionService _permissionService;
-<<<<<<< Updated upstream
-
-        public MeController(AppDbContext dbContext, IUserContext userContext, IPermissionService permissionService)
-=======
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
-        private readonly ISubscriptionService _subscriptionService;
 
         public MeController(
             AppDbContext dbContext,
             IUserContext userContext,
             IPermissionService permissionService,
             ITenantContext tenantContext,
-            ITenantDbContextFactory tenantDbContextFactory,
-            ISubscriptionService subscriptionService)
->>>>>>> Stashed changes
+            ITenantDbContextFactory tenantDbContextFactory)
         {
             _dbContext = dbContext;
             _userContext = userContext;
             _permissionService = permissionService;
-<<<<<<< Updated upstream
-=======
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
-            _subscriptionService = subscriptionService;
->>>>>>> Stashed changes
         }
 
         [HttpGet]
@@ -64,75 +51,64 @@ namespace finrecon360_backend.Controllers
                 return NotFound();
             }
 
-            if (!user.IsActive)
+            if (!user.IsActive || user.Status == Models.UserStatus.Suspended || user.Status == Models.UserStatus.Banned)
             {
                 return Forbid();
             }
 
             var displayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}".Trim();
-            var roles = await _permissionService.GetRolesForUserAsync(userId);
-            var permissions = await _permissionService.GetPermissionsForUserAsync(userId);
+            var tenantResolution = await _tenantContext.ResolveAsync();
+
+            IReadOnlyList<string> roles;
+            IReadOnlyList<string> permissions;
+            Guid? tenantId = null;
+            string? tenantName = null;
+            string? tenantStatus = null;
+
+            if (tenantResolution != null)
+            {
+                tenantId = tenantResolution.TenantId;
+                tenantName = tenantResolution.Name;
+                tenantStatus = tenantResolution.Status.ToString();
+                try
+                {
+                    await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenantResolution.TenantId);
+                    roles = await tenantDb.UserRoles
+                        .AsNoTracking()
+                        .Where(ur => ur.UserId == userId)
+                        .Select(ur => ur.Role.Code)
+                        .Distinct()
+                        .ToListAsync();
+
+                    permissions = await tenantDb.UserRoles
+                        .AsNoTracking()
+                        .Where(ur => ur.UserId == userId)
+                        .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
+                        .Distinct()
+                        .ToListAsync();
+                }
+                catch (InvalidOperationException)
+                {
+                    roles = (await _permissionService.GetRolesForUserAsync(userId)).ToList();
+                    permissions = (await _permissionService.GetPermissionsForUserAsync(userId)).ToList();
+                }
+            }
+            else
+            {
+                roles = (await _permissionService.GetRolesForUserAsync(userId)).ToList();
+                permissions = (await _permissionService.GetPermissionsForUserAsync(userId)).ToList();
+            }
 
             return Ok(new MeResponse(
                 user.UserId,
                 user.Email,
                 displayName,
+                user.Status.ToString(),
+                tenantId,
+                tenantName,
+                tenantStatus,
                 roles.ToList(),
                 permissions.OrderBy(p => p).ToList()));
-        }
-
-        [HttpGet("subscription")]
-        [RequirePermission("PROFILE.SUBSCRIPTION.VIEW")]
-        public async Task<ActionResult<SubscriptionOverviewDto>> GetSubscriptionOverview(CancellationToken cancellationToken)
-        {
-            if (_userContext.UserId is not { } userId)
-            {
-                return Unauthorized();
-            }
-
-            var tenant = await _tenantContext.ResolveAsync();
-            if (tenant == null)
-            {
-                return NotFound();
-            }
-
-            try
-            {
-                var overview = await _subscriptionService.GetOverviewAsync(tenant.TenantId, cancellationToken);
-                return Ok(overview);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        [HttpPost("subscription/checkout")]
-        [RequirePermission("PROFILE.SUBSCRIPTION.CHANGE")]
-        public async Task<ActionResult<SubscriptionCheckoutResponse>> CreateSubscriptionCheckout(
-            [FromBody] SubscriptionChangeRequest request,
-            CancellationToken cancellationToken)
-        {
-            if (_userContext.UserId is not { } userId)
-            {
-                return Unauthorized();
-            }
-
-            var tenant = await _tenantContext.ResolveAsync();
-            if (tenant == null)
-            {
-                return NotFound();
-            }
-
-            try
-            {
-                var result = await _subscriptionService.CreateCheckoutAsync(tenant.TenantId, userId, request.PlanId, cancellationToken);
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
         }
     }
 }

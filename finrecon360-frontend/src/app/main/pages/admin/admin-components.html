@@ -7,7 +7,7 @@
     <button
       mat-flat-button
       color="primary"
-      *appHasPermission="'ADMIN.COMPONENTS.MANAGE'"
+      *appHasPermission="'ADMIN.COMPONENTS.CREATE'"
       (click)="openAdd(componentDialog)"
     >
       {{ 'ADMIN.COMPONENTS.ADD' | translate }}
@@ -49,14 +49,14 @@
       <td mat-cell *matCellDef="let c" class="components__actions">
         <button
           mat-icon-button
-          *appHasPermission="'ADMIN.COMPONENTS.MANAGE'"
+          *appHasPermission="'ADMIN.COMPONENTS.EDIT'"
           (click)="openEdit(c, componentDialog)"
         >
           <mat-icon>edit</mat-icon>
         </button>
         <button
           mat-icon-button
-          *appHasPermission="'ADMIN.COMPONENTS.MANAGE'"
+          *appHasPermission="'ADMIN.COMPONENTS.DELETE'"
           (click)="toggleActive(c)"
         >
           <mat-icon>{{ c.isActive ? 'block' : 'check_circle' }}</mat-icon>

@@ -12,6 +12,7 @@
     <p class="auth-subtitle" *ngIf="purpose === 'EmailVerify'">Verifying your email...</p>
     <p class="auth-subtitle" *ngIf="purpose === 'PasswordReset'">Set a new password</p>
     <p class="auth-subtitle" *ngIf="purpose === 'ChangePassword'">Confirm your password change</p>
+    <p class="auth-subtitle" *ngIf="purpose === 'TenantOnboarding'">Set your admin password</p>
 
     <div *ngIf="state === 'loading'" class="auth-helper-text text-center" style="margin-top: 24px;">
       Please wait while we process your request.
@@ -47,6 +48,19 @@
       <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm new password">
       <button class="primary-btn" type="button" style="margin-top: 20px;" (click)="submitChangePassword()">
         Update Password
+      </button>
+    </form>
+
+    <form *ngIf="state === 'ready' && purpose === 'TenantOnboarding'" [formGroup]="onboardingForm" class="auth-form" style="margin-top: 24px;">
+      <div class="auth-helper-text" *ngIf="tenantName" style="margin-bottom: 12px;">
+        Tenant: {{ tenantName }}
+      </div>
+      <label class="field-label">Password</label>
+      <input type="password" class="auth-input" formControlName="password" placeholder="Set password">
+      <label class="field-label" style="margin-top: 12px;">Confirm Password</label>
+      <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm password">
+      <button class="primary-btn" type="button" style="margin-top: 20px;" (click)="submitOnboardingPassword()">
+        Continue to Subscription
       </button>
     </form>
   </div>

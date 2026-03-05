@@ -1,0 +1,26 @@
+<section class="admin-card">
+  <h2>Enforcement Actions</h2>
+  <p class="message" *ngIf="message">{{ message }}</p>
+
+  <div class="block">
+    <h3>Tenant</h3>
+    <input [(ngModel)]="tenantId" placeholder="Tenant ID" />
+    <input [(ngModel)]="reason" placeholder="Reason" />
+    <div class="actions">
+      <button class="warning-btn" (click)="suspendTenant()">Suspend</button>
+      <button class="danger-btn" (click)="banTenant()">Ban</button>
+      <button class="primary-btn" (click)="reinstateTenant()">Reinstate</button>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>User</h3>
+    <input [(ngModel)]="userId" placeholder="User ID" />
+    <input [(ngModel)]="reason" placeholder="Reason" />
+    <div class="actions">
+      <button class="warning-btn" (click)="suspendUser()">Suspend</button>
+      <button class="danger-btn" (click)="banUser()">Ban</button>
+      <button class="primary-btn" (click)="reinstateUser()">Reinstate</button>
+    </div>
+  </div>
+</section>

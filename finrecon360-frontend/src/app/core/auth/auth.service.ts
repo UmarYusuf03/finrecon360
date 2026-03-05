@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
@@ -30,6 +31,10 @@ interface MeResponse {
   userId: string;
   email: string;
   displayName: string | null;
+  status: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
+  tenantStatus?: string | null;
   roles: string[];
   permissions: string[];
 }
@@ -52,6 +57,10 @@ export class AuthService {
         'ADMIN.PERMISSIONS.MANAGE',
         'ADMIN.COMPONENTS.MANAGE',
         'ADMIN.USERS.MANAGE',
+        'ADMIN.TENANTS.MANAGE',
+        'ADMIN.TENANT_REGISTRATIONS.MANAGE',
+        'ADMIN.PLANS.MANAGE',
+        'ADMIN.ENFORCEMENT.MANAGE',
         'MATCHER.VIEW',
         'MATCHER.MANAGE',
         'BALANCER.VIEW',
@@ -79,7 +88,7 @@ export class AuthService {
     if (current?.token && !USE_MOCK_API) {
       this.refreshCurrentUser().subscribe({
         error: () => {
-          this.logout();
+          // Keep session on non-auth startup errors (e.g. temporary backend issues).
         },
       });
     }
@@ -140,10 +149,19 @@ export class AuthService {
       })
       .pipe(
         switchMap((loginResponse) => {
+          const previousUser = this.currentUserSubject.value;
+          const canReuseTenantContext =
+            !!previousUser &&
+            previousUser.email.toLowerCase() === loginResponse.email.toLowerCase() &&
+            !!previousUser.tenantId;
+
           const bootstrapUser: CurrentUser = {
             id: '',
             email: loginResponse.email,
             displayName: loginResponse.fullName,
+            tenantId: canReuseTenantContext ? previousUser?.tenantId ?? null : null,
+            tenantName: canReuseTenantContext ? previousUser?.tenantName ?? null : null,
+            tenantStatus: canReuseTenantContext ? previousUser?.tenantStatus ?? null : null,
             roles: [],
             permissions: [],
             token: loginResponse.token,
@@ -157,6 +175,10 @@ export class AuthService {
                 id: me.userId,
                 email: me.email,
                 displayName: me.displayName ?? loginResponse.fullName,
+                status: me.status,
+                tenantId: me.tenantId ?? null,
+                tenantName: me.tenantName ?? null,
+                tenantStatus: me.tenantStatus ?? null,
                 roles: me.roles,
                 permissions: me.permissions,
                 token: loginResponse.token,
@@ -168,6 +190,52 @@ export class AuthService {
           );
         })
       );
+  }
+
+  registerTenant(payload: {
+    businessName: string;
+    adminEmail: string;
+    phoneNumber: string;
+    businessRegistrationNumber: string;
+    businessType: string;
+    onboardingMetadata?: unknown;
+  }): Observable<void> {
+    if (USE_MOCK_API) {
+      return of(void 0).pipe(delay(200));
+    }
+
+    return this.http
+      .post<void>(`${API_BASE_URL}${API_ENDPOINTS.PUBLIC.TENANT_REGISTRATIONS}`, payload)
+      .pipe(map(() => void 0));
+  }
+
+  verifyOnboardingMagicLink(token: string): Observable<{ onboardingToken: string; email: string; tenantName: string }> {
+    if (USE_MOCK_API) {
+      return of({ onboardingToken: 'mock', email: 'mock@finrecon.local', tenantName: 'Mock Tenant' }).pipe(delay(200));
+    }
+
+    return this.http.post<{ onboardingToken: string; email: string; tenantName: string }>(
+      `${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.VERIFY_MAGIC_LINK}`,
+      { token }
+    );
+  }
+
+  setOnboardingPassword(payload: { onboardingToken: string; password: string; confirmPassword: string }): Observable<void> {
+    if (USE_MOCK_API) {
+      return of(void 0).pipe(delay(200));
+    }
+
+    return this.http
+      .post<void>(`${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.SET_PASSWORD}`, payload)
+      .pipe(map(() => void 0));
+  }
+
+  createOnboardingCheckout(payload: { onboardingToken: string; planId: string }): Observable<{ checkoutUrl: string }> {
+    if (USE_MOCK_API) {
+      return of({ checkoutUrl: 'https://example.com/checkout' }).pipe(delay(200));
+    }
+
+    return this.http.post<{ checkoutUrl: string }>(`${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.CHECKOUT}`, payload);
   }
 
   register(payload: {
@@ -256,6 +324,10 @@ export class AuthService {
           id: me.userId,
           email: me.email,
           displayName: me.displayName ?? current?.displayName ?? me.email,
+          status: me.status,
+          tenantId: me.tenantId ?? null,
+          tenantName: me.tenantName ?? null,
+          tenantStatus: me.tenantStatus ?? null,
           roles: me.roles,
           permissions: me.permissions,
           token: current?.token ?? null,
@@ -265,7 +337,10 @@ export class AuthService {
         return updated;
       }),
       catchError((err) => {
-        this.logout();
+        const status = err instanceof HttpErrorResponse ? err.status : undefined;
+        if (status === 401 || status === 403) {
+          this.logout();
+        }
         return throwError(() => err);
       })
     );
@@ -274,6 +349,8 @@ export class AuthService {
   logout(): void {
     this.currentUserSubject.next(null);
     localStorage.removeItem(this.storageKey);
+    sessionStorage.removeItem('fr360_onboarding_token');
+    sessionStorage.removeItem('fr360_onboarding_tenant');
   }
 
   private fetchMe(): Observable<MeResponse> {

@@ -4,28 +4,18 @@ using finrecon360_backend.Models;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
-using Microsoft.AspNetCore.Authorization;
 
 namespace finrecon360_backend.Controllers.Onboarding
 {
     [ApiController]
     [Route("api/onboarding")]
-    /// <summary>
-    /// WHY: Orchestrates the complete tenant onboarding flow: magic-link verification → password set → plan selection → PayHere checkout.
-    /// Each step validates prior state transitions (e.g., can't set password unless magic-link was verified).
-    /// This ensures no account becomes partially activated or locked in an invalid state.
-    /// </summary>
     public class OnboardingController : ControllerBase
     {
         private readonly AppDbContext _dbContext;
         private readonly IOnboardingMagicLinkService _magicLinkService;
         private readonly IOnboardingTokenService _tokenService;
         private readonly IPasswordHasher _passwordHasher;
-        private readonly IPaymentCheckoutService _paymentCheckoutService;
-        private readonly IPayHereCheckoutService _payHereCheckoutService;
-        private readonly IWebHostEnvironment _environment;
-        private readonly IConfiguration _configuration;
+        private readonly IStripeCheckoutService _stripeCheckoutService;
         private readonly IAuditLogger _auditLogger;
 
         public OnboardingController(
@@ -33,84 +23,27 @@ namespace finrecon360_backend.Controllers.Onboarding
             IOnboardingMagicLinkService magicLinkService,
             IOnboardingTokenService tokenService,
             IPasswordHasher passwordHasher,
-            IPaymentCheckoutService paymentCheckoutService,
-            IPayHereCheckoutService payHereCheckoutService,
-            IWebHostEnvironment environment,
-            IConfiguration configuration,
+            IStripeCheckoutService stripeCheckoutService,
             IAuditLogger auditLogger)
         {
             _dbContext = dbContext;
             _magicLinkService = magicLinkService;
             _tokenService = tokenService;
             _passwordHasher = passwordHasher;
-            _paymentCheckoutService = paymentCheckoutService;
-            _payHereCheckoutService = payHereCheckoutService;
-            _environment = environment;
-            _configuration = configuration;
+            _stripeCheckoutService = stripeCheckoutService;
             _auditLogger = auditLogger;
-        }
-
-        /// <summary>
-        /// DEBUG ENDPOINT: Returns PayHere configuration status and sample checkout URL
-        /// This helps diagnose payment integration issues
-        /// </summary>
-        [HttpGet("debug/payhere-config")]
-        public ActionResult<object> GetPayHereDebugInfo()
-        {
-            var isConfigured = _paymentCheckoutService.IsConfigured();
-            
-            return Ok(new
-            {
-                isConfigured,
-                merchantId = _configuration["PAYHERE_MERCHANT_ID"],
-                merchantSecretSet = !string.IsNullOrEmpty(_configuration["PAYHERE_MERCHANT_SECRET"]),
-                merchantSecretValue = _configuration["PAYHERE_MERCHANT_SECRET"],
-                checkoutBaseUrl = _configuration["PAYHERE_CHECKOUT_BASE_URL"],
-                returnUrl = _configuration["PAYHERE_RETURN_URL"],
-                cancelUrl = _configuration["PAYHERE_CANCEL_URL"],
-                notifyUrl = _configuration["PAYHERE_NOTIFY_URL"],
-                currency = _configuration["PAYHERE_CURRENCY"],
-                timestamp = DateTime.UtcNow
-            });
-        }
-
-        [HttpPost("debug/payhere-checkout-preview")]
-        [AllowAnonymous]
-        public ActionResult<PayHereCheckoutPreviewResponse> GetPayHereCheckoutPreview([FromBody] PayHereCheckoutPreviewRequest request)
-        {
-            if (!_paymentCheckoutService.IsConfigured())
-            {
-                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { message = "PayHere is not configured." });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.OrderId) || request.AmountCents <= 0)
-            {
-                return BadRequest(new { message = "OrderId and AmountCents are required." });
-            }
-
-            var preview = _payHereCheckoutService.GetCheckoutPreview(request.OrderId, request.AmountCents, request.Currency);
-            return Ok(new PayHereCheckoutPreviewResponse(
-                preview.MerchantId,
-                preview.OrderId,
-                preview.Amount,
-                preview.Currency,
-                preview.MerchantSecretWasBase64Decoded,
-                preview.MerchantSecretLength,
-                preview.DecodedMerchantSecretLength,
-                preview.MerchantSecretHash,
-                preview.Hash));
         }
 
         [HttpPost("magic-link/verify")]
         public async Task<ActionResult<OnboardingMagicLinkVerifyResponse>> VerifyMagicLink([FromBody] OnboardingMagicLinkVerifyRequest request)
         {
-            var validation = await _magicLinkService.ValidateTokenAsync(request.Token, MagicLinkPurpose.TenantOnboarding);
-            if (!validation.Success || validation.UserId == null)
+            var consume = await _magicLinkService.ConsumeTokenAsync(request.Token, MagicLinkPurpose.TenantOnboarding);
+            if (!consume.Success || consume.UserId == null)
             {
                 return BadRequest(new { message = "Invalid or expired token." });
             }
 
-            var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == validation.UserId.Value);
+            var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == consume.UserId.Value);
             if (user == null)
             {
                 return BadRequest(new { message = "Invalid or expired token." });
@@ -136,15 +69,13 @@ namespace finrecon360_backend.Controllers.Onboarding
 
             var onboardingToken = _tokenService.CreateToken(user.UserId, tenant.TenantId, user.Email);
             var expires = DateTime.UtcNow.AddMinutes(20);
-            var requestedBankAccounts = await ResolveRequestedBankAccountsAsync(user.Email, tenant.Name);
 
             return Ok(new OnboardingMagicLinkVerifyResponse(
                 onboardingToken,
                 user.Email,
                 tenant.TenantId,
                 tenant.Name,
-                expires,
-                requestedBankAccounts));
+                expires));
         }
 
         [HttpPost("set-password")]
@@ -155,21 +86,10 @@ namespace finrecon360_backend.Controllers.Onboarding
                 return BadRequest(new { message = "Passwords do not match." });
             }
 
-            if (string.IsNullOrWhiteSpace(request.MagicLinkToken))
-            {
-                return BadRequest(new { message = "Missing onboarding magic link token." });
-            }
-
             var result = _tokenService.ValidateToken(request.OnboardingToken);
             if (!result.Success || result.UserId == null)
             {
                 return BadRequest(new { message = "Invalid or expired onboarding token." });
-            }
-
-            var consume = await _magicLinkService.ConsumeTokenAsync(request.MagicLinkToken, MagicLinkPurpose.TenantOnboarding);
-            if (!consume.Success || consume.UserId != result.UserId)
-            {
-                return BadRequest(new { message = "Invalid or expired token." });
             }
 
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == result.UserId.Value);
@@ -221,35 +141,6 @@ namespace finrecon360_backend.Controllers.Onboarding
                 return BadRequest(new { message = "Tenant not found." });
             }
 
-            var normalizedEmail = user.Email.Trim().ToLowerInvariant();
-            var normalizedTenantName = tenant.Name.Trim();
-
-            var registration = await _dbContext.TenantRegistrationRequests
-                .AsNoTracking()
-                .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail && r.BusinessName == normalizedTenantName)
-                .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
-                .FirstOrDefaultAsync();
-
-            if (registration == null)
-            {
-                registration = await _dbContext.TenantRegistrationRequests
-                    .AsNoTracking()
-                    .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail)
-                    .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
-                    .FirstOrDefaultAsync();
-            }
-
-            var phoneNumber = registration?.PhoneNumber ?? "0000000000";
-            var requestedBankAccounts = ExtractRequestedBankAccounts(registration?.OnboardingMetadata);
-
-            if (requestedBankAccounts.HasValue && plan.MaxAccounts < requestedBankAccounts.Value)
-            {
-                return BadRequest(new
-                {
-                    message = $"Selected plan allows {plan.MaxAccounts} bank accounts, but registration requested {requestedBankAccounts.Value}. Please choose a plan that supports at least {requestedBankAccounts.Value} bank accounts."
-                });
-            }
-
             var subscription = new Subscription
             {
                 SubscriptionId = Guid.NewGuid(),
@@ -262,84 +153,21 @@ namespace finrecon360_backend.Controllers.Onboarding
             _dbContext.Subscriptions.Add(subscription);
             await _dbContext.SaveChangesAsync();
 
-            var allowLocalBypass = _configuration.GetValue<bool>("PAYMENT_ALLOW_LOCAL_BYPASS", false);
-            if (allowLocalBypass && !_environment.IsProduction())
-            {
-                var now = DateTime.UtcNow;
-                subscription.Status = SubscriptionStatus.Active;
-                subscription.CurrentPeriodStart = now;
-                subscription.CurrentPeriodEnd = now.AddDays(plan.DurationDays);
-
-                tenant.Status = TenantStatus.Active;
-                tenant.ActivatedAt = now;
-                tenant.CurrentSubscriptionId = subscription.SubscriptionId;
-
-                await _dbContext.SaveChangesAsync();
-                await _auditLogger.LogAsync(
-                    tokenResult.UserId.Value,
-                    "OnboardingCheckoutBypassed",
-                    "Subscription",
-                    subscription.SubscriptionId.ToString(),
-                    "PAYMENT_ALLOW_LOCAL_BYPASS enabled; local activation applied.");
-
-                return Ok(new OnboardingCheckoutResponse(_paymentCheckoutService.GetFallbackCheckoutUrl()));
-            }
-
-            if (!_paymentCheckoutService.IsConfigured())
-            {
-                if (_environment.IsProduction() || !allowLocalBypass)
-                {
-                    await _auditLogger.LogAsync(
-                        tokenResult.UserId.Value,
-                        "OnboardingCheckoutBlocked",
-                        "Subscription",
-                        subscription.SubscriptionId.ToString(),
-                        "Payment provider is not configured and bypass is disabled.");
-
-                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
-                    {
-                        message = "Payment service is not configured. Please contact support."
-                    });
-                }
-
-                var now = DateTime.UtcNow;
-                subscription.Status = SubscriptionStatus.Active;
-                subscription.CurrentPeriodStart = now;
-                subscription.CurrentPeriodEnd = now.AddDays(plan.DurationDays);
-
-                tenant.Status = TenantStatus.Active;
-                tenant.ActivatedAt = now;
-                tenant.CurrentSubscriptionId = subscription.SubscriptionId;
-
-                await _dbContext.SaveChangesAsync();
-                await _auditLogger.LogAsync(
-                    tokenResult.UserId.Value,
-                    "OnboardingCheckoutBypassed",
-                    "Subscription",
-                    subscription.SubscriptionId.ToString(),
-                    $"{_paymentCheckoutService.GetProviderName()} not configured; local activation applied.");
-
-                return Ok(new OnboardingCheckoutResponse(_paymentCheckoutService.GetFallbackCheckoutUrl()));
-            }
-
-            var session = await _paymentCheckoutService.CreateCheckoutSessionAsync(
+            var session = await _stripeCheckoutService.CreateCheckoutSessionAsync(
                 plan.Name,
                 plan.PriceCents,
                 plan.Currency,
                 tenant.TenantId,
                 subscription.SubscriptionId,
-                tokenResult.UserId.Value,
-                tenant.Name,
-                user.Email,
-                phoneNumber);
+                tokenResult.UserId.Value);
 
             var paymentSession = new PaymentSession
             {
                 PaymentSessionId = Guid.NewGuid(),
                 TenantId = tenant.TenantId,
                 SubscriptionId = subscription.SubscriptionId,
-                ProviderSessionId = session.SessionId,
-                ProviderReferenceId = session.CustomerId,
+                StripeSessionId = session.Id,
+                StripeCustomerId = session.CustomerId,
                 Status = PaymentSessionStatus.Created,
                 CreatedAt = DateTime.UtcNow
             };
@@ -347,72 +175,9 @@ namespace finrecon360_backend.Controllers.Onboarding
             _dbContext.PaymentSessions.Add(paymentSession);
             await _dbContext.SaveChangesAsync();
 
-            await _auditLogger.LogAsync(
-                tokenResult.UserId.Value,
-                "OnboardingCheckoutCreated",
-                "Subscription",
-                subscription.SubscriptionId.ToString(),
-                $"provider={session.Provider};sessionId={session.SessionId}");
+            await _auditLogger.LogAsync(tokenResult.UserId.Value, "OnboardingCheckoutCreated", "Subscription", subscription.SubscriptionId.ToString(), null);
 
-            return Ok(new OnboardingCheckoutResponse(session.CheckoutUrl));
-        }
-
-        private async Task<int?> ResolveRequestedBankAccountsAsync(string adminEmail, string tenantName)
-        {
-            var normalizedEmail = adminEmail.Trim().ToLowerInvariant();
-            var normalizedTenantName = tenantName.Trim();
-
-            var metadata = await _dbContext.TenantRegistrationRequests
-                .AsNoTracking()
-                .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail && r.BusinessName == normalizedTenantName)
-                .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
-                .Select(r => r.OnboardingMetadata)
-                .FirstOrDefaultAsync();
-
-            if (string.IsNullOrWhiteSpace(metadata))
-            {
-                metadata = await _dbContext.TenantRegistrationRequests
-                    .AsNoTracking()
-                    .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail)
-                    .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
-                    .Select(r => r.OnboardingMetadata)
-                    .FirstOrDefaultAsync();
-            }
-
-            return ExtractRequestedBankAccounts(metadata);
-        }
-
-        private static int? ExtractRequestedBankAccounts(string? onboardingMetadata)
-        {
-            if (string.IsNullOrWhiteSpace(onboardingMetadata))
-            {
-                return null;
-            }
-
-            try
-            {
-                using var document = JsonDocument.Parse(onboardingMetadata);
-                if (!document.RootElement.TryGetProperty("bankAccounts", out var bankAccountsElement))
-                {
-                    return null;
-                }
-
-                if (bankAccountsElement.ValueKind == JsonValueKind.Number && bankAccountsElement.TryGetInt32(out var parsedNumber) && parsedNumber > 0)
-                {
-                    return parsedNumber;
-                }
-
-                if (bankAccountsElement.ValueKind == JsonValueKind.String && int.TryParse(bankAccountsElement.GetString(), out var parsedString) && parsedString > 0)
-                {
-                    return parsedString;
-                }
-            }
-            catch
-            {
-                return null;
-            }
-
-            return null;
+            return Ok(new OnboardingCheckoutResponse(session.Url));
         }
     }
 }

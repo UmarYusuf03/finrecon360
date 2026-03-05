@@ -13,13 +13,8 @@ using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Controllers.Admin
 {
-    /// <summary>
-    /// WHY: Separates the concept of "Requesting" a tenant from "Provisioning" one. 
-    /// By locking registrations behind an admin review queue, the platform prevents automated 
-    /// spam from exhausting SQL Server databases dynamically prior to human/payment validation.
-    /// </summary>
     [ApiController]
-    [Route("api/system/tenant-registrations")]
+    [Route("api/admin/tenant-registrations")]
     [Authorize]
     [RequirePermission("ADMIN.TENANT_REGISTRATIONS.MANAGE")]
     [EnableRateLimiting("admin")]
@@ -139,11 +134,6 @@ namespace finrecon360_backend.Controllers.Admin
                 request.OnboardingMetadata));
         }
 
-        /// <summary>
-        /// WHY: A highly composite distributed transaction. It provisions the SQL shard, 
-        /// seeds the root user identity, logs the audit, and dispatches the Magic Link 
-        /// simultaneously to ensure the tenant isn't left fully provisioned but inaccessible.
-        /// </summary>
         [HttpPost("{requestId:guid}/approve")]
         public async Task<IActionResult> Approve(Guid requestId, [FromBody] TenantRegistrationReviewRequest request)
         {
@@ -163,45 +153,6 @@ namespace finrecon360_backend.Controllers.Admin
             if (registration.Status != "PENDING_REVIEW")
             {
                 return BadRequest(new { message = "Only pending requests can be approved." });
-            }
-
-            // Check if a tenant with this name already exists to prevent duplicate key violation
-            var existingTenant = await _dbContext.Tenants
-                .FirstOrDefaultAsync(t => t.Name == registration.BusinessName);
-
-            if (existingTenant != null)
-            {
-                // If a tenant with this name exists, check if the registration is already associated with it
-                var normalizedEmail = registration.AdminEmail.Trim().ToLowerInvariant();
-                var existingUser = await _dbContext.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
-
-                if (existingUser != null)
-                {
-                    var userHasTenant = await _dbContext.TenantUsers
-                        .AsNoTracking()
-                        .AnyAsync(tu => tu.TenantId == existingTenant.TenantId && tu.UserId == existingUser.UserId);
-
-                    if (userHasTenant)
-                    {
-                        // Tenant and user relationship already exists; just mark registration as approved
-                        registration.Status = "APPROVED";
-                        registration.ReviewedAt = DateTime.UtcNow;
-                        registration.ReviewedByUserId = reviewerId;
-                        registration.ReviewNote = request.Note;
-                        await _dbContext.SaveChangesAsync();
-                        await _auditLogger.LogAsync(reviewerId, "TenantRegistrationApproved", "TenantRegistrationRequest", registration.TenantRegistrationRequestId.ToString(), "Reused existing tenant and user");
-                        return Ok(new TenantRegistrationApprovalResponse(
-                            registration.TenantRegistrationRequestId,
-                            registration.AdminEmail,
-                            null,
-                            false,
-                            "Tenant already provisioned."));
-                    }
-                }
-
-                return Conflict(new { message = "A tenant with this name already exists. Please use a different name." });
             }
 
             var tenant = new Tenant
@@ -248,8 +199,7 @@ namespace finrecon360_backend.Controllers.Admin
                     CreatedAt = DateTime.UtcNow,
                     EmailConfirmed = false,
                     IsActive = true,
-                    Status = UserStatus.Invited,
-                    UserType = UserType.TenantOperational
+                    Status = UserStatus.Invited
                 };
                 _dbContext.Users.Add(user);
             }
@@ -259,20 +209,12 @@ namespace finrecon360_backend.Controllers.Admin
             }
             else
             {
-                if (user.UserType == UserType.SystemAdmin)
-                {
-                    return Conflict(new { message = "System admin accounts cannot be used as tenant operational admins." });
-                }
-
                 var hasAnyTenantMembership = await _dbContext.TenantUsers.AsNoTracking()
                     .AnyAsync(tu => tu.UserId == user.UserId);
                 if (hasAnyTenantMembership)
                 {
                     return Conflict(new { message = "Admin email is already assigned to another tenant." });
                 }
-
-                user.UserType = UserType.TenantOperational;
-                user.UpdatedAt = DateTime.UtcNow;
             }
 
             var tenantUser = new TenantUser
@@ -296,50 +238,16 @@ namespace finrecon360_backend.Controllers.Admin
             await _dbContext.SaveChangesAsync();
             await _tenantUserDirectoryService.UpsertTenantUserAsync(tenant.TenantId, user, TenantUserRole.TenantAdmin);
 
-            string? onboardingLink = null;
-            var emailSent = false;
-            string? emailError = null;
-
             var magicLink = await _magicLinkService.CreateTokenAsync(user.UserId, MagicLinkPurpose.TenantOnboarding, HttpContext.Connection.RemoteIpAddress?.ToString());
             if (magicLink != null)
             {
-                onboardingLink = BuildOnboardingLink(magicLink.Token);
-                if (onboardingLink == null)
-                {
-                    emailError = "FRONTEND_BASE_URL is not configured.";
-                }
-                else
-                {
-                    try
-                    {
-                        await SendMagicLinkEmailAsync(user.Email, onboardingLink);
-                        emailSent = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        emailError = ex.Message;
-                    }
-                }
-            }
-            else
-            {
-                emailError = "Unable to create onboarding token.";
+                await SendMagicLinkEmailAsync(user.Email, magicLink.Token);
             }
 
             await _auditLogger.LogAsync(reviewerId, "TenantRegistrationApproved", "TenantRegistrationRequest", registration.TenantRegistrationRequestId.ToString(), null);
             await _auditLogger.LogAsync(reviewerId, "TenantProvisioned", "Tenant", tenant.TenantId.ToString(), null);
 
-            if (!emailSent)
-            {
-                await _auditLogger.LogAsync(reviewerId, "TenantOnboardingEmailFailed", "TenantRegistrationRequest", registration.TenantRegistrationRequestId.ToString(), emailError);
-            }
-
-            return Ok(new TenantRegistrationApprovalResponse(
-                registration.TenantRegistrationRequestId,
-                user.Email,
-                onboardingLink,
-                emailSent,
-                emailError));
+            return NoContent();
         }
 
         [HttpPost("{requestId:guid}/reject")]
@@ -374,25 +282,21 @@ namespace finrecon360_backend.Controllers.Admin
             return NoContent();
         }
 
-        private string? BuildOnboardingLink(string token)
+        private async Task SendMagicLinkEmailAsync(string email, string token)
         {
             if (string.IsNullOrWhiteSpace(_magicLinkOptions.FrontendBaseUrl))
             {
-                return null;
+                throw new InvalidOperationException("FRONTEND_BASE_URL is not configured.");
             }
-
-            var baseUrl = _magicLinkOptions.FrontendBaseUrl.TrimEnd('/');
-            return $"{baseUrl}/auth/magic-link?purpose={MagicLinkPurpose.TenantOnboarding}&token={token}";
-        }
-
-        private async Task SendMagicLinkEmailAsync(string email, string magicLink)
-        {
 
             var templateId = _brevoOptions.TemplateIdMagicLinkInvite ?? _brevoOptions.TemplateIdMagicLinkVerify;
             if (templateId <= 0)
             {
                 throw new InvalidOperationException("Brevo invite template id is not configured.");
             }
+
+            var baseUrl = _magicLinkOptions.FrontendBaseUrl.TrimEnd('/');
+            var magicLink = $"{baseUrl}/auth/magic-link?purpose={MagicLinkPurpose.TenantOnboarding}&token={token}";
 
             var parameters = new Dictionary<string, object>
             {

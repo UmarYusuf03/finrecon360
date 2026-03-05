@@ -52,7 +52,14 @@ export class AdminRolesComponent implements OnInit {
       name: ['', Validators.required],
       description: [''],
     });
-    this.adminRoleService.getRoles().subscribe((roles) => (this.roles = roles));
+    this.adminRoleService.getRoles().subscribe((roles) => {
+      this.roles = [...roles].sort((left, right) => {
+        if (!!left.isSystem !== !!right.isSystem) {
+          return left.isSystem ? -1 : 1;
+        }
+        return left.name.localeCompare(right.name);
+      });
+    });
   }
 
   openAdd(dialogTemplate: any): void {

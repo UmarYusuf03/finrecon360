@@ -1,0 +1,49 @@
+.admin-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.block {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+
+input {
+  padding: 8px;
+  border: 1px solid #d6d9e4;
+  border-radius: 6px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.primary-btn,
+.warning-btn,
+.danger-btn {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #fff;
+}
+
+.primary-btn {
+  background: #1d2b64;
+}
+
+.warning-btn {
+  background: #c08b2c;
+}
+
+.danger-btn {
+  background: #b83b3b;
+}
+
+.message {
+  color: #1a6b3b;
+}

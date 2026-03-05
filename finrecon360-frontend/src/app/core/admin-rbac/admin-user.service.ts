@@ -11,6 +11,7 @@ interface AdminUserDto {
   email: string;
   displayName: string;
   isActive: boolean;
+  status?: string;
   roles: string[];
 }
 
@@ -18,12 +19,13 @@ interface AdminUserDto {
   providedIn: 'root',
 })
 export class AdminUserService {
-  private readonly usersSubject = new BehaviorSubject<AdminUserSummary[]>([
+  private readonly mockUsers: AdminUserSummary[] = [
     {
       id: 'user-admin',
       email: 'admin@finrecon.local',
       displayName: 'Avery Admin',
       isActive: true,
+      status: 'Active',
       roles: ['ADMIN'],
     },
     {
@@ -31,9 +33,11 @@ export class AdminUserService {
       email: 'user@finrecon.local',
       displayName: 'Alex Accountant',
       isActive: true,
+      status: 'Active',
       roles: ['ACCOUNTANT'],
     },
-  ]);
+  ];
+  private readonly usersSubject = new BehaviorSubject<AdminUserSummary[]>(USE_MOCK_API ? this.mockUsers : []);
   private loaded = false;
 
   constructor(private http: HttpClient) {}
@@ -57,6 +61,7 @@ export class AdminUserService {
         email: payload.email ?? '',
         displayName: payload.displayName ?? 'New User',
         isActive: true,
+        status: 'Active',
         roles: payload.roles ?? [],
       };
       this.usersSubject.next([...this.usersSubject.value, newUser]);
@@ -74,7 +79,11 @@ export class AdminUserService {
       .post<AdminUserDto>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.USERS}`, request)
       .pipe(
         map((dto) => this.mapUser(dto)),
-        tap((user) => this.usersSubject.next([...this.usersSubject.value, user]))
+        tap((user) => {
+          const withoutExisting = this.usersSubject.value.filter((existing) => existing.id !== user.id);
+          this.usersSubject.next([...withoutExisting, user]);
+          this.refreshUsers();
+        })
       );
   }
 
@@ -102,6 +111,7 @@ export class AdminUserService {
             user.id === id ? updated : user
           );
           this.usersSubject.next(updatedList);
+          this.refreshUsers();
         })
       );
   }
@@ -125,6 +135,7 @@ export class AdminUserService {
               user.id === id ? { ...user, roles: roles as AdminUserSummary['roles'] } : user
             )
           );
+          this.refreshUsers();
         })
       );
   }
@@ -148,6 +159,7 @@ export class AdminUserService {
               user.id === id ? { ...user, isActive: false } : user
             )
           );
+          this.refreshUsers();
         })
       );
   }
@@ -171,12 +183,80 @@ export class AdminUserService {
               user.id === id ? { ...user, isActive: true } : user
             )
           );
+          this.refreshUsers();
         })
       );
   }
 
+  suspendUser(tenantId: string, id: string, reason: string): Observable<void> {
+    if (USE_MOCK_API) {
+      this.usersSubject.next(
+        this.usersSubject.value.map((user) =>
+          user.id === id ? { ...user, status: 'Suspended' } : user
+        )
+      );
+      return of(void 0);
+    }
+
+    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.ENFORCEMENT_USERS(tenantId)}/${id}/suspend`, { reason }).pipe(
+      tap(() => {
+        this.usersSubject.next(
+          this.usersSubject.value.map((user) =>
+            user.id === id ? { ...user, status: 'Suspended' } : user
+          )
+        );
+      })
+    );
+  }
+
+  banUser(tenantId: string, id: string, reason: string): Observable<void> {
+    if (USE_MOCK_API) {
+      this.usersSubject.next(
+        this.usersSubject.value.map((user) =>
+          user.id === id ? { ...user, status: 'Banned' } : user
+        )
+      );
+      return of(void 0);
+    }
+
+    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.ENFORCEMENT_USERS(tenantId)}/${id}/ban`, { reason }).pipe(
+      tap(() => {
+        this.usersSubject.next(
+          this.usersSubject.value.map((user) =>
+            user.id === id ? { ...user, status: 'Banned' } : user
+          )
+        );
+      })
+    );
+  }
+
+  reinstateUser(tenantId: string, id: string): Observable<void> {
+    if (USE_MOCK_API) {
+      this.usersSubject.next(
+        this.usersSubject.value.map((user) =>
+          user.id === id ? { ...user, status: 'Active' } : user
+        )
+      );
+      return of(void 0);
+    }
+
+    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.ENFORCEMENT_USERS(tenantId)}/${id}/reinstate`, {}).pipe(
+      tap(() => {
+        this.usersSubject.next(
+          this.usersSubject.value.map((user) =>
+            user.id === id ? { ...user, status: 'Active' } : user
+          )
+        );
+      })
+    );
+  }
+
   private loadUsers(): void {
     this.loaded = true;
+    this.refreshUsers();
+  }
+
+  private refreshUsers(): void {
     this.http
       .get<PagedResult<AdminUserDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.USERS}?page=1&pageSize=100`)
       .pipe(map((result) => result.items.map((dto) => this.mapUser(dto))))
@@ -189,6 +269,7 @@ export class AdminUserService {
       email: dto.email,
       displayName: dto.displayName,
       isActive: dto.isActive,
+      status: dto.status,
       roles: dto.roles,
     };
   }

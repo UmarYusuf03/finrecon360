@@ -34,6 +34,15 @@ namespace finrecon360_backend.Data.Configurations
             builder.Property(u => u.IsActive)
                 .HasDefaultValue(true);
 
+            builder.Property(u => u.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .HasDefaultValue(UserStatus.Active)
+                .HasSentinel(UserStatus.Active);
+
+            builder.Property(u => u.IsSystemAdmin)
+                .HasDefaultValue(false);
+
             builder.Property(u => u.CreatedAt)
                 .HasColumnType("datetime2")
                 .HasDefaultValueSql("SYSUTCDATETIME()");

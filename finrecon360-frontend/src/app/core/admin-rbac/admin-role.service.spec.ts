@@ -15,7 +15,9 @@ describe('AdminRoleService', () => {
   it('seeds initial roles', (done) => {
     service.getRoles().subscribe((roles) => {
       expect(roles.find((r) => r.code === 'ADMIN')).toBeTruthy();
-      expect(roles.find((r) => r.code === 'ACCOUNTANT')).toBeTruthy();
+      expect(roles.find((r) => r.code === 'MANAGER')).toBeTruthy();
+      expect(roles.find((r) => r.code === 'REVIEWER')).toBeTruthy();
+      expect(roles.find((r) => r.code === 'USER')).toBeTruthy();
       done();
     });
   });

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -11,6 +12,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { TranslateModule } from '@ngx-translate/core';
+import { Observable } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 
 import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
 import { AdminUserService } from '../../../core/admin-rbac/admin-user.service';
@@ -39,11 +42,13 @@ import { HasPermissionDirective } from '../../../core/auth/has-permission.direct
   styleUrls: ['./admin-users.scss'],
 })
 export class AdminUsersComponent implements OnInit {
+  private static readonly AdminRoleCode = 'ADMIN';
   displayedColumns = ['name', 'email', 'roles', 'status', 'actions'];
   users: AdminUserSummary[] = [];
   roles: Role[] = [];
   form!: FormGroup;
   editingId: string | null = null;
+  saveError: string | null = null;
 
   constructor(
     private adminUserService: AdminUserService,
@@ -66,12 +71,14 @@ export class AdminUsersComponent implements OnInit {
 
   openAdd(dialogTemplate: any): void {
     this.editingId = null;
+    this.saveError = null;
     this.form.reset({ roles: [] });
     this.dialog.open(dialogTemplate);
   }
 
   openEdit(user: AdminUserSummary, dialogTemplate: any): void {
     this.editingId = user.id;
+    this.saveError = null;
     this.form.patchValue({
       displayName: user.displayName,
       email: user.email,
@@ -86,14 +93,47 @@ export class AdminUsersComponent implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    const payload = this.form.value;
+    this.saveError = null;
+    const payload = this.form.value as {
+      displayName: string;
+      email: string;
+      password?: string;
+      roles: string[];
+    };
+    const selectedRoleCodes = (payload.roles ?? []).map((role) => role.toUpperCase());
+
+    let saveRequest$: Observable<unknown>;
     if (this.editingId) {
-      this.adminUserService.updateUser(this.editingId, payload).subscribe();
-      this.adminUserService.setUserRoles(this.editingId, payload.roles).subscribe();
+      const editingUser = this.users.find((user) => user.id === this.editingId);
+      const wasAdmin = editingUser?.roles.some((role) => role.toUpperCase() === AdminUsersComponent.AdminRoleCode) ?? false;
+      const willBeAdmin = selectedRoleCodes.includes(AdminUsersComponent.AdminRoleCode);
+      if (wasAdmin && !willBeAdmin) {
+        const hasAnotherAdmin = this.users.some(
+          (user) =>
+            user.id !== this.editingId &&
+            user.roles.some((role) => role.toUpperCase() === AdminUsersComponent.AdminRoleCode)
+        );
+        if (!hasAnotherAdmin) {
+          this.saveError = 'Cannot remove ADMIN from the last tenant admin. Assign ADMIN to another user first.';
+          return;
+        }
+      }
+
+      saveRequest$ = this.adminUserService
+        .updateUser(this.editingId, payload)
+        .pipe(switchMap(() => this.adminUserService.setUserRoles(this.editingId!, payload.roles)));
     } else {
-      this.adminUserService.createUser(payload).subscribe();
+      saveRequest$ = this.adminUserService.createUser(payload);
     }
-    this.dialog.closeAll();
+
+    saveRequest$.subscribe({
+      next: () => {
+        this.dialog.closeAll();
+      },
+      error: (error: unknown) => {
+        this.saveError = this.extractErrorMessage(error);
+      },
+    });
   }
 
   toggleActive(user: AdminUserSummary): void {
@@ -102,5 +142,13 @@ export class AdminUsersComponent implements OnInit {
     } else {
       this.adminUserService.reactivateUser(user.id).subscribe();
     }
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const body = error.error as { message?: string } | null;
+      return body?.message ?? `Request failed with status ${error.status}.`;
+    }
+    return 'Request failed.';
   }
 }

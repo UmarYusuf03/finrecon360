@@ -6,5 +6,6 @@ namespace finrecon360_backend.Services
         string? Email { get; }
         bool IsAuthenticated { get; }
         bool IsActive { get; }
+        Models.UserStatus? Status { get; }
     }
 }

@@ -14,11 +14,16 @@ export class AuthInterceptor implements HttpInterceptor {
       return next.handle(req);
     }
 
-    const authReq = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+    };
+
+    const tenantId = this.authService.currentUser?.tenantId;
+    if (tenantId) {
+      headers['X-Tenant-Id'] = tenantId;
+    }
+
+    const authReq = req.clone({ setHeaders: headers });
 
     return next.handle(authReq);
   }

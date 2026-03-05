@@ -6,6 +6,8 @@ using finrecon360_backend.Services;
 using finrecon360_backend.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
 using System.IO;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
@@ -79,6 +82,8 @@ builder.Services.Configure<BrevoOptions>(options =>
     options.SenderEmail = builder.Configuration["BREVO_SENDER_EMAIL"] ?? string.Empty;
     options.SenderName = builder.Configuration["BREVO_SENDER_NAME"] ?? string.Empty;
     options.TemplateIdMagicLinkVerify = builder.Configuration.GetValue<long>("BREVO_TEMPLATE_ID_MAGICLINK_VERIFY");
+    var inviteTemplate = builder.Configuration.GetValue<long?>("BREVO_TEMPLATE_ID_MAGICLINK_INVITE");
+    options.TemplateIdMagicLinkInvite = inviteTemplate is > 0 ? inviteTemplate : null;
     options.TemplateIdMagicLinkReset = builder.Configuration.GetValue<long>("BREVO_TEMPLATE_ID_MAGICLINK_RESET");
     var changeTemplate = builder.Configuration.GetValue<long?>("BREVO_TEMPLATE_ID_MAGICLINK_CHANGE");
     options.TemplateIdMagicLinkChange = changeTemplate is > 0 ? changeTemplate : null;
@@ -92,27 +97,18 @@ builder.Services.Configure<MagicLinkOptions>(options =>
     options.FrontendBaseUrl = builder.Configuration["FRONTEND_BASE_URL"] ?? string.Empty;
 });
 
-<<<<<<< Updated upstream
-=======
 builder.Services.Configure<TenantProvisioningOptions>(options =>
 {
     options.DefaultConnectionString = builder.Configuration["TENANT_DB_TEMPLATE"]
         ?? builder.Configuration["TENANT_DB_DEFAULT"];
 });
 
-builder.Services.Configure<PayHereOptions>(options =>
+builder.Services.Configure<StripeOptions>(options =>
 {
-    options.MerchantId = builder.Configuration["PAYHERE_MERCHANT_ID"] ?? string.Empty;
-    options.MerchantSecret = builder.Configuration["PAYHERE_MERCHANT_SECRET"] ?? string.Empty;
-    var merchantSecretMode = builder.Configuration["PAYHERE_MERCHANT_SECRET_MODE"] ?? "Auto";
-    options.MerchantSecretMode = Enum.TryParse<PayHereMerchantSecretMode>(merchantSecretMode, true, out var parsedMode)
-        ? parsedMode
-        : PayHereMerchantSecretMode.Auto;
-    options.CheckoutBaseUrl = builder.Configuration["PAYHERE_CHECKOUT_BASE_URL"] ?? "https://sandbox.payhere.lk/pay/checkout";
-    options.ReturnUrl = builder.Configuration["PAYHERE_RETURN_URL"] ?? string.Empty;
-    options.CancelUrl = builder.Configuration["PAYHERE_CANCEL_URL"] ?? string.Empty;
-    options.NotifyUrl = builder.Configuration["PAYHERE_NOTIFY_URL"] ?? string.Empty;
-    options.Currency = builder.Configuration["PAYHERE_CURRENCY"] ?? "LKR";
+    options.ApiKey = builder.Configuration["STRIPE_API_KEY"] ?? string.Empty;
+    options.WebhookSecret = builder.Configuration["STRIPE_WEBHOOK_SECRET"] ?? string.Empty;
+    options.SuccessUrl = builder.Configuration["STRIPE_SUCCESS_URL"] ?? string.Empty;
+    options.CancelUrl = builder.Configuration["STRIPE_CANCEL_URL"] ?? string.Empty;
 });
 
 builder.Services.Configure<OnboardingTokenOptions>(options =>
@@ -121,7 +117,6 @@ builder.Services.Configure<OnboardingTokenOptions>(options =>
     options.Audience = builder.Configuration["ONBOARDING_TOKEN_AUDIENCE"] ?? "onboarding";
     options.ExpiresMinutes = builder.Configuration.GetValue<int>("ONBOARDING_TOKEN_EXPIRES_MINUTES", 20);
 });
->>>>>>> Stashed changes
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, UserContext>();
@@ -129,8 +124,6 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IMagicLinkService, MagicLinkService>();
 builder.Services.AddScoped<IAuditLogger, AuditLogger>();
 builder.Services.AddSingleton<IPasswordHasher, Sha256PasswordHasher>();
-<<<<<<< Updated upstream
-=======
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<ITenantProvisioner, DefaultTenantProvisioner>();
 builder.Services.AddScoped<ITenantDbProtector, TenantDbProtector>();
@@ -141,23 +134,10 @@ builder.Services.AddScoped<ITenantUserDirectoryService, TenantUserDirectoryServi
 builder.Services.AddScoped<ISystemEnforcementService, SystemEnforcementService>();
 builder.Services.AddScoped<IOnboardingTokenService, OnboardingTokenService>();
 builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkService>();
-builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
-builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
-builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
-builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
-builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
-builder.Services.AddSingleton<IReconciliationOrchestrator, ReconciliationOrchestrator>();
-builder.Services.AddScoped<IReconciliationExecutionService, ReconciliationExecutionService>();
-builder.Services.AddScoped<BankAccountService>();
-builder.Services.AddScoped<TransactionService>();
-builder.Services.AddScoped<IBankStatementReconciliationWorker, BankStatementReconciliationWorker>();
-builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
-builder.Services.AddHostedService<BankReconciliationHostedService>();
-builder.Services.AddHostedService<JournalPostingHostedService>();
+builder.Services.AddScoped<IStripeCheckoutService, StripeCheckoutService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
->>>>>>> Stashed changes
 
 builder.Services.AddControllers();
 
@@ -189,6 +169,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    var adminPermitLimit = builder.Configuration.GetValue<int>("RATE_LIMIT_ADMIN_PER_MINUTE", 120);
     options.AddPolicy("admin", context =>
     {
         var key = context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -197,7 +178,7 @@ builder.Services.AddRateLimiter(options =>
             ?? "anonymous";
         return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 10,
+            PermitLimit = adminPermitLimit,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst
@@ -261,13 +242,48 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddMemoryCache();
-
 // 4. Authentication & Authorization
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtKey = jwtSection["Key"]!;
+var jwtKey = jwtSection["Key"];
 var jwtIssuer = jwtSection["Issuer"];
 var jwtAudience = jwtSection["Audience"];
+var isTesting = builder.Environment.IsEnvironment("Testing");
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (isTesting)
+    {
+        jwtKey = "test-signing-key-should-be-long-32chars";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Key is not configured.");
+    }
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    if (isTesting)
+    {
+        jwtIssuer = "test-issuer";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Issuer is not configured.");
+    }
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    if (isTesting)
+    {
+        jwtAudience = "test-audience";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Audience is not configured.");
+    }
+}
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -275,14 +291,60 @@ builder.Services
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateIssuerSigningKey = true,
+            ValidateIssuer = !isTesting,
+            ValidateAudience = !isTesting,
+            ValidateIssuerSigningKey = !isTesting,
             ValidateLifetime = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
+            ValidIssuer = isTesting ? null : jwtIssuer,
+            ValidAudience = isTesting ? null : jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ClockSkew = TimeSpan.FromSeconds(30) // small tolerance
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userIdValue = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                    ?? context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!Guid.TryParse(userIdValue, out var userId))
+                {
+                    context.Fail("Invalid token subject.");
+                    return;
+                }
+
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
+                if (user == null || !user.IsActive || user.Status == UserStatus.Suspended || user.Status == UserStatus.Banned)
+                {
+                    context.Fail("User is not active.");
+                    return;
+                }
+
+                var path = context.HttpContext.Request.Path.Value ?? string.Empty;
+                if (path.StartsWith("/api/admin", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/api/system", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/api/public", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/api/onboarding", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/api/webhooks", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/api/me", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                var tenantContext = context.HttpContext.RequestServices.GetRequiredService<ITenantContext>();
+                var tenant = await tenantContext.ResolveAsync();
+                if (tenant == null)
+                {
+                    context.Fail("Tenant context is missing.");
+                    return;
+                }
+
+                if (tenant.Status != TenantStatus.Active)
+                {
+                    context.Fail("Tenant is not active.");
+                }
+            }
         };
     });
 
@@ -313,13 +375,35 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async context =>
     {
+        var exceptionFeature = context.Features.Get<IExceptionHandlerFeature>();
+        var loggerFactory = context.RequestServices.GetRequiredService<ILoggerFactory>();
+        var logger = loggerFactory.CreateLogger("GlobalExceptionHandler");
+        if (exceptionFeature?.Error is not null)
+        {
+            logger.LogError(exceptionFeature.Error, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
+        }
+
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        if (app.Environment.IsDevelopment())
+        {
+            await context.Response.WriteAsJsonAsync(new
+            {
+                message = "An unexpected error occurred.",
+                detail = exceptionFeature?.Error?.Message,
+                path = context.Request.Path.Value
+            });
+            return;
+        }
+
         await context.Response.WriteAsJsonAsync(new { message = "An unexpected error occurred." });
     });
 });
@@ -377,7 +461,8 @@ app.MapPost("/api/auth/register", async (
         PasswordHash = passwordHasher.Hash(request.Password),
         CreatedAt = DateTime.UtcNow,
         EmailConfirmed = false,
-        IsActive = true
+        IsActive = true,
+        Status = UserStatus.Active
     };
 
     db.Users.Add(user);
@@ -413,7 +498,7 @@ app.MapPost("/api/auth/login", async (
     var user = await db.Users
         .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-    if (user is null || !user.IsActive || !passwordHasher.Verify(request.Password, user.PasswordHash))
+    if (user is null || !user.IsActive || user.Status != UserStatus.Active || !passwordHasher.Verify(request.Password, user.PasswordHash))
     {
         return Results.BadRequest(new { message = "Invalid email or password." });
     }

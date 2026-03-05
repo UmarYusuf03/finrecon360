@@ -1,0 +1,59 @@
+.admin-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #e2e6ef;
+}
+
+.plan-form {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+}
+
+.plan-form input {
+  padding: 8px;
+  border: 1px solid #d6d9e4;
+  border-radius: 6px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.primary-btn,
+.danger-btn,
+.ghost-btn {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: #1d2b64;
+  color: #fff;
+}
+
+.danger-btn {
+  background: #b83b3b;
+  color: #fff;
+}
+
+.ghost-btn {
+  background: #e8eaf1;
+}

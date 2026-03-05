@@ -1,0 +1,14 @@
+namespace finrecon360_backend.Models
+{
+    public class TenantPermission
+    {
+        public Guid PermissionId { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? Module { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public ICollection<TenantRolePermission> RolePermissions { get; set; } = new List<TenantRolePermission>();
+    }
+}

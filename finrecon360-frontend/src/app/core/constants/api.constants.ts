@@ -31,6 +31,15 @@ export const API_ENDPOINTS = {
     REQUEST_CHANGE_PASSWORD_LINK: '/api/auth/request-change-password-link',
     CONFIRM_CHANGE_PASSWORD_LINK: '/api/auth/confirm-change-password-link',
   },
+  PUBLIC: {
+    TENANT_REGISTRATIONS: '/api/public/tenant-registrations',
+    PLANS: '/api/public/plans',
+  },
+  ONBOARDING: {
+    VERIFY_MAGIC_LINK: '/api/onboarding/magic-link/verify',
+    SET_PASSWORD: '/api/onboarding/set-password',
+    CHECKOUT: '/api/onboarding/subscriptions/checkout',
+  },
   ME: '/api/me',
   USERS: {
     BASE: '/api/users',
@@ -75,6 +84,12 @@ export const API_ENDPOINTS = {
     ACTIONS: '/api/admin/actions',
     COMPONENTS: '/api/admin/components',
     USERS: '/api/admin/users',
+    TENANT_REGISTRATIONS: '/api/admin/tenant-registrations',
+    TENANTS: '/api/admin/tenants',
+    PLANS: '/api/admin/plans',
+  },
+  SYSTEM: {
+    ENFORCEMENT_USERS: (tenantId: string) => `/api/system/enforcement/tenants/${tenantId}/users`,
   },
 } as const;
 

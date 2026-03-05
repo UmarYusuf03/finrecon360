@@ -2,7 +2,7 @@
   <nav mat-tab-nav-bar backgroundColor="primary" color="primary">
     <a
       mat-tab-link
-      *ngFor="let link of links"
+      *ngFor="let link of visibleLinks$ | async"
       [routerLink]="link.path"
       routerLinkActive="active-link"
       [routerLinkActiveOptions]="{ exact: true }"

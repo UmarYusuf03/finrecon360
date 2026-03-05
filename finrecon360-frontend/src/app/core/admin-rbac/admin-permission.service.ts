@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, forkJoin } from 'rxjs';
-import { map, take } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of, forkJoin } from 'rxjs';
+import { filter, map, take } from 'rxjs/operators';
 
 import { API_BASE_URL, API_ENDPOINTS, USE_MOCK_API } from '../constants/api.constants';
 import { ActionDefinition, AppComponentResource, PermissionAssignment, PagedResult } from './models';
@@ -50,9 +50,17 @@ export class AdminPermissionService {
   private readonly componentPrefixOverrides: Record<string, string> = {
     USER_MGMT: 'ADMIN.USERS',
     ROLE_MGMT: 'ADMIN.ROLES',
+    COMPONENT_MGMT: 'ADMIN.COMPONENTS',
     PERMISSION_MGMT: 'ADMIN.PERMISSIONS',
     DASHBOARD: 'ADMIN.DASHBOARD',
+    TENANT_REG_MGMT: 'ADMIN.TENANT_REGISTRATIONS',
+    TENANT_MGMT: 'ADMIN.TENANTS',
+    PLAN_MGMT: 'ADMIN.PLANS',
+    ENFORCEMENT_MGMT: 'ADMIN.ENFORCEMENT',
   };
+
+  private readonly actionsSubject = new BehaviorSubject<ActionDefinition[]>([]);
+  private actionsLoaded = false;
 
   constructor(private http: HttpClient, private componentService: AdminComponentService) {}
 
@@ -61,20 +69,26 @@ export class AdminPermissionService {
       return of(this.actions);
     }
 
-    return this.http
-      .get<PagedResult<ActionDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ACTIONS}?page=1&pageSize=100`)
-      .pipe(
-        map((result) =>
-          result.items
-            .filter((action) => action.isActive)
-            .map((action) => ({
-              id: action.id,
-              code: action.code,
-              name: action.name,
-              description: action.description ?? undefined,
-            }))
+    if (!this.actionsLoaded) {
+      this.actionsLoaded = true;
+      this.http
+        .get<PagedResult<ActionDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ACTIONS}?page=1&pageSize=100`)
+        .pipe(
+          map((result) =>
+            result.items
+              .filter((action) => action.isActive)
+              .map((action) => ({
+                id: action.id,
+                code: action.code,
+                name: action.name,
+                description: action.description ?? undefined,
+              }))
+          )
         )
-      );
+        .subscribe((actions) => this.actionsSubject.next(actions));
+    }
+
+    return this.actionsSubject.asObservable();
   }
 
   getRoleAssignments(roleId: string): Observable<PermissionAssignment[]> {
@@ -84,14 +98,34 @@ export class AdminPermissionService {
 
     return forkJoin({
       components: this.componentService.getComponents().pipe(
+        filter((components) => components.length > 0),
         take(1),
-        map((components) => components.filter((c) => c.isActive))
+        map((components) => components.filter((component) => component.isActive))
       ),
-      actions: this.getActions().pipe(take(1)),
+      actions: this.getActions().pipe(
+        filter((actions) => actions.length > 0),
+        take(1)
+      ),
       role: this.http.get<RoleDetailDto>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}/${roleId}`),
     }).pipe(
       map(({ components, actions, role }) => this.buildAssignments(role.permissions, components, actions, roleId))
     );
+  }
+
+  getAvailablePermissionCodes(): Observable<Set<string>> {
+    if (USE_MOCK_API) {
+      const codes = new Set<string>();
+      Object.values(this.componentPrefixOverrides).forEach((prefix) => {
+        this.actions.forEach((action) => {
+          codes.add(`${prefix}.${action.code}`);
+        });
+      });
+      return of(codes);
+    }
+
+    return this.http
+      .get<PagedResult<PermissionDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.PERMISSIONS}?page=1&pageSize=500`)
+      .pipe(map((result) => new Set(result.items.map((permission) => permission.code))));
   }
 
   getPermissionCodeForComponent(componentCode: string, actionCode: string): string {

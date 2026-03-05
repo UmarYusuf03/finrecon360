@@ -1,0 +1,41 @@
+<section class="admin-card">
+  <div class="header">
+    <h2>Tenants</h2>
+  </div>
+
+  <div class="layout">
+    <div class="list">
+      <div *ngIf="loading">Loading...</div>
+      <ul *ngIf="!loading">
+        <li *ngFor="let tenant of tenants" (click)="selectTenant(tenant)" [class.active]="selected?.id === tenant.id">
+          <div class="name">{{ tenant.name }}</div>
+          <div class="meta">{{ tenant.status }}</div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="detail" *ngIf="selected">
+      <h3>{{ selected.name }}</h3>
+      <p>Status: <strong>{{ selected.status }}</strong></p>
+      <p *ngIf="selected.currentSubscription">
+        Plan: {{ selected.currentSubscription.planName }} ({{ selected.currentSubscription.status }})
+      </p>
+
+      <div class="admin-box">
+        <label>Tenant Admins (comma separated emails)</label>
+        <textarea [(ngModel)]="adminEmails" rows="3"></textarea>
+        <button class="primary-btn" (click)="saveAdmins()">Update Admins</button>
+      </div>
+
+      <div class="enforcement">
+        <label>Enforcement Reason</label>
+        <input [(ngModel)]="enforcementReason" placeholder="Reason" />
+        <div class="actions">
+          <button class="warning-btn" (click)="suspend()">Suspend</button>
+          <button class="danger-btn" (click)="ban()">Ban</button>
+          <button class="primary-btn" (click)="reinstate()">Reinstate</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -33,6 +33,18 @@ import { LanguageSwitcherComponent } from '../../../shared/components/language-s
   styleUrls: ['./shell.scss'],
 })
 export class ShellComponent implements OnInit, OnDestroy {
+  readonly adminEntryPermissions: string[] = [
+    'ADMIN.DASHBOARD.VIEW',
+    'ADMIN.USERS.VIEW',
+    'ADMIN.ROLES.VIEW',
+    'ADMIN.COMPONENTS.VIEW',
+    'ADMIN.PERMISSIONS.VIEW',
+    'ADMIN.TENANT_REGISTRATIONS.MANAGE',
+    'ADMIN.TENANTS.MANAGE',
+    'ADMIN.PLANS.MANAGE',
+    'ADMIN.ENFORCEMENT.MANAGE',
+  ];
+
   user$: Observable<CurrentUser | null>;
   profileImageUrl: string | null = null;
 
@@ -84,6 +96,14 @@ export class ShellComponent implements OnInit, OnDestroy {
   logout(): void {
     this.authService.logout();
     this.router.navigateByUrl('/auth/login');
+  }
+
+  hasAnyPermission(user: CurrentUser | null, permissions: string[]): boolean {
+    if (!user) {
+      return false;
+    }
+
+    return permissions.some((permission) => user.permissions.includes(permission));
   }
 
   private loadProfileImage(): void {

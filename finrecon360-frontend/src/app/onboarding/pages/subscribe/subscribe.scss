@@ -1,0 +1,67 @@
+.onboarding-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8f3e7, #eef3ff);
+  padding: 24px;
+}
+
+.onboarding-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 900px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(20, 23, 38, 0.1);
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.subtitle {
+  margin: 0 0 24px;
+  color: #4a4f61;
+}
+
+.plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.plan {
+  border: 1px solid #e0e3eb;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.price {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.meta {
+  color: #60667a;
+}
+
+.primary-btn {
+  margin-top: auto;
+  background: #1d2b64;
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.loading,
+.error {
+  padding: 16px 0;
+  color: #a04b4b;
+}

@@ -5,5 +5,6 @@ namespace finrecon360_backend.Services
         public const string EmailVerify = "EmailVerify";
         public const string PasswordReset = "PasswordReset";
         public const string ChangePassword = "ChangePassword";
+        public const string TenantOnboarding = "TenantOnboarding";
     }
 }
