@@ -77,7 +77,7 @@ namespace finrecon360_backend.Controllers
             var email = request.Email.Trim();
             var user = await _dbContext.Users
                 .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
+                .FirstOrDefaultAsync(u => u.Email == email && u.IsActive && u.Status == Models.UserStatus.Active);
 
             if (user != null)
             {
@@ -104,7 +104,7 @@ namespace finrecon360_backend.Controllers
             }
 
             var user = await ResolveUserAsync(consumeResult.UserId, consumeResult.Email);
-            if (user == null || !user.IsActive)
+            if (user == null || !user.IsActive || user.Status != Models.UserStatus.Active)
             {
                 return BadRequest(new { message = "Invalid or expired token." });
             }
@@ -130,7 +130,7 @@ namespace finrecon360_backend.Controllers
             }
 
             var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
-            if (user == null || !user.IsActive)
+            if (user == null || !user.IsActive || user.Status != Models.UserStatus.Active)
             {
                 return Ok(new { message = "If an account exists, a link was sent." });
             }
@@ -157,7 +157,7 @@ namespace finrecon360_backend.Controllers
             }
 
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
-            if (user == null || !user.IsActive)
+            if (user == null || !user.IsActive || user.Status != Models.UserStatus.Active)
             {
                 return BadRequest(new { message = "Invalid credentials." });
             }

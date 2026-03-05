@@ -102,6 +102,22 @@ describe('AdminUsersComponent', () => {
     expect(userSpy.setUserRoles).toHaveBeenCalledWith('u1', ['ADMIN']);
   });
 
+  it('blocks removing ADMIN from the last tenant admin', () => {
+    component.editingId = 'u1';
+    component.form.setValue({
+      displayName: 'Admin',
+      email: 'admin@finrecon.local',
+      password: '',
+      roles: ['USER'],
+    });
+
+    component.save();
+
+    expect(component.saveError).toContain('Cannot remove ADMIN from the last tenant admin');
+    expect(userSpy.updateUser).not.toHaveBeenCalled();
+    expect(userSpy.setUserRoles).not.toHaveBeenCalled();
+  });
+
   it('deactivates user', () => {
     component.toggleActive(users[0]);
     expect(userSpy.deactivateUser).toHaveBeenCalled();

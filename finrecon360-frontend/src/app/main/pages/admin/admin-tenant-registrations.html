@@ -1,0 +1,39 @@
+<section class="admin-card">
+  <div class="header">
+    <h2>Tenant Registrations</h2>
+    <div class="filters">
+      <label>Status:</label>
+      <select [(ngModel)]="statusFilter" (change)="load()">
+        <option value="PENDING_REVIEW">Pending</option>
+        <option value="APPROVED">Approved</option>
+        <option value="REJECTED">Rejected</option>
+      </select>
+    </div>
+  </div>
+
+  <div *ngIf="loading">Loading...</div>
+
+  <table *ngIf="!loading">
+    <thead>
+      <tr>
+        <th>Business</th>
+        <th>Admin Email</th>
+        <th>Status</th>
+        <th>Submitted</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let reg of registrations">
+        <td>{{ reg.businessName }}</td>
+        <td>{{ reg.adminEmail }}</td>
+        <td>{{ reg.status }}</td>
+        <td>{{ reg.submittedAt | date: 'short' }}</td>
+        <td class="actions" *ngIf="reg.status === 'PENDING_REVIEW'">
+          <button class="primary-btn" (click)="approve(reg)">Approve</button>
+          <button class="danger-btn" (click)="reject(reg)">Reject</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>

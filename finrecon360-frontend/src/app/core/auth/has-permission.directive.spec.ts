@@ -64,4 +64,18 @@ describe('HasPermissionDirective', () => {
     expect(fixture.nativeElement.querySelector('#single')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('#multi')).toBeNull();
   });
+
+  it('renders when manage permission is present for the same component', () => {
+    currentUser$.next({
+      id: '1',
+      email: 'a',
+      displayName: 'User',
+      roles: [],
+      permissions: ['MATCHER.MANAGE', 'BALANCER.MANAGE'],
+      token: 't',
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#single')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('#multi')).toBeTruthy();
+  });
 });

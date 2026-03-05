@@ -20,7 +20,7 @@ interface ComponentDto {
   providedIn: 'root',
 })
 export class AdminComponentService {
-  private readonly componentsSubject = new BehaviorSubject<AppComponentResource[]>([
+  private readonly mockComponents: AppComponentResource[] = [
     { id: 'cmp-dashboard', code: 'DASHBOARD', name: 'Dashboard', routePath: '/app/dashboard', category: 'Analytics', description: 'Landing overview', isActive: true },
     { id: 'cmp-matcher', code: 'MATCHER', name: 'Matcher', routePath: '/app/matcher', category: 'Reconciliation', isActive: true },
     { id: 'cmp-balancer', code: 'BALANCER', name: 'Balancer', routePath: '/app/balancer', category: 'Reconciliation', isActive: true },
@@ -29,8 +29,10 @@ export class AdminComponentService {
     { id: 'cmp-analytics', code: 'ANALYTICS', name: 'Analytics', routePath: '/app/analytics', category: 'Analytics', isActive: true },
     { id: 'cmp-users', code: 'USER_MGMT', name: 'User Management', routePath: '/app/admin/users', category: 'Admin', isActive: true },
     { id: 'cmp-roles', code: 'ROLE_MGMT', name: 'Role Management', routePath: '/app/admin/roles', category: 'Admin', isActive: true },
+    { id: 'cmp-components', code: 'COMPONENT_MGMT', name: 'Component Management', routePath: '/app/admin/components', category: 'Admin', isActive: true },
     { id: 'cmp-perm', code: 'PERMISSION_MGMT', name: 'Permission Management', routePath: '/app/admin/permissions', category: 'Admin', isActive: true },
-  ]);
+  ];
+  private readonly componentsSubject = new BehaviorSubject<AppComponentResource[]>(USE_MOCK_API ? this.mockComponents : []);
   private loaded = false;
 
   constructor(private http: HttpClient) {}

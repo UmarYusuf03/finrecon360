@@ -190,4 +190,291 @@ public class AuthIntegrationTests : IClassFixture<TestWebApplicationFactory>
         Assert.True(permissions.HasValue);
         Assert.Contains("ADMIN.USERS.MANAGE", permissions.Value.EnumerateArray().Select(p => p.GetString()));
     }
+
+    [Fact]
+    public async Task Tenant_admin_cannot_create_user_when_plan_limit_reached()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var actor = new User
+        {
+            UserId = Guid.NewGuid(),
+            Email = "tenantadmin@test.local",
+            FirstName = "Tenant",
+            LastName = "Admin",
+            Country = "US",
+            Gender = "male",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true,
+            Status = UserStatus.Active
+        };
+
+        var role = new Role
+        {
+            RoleId = Guid.NewGuid(),
+            Code = "TENANT_ADMIN",
+            Name = "Tenant Admin",
+            IsSystem = false,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var permission = new Permission
+        {
+            PermissionId = Guid.NewGuid(),
+            Code = "USER_MANAGEMENT",
+            Name = "User Management",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var tenant = new Tenant
+        {
+            TenantId = Guid.NewGuid(),
+            Name = "Tenant A",
+            Status = TenantStatus.Active,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var plan = new Plan
+        {
+            PlanId = Guid.NewGuid(),
+            Code = "LIMIT1",
+            Name = "Limit 1",
+            DurationDays = 30,
+            MaxAccounts = 1,
+            PriceCents = 0,
+            Currency = "USD",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var sub = new Subscription
+        {
+            SubscriptionId = Guid.NewGuid(),
+            TenantId = tenant.TenantId,
+            PlanId = plan.PlanId,
+            Status = SubscriptionStatus.Active,
+            CurrentPeriodStart = DateTime.UtcNow,
+            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
+            CreatedAt = DateTime.UtcNow
+        };
+        tenant.CurrentSubscriptionId = sub.SubscriptionId;
+
+        db.Users.Add(actor);
+        db.Roles.Add(role);
+        db.Permissions.Add(permission);
+        db.Tenants.Add(tenant);
+        db.Plans.Add(plan);
+        db.Subscriptions.Add(sub);
+        db.UserRoles.Add(new UserRole { UserId = actor.UserId, RoleId = role.RoleId, AssignedAt = DateTime.UtcNow });
+        db.RolePermissions.Add(new RolePermission { RoleId = role.RoleId, PermissionId = permission.PermissionId, GrantedAt = DateTime.UtcNow });
+        db.TenantUsers.Add(new TenantUser
+        {
+            TenantUserId = Guid.NewGuid(),
+            TenantId = tenant.TenantId,
+            UserId = actor.UserId,
+            Role = TenantUserRole.TenantAdmin,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await db.SaveChangesAsync();
+
+        using var client = TestWebApplicationFactory.CreateAuthenticatedClient(_factory, actor.UserId, actor.Email);
+        client.DefaultRequestHeaders.Add("X-Tenant-Id", tenant.TenantId.ToString());
+
+        var payload = new
+        {
+            email = "newmember@test.local",
+            displayName = "New Member",
+            password = "Password123!",
+            roleCodes = new[] { "TENANT_ADMIN" }
+        };
+
+        var response = await client.PostAsJsonAsync("/api/admin/users", payload);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Tenant_admin_cannot_access_system_user_enforcement_endpoint()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var tenant = new Tenant
+        {
+            TenantId = Guid.NewGuid(),
+            Name = "Tenant X",
+            Status = TenantStatus.Active,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var actor = new User
+        {
+            UserId = Guid.NewGuid(),
+            Email = "tenantadmin-enforce@test.local",
+            FirstName = "Tenant",
+            LastName = "Admin",
+            Country = "US",
+            Gender = "male",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true,
+            Status = UserStatus.Active
+        };
+
+        var target = new User
+        {
+            UserId = Guid.NewGuid(),
+            Email = "target@test.local",
+            FirstName = "Target",
+            LastName = "User",
+            Country = "US",
+            Gender = "male",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true,
+            Status = UserStatus.Active
+        };
+
+        db.Tenants.Add(tenant);
+        db.Users.AddRange(actor, target);
+        db.TenantUsers.Add(new TenantUser
+        {
+            TenantUserId = Guid.NewGuid(),
+            TenantId = tenant.TenantId,
+            UserId = actor.UserId,
+            Role = TenantUserRole.TenantAdmin,
+            CreatedAt = DateTime.UtcNow
+        });
+        db.TenantUsers.Add(new TenantUser
+        {
+            TenantUserId = Guid.NewGuid(),
+            TenantId = tenant.TenantId,
+            UserId = target.UserId,
+            Role = TenantUserRole.TenantUser,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        using var client = TestWebApplicationFactory.CreateAuthenticatedClient(_factory, actor.UserId, actor.Email);
+        var response = await client.PostAsJsonAsync($"/api/system/enforcement/tenants/{tenant.TenantId}/users/{target.UserId}/suspend", new { reason = "test" });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task System_admin_can_suspend_ban_and_reinstate_user_via_enforcement_endpoint()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var tenant = new Tenant
+        {
+            TenantId = Guid.NewGuid(),
+            Name = "Tenant Y",
+            Status = TenantStatus.Active,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var systemAdmin = new User
+        {
+            UserId = Guid.NewGuid(),
+            Email = "sysadmin-enforce@test.local",
+            FirstName = "System",
+            LastName = "Admin",
+            Country = "US",
+            Gender = "male",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true,
+            IsSystemAdmin = true,
+            Status = UserStatus.Active
+        };
+
+        var target = new User
+        {
+            UserId = Guid.NewGuid(),
+            Email = "target2@test.local",
+            FirstName = "Target",
+            LastName = "Two",
+            Country = "US",
+            Gender = "male",
+            PasswordHash = "hash",
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true,
+            Status = UserStatus.Active
+        };
+
+        var role = new Role
+        {
+            RoleId = Guid.NewGuid(),
+            Code = "SYS_ENFORCER",
+            Name = "System Enforcer",
+            IsSystem = true,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var permission = new Permission
+        {
+            PermissionId = Guid.NewGuid(),
+            Code = "ADMIN.ENFORCEMENT.MANAGE",
+            Name = "Enforcement",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Tenants.Add(tenant);
+        db.Users.AddRange(systemAdmin, target);
+        db.Roles.Add(role);
+        db.Permissions.Add(permission);
+        db.UserRoles.Add(new UserRole { UserId = systemAdmin.UserId, RoleId = role.RoleId, AssignedAt = DateTime.UtcNow });
+        db.RolePermissions.Add(new RolePermission { RoleId = role.RoleId, PermissionId = permission.PermissionId, GrantedAt = DateTime.UtcNow });
+        db.TenantUsers.Add(new TenantUser
+        {
+            TenantUserId = Guid.NewGuid(),
+            TenantId = tenant.TenantId,
+            UserId = target.UserId,
+            Role = TenantUserRole.TenantUser,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        using var client = TestWebApplicationFactory.CreateAuthenticatedClient(_factory, systemAdmin.UserId, systemAdmin.Email);
+
+        var suspend = await client.PostAsJsonAsync($"/api/system/enforcement/tenants/{tenant.TenantId}/users/{target.UserId}/suspend", new { reason = "policy" });
+        Assert.Equal(HttpStatusCode.NoContent, suspend.StatusCode);
+
+        var ban = await client.PostAsJsonAsync($"/api/system/enforcement/tenants/{tenant.TenantId}/users/{target.UserId}/ban", new { reason = "fraud" });
+        Assert.Equal(HttpStatusCode.NoContent, ban.StatusCode);
+
+        using (var checkScope = _factory.Services.CreateScope())
+        {
+            var checkDb = checkScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var updated = await checkDb.Users.AsNoTracking().FirstAsync(u => u.UserId == target.UserId);
+            Assert.Equal(UserStatus.Banned, updated.Status);
+
+            var enforcementCount = await checkDb.EnforcementActions.CountAsync(e =>
+                e.TargetType == EnforcementTargetType.User &&
+                e.TargetId == target.UserId);
+            Assert.Equal(2, enforcementCount);
+        }
+
+        using (var prepScope = _factory.Services.CreateScope())
+        {
+            var prepDb = prepScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var user = await prepDb.Users.FirstAsync(u => u.UserId == target.UserId);
+            user.Status = UserStatus.Suspended;
+            await prepDb.SaveChangesAsync();
+        }
+
+        var reinstate = await client.PostAsync($"/api/system/enforcement/tenants/{tenant.TenantId}/users/{target.UserId}/reinstate", null);
+        Assert.Equal(HttpStatusCode.NoContent, reinstate.StatusCode);
+
+        using var finalScope = _factory.Services.CreateScope();
+        var finalDb = finalScope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var reinstated = await finalDb.Users.AsNoTracking().FirstAsync(u => u.UserId == target.UserId);
+        Assert.Equal(UserStatus.Active, reinstated.Status);
+    }
 }

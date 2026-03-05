@@ -24,7 +24,7 @@
         routerLink="/app/admin"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: false }"
-        *appHasPermission="'ADMIN.DASHBOARD.VIEW'"
+        *ngIf="hasAnyPermission((user$ | async), adminEntryPermissions)"
       >
         {{ 'NAV.ADMIN' | translate }}
       </a>

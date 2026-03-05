@@ -5,6 +5,7 @@ namespace finrecon360_backend.Dtos.Admin
         string Email,
         string DisplayName,
         bool IsActive,
+        string Status,
         IReadOnlyList<string> Roles);
 
     public record AdminUserDetailDto(
@@ -12,6 +13,7 @@ namespace finrecon360_backend.Dtos.Admin
         string Email,
         string DisplayName,
         bool IsActive,
+        string Status,
         IReadOnlyList<RoleSummaryDto> Roles);
 
     public class AdminUserCreateRequest

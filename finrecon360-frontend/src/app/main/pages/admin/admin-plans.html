@@ -1,0 +1,50 @@
+<section class="admin-card">
+  <div class="header">
+    <h2>Subscription Plans</h2>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Duration</th>
+        <th>Max Accounts</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let plan of plans">
+        <td>{{ plan.code }}</td>
+        <td>{{ plan.name }}</td>
+        <td>{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</td>
+        <td>{{ plan.durationDays }} days</td>
+        <td>{{ plan.maxAccounts }}</td>
+        <td>{{ plan.isActive ? 'Active' : 'Inactive' }}</td>
+        <td class="actions">
+          <button class="primary-btn" (click)="edit(plan)">Edit</button>
+          <button class="danger-btn" *ngIf="plan.isActive" (click)="deactivate(plan)">Deactivate</button>
+          <button class="primary-btn" *ngIf="!plan.isActive" (click)="activate(plan)">Activate</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <form [formGroup]="form" class="plan-form">
+    <h3>{{ editingId ? 'Edit Plan' : 'New Plan' }}</h3>
+    <input formControlName="code" placeholder="Code" />
+    <input formControlName="name" placeholder="Name" />
+    <input type="number" formControlName="priceCents" placeholder="Price (cents)" />
+    <input formControlName="currency" placeholder="Currency" />
+    <input type="number" formControlName="durationDays" placeholder="Duration (days)" />
+    <input type="number" formControlName="maxAccounts" placeholder="Max accounts" />
+    <div class="actions">
+      <button class="primary-btn" type="button" (click)="save()">
+        {{ editingId ? 'Update' : 'Create' }}
+      </button>
+      <button class="ghost-btn" type="button" (click)="reset()">Clear</button>
+    </div>
+  </form>
+</section>

@@ -39,6 +39,7 @@ export interface AdminUserSummary {
   email: string;
   displayName: string;
   isActive: boolean;
+  status?: string;
   roles: RoleCode[];
 }
 

@@ -250,6 +250,8 @@
       "ROLE": "කාර්යභාරය",
       "COMPONENT": "මොඩියුලය",
       "ACTIONS": "ක්‍රියා",
+      "NO_CHANGES": "සුරැකීමට වෙනස්කම් නොමැත.",
+      "CONFIRM_SAVE": "මෙම කාර්යභාරයට අවසර වෙනස්කම් සුරකින්නද?",
       "NONE": "නොමැත"
     },
     "USERS": {
@@ -268,6 +270,18 @@
       "CANCEL": "අවලංගු කරන්න",
       "EMAIL_INVALID": "වලංගු විද්‍යුත් තැපෑලක් ඇතුළත් කරන්න",
       "REQUIRED": "මෙම ක්ෂේත්‍රය අවශ්‍යයි"
+    },
+    "TENANT_REGISTRATIONS": {
+      "TITLE": "Tenant Registrations"
+    },
+    "TENANTS": {
+      "TITLE": "Tenants"
+    },
+    "PLANS": {
+      "TITLE": "Subscription Plans"
+    },
+    "ENFORCEMENT": {
+      "TITLE": "Enforcement"
     }
   }
 }

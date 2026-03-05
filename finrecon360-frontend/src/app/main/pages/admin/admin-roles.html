@@ -7,7 +7,7 @@
     <button
       mat-flat-button
       color="primary"
-      *appHasPermission="'ADMIN.ROLES.MANAGE'"
+      *appHasPermission="'ADMIN.ROLES.CREATE'"
       (click)="openAdd(roleDialog)"
     >
       {{ 'ADMIN.ROLES.ADD' | translate }}
@@ -51,7 +51,7 @@
       <td mat-cell *matCellDef="let role" class="roles__actions">
         <button
           mat-icon-button
-          *appHasPermission="'ADMIN.ROLES.MANAGE'"
+          *appHasPermission="'ADMIN.ROLES.EDIT'"
           (click)="openEdit(role, roleDialog)"
         >
           <mat-icon>edit</mat-icon>
@@ -59,7 +59,7 @@
 
         <button
           mat-icon-button
-          *appHasPermission="'ADMIN.ROLES.MANAGE'"
+          *appHasPermission="'ADMIN.ROLES.DELETE'"
           (click)="role.isActive ? deactivate(role) : reactivate(role)"
           [disabled]="role.isSystem"
         >

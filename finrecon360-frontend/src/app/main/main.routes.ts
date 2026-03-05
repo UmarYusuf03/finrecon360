@@ -23,8 +23,6 @@ export const mainRoutes: Routes = [
       {
         path: 'admin',
         component: AdminShellComponent,
-        canActivate: [AccessGuard],
-        data: { roles: ['ADMIN'], permissions: ['ADMIN.DASHBOARD.VIEW'] },
         children: [
           { path: '', pathMatch: 'full', redirectTo: 'roles' },
           {
@@ -32,27 +30,55 @@ export const mainRoutes: Routes = [
             loadComponent: () =>
               import('./pages/admin/admin-roles').then((m) => m.AdminRolesComponent),
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.ROLES.MANAGE'] },
+            data: { permissions: ['ADMIN.ROLES.VIEW'] },
           },
           {
             path: 'components',
             loadComponent: () =>
               import('./pages/admin/admin-components').then((m) => m.AdminComponentsComponent),
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.COMPONENTS.MANAGE'] },
+            data: { permissions: ['ADMIN.COMPONENTS.VIEW'] },
           },
           {
             path: 'permissions',
             component: AdminPermissionsComponent,
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.PERMISSIONS.MANAGE'] },
+            data: { permissions: ['ADMIN.PERMISSIONS.VIEW'] },
           },
           {
             path: 'users',
             loadComponent: () =>
               import('./pages/admin/admin-users').then((m) => m.AdminUsersComponent),
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.USERS.MANAGE'] },
+            data: { permissions: ['ADMIN.USERS.VIEW'] },
+          },
+          {
+            path: 'tenant-registrations',
+            loadComponent: () =>
+              import('./pages/admin/admin-tenant-registrations').then((m) => m.AdminTenantRegistrationsComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.TENANT_REGISTRATIONS.MANAGE'] },
+          },
+          {
+            path: 'tenants',
+            loadComponent: () =>
+              import('./pages/admin/admin-tenants').then((m) => m.AdminTenantsComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.TENANTS.MANAGE'] },
+          },
+          {
+            path: 'plans',
+            loadComponent: () =>
+              import('./pages/admin/admin-plans').then((m) => m.AdminPlansComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.PLANS.MANAGE'] },
+          },
+          {
+            path: 'enforcement',
+            loadComponent: () =>
+              import('./pages/admin/admin-enforcement').then((m) => m.AdminEnforcementComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.ENFORCEMENT.MANAGE'] },
           },
         ],
       },

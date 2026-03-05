@@ -15,6 +15,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace finrecon360_backend.Tests;
 
@@ -49,6 +51,7 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 ["Jwt:ExpiresMinutes"] = "60",
                 ["FRONTEND_BASE_URL"] = "http://localhost:4200",
                 ["BREVO_TEMPLATE_ID_MAGICLINK_VERIFY"] = "1",
+                ["BREVO_TEMPLATE_ID_MAGICLINK_INVITE"] = "4",
                 ["BREVO_TEMPLATE_ID_MAGICLINK_RESET"] = "2",
                 ["BREVO_TEMPLATE_ID_MAGICLINK_CHANGE"] = "3"
             };
@@ -96,6 +99,7 @@ services.Configure<JwtSettings>(options =>
                 options.SenderEmail = "sender@test.local";
                 options.SenderName = "Test";
                 options.TemplateIdMagicLinkVerify = 1;
+                options.TemplateIdMagicLinkInvite = 4;
                 options.TemplateIdMagicLinkReset = 2;
                 options.TemplateIdMagicLinkChange = 3;
             });
@@ -112,18 +116,26 @@ services.Configure<JwtSettings>(options =>
 
     public static HttpClient CreateAuthenticatedClient(TestWebApplicationFactory factory, Guid userId, string email)
     {
-        var scope = factory.Services.CreateScope();
-        var jwtService = scope.ServiceProvider.GetRequiredService<IJwtTokenService>();
-        var token = jwtService.GenerateToken(new finrecon360_backend.Models.User
+        var claims = new List<Claim>
         {
-            UserId = userId,
-            Email = email,
-            DisplayName = email,
-            IsActive = true
-        });
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+            new(JwtRegisteredClaimNames.Email, email),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(ClaimTypes.Name, email)
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("test-signing-key-should-be-long-32chars"));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: "test-issuer",
+            audience: "test-audience",
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(60),
+            signingCredentials: creds);
+        var jwt = new JwtSecurityTokenHandler().WriteToken(token);
 
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
         return client;
     }
 }

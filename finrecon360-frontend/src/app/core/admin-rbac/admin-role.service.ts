@@ -19,13 +19,13 @@ interface RoleDto {
   providedIn: 'root',
 })
 export class AdminRoleService {
-  private readonly rolesSubject = new BehaviorSubject<Role[]>([
-    { id: 'r-admin', code: 'ADMIN', name: 'Administrator', description: 'Built-in admin', isSystem: true, isActive: true },
-    { id: 'r-accountant', code: 'ACCOUNTANT', name: 'Accountant', description: 'Performs matching and reconciliation', isActive: true },
-    { id: 'r-reviewer', code: 'REVIEWER', name: 'Reviewer', description: 'Reviews and approves journal entries', isActive: true },
-    { id: 'r-manager', code: 'MANAGER', name: 'Manager', description: 'Oversees tasks and approvals', isActive: true },
-    { id: 'r-auditor', code: 'AUDITOR', name: 'Auditor', description: 'Read-only oversight', isActive: true },
-  ]);
+  private readonly mockRoles: Role[] = [
+    { id: 'r-admin', code: 'ADMIN', name: 'Tenant Administrator', description: 'Built-in tenant administrator', isSystem: true, isActive: true },
+    { id: 'r-manager', code: 'MANAGER', name: 'Tenant Manager', description: 'Operational manager with broad non-system access', isSystem: true, isActive: true },
+    { id: 'r-reviewer', code: 'REVIEWER', name: 'Reviewer', description: 'Read-focused reviewer role', isSystem: true, isActive: true },
+    { id: 'r-user', code: 'USER', name: 'Tenant User', description: 'Standard tenant user', isSystem: true, isActive: true },
+  ];
+  private readonly rolesSubject = new BehaviorSubject<Role[]>(USE_MOCK_API ? this.mockRoles : []);
   private loaded = false;
 
   constructor(private http: HttpClient) {}
@@ -129,7 +129,7 @@ export class AdminRoleService {
   private loadRoles(): void {
     this.loaded = true;
     this.http
-      .get<PagedResult<RoleDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}?page=1&pageSize=100`)
+      .get<PagedResult<RoleDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}?page=1&pageSize=500`)
       .pipe(map((result) => result.items.map((dto) => this.mapRole(dto))))
       .subscribe((roles) => this.rolesSubject.next(roles));
   }

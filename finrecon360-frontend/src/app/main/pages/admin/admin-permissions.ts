@@ -8,12 +8,14 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { combineLatest } from 'rxjs';
 import { distinctUntilChanged } from 'rxjs/operators';
 
 import { AdminPermissionService } from '../../../core/admin-rbac/admin-permission.service';
 import { AdminComponentService } from '../../../core/admin-rbac/admin-component.service';
 import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
+import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 import {
   ActionDefinition,
   AppComponentResource,
@@ -35,16 +37,25 @@ import {
     MatInputModule,
     MatSelectModule,
     TranslateModule,
+    HasPermissionDirective,
   ],
   templateUrl: './admin-permissions.html',
   styleUrls: ['./admin-permissions.scss'],
 })
 export class AdminPermissionsComponent implements OnInit {
+  private static readonly ManageImpliedActions = ['VIEW', 'VIEW_LIST', 'CREATE', 'EDIT', 'DELETE'];
+  private static readonly ManageRequiredActions = ['CREATE', 'EDIT', 'DELETE'];
+  private static readonly HiddenActionCodes = new Set(['VIEW_LIST']);
+
   roles: Role[] = [];
   components: AppComponentResource[] = [];
   actions: ActionDefinition[] = [];
+  visibleActions: ActionDefinition[] = [];
   assignments: PermissionAssignment[] = [];
+  originalAssignments: PermissionAssignment[] = [];
+  availablePermissionCodes = new Set<string>();
   displayedColumns: string[] = ['component'];
+  saving = false;
 
   form!: FormGroup;
 
@@ -52,7 +63,8 @@ export class AdminPermissionsComponent implements OnInit {
     private fb: FormBuilder,
     private permissionService: AdminPermissionService,
     private roleService: AdminRoleService,
-    private componentService: AdminComponentService
+    private componentService: AdminComponentService,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -61,18 +73,25 @@ export class AdminPermissionsComponent implements OnInit {
       search: [''],
     });
 
-    this.roleService.getRoles().subscribe((roles) => {
+    combineLatest({
+      roles: this.roleService.getRoles(),
+      components: this.componentService.getComponents(),
+      actions: this.permissionService.getActions(),
+      availableCodes: this.permissionService.getAvailablePermissionCodes(),
+    }).subscribe(({ roles, components, actions, availableCodes }) => {
       this.roles = roles;
-      if (roles.length) {
-        this.form.get('roleId')?.setValue(roles[0].id);
-        this.loadAssignments(roles[0].id);
-      }
-    });
-
-    this.componentService.getComponents().subscribe((components) => (this.components = components));
-    this.permissionService.getActions().subscribe((actions) => {
+      this.components = components;
       this.actions = actions;
-      this.displayedColumns = ['component', ...actions.map((a) => a.code)];
+      this.visibleActions = actions.filter((action) => !AdminPermissionsComponent.HiddenActionCodes.has(action.code));
+      this.availablePermissionCodes = availableCodes;
+      this.displayedColumns = ['component', ...this.visibleActions.map((a) => a.code)];
+
+      const currentRoleId = this.form.get('roleId')?.value;
+      const currentRoleStillExists = roles.some((role) => role.id === currentRoleId);
+
+      if (!currentRoleStillExists && roles.length) {
+        this.form.get('roleId')?.setValue(roles[0].id);
+      }
     });
 
     this.form.get('roleId')?.valueChanges.pipe(distinctUntilChanged()).subscribe((roleId) => {
@@ -90,48 +109,151 @@ export class AdminPermissionsComponent implements OnInit {
 
   isChecked(componentId: string, actionCode: string): boolean {
     const roleId = this.form.get('roleId')?.value;
+    const component = this.components.find((item) => item.id === componentId);
+    if (!component) {
+      return false;
+    }
+    const permissionCode = this.permissionService.getPermissionCodeForComponent(component.code, actionCode);
     return this.assignments.some(
-      (a) => a.roleId === roleId && a.componentId === componentId && a.actionCode === actionCode
+      (a) => a.roleId === roleId && a.permissionCode === permissionCode
     );
+  }
+
+  isApplicable(component: AppComponentResource, action: ActionDefinition): boolean {
+    if (this.availablePermissionCodes.size === 0) {
+      return true;
+    }
+
+    const code = this.permissionService.getPermissionCodeForComponent(component.code, action.code);
+    return this.availablePermissionCodes.has(code);
   }
 
   toggle(component: AppComponentResource, action: ActionDefinition): void {
     const roleId = this.form.get('roleId')?.value;
-    if (!roleId) return;
+    if (!roleId || !this.isApplicable(component, action)) return;
 
-    const existingIndex = this.assignments.findIndex(
-      (a) =>
-        a.roleId === roleId &&
-        a.componentId === component.id &&
-        a.actionCode === action.code
-    );
+    const currentlyChecked = this.isChecked(component.id, action.code);
 
-    if (existingIndex >= 0) {
-      this.assignments = this.assignments.filter((_, idx) => idx !== existingIndex);
-    } else {
-      const permissionCode = this.permissionService.getPermissionCodeForComponent(component.code, action.code);
-      this.assignments = [
-        ...this.assignments,
-        {
-          id: `${roleId}-${component.id}-${action.code}`,
-          roleId,
-          componentId: component.id,
-          actionCode: action.code,
-          permissionCode,
-        },
-      ];
+    if (action.code === 'MANAGE') {
+      this.setAssignment(roleId, component, action.code, !currentlyChecked);
+      if (!currentlyChecked) {
+        AdminPermissionsComponent.ManageImpliedActions.forEach((impliedActionCode) => {
+          const impliedAction = this.actions.find((candidate) => candidate.code === impliedActionCode);
+          if (impliedAction && this.isApplicable(component, impliedAction)) {
+            this.setAssignment(roleId, component, impliedActionCode, true);
+          }
+        });
+      }
+      return;
     }
+
+    if (action.code === 'VIEW') {
+      this.setAssignment(roleId, component, action.code, !currentlyChecked);
+      if (currentlyChecked) {
+        this.actions
+          .filter((candidate) => candidate.code !== 'VIEW')
+          .forEach((candidate) => this.setAssignment(roleId, component, candidate.code, false));
+      }
+      this.enforceManageDependencies(roleId, component);
+      return;
+    }
+
+    this.setAssignment(roleId, component, action.code, !currentlyChecked);
+    if (!currentlyChecked) {
+      const viewAction = this.actions.find((candidate) => candidate.code === 'VIEW');
+      if (viewAction && this.isApplicable(component, viewAction)) {
+        this.setAssignment(roleId, component, 'VIEW', true);
+      }
+    }
+
+    this.enforceManageDependencies(roleId, component);
   }
 
   save(): void {
     const roleId = this.form.get('roleId')?.value;
-    if (!roleId) return;
-    this.permissionService.saveRoleAssignments(roleId, this.assignments).subscribe();
+    if (!roleId || !this.hasChanges) return;
+    const confirmMessage = this.translate.instant('ADMIN.PERMISSIONS.CONFIRM_SAVE');
+    if (!window.confirm(confirmMessage)) return;
+
+    this.saving = true;
+    this.permissionService.saveRoleAssignments(roleId, this.assignments).subscribe({
+      next: () => {
+        this.originalAssignments = this.assignments.map((a) => ({ ...a }));
+        this.saving = false;
+      },
+      error: () => {
+        this.saving = false;
+      },
+    });
+  }
+
+  get hasChanges(): boolean {
+    const current = new Set(this.assignments.map((a) => a.permissionCode));
+    const original = new Set(this.originalAssignments.map((a) => a.permissionCode));
+    if (current.size !== original.size) return true;
+    for (const code of current) {
+      if (!original.has(code)) return true;
+    }
+    return false;
   }
 
   private loadAssignments(roleId: string): void {
     this.permissionService.getRoleAssignments(roleId).subscribe((assignments) => {
       this.assignments = assignments;
+      this.originalAssignments = assignments.map((a) => ({ ...a }));
     });
+  }
+
+  private setAssignment(roleId: string, component: AppComponentResource, actionCode: string, enabled: boolean): void {
+    const permissionCode = this.permissionService.getPermissionCodeForComponent(component.code, actionCode);
+    const existingIndex = this.assignments.findIndex(
+      (a) => a.roleId === roleId && a.permissionCode === permissionCode
+    );
+
+    if (enabled) {
+      if (existingIndex >= 0) {
+        return;
+      }
+
+      this.assignments = [
+        ...this.assignments,
+        {
+          id: `${roleId}-${component.id}-${actionCode}`,
+          roleId,
+          componentId: component.id,
+          actionCode,
+          permissionCode,
+        },
+      ];
+      return;
+    }
+
+    if (existingIndex >= 0) {
+      this.assignments = this.assignments.filter((_, index) => index !== existingIndex);
+    }
+  }
+
+  private enforceManageDependencies(roleId: string, component: AppComponentResource): void {
+    const manageAction = this.actions.find((action) => action.code === 'MANAGE');
+    if (!manageAction || !this.isApplicable(component, manageAction)) {
+      return;
+    }
+
+    const requiredApplicableActions = AdminPermissionsComponent.ManageRequiredActions
+      .map((code) => this.actions.find((action) => action.code === code))
+      .filter((action): action is ActionDefinition => !!action)
+      .filter((action) => this.isApplicable(component, action));
+
+    if (requiredApplicableActions.length === 0) {
+      return;
+    }
+
+    const hasAllRequired = requiredApplicableActions.every((action) =>
+      this.isChecked(component.id, action.code)
+    );
+
+    if (!hasAllRequired) {
+      this.setAssignment(roleId, component, 'MANAGE', false);
+    }
   }
 }

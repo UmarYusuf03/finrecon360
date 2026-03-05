@@ -47,6 +47,20 @@ export class HasPermissionDirective implements OnInit, OnDestroy {
     if (!user) return false;
     const required = Array.isArray(this.required) ? this.required : [this.required];
     if (!required.length) return true;
-    return required.every((permission) => user.permissions.includes(permission));
+    return required.every((permission) => this.hasPermission(user.permissions, permission));
+  }
+
+  private hasPermission(grantedPermissions: PermissionCode[], requiredPermission: PermissionCode): boolean {
+    if (grantedPermissions.includes(requiredPermission)) {
+      return true;
+    }
+
+    const separatorIndex = requiredPermission.lastIndexOf('.');
+    if (separatorIndex <= 0) {
+      return false;
+    }
+
+    const manageCode = `${requiredPermission.slice(0, separatorIndex)}.MANAGE` as PermissionCode;
+    return grantedPermissions.includes(manageCode);
   }
 }

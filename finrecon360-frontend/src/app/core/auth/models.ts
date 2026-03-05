@@ -5,6 +5,10 @@ export interface CurrentUser {
   id: string;
   email: string;
   displayName: string;
+  status?: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
+  tenantStatus?: string | null;
   roles: RoleCode[];
   permissions: PermissionCode[];
   token: string | null;

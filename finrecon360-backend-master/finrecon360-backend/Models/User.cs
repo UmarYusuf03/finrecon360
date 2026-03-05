@@ -8,6 +8,8 @@
         public string? PhoneNumber { get; set; }
         public bool EmailConfirmed { get; set; }
         public bool IsActive { get; set; }
+        public UserStatus Status { get; set; } = UserStatus.Active;
+        public bool IsSystemAdmin { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 

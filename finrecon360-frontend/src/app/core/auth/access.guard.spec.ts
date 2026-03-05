@@ -72,4 +72,18 @@ describe('AccessGuard', () => {
     const result = guard.canActivate(route as any);
     expect(result instanceof UrlTree).toBeTrue();
   });
+
+  it('allows when manage permission covers required action permission', () => {
+    const user: CurrentUser = {
+      id: '1',
+      email: 'a',
+      displayName: 'User',
+      roles: ['ADMIN'],
+      permissions: ['ADMIN.USERS.MANAGE'],
+      token: 't',
+    };
+    Object.defineProperty(authServiceSpy, 'currentUser', { value: user });
+    const route = makeRoute({ permissions: ['ADMIN.USERS.VIEW'] });
+    expect(guard.canActivate(route as any)).toBeTrue();
+  });
 });

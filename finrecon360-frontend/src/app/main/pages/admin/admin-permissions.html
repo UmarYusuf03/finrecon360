@@ -4,10 +4,19 @@
       <h2>{{ 'ADMIN.PERMISSIONS.TITLE' | translate }}</h2>
       <p>{{ 'ADMIN.PERMISSIONS.COPY' | translate }}</p>
     </div>
-    <button mat-flat-button color="primary" (click)="save()">
+    <button
+      mat-flat-button
+      color="primary"
+      *appHasPermission="'ADMIN.PERMISSIONS.EDIT'"
+      (click)="save()"
+      [disabled]="!hasChanges || saving || !form.get('roleId')?.value"
+    >
       {{ 'ADMIN.PERMISSIONS.SAVE' | translate }}
     </button>
   </div>
+  <p *ngIf="form.get('roleId')?.value && !hasChanges" class="perm__status">
+    {{ 'ADMIN.PERMISSIONS.NO_CHANGES' | translate }}
+  </p>
 
   <form class="perm__filters" [formGroup]="form">
     <mat-form-field appearance="outline">
@@ -37,15 +46,20 @@
         </td>
       </ng-container>
 
-      <ng-container *ngFor="let action of actions" [matColumnDef]="action.code">
+      <ng-container *ngFor="let action of visibleActions" [matColumnDef]="action.code">
         <th mat-header-cell *matHeaderCellDef sticky>
           {{ action.name | translate }}
         </th>
         <td mat-cell *matCellDef="let c">
-          <mat-checkbox
-            [checked]="isChecked(c.id, action.code)"
-            (change)="toggle(c, action)"
-          ></mat-checkbox>
+          <ng-container *ngIf="isApplicable(c, action); else notApplicableCell">
+            <mat-checkbox
+              [checked]="isChecked(c.id, action.code)"
+              (change)="toggle(c, action)"
+            ></mat-checkbox>
+          </ng-container>
+          <ng-template #notApplicableCell>
+            <span>-</span>
+          </ng-template>
         </td>
       </ng-container>
 

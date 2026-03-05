@@ -250,6 +250,8 @@
       "ROLE": "பாத்திரம்",
       "COMPONENT": "மொட்யூல்",
       "ACTIONS": "செயல்கள்",
+      "NO_CHANGES": "சேமிக்க மாற்றங்கள் இல்லை.",
+      "CONFIRM_SAVE": "இந்த பாத்திரத்திற்கான அனுமதி மாற்றங்களை சேமிக்கவா?",
       "NONE": "இல்லை"
     },
     "USERS": {
@@ -268,6 +270,18 @@
       "CANCEL": "ரத்துசெய்",
       "EMAIL_INVALID": "செல்லுபடியாகும் மின்னஞ்சல் முகவரி",
       "REQUIRED": "இந்த புலம் அவசியம்"
+    },
+    "TENANT_REGISTRATIONS": {
+      "TITLE": "Tenant Registrations"
+    },
+    "TENANTS": {
+      "TITLE": "Tenants"
+    },
+    "PLANS": {
+      "TITLE": "Subscription Plans"
+    },
+    "ENFORCEMENT": {
+      "TITLE": "Enforcement"
     }
   }
 }

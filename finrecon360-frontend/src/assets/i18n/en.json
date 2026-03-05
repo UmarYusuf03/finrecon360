@@ -130,6 +130,8 @@
       "ACTIONS": "Actions",
       "SEARCH": "Search components",
       "SAVE": "Save permissions",
+      "NO_CHANGES": "No changes to save.",
+      "CONFIRM_SAVE": "Save permission changes for this role?",
       "ACTION_VIEW": "View",
       "ACTION_VIEW_LIST": "List",
       "ACTION_CREATE": "Create",
@@ -155,6 +157,18 @@
       "CANCEL": "Cancel",
       "EMAIL_INVALID": "Enter a valid email",
       "REQUIRED": "This field is required"
+    },
+    "TENANT_REGISTRATIONS": {
+      "TITLE": "Tenant Registrations"
+    },
+    "TENANTS": {
+      "TITLE": "Tenants"
+    },
+    "PLANS": {
+      "TITLE": "Subscription Plans"
+    },
+    "ENFORCEMENT": {
+      "TITLE": "Enforcement"
     }
   },
   "MATCHER": {

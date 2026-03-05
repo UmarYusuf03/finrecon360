@@ -11,6 +11,7 @@ namespace finrecon360_backend.Services
         private readonly AppDbContext _dbContext;
         private Guid? _userId;
         private bool? _isActive;
+        private Models.UserStatus? _status;
 
         public UserContext(IHttpContextAccessor httpContextAccessor, AppDbContext dbContext)
         {
@@ -81,6 +82,31 @@ namespace finrecon360_backend.Services
 
                 _isActive = isActive;
                 return isActive;
+            }
+        }
+
+        public Models.UserStatus? Status
+        {
+            get
+            {
+                if (_status.HasValue)
+                {
+                    return _status.Value;
+                }
+
+                if (UserId is not { } userId)
+                {
+                    return null;
+                }
+
+                var status = _dbContext.Users
+                    .AsNoTracking()
+                    .Where(u => u.UserId == userId)
+                    .Select(u => u.Status)
+                    .FirstOrDefault();
+
+                _status = status;
+                return status;
             }
         }
     }
