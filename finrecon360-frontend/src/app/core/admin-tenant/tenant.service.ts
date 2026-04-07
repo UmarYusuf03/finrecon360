@@ -14,27 +14,27 @@ export class TenantService {
   getTenants(status?: string): Observable<TenantSummary[]> {
     const query = status ? `?status=${encodeURIComponent(status)}&page=1&pageSize=100` : '?page=1&pageSize=100';
     return this.http
-      .get<PagedResult<TenantSummary>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANTS}${query}`)
+      .get<PagedResult<TenantSummary>>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}${query}`)
       .pipe(map((result) => result.items));
   }
 
   getTenant(id: string): Observable<TenantDetail> {
-    return this.http.get<TenantDetail>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANTS}/${id}`);
+    return this.http.get<TenantDetail>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}/${id}`);
   }
 
   updateAdmins(id: string, emails: string[]): Observable<void> {
-    return this.http.put<void>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANTS}/${id}/admins`, { emails });
+    return this.http.put<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}/${id}/admins`, { emails });
   }
 
   suspend(id: string, reason: string): Observable<void> {
-    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANTS}/${id}/suspend`, { reason });
+    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}/${id}/suspend`, { reason });
   }
 
   ban(id: string, reason: string): Observable<void> {
-    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANTS}/${id}/ban`, { reason });
+    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}/${id}/ban`, { reason });
   }
 
   reinstate(id: string): Observable<void> {
-    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANTS}/${id}/reinstate`, {});
+    return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}/${id}/reinstate`, {});
   }
 }

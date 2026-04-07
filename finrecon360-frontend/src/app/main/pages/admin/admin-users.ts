@@ -9,6 +9,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { TranslateModule } from '@ngx-translate/core';
@@ -32,6 +33,7 @@ import { HasPermissionDirective } from '../../../core/auth/has-permission.direct
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSnackBarModule,
     MatSelectModule,
     MatIconModule,
     MatChipsModule,
@@ -54,7 +56,8 @@ export class AdminUsersComponent implements OnInit {
     private adminUserService: AdminUserService,
     private adminRoleService: AdminRoleService,
     private fb: FormBuilder,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -129,18 +132,27 @@ export class AdminUsersComponent implements OnInit {
     saveRequest$.subscribe({
       next: () => {
         this.dialog.closeAll();
+        this.snackBar.open(this.editingId ? 'User updated successfully.' : 'User created successfully.', 'Close', { duration: 2500 });
       },
       error: (error: unknown) => {
-        this.saveError = this.extractErrorMessage(error);
+        const message = this.extractErrorMessage(error);
+        this.saveError = message;
+        this.snackBar.open(message, 'Close', { duration: 3500 });
       },
     });
   }
 
   toggleActive(user: AdminUserSummary): void {
     if (user.isActive) {
-      this.adminUserService.deactivateUser(user.id).subscribe();
+      this.adminUserService.deactivateUser(user.id).subscribe({
+        next: () => this.snackBar.open('User deactivated.', 'Close', { duration: 2500 }),
+        error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
+      });
     } else {
-      this.adminUserService.reactivateUser(user.id).subscribe();
+      this.adminUserService.reactivateUser(user.id).subscribe({
+        next: () => this.snackBar.open('User reactivated.', 'Close', { duration: 2500 }),
+        error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
+      });
     }
   }
 

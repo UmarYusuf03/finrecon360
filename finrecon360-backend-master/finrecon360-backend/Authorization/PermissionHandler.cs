@@ -55,6 +55,7 @@ namespace finrecon360_backend.Authorization
 
             var isControlPlanePermission = IsControlPlanePermission(requirement.PermissionCode);
             var tenant = await _tenantContext.ResolveAsync();
+            IReadOnlyCollection<string> permissions;
 
             if (!isControlPlanePermission && tenant != null)
             {
@@ -71,9 +72,19 @@ namespace finrecon360_backend.Authorization
                 {
                     return;
                 }
+
+                permissions = await tenantDb.UserRoles
+                    .AsNoTracking()
+                    .Where(ur => ur.UserId == userId.Value && ur.Role.IsActive)
+                    .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
+                    .Distinct()
+                    .ToListAsync();
+            }
+            else
+            {
+                permissions = await _permissionService.GetPermissionsForUserAsync(userId.Value);
             }
 
-            var permissions = await _permissionService.GetPermissionsForUserAsync(userId.Value);
             if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))
             {
                 context.Succeed(requirement);

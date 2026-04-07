@@ -19,6 +19,7 @@ interface MockAccount {
   roles: RoleCode[];
   permissions: PermissionCode[];
   token: string;
+  isSystemAdmin?: boolean;
 }
 
 interface LoginResponse {
@@ -32,6 +33,7 @@ interface MeResponse {
   email: string;
   displayName: string | null;
   status: string;
+  isSystemAdmin: boolean;
   tenantId?: string | null;
   tenantName?: string | null;
   tenantStatus?: string | null;
@@ -69,6 +71,7 @@ export class AuthService {
         'ANALYTICS.VIEW',
       ],
       token: 'mock-admin-token',
+      isSystemAdmin: true,
     },
     {
       email: 'user@finrecon.local',
@@ -77,6 +80,7 @@ export class AuthService {
       roles: ['ACCOUNTANT'],
       permissions: ['MATCHER.VIEW', 'BALANCER.VIEW', 'TASKS.VIEW'],
       token: 'mock-user-token',
+      isSystemAdmin: false,
     },
   ];
 
@@ -128,6 +132,7 @@ export class AuthService {
         id: `mock-${account.email}`,
         email: account.email,
         displayName: account.displayName,
+        isSystemAdmin: account.isSystemAdmin ?? false,
         roles: account.roles,
         permissions: account.permissions,
         token: account.token,
@@ -159,6 +164,7 @@ export class AuthService {
             id: '',
             email: loginResponse.email,
             displayName: loginResponse.fullName,
+            isSystemAdmin: false,
             tenantId: canReuseTenantContext ? previousUser?.tenantId ?? null : null,
             tenantName: canReuseTenantContext ? previousUser?.tenantName ?? null : null,
             tenantStatus: canReuseTenantContext ? previousUser?.tenantStatus ?? null : null,
@@ -176,6 +182,7 @@ export class AuthService {
                 email: me.email,
                 displayName: me.displayName ?? loginResponse.fullName,
                 status: me.status,
+                isSystemAdmin: me.isSystemAdmin,
                 tenantId: me.tenantId ?? null,
                 tenantName: me.tenantName ?? null,
                 tenantStatus: me.tenantStatus ?? null,
@@ -325,6 +332,7 @@ export class AuthService {
           email: me.email,
           displayName: me.displayName ?? current?.displayName ?? me.email,
           status: me.status,
+          isSystemAdmin: me.isSystemAdmin,
           tenantId: me.tenantId ?? null,
           tenantName: me.tenantName ?? null,
           tenantStatus: me.tenantStatus ?? null,

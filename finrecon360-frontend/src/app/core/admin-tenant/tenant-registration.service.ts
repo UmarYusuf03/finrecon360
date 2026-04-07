@@ -14,20 +14,20 @@ export class TenantRegistrationService {
   getRegistrations(status?: string): Observable<TenantRegistrationSummary[]> {
     const query = status ? `?status=${encodeURIComponent(status)}&page=1&pageSize=100` : '?page=1&pageSize=100';
     return this.http
-      .get<PagedResult<TenantRegistrationSummary>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANT_REGISTRATIONS}${query}`)
+      .get<PagedResult<TenantRegistrationSummary>>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANT_REGISTRATIONS}${query}`)
       .pipe(map((result) => result.items));
   }
 
   approve(id: string, note?: string): Observable<void> {
     return this.http.post<void>(
-      `${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANT_REGISTRATIONS}/${id}/approve`,
+      `${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANT_REGISTRATIONS}/${id}/approve`,
       { note }
     );
   }
 
   reject(id: string, note?: string): Observable<void> {
     return this.http.post<void>(
-      `${API_BASE_URL}${API_ENDPOINTS.ADMIN.TENANT_REGISTRATIONS}/${id}/reject`,
+      `${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANT_REGISTRATIONS}/${id}/reject`,
       { note }
     );
   }

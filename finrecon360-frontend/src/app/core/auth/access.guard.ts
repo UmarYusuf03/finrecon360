@@ -8,10 +8,7 @@ import { PermissionCode, RoleCode } from './models';
   providedIn: 'root',
 })
 export class AccessGuard implements CanActivate {
-  // Temporary local toggle:
-  // false = do not block non-admin users when tenantStatus is Pending/Suspended during pre-Stripe testing.
-  // Set to true to restore strict "deny until tenant is Active (paid)" behavior.
-  private readonly enforceTenantActiveStatus = false;
+  private readonly enforceTenantActiveStatus = true;
 
   constructor(private authService: AuthService, private router: Router) {}
 
@@ -27,6 +24,7 @@ export class AccessGuard implements CanActivate {
 
     const requiredRoles = route.data?.['roles'] as RoleCode[] | undefined;
     const requiredPermissions = route.data?.['permissions'] as PermissionCode[] | undefined;
+    const requiredAnyPermissions = route.data?.['anyPermissions'] as PermissionCode[] | undefined;
 
     const isAdminArea =
       (requiredRoles && requiredRoles.includes('ADMIN')) ||
@@ -48,7 +46,11 @@ export class AccessGuard implements CanActivate {
       !requiredPermissions ||
       requiredPermissions.every((permission) => this.hasPermission(user.permissions, permission));
 
-    if (hasRole && hasPermissions) {
+    const hasAnyPermissions =
+      !requiredAnyPermissions ||
+      requiredAnyPermissions.some((permission) => this.hasPermission(user.permissions, permission));
+
+    if (hasRole && hasPermissions && hasAnyPermissions) {
       return true;
     }
 

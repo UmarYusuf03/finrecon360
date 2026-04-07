@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Dtos;
 using finrecon360_backend.Dtos.Admin;
 using finrecon360_backend.Models;
@@ -31,6 +32,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet]
+        [RequirePermission("ADMIN.COMPONENTS.VIEW")]
         public async Task<ActionResult<PagedResult<ComponentSummaryDto>>> GetComponents([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -57,6 +59,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet("{componentId:guid}")]
+        [RequirePermission("ADMIN.COMPONENTS.VIEW")]
         public async Task<ActionResult<ComponentSummaryDto>> GetComponent(Guid componentId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -70,6 +73,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost]
+        [RequirePermission("ADMIN.COMPONENTS.CREATE")]
         public async Task<ActionResult<ComponentSummaryDto>> CreateComponent([FromBody] ComponentCreateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -105,6 +109,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{componentId:guid}")]
+        [RequirePermission("ADMIN.COMPONENTS.EDIT")]
         public async Task<ActionResult<ComponentSummaryDto>> UpdateComponent(Guid componentId, [FromBody] ComponentUpdateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -135,6 +140,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{componentId:guid}/deactivate")]
+        [RequirePermission("ADMIN.COMPONENTS.DELETE")]
         public async Task<IActionResult> DeactivateComponent(Guid componentId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -149,6 +155,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{componentId:guid}/activate")]
+        [RequirePermission("ADMIN.COMPONENTS.DELETE")]
         public async Task<IActionResult> ActivateComponent(Guid componentId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -169,9 +176,9 @@ namespace finrecon360_backend.Controllers.Admin
             var tenant = await _tenantContext.ResolveAsync();
             if (tenant == null) return (null, Forbid());
 
-            var isTenantAdmin = await _dbContext.TenantUsers.AsNoTracking()
-                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId && tu.Role == TenantUserRole.TenantAdmin);
-            if (!isTenantAdmin) return (null, Forbid());
+            var isTenantMember = await _dbContext.TenantUsers.AsNoTracking()
+                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId);
+            if (!isTenantMember) return (null, Forbid());
 
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking().AnyAsync(tu => tu.UserId == userId && tu.IsActive);

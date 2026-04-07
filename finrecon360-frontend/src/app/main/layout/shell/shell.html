@@ -21,7 +21,7 @@
         {{ 'NAV.MATCHER' | translate }}
       </a>
       <a
-        routerLink="/app/admin"
+        [routerLink]="getAdminRoot(user$ | async)"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: false }"
         *ngIf="hasAnyPermission((user$ | async), adminEntryPermissions)"

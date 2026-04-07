@@ -57,7 +57,7 @@ export class LoginComponent {
       next: (response) => {
         this.isSubmitting = false;
         const target = response.permissions.includes('ADMIN.DASHBOARD.VIEW')
-          ? '/app/admin'
+          ? (response.isSystemAdmin ? '/app/system' : '/app/admin')
           : '/app/dashboard';
         this.router.navigateByUrl(target);
       },

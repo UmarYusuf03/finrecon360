@@ -28,6 +28,7 @@ namespace finrecon360_backend.Dtos.Admin
 
     public class AdminUserUpdateRequest
     {
+        public string Email { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
     }

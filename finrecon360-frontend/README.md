@@ -1,106 +1,125 @@
-# Finrecon360Frontend
+# FinRecon360 Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.10.
+Angular frontend for FinRecon360.
 
-## Development server
+This README describes the frontend as currently implemented, not the full target architecture.
 
-To start a local development server, run:
+## Development Server
 
 ```bash
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Open `http://localhost:4200/`.
 
-## Backend Dependency Notes
+## Current Frontend Scope
 
-For local development, frontend expects backend auth and tenant context.
+Implemented frontend areas:
 
-- Standard path: tenant registration -> system admin approval -> onboarding -> Stripe checkout.
-- Temporary backend bypass is available (development-only) to seed an active tenant admin without Stripe. When enabled in backend `.env`, you can login with `TEMP_BYPASS_TENANT_ADMIN_EMAIL` / `TEMP_BYPASS_TENANT_ADMIN_PASSWORD`.
-- Public tenant registration now uses the same auth theme as user registration and requires:
-  - Business name
-  - Tenant admin email
-  - Phone number
-  - Business registration number
-  - Business type dropdown (`Vehicle Rental`, `Accommodation`)
+- login, registration, email-verification, password reset, and change-password UX
+- onboarding magic-link verification, password setup, and subscription checkout start
+- public tenant registration
+- system-admin screens for tenant registrations, tenants, plans, and enforcement
+- tenant-admin screens for users, roles, permissions, and components
+- dashboard, matcher placeholder, and profile surfaces
+- permission-aware navigation and route guards
+
+Not yet implemented as full production workflows:
+
+- canonical import mapping UI
+- bank statement import workflow
+- transaction approvals workflow
+- exception management workflow
+- journal posting workflow
+- reporting and analytics surfaces matching the target architecture
 
 ## Admin Ownership Split
 
-- System admin screens and APIs (control-plane): tenant registrations, tenants, plans, enforcement.
-- Tenant admin screens and APIs (tenant DB): users, roles, permissions, components, actions.
-- User enforcement calls are system-admin only and use backend route `POST /api/system/enforcement/tenants/{tenantId}/users/{userId}/{action}`.
-- Tenant-admin user deactivate/activate is tenant-membership state only (tenant DB) and is not global enforcement.
-- The enforcement UI requires both `tenantId` and `userId` to avoid cross-tenant enforcement ambiguity.
-- Roles screen lists system roles and custom roles together, with system roles shown first.
-- User role edit UI blocks removing `ADMIN` from the last tenant admin in a tenant.
+The frontend currently distinguishes:
 
-Disable this bypass once Stripe onboarding is configured by setting `TEMP_BYPASS_SEED_TENANT_ADMIN=false` in backend `.env`.
+- system-admin surfaces: tenant registrations, tenants, plans, enforcement
+- tenant-admin surfaces: users, roles, permissions, components
 
-## Temporary Tenant-Status Access Gate Toggle
+This split is implemented in `admin-shell` by checking `user.isSystemAdmin` and permission scope.
 
-RBAC (roles/permissions) remains enforced in frontend guards.
+Current route split:
 
-For local pre-Stripe testing, tenant-status blocking is temporarily disabled in:
-- `src/app/core/auth/access.guard.ts` (`enforceTenantActiveStatus = false`)
+- system-admin screens use `/app/system/*`
+- tenant-admin screens use `/app/admin/*`
 
-To roll back to strict paid-only tenant access later:
-1. Set `enforceTenantActiveStatus = true` in `src/app/core/auth/access.guard.ts`.
-2. Restart frontend test/dev server.
+## Auth And Access Model
 
-## Code scaffolding
+### Current Auth UX
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+The frontend supports:
 
-```bash
-ng generate component component-name
-```
+- email/password login
+- user registration
+- email verification via magic link
+- password reset via magic link
+- change-password confirmation flow
+- tenant onboarding magic link verification
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+So the current UX is not magic-link-only authentication.
 
-```bash
-ng generate --help
-```
+### Route Protection
 
-## Building
+Frontend guards are UX helpers only. Real enforcement is backend-side.
 
-To build the project run:
+The current frontend now blocks non-system-admin access when `tenantStatus !== 'Active'` for tenant-scoped areas.
 
-```bash
-ng build
-```
+## Current Route Areas
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+- `/auth/*` for auth and magic-link flows
+- `/onboarding/*` for onboarding subscription flow
+- `/app/system/*` for system-admin screens
+- `/app/admin/*` for tenant-admin screens
+- `/app/matcher` as the current reconciliation placeholder surface
+- `/app/profile`
 
-## Running unit tests
+## Backend Dependency Notes
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+The frontend expects the current backend onboarding flow:
 
-```bash
-ng test
-```
+1. Public tenant registration
+2. System-admin approval
+3. Tenant onboarding magic link
+4. Password setup
+5. Stripe checkout
+6. Tenant activation
 
-For CI/headless local runs:
+The temporary tenant-admin bypass is no longer part of the supported path.
+
+## Testing
+
+Unit tests:
 
 ```bash
 ng test --watch=false --browsers=ChromeHeadless
 ```
 
-Test environment behavior:
-- Unit tests use `src/environments/environment.test.ts` via Angular `test.fileReplacements`.
-- `mockApi` is intentionally `true` in test runs so service specs execute against in-memory/mock paths.
-- Backend flags like `TEMP_BYPASS_SEED_TENANT_ADMIN` do not control frontend unit test behavior.
+Test behavior:
 
-## Running end-to-end tests
+- tests use `src/environments/environment.test.ts`
+- `mockApi` is `true` in test runs
+- frontend unit tests do not depend on backend `.env` values
 
-For end-to-end (e2e) testing, run:
+## Known Contradictions And Gaps Vs Target Architecture
 
-```bash
-ng e2e
-```
+### 1. Finance UX Is Mostly Placeholder State
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+The target architecture includes imports, canonical mapping, approvals, reconciliation confirmation, journal gating, and reporting. The current frontend only has early placeholder-level surfaces for parts of that area.
 
-## Additional Resources
+### 2. Global User Concept Is Not Expressed Cleanly In UI
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The target design distinguishes global or public users from tenant operational users. The current frontend primarily exposes:
+
+- public registration
+- system-admin context
+- tenant-admin context
+
+There is no fully realized standalone global-user product area yet.
+
+### 3. Some Shared Labels Still Say "Admin"
+
+The route split is now in place, but some shared component names and labels still use generic "admin" wording. That is naming debt rather than a routing-boundary problem.

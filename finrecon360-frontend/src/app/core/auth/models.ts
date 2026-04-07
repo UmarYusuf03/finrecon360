@@ -6,6 +6,7 @@ export interface CurrentUser {
   email: string;
   displayName: string;
   status?: string;
+  isSystemAdmin?: boolean;
   tenantId?: string | null;
   tenantName?: string | null;
   tenantStatus?: string | null;

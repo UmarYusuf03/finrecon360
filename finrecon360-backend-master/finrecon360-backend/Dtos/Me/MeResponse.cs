@@ -5,6 +5,7 @@ namespace finrecon360_backend.Dtos.Me
         string Email,
         string DisplayName,
         string Status,
+        bool IsSystemAdmin,
         Guid? TenantId,
         string? TenantName,
         string? TenantStatus,

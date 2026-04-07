@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Dtos;
 using finrecon360_backend.Dtos.Admin;
 using finrecon360_backend.Models;
@@ -38,6 +39,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet]
+        [RequirePermission("ADMIN.USERS.VIEW")]
         public async Task<ActionResult<PagedResult<AdminUserSummaryDto>>> GetUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -97,6 +99,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet("{userId:guid}")]
+        [RequirePermission("ADMIN.USERS.VIEW")]
         public async Task<ActionResult<AdminUserDetailDto>> GetUser(Guid userId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -126,6 +129,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost]
+        [RequirePermission("ADMIN.USERS.CREATE")]
         public async Task<ActionResult<AdminUserSummaryDto>> CreateUser([FromBody] AdminUserCreateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync(requireTenantDb: false);
@@ -234,6 +238,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{userId:guid}")]
+        [RequirePermission("ADMIN.USERS.EDIT")]
         public async Task<ActionResult<AdminUserSummaryDto>> UpdateUser(Guid userId, [FromBody] AdminUserUpdateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -246,7 +251,17 @@ namespace finrecon360_backend.Controllers.Admin
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == userId);
             if (user is null) return NotFound();
 
+            var email = request.Email.Trim().ToLowerInvariant();
             var displayName = request.DisplayName.Trim();
+            var existingUserWithEmail = await _dbContext.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == email && u.UserId != userId);
+            if (existingUserWithEmail != null)
+            {
+                return Conflict(new { message = "This email is already in use." });
+            }
+
+            user.Email = email;
             user.DisplayName = displayName;
             user.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
             user.UpdatedAt = DateTime.UtcNow;
@@ -265,6 +280,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{userId:guid}/roles")]
+        [RequirePermission("ADMIN.USERS.MANAGE")]
         public async Task<IActionResult> ReplaceUserRoles(Guid userId, [FromBody] AdminUserRoleSetRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -307,12 +323,14 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{userId:guid}/deactivate")]
+        [RequirePermission("ADMIN.USERS.DELETE")]
         public async Task<IActionResult> DeactivateUser(Guid userId)
         {
             return await SetUserActiveState(userId, false);
         }
 
         [HttpPost("{userId:guid}/activate")]
+        [RequirePermission("ADMIN.USERS.DELETE")]
         public async Task<IActionResult> ActivateUser(Guid userId)
         {
             return await SetUserActiveState(userId, true);
@@ -425,9 +443,9 @@ namespace finrecon360_backend.Controllers.Admin
             var tenant = await _tenantContext.ResolveAsync();
             if (tenant == null) return (Guid.Empty, null, Forbid());
 
-            var isTenantAdmin = await _dbContext.TenantUsers.AsNoTracking()
-                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId && tu.Role == TenantUserRole.TenantAdmin);
-            if (!isTenantAdmin) return (Guid.Empty, null, Forbid());
+            var isTenantMember = await _dbContext.TenantUsers.AsNoTracking()
+                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId);
+            if (!isTenantMember) return (Guid.Empty, null, Forbid());
 
             TenantDbContext? tenantDb = null;
             if (requireTenantDb)

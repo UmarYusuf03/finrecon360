@@ -16,3 +16,7 @@
 
 # Environment files
 **/.env
+
+# Local ide and db sessions
+**/.vscode/
+finrecon.session.sql

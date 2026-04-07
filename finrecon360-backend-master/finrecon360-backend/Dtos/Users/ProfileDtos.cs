@@ -15,4 +15,9 @@ namespace finrecon360_backend.Dtos.Users
         string? FirstName,
         string? LastName,
         string? PhoneNumber);
+
+    public class UploadProfilePhotoRequest
+    {
+        public IFormFile? File { get; set; }
+    }
 }
