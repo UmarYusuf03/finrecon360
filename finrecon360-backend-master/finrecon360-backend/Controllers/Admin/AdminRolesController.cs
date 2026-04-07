@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Dtos;
 using finrecon360_backend.Dtos.Admin;
 using finrecon360_backend.Models;
@@ -31,6 +32,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet]
+        [RequirePermission("ADMIN.ROLES.VIEW")]
         public async Task<ActionResult<PagedResult<RoleSummaryDto>>> GetRoles([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -57,6 +59,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet("{roleId:guid}")]
+        [RequirePermission("ADMIN.ROLES.VIEW")]
         public async Task<ActionResult<RoleDetailDto>> GetRole(Guid roleId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -81,6 +84,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost]
+        [RequirePermission("ADMIN.ROLES.CREATE")]
         public async Task<ActionResult<RoleSummaryDto>> CreateRole([FromBody] RoleCreateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -113,6 +117,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{roleId:guid}")]
+        [RequirePermission("ADMIN.ROLES.EDIT")]
         public async Task<ActionResult<RoleSummaryDto>> UpdateRole(Guid roleId, [FromBody] RoleUpdateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -143,6 +148,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpDelete("{roleId:guid}")]
+        [RequirePermission("ADMIN.ROLES.DELETE")]
         public async Task<IActionResult> DeleteRole(Guid roleId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -162,6 +168,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{roleId:guid}/deactivate")]
+        [RequirePermission("ADMIN.ROLES.DELETE")]
         public async Task<IActionResult> DeactivateRole(Guid roleId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -178,6 +185,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{roleId:guid}/activate")]
+        [RequirePermission("ADMIN.ROLES.DELETE")]
         public async Task<IActionResult> ActivateRole(Guid roleId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -193,6 +201,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{roleId:guid}/permissions")]
+        [RequirePermission("ADMIN.ROLES.MANAGE")]
         public async Task<IActionResult> ReplaceRolePermissions(Guid roleId, [FromBody] RolePermissionSetRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -228,6 +237,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{roleId:guid}/permissions/{permissionId:guid}")]
+        [RequirePermission("ADMIN.ROLES.MANAGE")]
         public async Task<IActionResult> AddRolePermission(Guid roleId, Guid permissionId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -248,6 +258,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpDelete("{roleId:guid}/permissions/{permissionId:guid}")]
+        [RequirePermission("ADMIN.ROLES.MANAGE")]
         public async Task<IActionResult> RemoveRolePermission(Guid roleId, Guid permissionId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -293,9 +304,9 @@ namespace finrecon360_backend.Controllers.Admin
             var tenant = await _tenantContext.ResolveAsync();
             if (tenant == null) return (null, Forbid());
 
-            var isTenantAdmin = await _dbContext.TenantUsers.AsNoTracking()
-                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId && tu.Role == TenantUserRole.TenantAdmin);
-            if (!isTenantAdmin) return (null, Forbid());
+            var isTenantMember = await _dbContext.TenantUsers.AsNoTracking()
+                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId);
+            if (!isTenantMember) return (null, Forbid());
 
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking().AnyAsync(tu => tu.UserId == userId && tu.IsActive);

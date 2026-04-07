@@ -47,7 +47,7 @@ export class AdminUserService {
       return this.usersSubject.asObservable();
     }
 
-    if (!this.loaded) {
+    if (!this.loaded || this.usersSubject.value.length === 0) {
       this.loadUsers();
     }
 
@@ -98,6 +98,7 @@ export class AdminUserService {
     }
 
     const request = {
+      email: payload.email ?? '',
       displayName: payload.displayName ?? '',
       phoneNumber: null,
     };
@@ -260,7 +261,12 @@ export class AdminUserService {
     this.http
       .get<PagedResult<AdminUserDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.USERS}?page=1&pageSize=100`)
       .pipe(map((result) => result.items.map((dto) => this.mapUser(dto))))
-      .subscribe((users) => this.usersSubject.next(users));
+      .subscribe({
+        next: (users) => this.usersSubject.next(users),
+        error: () => {
+          this.loaded = false;
+        },
+      });
   }
 
   private mapUser(dto: AdminUserDto): AdminUserSummary {

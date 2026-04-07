@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace finrecon360_backend.Controllers.Admin
 {
     [ApiController]
-    [Route("api/admin/plans")]
+    [Route("api/system/plans")]
     [Authorize]
     [RequirePermission("ADMIN.PLANS.MANAGE")]
     [EnableRateLimiting("admin")]

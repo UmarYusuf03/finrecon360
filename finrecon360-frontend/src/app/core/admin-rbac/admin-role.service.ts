@@ -35,7 +35,7 @@ export class AdminRoleService {
       return this.rolesSubject.asObservable();
     }
 
-    if (!this.loaded) {
+    if (!this.loaded || this.rolesSubject.value.length === 0) {
       this.loadRoles();
     }
 
@@ -131,7 +131,12 @@ export class AdminRoleService {
     this.http
       .get<PagedResult<RoleDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}?page=1&pageSize=500`)
       .pipe(map((result) => result.items.map((dto) => this.mapRole(dto))))
-      .subscribe((roles) => this.rolesSubject.next(roles));
+      .subscribe({
+        next: (roles) => this.rolesSubject.next(roles),
+        error: () => {
+          this.loaded = false;
+        },
+      });
   }
 
   private mapRole(dto: RoleDto): Role {

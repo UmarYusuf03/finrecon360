@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Dtos;
 using finrecon360_backend.Dtos.Admin;
 using finrecon360_backend.Models;
@@ -31,6 +32,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet]
+        [RequirePermission("ADMIN.PERMISSIONS.VIEW")]
         public async Task<ActionResult<PagedResult<ActionSummaryDto>>> GetActions([FromQuery] int page = 1, [FromQuery] int pageSize = 50, [FromQuery] string? search = null)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -57,6 +59,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet("{actionId:guid}")]
+        [RequirePermission("ADMIN.PERMISSIONS.VIEW")]
         public async Task<ActionResult<ActionSummaryDto>> GetAction(Guid actionId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -70,6 +73,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost]
+        [RequirePermission("ADMIN.PERMISSIONS.CREATE")]
         public async Task<ActionResult<ActionSummaryDto>> CreateAction([FromBody] ActionCreateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -101,6 +105,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{actionId:guid}")]
+        [RequirePermission("ADMIN.PERMISSIONS.EDIT")]
         public async Task<ActionResult<ActionSummaryDto>> UpdateAction(Guid actionId, [FromBody] ActionUpdateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -126,6 +131,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{actionId:guid}/deactivate")]
+        [RequirePermission("ADMIN.PERMISSIONS.DELETE")]
         public async Task<IActionResult> DeactivateAction(Guid actionId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -140,6 +146,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("{actionId:guid}/activate")]
+        [RequirePermission("ADMIN.PERMISSIONS.DELETE")]
         public async Task<IActionResult> ActivateAction(Guid actionId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -166,11 +173,11 @@ namespace finrecon360_backend.Controllers.Admin
                 return (null, Forbid());
             }
 
-            var isTenantAdmin = await _dbContext.TenantUsers
+            var isTenantMember = await _dbContext.TenantUsers
                 .AsNoTracking()
-                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId && tu.Role == TenantUserRole.TenantAdmin);
+                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId);
 
-            if (!isTenantAdmin)
+            if (!isTenantMember)
             {
                 return (null, Forbid());
             }

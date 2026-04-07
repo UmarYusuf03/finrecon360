@@ -106,6 +106,10 @@ export class ShellComponent implements OnInit, OnDestroy {
     return permissions.some((permission) => user.permissions.includes(permission));
   }
 
+  getAdminRoot(user: CurrentUser | null): string {
+    return user?.isSystemAdmin ? '/app/system' : '/app/admin';
+  }
+
   private loadProfileImage(): void {
     this.profileService.getProfileImage().subscribe({
       next: (blob) => {

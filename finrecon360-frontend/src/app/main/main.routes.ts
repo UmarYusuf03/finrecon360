@@ -23,8 +23,17 @@ export const mainRoutes: Routes = [
       {
         path: 'admin',
         component: AdminShellComponent,
+        canActivate: [AccessGuard],
+        data: {
+          scope: 'tenant',
+          anyPermissions: [
+            'ADMIN.ROLES.VIEW',
+            'ADMIN.COMPONENTS.VIEW',
+            'ADMIN.PERMISSIONS.VIEW',
+            'ADMIN.USERS.VIEW',
+          ],
+        },
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'roles' },
           {
             path: 'roles',
             loadComponent: () =>
@@ -52,6 +61,22 @@ export const mainRoutes: Routes = [
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.USERS.VIEW'] },
           },
+        ],
+      },
+      {
+        path: 'system',
+        component: AdminShellComponent,
+        canActivate: [AccessGuard],
+        data: {
+          scope: 'system',
+          anyPermissions: [
+            'ADMIN.TENANT_REGISTRATIONS.MANAGE',
+            'ADMIN.TENANTS.MANAGE',
+            'ADMIN.PLANS.MANAGE',
+            'ADMIN.ENFORCEMENT.MANAGE',
+          ],
+        },
+        children: [
           {
             path: 'tenant-registrations',
             loadComponent: () =>

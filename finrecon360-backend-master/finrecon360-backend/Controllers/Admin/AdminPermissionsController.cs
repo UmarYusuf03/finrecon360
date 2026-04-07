@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Dtos;
 using finrecon360_backend.Dtos.Admin;
 using finrecon360_backend.Models;
@@ -31,6 +32,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet]
+        [RequirePermission("ADMIN.PERMISSIONS.VIEW")]
         public async Task<ActionResult<PagedResult<PermissionSummaryDto>>> GetPermissions([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null, [FromQuery] string? module = null)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -65,6 +67,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet("{permissionId:guid}")]
+        [RequirePermission("ADMIN.PERMISSIONS.VIEW")]
         public async Task<ActionResult<PermissionSummaryDto>> GetPermission(Guid permissionId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -78,6 +81,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost]
+        [RequirePermission("ADMIN.PERMISSIONS.CREATE")]
         public async Task<ActionResult<PermissionSummaryDto>> CreatePermission([FromBody] PermissionCreateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -110,6 +114,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{permissionId:guid}")]
+        [RequirePermission("ADMIN.PERMISSIONS.EDIT")]
         public async Task<ActionResult<PermissionSummaryDto>> UpdatePermission(Guid permissionId, [FromBody] PermissionUpdateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -137,6 +142,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpDelete("{permissionId:guid}")]
+        [RequirePermission("ADMIN.PERMISSIONS.DELETE")]
         public async Task<IActionResult> DeletePermission(Guid permissionId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -158,9 +164,9 @@ namespace finrecon360_backend.Controllers.Admin
             var tenant = await _tenantContext.ResolveAsync();
             if (tenant == null) return (null, Forbid());
 
-            var isTenantAdmin = await _dbContext.TenantUsers.AsNoTracking()
-                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId && tu.Role == TenantUserRole.TenantAdmin);
-            if (!isTenantAdmin) return (null, Forbid());
+            var isTenantMember = await _dbContext.TenantUsers.AsNoTracking()
+                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId);
+            if (!isTenantMember) return (null, Forbid());
 
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking().AnyAsync(tu => tu.UserId == userId && tu.IsActive);

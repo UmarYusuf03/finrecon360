@@ -86,4 +86,33 @@ describe('AccessGuard', () => {
     const route = makeRoute({ permissions: ['ADMIN.USERS.VIEW'] });
     expect(guard.canActivate(route as any)).toBeTrue();
   });
+
+  it('allows when user has one of anyPermissions', () => {
+    const user: CurrentUser = {
+      id: '1',
+      email: 'a',
+      displayName: 'User',
+      roles: ['ACCOUNTANT'],
+      permissions: ['ADMIN.USERS.VIEW'],
+      token: 't',
+    };
+    Object.defineProperty(authServiceSpy, 'currentUser', { value: user });
+    const route = makeRoute({ anyPermissions: ['ADMIN.ROLES.VIEW', 'ADMIN.USERS.VIEW'] });
+    expect(guard.canActivate(route as any)).toBeTrue();
+  });
+
+  it('blocks when user has none of anyPermissions', () => {
+    const user: CurrentUser = {
+      id: '1',
+      email: 'a',
+      displayName: 'User',
+      roles: ['ACCOUNTANT'],
+      permissions: ['MATCHER.VIEW'],
+      token: 't',
+    };
+    Object.defineProperty(authServiceSpy, 'currentUser', { value: user });
+    const route = makeRoute({ anyPermissions: ['ADMIN.ROLES.VIEW', 'ADMIN.USERS.VIEW'] });
+    const result = guard.canActivate(route as any);
+    expect(result instanceof UrlTree).toBeTrue();
+  });
 });

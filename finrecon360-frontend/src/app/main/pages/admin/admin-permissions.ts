@@ -6,6 +6,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -35,6 +36,7 @@ import {
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSnackBarModule,
     MatSelectModule,
     TranslateModule,
     HasPermissionDirective,
@@ -64,7 +66,8 @@ export class AdminPermissionsComponent implements OnInit {
     private permissionService: AdminPermissionService,
     private roleService: AdminRoleService,
     private componentService: AdminComponentService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -171,7 +174,10 @@ export class AdminPermissionsComponent implements OnInit {
 
   save(): void {
     const roleId = this.form.get('roleId')?.value;
-    if (!roleId || !this.hasChanges) return;
+    if (!roleId || !this.hasChanges) {
+      this.snackBar.open(this.translate.instant('ADMIN.PERMISSIONS.NO_CHANGES'), 'Close', { duration: 2200 });
+      return;
+    }
     const confirmMessage = this.translate.instant('ADMIN.PERMISSIONS.CONFIRM_SAVE');
     if (!window.confirm(confirmMessage)) return;
 
@@ -180,9 +186,11 @@ export class AdminPermissionsComponent implements OnInit {
       next: () => {
         this.originalAssignments = this.assignments.map((a) => ({ ...a }));
         this.saving = false;
+        this.snackBar.open('Permissions updated successfully.', 'Close', { duration: 2500 });
       },
       error: () => {
         this.saving = false;
+        this.snackBar.open('Failed to save permissions.', 'Close', { duration: 3500 });
       },
     });
   }

@@ -104,6 +104,7 @@ namespace finrecon360_backend.Controllers
                 user.Email,
                 displayName,
                 user.Status.ToString(),
+                user.IsSystemAdmin,
                 tenantId,
                 tenantName,
                 tenantStatus,

@@ -14,7 +14,7 @@ using Microsoft.Extensions.Options;
 namespace finrecon360_backend.Controllers.Admin
 {
     [ApiController]
-    [Route("api/admin/tenant-registrations")]
+    [Route("api/system/tenant-registrations")]
     [Authorize]
     [RequirePermission("ADMIN.TENANT_REGISTRATIONS.MANAGE")]
     [EnableRateLimiting("admin")]

@@ -30,6 +30,11 @@ namespace finrecon360_backend.Validators
     {
         public AdminUserUpdateRequestValidator()
         {
+            RuleFor(u => u.Email)
+                .NotEmpty()
+                .MaximumLength(256)
+                .EmailAddress();
+
             RuleFor(u => u.DisplayName)
                 .NotEmpty()
                 .MaximumLength(256);

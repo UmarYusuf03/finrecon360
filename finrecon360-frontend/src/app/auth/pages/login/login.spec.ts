@@ -50,12 +50,13 @@ describe('LoginComponent', () => {
     expect(emailControl?.invalid).toBeTrue();
   });
 
-  it('navigates admin on admin login', fakeAsync(() => {
+  it('navigates system admin to system area on admin login', fakeAsync(() => {
     authSpy.login.and.returnValue(
       of({
         id: '1',
         email: 'admin@finrecon.local',
         displayName: 'Admin',
+        isSystemAdmin: true,
         roles: ['ADMIN'],
         permissions: ['ADMIN.DASHBOARD.VIEW'],
         token: 't',
@@ -68,7 +69,7 @@ describe('LoginComponent', () => {
     tick();
 
     expect(authSpy.login).toHaveBeenCalled();
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/app/admin');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/app/system');
   }));
 
   it('navigates dashboard on user login', fakeAsync(() => {

@@ -84,11 +84,11 @@ export const API_ENDPOINTS = {
     ACTIONS: '/api/admin/actions',
     COMPONENTS: '/api/admin/components',
     USERS: '/api/admin/users',
-    TENANT_REGISTRATIONS: '/api/admin/tenant-registrations',
-    TENANTS: '/api/admin/tenants',
-    PLANS: '/api/admin/plans',
   },
   SYSTEM: {
+    TENANT_REGISTRATIONS: '/api/system/tenant-registrations',
+    TENANTS: '/api/system/tenants',
+    PLANS: '/api/system/plans',
     ENFORCEMENT_USERS: (tenantId: string) => `/api/system/enforcement/tenants/${tenantId}/users`,
   },
 } as const;

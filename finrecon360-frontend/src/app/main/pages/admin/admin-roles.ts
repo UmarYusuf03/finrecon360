@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -7,6 +8,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 import { TranslateModule } from '@ngx-translate/core';
@@ -28,6 +30,7 @@ import { Role } from '../../../core/admin-rbac/models';
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSnackBarModule,
     MatSlideToggleModule,
     TranslateModule,
     HasPermissionDirective,
@@ -39,11 +42,13 @@ export class AdminRolesComponent implements OnInit {
   roles: Role[] = [];
   form!: FormGroup;
   editingId: string | null = null;
+  private editingRoleIsSystem = false;
 
   constructor(
     private adminRoleService: AdminRoleService,
     private fb: FormBuilder,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -64,17 +69,25 @@ export class AdminRolesComponent implements OnInit {
 
   openAdd(dialogTemplate: any): void {
     this.editingId = null;
+    this.editingRoleIsSystem = false;
     this.form.reset();
+    this.form.get('code')?.enable();
     this.dialog.open(dialogTemplate);
   }
 
   openEdit(role: Role, dialogTemplate: any): void {
     this.editingId = role.id;
+    this.editingRoleIsSystem = !!role.isSystem;
     this.form.patchValue({
       code: role.code,
       name: role.name,
       description: role.description,
     });
+    if (this.editingRoleIsSystem) {
+      this.form.get('code')?.disable();
+    } else {
+      this.form.get('code')?.enable();
+    }
     this.dialog.open(dialogTemplate);
   }
 
@@ -83,21 +96,57 @@ export class AdminRolesComponent implements OnInit {
       this.form.markAllAsTouched();
       return;
     }
-    const payload = this.form.value;
+    const payload = this.form.getRawValue();
     if (this.editingId) {
-      this.adminRoleService.updateRole(this.editingId, payload).subscribe();
+      this.adminRoleService.updateRole(this.editingId, payload).subscribe({
+        next: () => {
+          this.closeDialogIfOpen();
+          this.snackBar.open('Role updated successfully.', 'Close', { duration: 2500 });
+        },
+        error: (error: unknown) => {
+          this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+        },
+      });
     } else {
-      this.adminRoleService.createRole(payload).subscribe();
+      this.adminRoleService.createRole(payload).subscribe({
+        next: () => {
+          this.closeDialogIfOpen();
+          this.snackBar.open('Role created successfully.', 'Close', { duration: 2500 });
+        },
+        error: (error: unknown) => {
+          this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+        },
+      });
     }
-    this.dialog.closeAll();
   }
 
   deactivate(role: Role): void {
     if (role.isSystem) return; // avoid switching off built-ins
-    this.adminRoleService.deactivateRole(role.id).subscribe();
+    this.adminRoleService.deactivateRole(role.id).subscribe({
+      next: () => this.snackBar.open('Role deactivated.', 'Close', { duration: 2500 }),
+      error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
+    });
   }
 
   reactivate(role: Role): void {
-    this.adminRoleService.reactivateRole(role.id).subscribe();
+    this.adminRoleService.reactivateRole(role.id).subscribe({
+      next: () => this.snackBar.open('Role reactivated.', 'Close', { duration: 2500 }),
+      error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
+    });
+  }
+
+  private closeDialogIfOpen(): void {
+    if (!Array.isArray(this.dialog.openDialogs) || this.dialog.openDialogs.length === 0) {
+      return;
+    }
+    this.dialog.closeAll();
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const body = error.error as { message?: string } | null;
+      return body?.message ?? `Request failed with status ${error.status}.`;
+    }
+    return 'Request failed.';
   }
 }
