@@ -1,0 +1,287 @@
+{
+  "AUTH": {
+    "LOGIN": {
+      "TITLE": "மீண்டும் வருக",
+      "SUBTITLE": "FinRecon360 க்கு தொடர உள்நுழையவும்",
+      "EMAIL_LABEL": "மின்னஞ்சல் முகவரி",
+      "EMAIL_PLACEHOLDER": "name@example.com",
+      "PASSWORD_LABEL": "கடவுச்சொல்",
+      "PASSWORD_PLACEHOLDER": "உங்கள் கடவுச்சொல்லை உள்ளிடவும்",
+      "FORGOT_PASSWORD": "கடவுச்சொல்லை மறந்துவிட்டீர்களா?",
+      "SIGN_IN_BTN": "உள்நுழைக",
+      "OR_CONTINUE": "அல்லது தொடரவும்",
+      "SOCIAL_GOOGLE": "Google",
+      "SOCIAL_MICROSOFT": "Microsoft",
+      "SOCIAL_OKTA": "Okta",
+      "NO_ACCOUNT": "கணக்கு இல்லையா?",
+      "SIGN_UP_LINK": "பதிவு செய்க"
+    },
+    "REGISTER": {
+      "TITLE": "உங்கள் கணக்கை உருவாக்கவும்",
+      "SUBTITLE": "தொடங்க FinRecon360 உடன் சேரவும்",
+      "FULL_NAME_LABEL": "முழு பெயர்",
+      "FULL_NAME_PLACEHOLDER": "உங்கள் முழு பெயரை உள்ளிடவும்",
+      "DOB_LABEL": "பிறந்த தேதி",
+      "DOB_PLACEHOLDER": "உங்கள் பிறந்த தேதியைத் தேர்ந்தெடுக்கவும்",
+      "COUNTRY_LABEL": "நாடு",
+      "COUNTRY_PLACEHOLDER": "உங்கள் நாட்டைத் தேர்ந்தெடுக்கவும்",
+      "EMAIL_LABEL": "மின்னஞ்சல் முகவரி",
+      "EMAIL_PLACEHOLDER": "name@example.com",
+      "GENDER_LABEL": "பாலினம்",
+      "GENDER_MALE": "ஆண்",
+      "GENDER_FEMALE": "பெண்",
+      "GENDER_OTHER": "மற்றவை",
+      "PASSWORD_LABEL": "கடவுச்சொல்",
+      "PASSWORD_PLACEHOLDER": "வலுவான கடவுச்சொல்லை உருவாக்கவும்",
+      "CONFIRM_PASSWORD_LABEL": "கடவுச்சொல்லை உறுதிப்படுத்தவும்",
+      "CONFIRM_PASSWORD_PLACEHOLDER": "உங்கள் கடவுச்சொல்லை மீண்டும் உள்ளிடவும்",
+      "CREATE_ACCOUNT_BTN": "கணக்கை உருவாக்கு",
+      "HAVE_ACCOUNT": "ஏற்கனவே கணக்கு உள்ளதா?",
+      "SIGN_IN_LINK": "உள்நுழைக"
+    },
+    "FORGOT_PASSWORD": {
+      "TITLE": "கடவுச்சொல்லை மறந்துவிட்டீர்களா?",
+      "SUBTITLE": "சரிபார்ப்பு குறியீட்டைப் பெற உங்கள் மின்னஞ்சலை உள்ளிடவும்",
+      "EMAIL_LABEL": "மின்னஞ்சல் முகவரி",
+      "EMAIL_PLACEHOLDER": "name@example.com",
+      "SEND_CODE_BTN": "குறியீட்டை அனுப்பு",
+      "BACK_TO_LOGIN": "உள்நுழைவுக்குத் திரும்பு"
+    },
+    "VERIFY_CODE": {
+      "TITLE": "குறியீட்டைச் சரிபார்க்கவும்",
+      "SUBTITLE": "உங்கள் மின்னஞ்சலுக்கு அனுப்பப்பட்ட 6-இலக்க குறியீட்டை உள்ளிடவும்",
+      "CODE_LABEL": "சரிபார்ப்பு குறியீடு",
+      "CODE_PLACEHOLDER": "6-இலக்க குறியீட்டை உள்ளிடவும்",
+      "VERIFY_BTN": "குறியீட்டைச் சரிபார்க்கவும்",
+      "RESEND_CODE": "குறியீடு கிடைக்கவில்லையா?",
+      "RESEND_BTN": "குறியீட்டை மீண்டும் அனுப்பு"
+    },
+    "LOGIN_SUCCESS": "உள்நுழைவு வெற்றி",
+    "LOGIN_FAILED": "உள்நுழைவு தோல்வியடைந்தது",
+    "ERROR_INVALID_CREDENTIALS": "தவறான அங்கீகார விவரங்கள். admin@finrecon.local அல்லது user@finrecon.local முயற்சிக்கவும்."
+  },
+  "ADMIN": {
+    "PERMISSIONS": {
+      "TITLE": "அனுமதிகள்",
+      "COPY": "பாத்திரம் - கூறு - செயல் அட்டவணை.",
+      "ROLE": "பாத்திரம்",
+      "COMPONENT": "கூறு",
+      "ACTIONS": "செயல்கள்",
+      "SEARCH": "கூறுகளைத் தேடு",
+      "SAVE": "அனுமதிகளைச் சேமிக்கவும்",
+      "ACTION_VIEW": "பார்",
+      "ACTION_VIEW_LIST": "பட்டியல்",
+      "ACTION_CREATE": "உருவாக்கு",
+      "ACTION_EDIT": "திருத்து",
+      "ACTION_DELETE": "நீக்கு",
+      "ACTION_APPROVE": "அங்கீகாரி",
+      "ACTION_MANAGE": "மேலாண்மை",
+      "NONE": "எதுவுமில்லை"
+    }
+  },
+  "DASHBOARD": {
+    "TITLE": "டாஷ்போர்டு",
+    "WELCOME": "FinRecon360 க்கு வரவேற்கிறோம்",
+    "OVERVIEW": "மேலோட்டம்",
+    "RECENT_ACTIVITY": "சமீபத்திய செயல்பாடு",
+    "STATS": "புள்ளிவிவரங்கள்",
+    "SUBTITLE": "சமநிலை, பொருத்துதல், பணிகளை கண்காணிக்கவும்.",
+    "MATCHER": {
+      "TITLE": "பொருத்தி",
+      "DESCRIPTION": "பொருத்துதல் முன்னேற்றம் மற்றும் விதிவிலக்குகள்.",
+      "TOTAL": "மொத்த பரிவர்த்தனைகள்",
+      "MATCHED": "பொருந்தியது",
+      "UNMATCHED": "பொருந்தாதது",
+      "EXCEPTIONS": "விதிவிலக்குகள்"
+    },
+    "BALANCER": {
+      "TITLE": "சமநிலையாளர்",
+      "DESCRIPTION": "கணக்கு சமநிலைகள்.",
+      "RECONCILED": "சமநிலை",
+      "PENDING": "நிலுவையில் உள்ள சமநிலைகள்"
+    },
+    "TASKS": {
+      "TITLE": "பணி மேலாளர்",
+      "DESCRIPTION": "மூட வேண்டிய பணிகள்.",
+      "OPEN": "திறந்த பணிகள்",
+      "DUE_TODAY": "இன்று முடிவடையும்",
+      "COMPLETION": "நிறைவு",
+      "ON_TRACK": "பாதையில்"
+    },
+    "JOURNAL": {
+      "TITLE": "பத்திரிகை பதிவு",
+      "DESCRIPTION": "பதிவுகள் மற்றும் அங்கீகாரம்.",
+      "PENDING": "நிலுவை அங்கீகாரம்",
+      "POSTED": "பதிவுசெய்யப்பட்டது"
+    },
+    "ANALYTICS": {
+      "TITLE": "பகுப்பாய்வு",
+      "DESCRIPTION": "முக்கிய KPIகள்.",
+      "CYCLE_TIME": "மூடும் சுழற்சி நேரம்",
+      "MATCH_RATE": "பொருத்து விகிதம்",
+      "RECON_COMPLETION": "சமநிலை நிறைவு"
+    }
+  },
+  "PROFILE": {
+    "TITLE": "சுயவிவரம்",
+    "MY_PROFILE": "எனது சுயவிவரம்",
+    "EDIT_PROFILE": "சுயவிவரத்தைத் திருத்து",
+    "PERSONAL_INFO": "தனிப்பட்ட தகவல்",
+    "ACCOUNT_SETTINGS": "கணக்கு அமைப்புகள்",
+    "SUBTITLE": "உங்கள் தனிப்பட்ட அமைப்புகளை நிர்வகிக்கவும்.",
+    "DISPLAY_NAME": "காட்சி பெயர்",
+    "EMAIL": "மின்னஞ்சல்",
+    "PREFERRED_LANGUAGE": "முன்னுரிமை மொழி",
+    "TIME_ZONE": "நேர மண்டலம்",
+    "EMAIL_NOTIFICATIONS": "மின்னஞ்சல் அறிவிப்புகள்",
+    "ROLES": "பாத்திரங்கள்",
+    "SAVE": "மாற்றங்களை சேமிக்கவும்",
+    "ERRORS": {
+      "REQUIRED": "இந்த புலம் அவசியம்"
+    }
+  },
+  "NAV": {
+    "DASHBOARD": "டாஷ்போர்டு",
+    "MATCHER": "பொருத்தி",
+    "BALANCER": "சமநிலையாளர்",
+    "TASK_MANAGER": "பணி மேலாளர்",
+    "JOURNAL_ENTRY": "பத்திரிகை பதிவு",
+    "ANALYTICS": "பகுப்பாய்வு",
+    "USER_MANAGEMENT": "பயனர் மேலாண்மை",
+    "ADMIN": "நிர்வாகி",
+    "PROFILE": "சுயவிவரம்",
+    "SETTINGS": "அமைப்புகள்",
+    "LOGOUT": "வெளியேறு"
+  },
+  "COMMON": {
+    "SAVE": "சேமி",
+    "CANCEL": "ரத்துசெய்",
+    "SUBMIT": "சமர்ப்பி",
+    "DELETE": "அழி",
+    "EDIT": "திருத்து",
+    "ADD": "சேர்",
+    "REMOVE": "அகற்று",
+    "BACK": "பின்",
+    "NEXT": "அடுத்தது",
+    "PREVIOUS": "முந்தைய",
+    "CLOSE": "மூடு",
+    "CONFIRM": "உறுதிப்படுத்து",
+    "SEARCH": "தேடு",
+    "FILTER": "வடிகட்டி",
+    "RESET": "மீட்டமை",
+    "REFRESH": "புதுப்பி",
+    "EXPORT": "ஏற்றுமதி",
+    "IMPORT": "இறக்குமதி",
+    "DOWNLOAD": "பதிவிறக்கு",
+    "UPLOAD": "பதிவேற்று",
+    "SELECT": "தேர்வுசெய்",
+    "LOADING": "ஏற்றுகிறது...",
+    "NO_DATA": "தரவு இல்லை",
+    "YES": "ஆம்",
+    "NO": "இல்லை"
+  },
+  "ERRORS": {
+    "EMAIL_REQUIRED": "மின்னஞ்சல் தேவை",
+    "EMAIL_INVALID": "செல்லுபடியாகும் மின்னஞ்சல் முகவரியை உள்ளிடவும்",
+    "PASSWORD_REQUIRED": "கடவுச்சொல் தேவை",
+    "PASSWORD_MIN_LENGTH": "கடவுச்சொல் குறைந்தபட்சம் 8 எழுத்துகள் இருக்க வேண்டும்",
+    "PASSWORD_MISMATCH": "கடவுச்சொற்கள் பொருந்தவில்லை",
+    "REQUIRED_FIELD": "இந்த புலம் தேவை",
+    "INVALID_FORMAT": "தவறான வடிவம்",
+    "NETWORK_ERROR": "நெட்வொர்க் பிழை. மீண்டும் முயற்சிக்கவும்.",
+    "UNAUTHORIZED": "இந்தச் செயலைச் செய்ய உங்களுக்கு அதிகாரம் இல்லை",
+    "SERVER_ERROR": "சேவையக பிழை. பின்னர் மீண்டும் முயற்சிக்கவும்.",
+    "SESSION_EXPIRED": "உங்கள் அமர்வு காலாவதியானது. மீண்டும் உள்நுழையவும்."
+  },
+  "VALIDATION": {
+    "MIN_LENGTH": "குறைந்தபட்ச நீளம் {{min}} எழுத்துகள்",
+    "MAX_LENGTH": "அதிகபட்ச நீளம் {{max}} எழுத்துகள்",
+    "MIN_VALUE": "குறைந்தபட்ச மதிப்பு {{min}}",
+    "MAX_VALUE": "அதிகபட்ச மதிப்பு {{max}}",
+    "PATTERN_MISMATCH": "கோரப்பட்ட வடிவத்துடன் பொருத்தவும்",
+    "DATE_INVALID": "செல்லுபடியாகும் தேதியை உள்ளிடவும்",
+    "NUMBER_INVALID": "செல்லுபடியாகும் எண்ணை உள்ளிடவும்"
+  },
+  "ADMIN": {
+    "OVERVIEW": "நிர்வாக டாஷ்போர்டு",
+    "SUBTITLE": "பாத்திரங்கள், அனுமதிகள், அணுகலை நிர்வகிக்கவும்.",
+    "ROLES": {
+      "TITLE": "பாத்திரங்கள்",
+      "COPY": "குழு பாத்திரங்கள் மற்றும் பொறுப்புகள்.",
+      "ADD": "பாத்திரம் சேர்க்க",
+      "EDIT": "பாத்திரம் திருத்து",
+      "NAME": "பாத்திரம்",
+      "CODE": "குறியீடு",
+      "DESCRIPTION": "விளக்கம்",
+      "PERMISSIONS": "அனுமதிகள்",
+      "PERMISSIONS_COUNT": "அனுமதிகள்",
+      "STATUS": "நிலை",
+      "ACTIVE": "செயலில்",
+      "INACTIVE": "செயலிழந்தது",
+      "SYSTEM": "கணினி பாத்திரம்",
+      "SYSTEM_ROLE": "கணினி",
+      "CUSTOM_ROLE": "விருப்பம்",
+      "ACTIONS": "செயல்கள்",
+      "SAVE": "சேமி",
+      "CANCEL": "ரத்துசெய்",
+      "REQUIRED": "இந்த புலம் தேவை"
+    },
+    "COMPONENTS": {
+      "TITLE": "மொட்யூல்கள்",
+      "COPY": "பாதுகாக்க வேண்டிய மொட்யூல்கள்/ஆதாரங்கள்.",
+      "ADD": "மொட்யூல் சேர்க்க",
+      "EDIT": "மொட்யூல் திருத்து",
+      "NAME": "மொட்யூல்",
+      "CODE": "குறியீடு",
+      "ROUTE": "பாதை",
+      "CATEGORY": "வகை",
+      "DESCRIPTION": "விளக்கம்",
+      "STATUS": "நிலை",
+      "ACTIVE": "செயலில்",
+      "INACTIVE": "செயலிழந்தது",
+      "ACTIONS": "செயல்கள்",
+      "SAVE": "சேமி",
+      "CANCEL": "ரத்துசெய்",
+      "REQUIRED": "இந்த புலம் தேவை"
+    },
+    "PERMISSIONS": {
+      "TITLE": "அனுமதிகள்",
+      "COPY": "பாத்திரம் × மொட்யூல் × செயல்கள் அட்டவணை.",
+      "ROLE": "பாத்திரம்",
+      "COMPONENT": "மொட்யூல்",
+      "ACTIONS": "செயல்கள்",
+      "NO_CHANGES": "சேமிக்க மாற்றங்கள் இல்லை.",
+      "CONFIRM_SAVE": "இந்த பாத்திரத்திற்கான அனுமதி மாற்றங்களை சேமிக்கவா?",
+      "NONE": "இல்லை"
+    },
+    "USERS": {
+      "TITLE": "பயனர்கள்",
+      "COPY": "மக்கள் மற்றும் அவர்கள் பாத்திரங்கள்.",
+      "NAME": "பெயர்",
+      "EMAIL": "மின்னஞ்சல்",
+      "ROLES": "பாத்திரங்கள்",
+      "STATUS": "நிலை",
+      "ADD": "பயனரைச் சேர்",
+      "EDIT": "பயனரை திருத்து",
+      "PASSWORD": "ஆரம்ப கடவுச்சொல்",
+      "ACTIVE": "செயலில்",
+      "INACTIVE": "செயலிழந்தது",
+      "SAVE": "சேமி",
+      "CANCEL": "ரத்துசெய்",
+      "EMAIL_INVALID": "செல்லுபடியாகும் மின்னஞ்சல் முகவரி",
+      "REQUIRED": "இந்த புலம் அவசியம்"
+    },
+    "TENANT_REGISTRATIONS": {
+      "TITLE": "Tenant Registrations"
+    },
+    "TENANTS": {
+      "TITLE": "Tenants"
+    },
+    "PLANS": {
+      "TITLE": "Subscription Plans"
+    },
+    "ENFORCEMENT": {
+      "TITLE": "Enforcement"
+    }
+  }
+}

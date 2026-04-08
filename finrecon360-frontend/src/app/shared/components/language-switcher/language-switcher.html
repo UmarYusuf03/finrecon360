@@ -1,0 +1,12 @@
+<!-- Simple text buttons; you can style as you like -->
+<div class="lang-switcher">
+  <button
+    *ngFor="let lang of languages"
+    type="button"
+    class="lang-btn"
+    [class.lang-btn--active]="lang.code === currentLang"
+    (click)="changeLanguage(lang.code)"
+  >
+    {{ lang.label }}
+  </button>
+</div>

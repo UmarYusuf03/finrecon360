@@ -1,0 +1,193 @@
+{
+  "NAV": {
+    "LOGO": "FinRecon360",
+    "DASHBOARD": "Dashboard",
+    "MATCHER": "Matcher",
+    "ADMIN": "Admin",
+    "PROFILE": "Profile",
+    "SIGNED_IN_AS": "Signed in as",
+    "SIGN_OUT": "Sign out"
+  },
+  "COMMON": {
+    "OR_CONTINUE_WITH": "OR CONTINUE WITH",
+    "SAVE": "Save",
+    "CANCEL": "Cancel",
+    "LANGUAGE": "Language"
+  },
+  "ERRORS": {
+    "EMAIL_REQUIRED": "Valid email is required."
+  },
+  "AUTH": {
+    "LOGIN": {
+      "TITLE": "Welcome back",
+      "SUBTITLE": "Sign in to continue to FinRecon360",
+      "EMAIL_LABEL": "Email Address",
+      "EMAIL_PLACEHOLDER": "name@example.com",
+      "PASSWORD_LABEL": "Password",
+      "PASSWORD_PLACEHOLDER": "Enter your password",
+      "FORGOT_PASSWORD": "Forgot password?",
+      "SIGN_IN_BTN": "Sign In",
+      "OR_CONTINUE": "OR CONTINUE WITH",
+      "SOCIAL_GOOGLE": "Google",
+      "SOCIAL_MICROSOFT": "Microsoft",
+      "SOCIAL_OKTA": "Okta",
+      "NO_ACCOUNT": "Don't have an account?",
+      "SIGN_UP_LINK": "Sign Up"
+    },
+    "LOGIN_SUCCESS": "Signed in",
+    "LOGIN_FAILED": "Sign in failed",
+    "ERROR_INVALID_CREDENTIALS": "Invalid credentials. Try admin@finrecon.local or user@finrecon.local.",
+    "NOT_AUTHORIZED_TITLE": "Not authorized",
+    "NOT_AUTHORIZED_BODY": "You do not have permission to view this page.",
+    "BACK_TO_DASHBOARD": "Back to dashboard"
+  },
+  "DASHBOARD": {
+    "TITLE": "Close overview",
+    "SUBTITLE": "Track reconciliations, matches, and tasks in one workspace.",
+    "MATCHER": {
+      "TITLE": "Matcher",
+      "DESCRIPTION": "Monitor matching progress and exceptions.",
+      "TOTAL": "Total transactions",
+      "MATCHED": "Matched",
+      "UNMATCHED": "Unmatched",
+      "EXCEPTIONS": "Exceptions"
+    },
+    "BALANCER": {
+      "TITLE": "Balancer",
+      "DESCRIPTION": "Reconciliations across accounts.",
+      "RECONCILED": "Reconciled",
+      "PENDING": "Pending reconciliations"
+    },
+    "TASKS": {
+      "TITLE": "Task Manager",
+      "DESCRIPTION": "Close tasks and due items.",
+      "OPEN": "Open tasks",
+      "DUE_TODAY": "Due today",
+      "COMPLETION": "Completion",
+      "ON_TRACK": "On track"
+    },
+    "JOURNAL": {
+      "TITLE": "Journal Entry",
+      "DESCRIPTION": "Posting and approvals status.",
+      "PENDING": "Pending approvals",
+      "POSTED": "Posted"
+    },
+    "ANALYTICS": {
+      "TITLE": "Analytics",
+      "DESCRIPTION": "Key close KPIs.",
+      "CYCLE_TIME": "Close cycle time",
+      "MATCH_RATE": "Match rate",
+      "RECON_COMPLETION": "Reconciliation completion"
+    }
+  },
+  "ADMIN": {
+    "OVERVIEW": "Admin dashboard",
+    "SUBTITLE": "Manage roles, permissions, and access controls.",
+    "ROLES": {
+      "TITLE": "Roles",
+      "COPY": "Configure team roles and assign responsibilities.",
+      "ADD": "Add role",
+      "EDIT": "Edit role",
+      "NAME": "Role",
+      "CODE": "Code",
+      "DESCRIPTION": "Description",
+      "PERMISSIONS": "Permissions",
+      "PERMISSIONS_COUNT": "permissions",
+      "STATUS": "Status",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "SYSTEM": "System role",
+      "SYSTEM_ROLE": "System",
+      "CUSTOM_ROLE": "Custom",
+      "ACTIONS": "Actions",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "REQUIRED": "This field is required"
+    },
+    "COMPONENTS": {
+      "TITLE": "Components",
+      "COPY": "Modules and resources that can be secured.",
+      "ADD": "Add component",
+      "EDIT": "Edit component",
+      "NAME": "Component",
+      "CODE": "Code",
+      "ROUTE": "Route",
+      "CATEGORY": "Category",
+      "DESCRIPTION": "Description",
+      "STATUS": "Status",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "ACTIONS": "Actions",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "REQUIRED": "This field is required"
+    },
+    "PERMISSIONS": {
+      "TITLE": "Permissions",
+      "COPY": "Role-component-action matrix.",
+      "ROLE": "Role",
+      "COMPONENT": "Component",
+      "ACTIONS": "Actions",
+      "SEARCH": "Search components",
+      "SAVE": "Save permissions",
+      "NO_CHANGES": "No changes to save.",
+      "CONFIRM_SAVE": "Save permission changes for this role?",
+      "ACTION_VIEW": "View",
+      "ACTION_VIEW_LIST": "List",
+      "ACTION_CREATE": "Create",
+      "ACTION_EDIT": "Edit",
+      "ACTION_DELETE": "Delete",
+      "ACTION_APPROVE": "Approve",
+      "ACTION_MANAGE": "Manage",
+      "NONE": "None"
+    },
+    "USERS": {
+      "TITLE": "Users",
+      "COPY": "People and their assigned roles.",
+      "NAME": "Name",
+      "EMAIL": "Email",
+      "ROLES": "Roles",
+      "STATUS": "Status",
+      "ADD": "Add user",
+      "EDIT": "Edit user",
+      "PASSWORD": "Initial password",
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "SAVE": "Save",
+      "CANCEL": "Cancel",
+      "EMAIL_INVALID": "Enter a valid email",
+      "REQUIRED": "This field is required"
+    },
+    "TENANT_REGISTRATIONS": {
+      "TITLE": "Tenant Registrations"
+    },
+    "TENANTS": {
+      "TITLE": "Tenants"
+    },
+    "PLANS": {
+      "TITLE": "Subscription Plans"
+    },
+    "ENFORCEMENT": {
+      "TITLE": "Enforcement"
+    }
+  },
+  "MATCHER": {
+    "TITLE": "Transaction Matcher",
+    "SUBTITLE": "Review matched items and exceptions.",
+    "EMPTY_STATE": "No matches to display yet."
+  },
+  "PROFILE": {
+    "TITLE": "Profile",
+    "SUBTITLE": "Manage your personal settings.",
+    "DISPLAY_NAME": "Display name",
+    "EMAIL": "Email",
+    "PREFERRED_LANGUAGE": "Preferred language",
+    "TIME_ZONE": "Time zone",
+    "EMAIL_NOTIFICATIONS": "Email notifications",
+    "ROLES": "Roles",
+    "SAVE": "Save changes",
+    "ERRORS": {
+      "REQUIRED": "This field is required"
+    }
+  }
+}
