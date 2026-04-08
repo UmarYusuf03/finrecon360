@@ -1,0 +1,112 @@
+<mat-card>
+  <div class="roles__header">
+    <div>
+      <h2>{{ 'ADMIN.ROLES.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.ROLES.COPY' | translate }}</p>
+    </div>
+    <button
+      mat-flat-button
+      color="primary"
+      *appHasPermission="'ADMIN.ROLES.MANAGE'"
+      (click)="openAdd(roleDialog)"
+    >
+      {{ 'ADMIN.ROLES.ADD' | translate }}
+    </button>
+  </div>
+
+  <table mat-table [dataSource]="roles" class="mat-elevation-z1">
+    <ng-container matColumnDef="code">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.ROLES.CODE' | translate }}</th>
+      <td mat-cell *matCellDef="let role">{{ role.code }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.ROLES.NAME' | translate }}</th>
+      <td mat-cell *matCellDef="let role">{{ role.name }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="description">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.ROLES.DESCRIPTION' | translate }}</th>
+      <td mat-cell *matCellDef="let role">{{ role.description }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.ROLES.STATUS' | translate }}</th>
+      <td mat-cell *matCellDef="let role">
+        <span [ngClass]="role.isActive ? 'status-active' : 'status-inactive'">
+          {{ role.isActive ? ('ADMIN.ROLES.ACTIVE' | translate) : ('ADMIN.ROLES.INACTIVE' | translate) }}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="system">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.ROLES.SYSTEM' | translate }}</th>
+      <td mat-cell *matCellDef="let role">
+        {{ role.isSystem ? ('ADMIN.ROLES.SYSTEM_ROLE' | translate) : ('ADMIN.ROLES.CUSTOM_ROLE' | translate) }}
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let role" class="roles__actions">
+        <button
+          mat-icon-button
+          *appHasPermission="'ADMIN.ROLES.MANAGE'"
+          (click)="openEdit(role, roleDialog)"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+
+        <button
+          mat-icon-button
+          *appHasPermission="'ADMIN.ROLES.MANAGE'"
+          (click)="role.isActive ? deactivate(role) : reactivate(role)"
+          [disabled]="role.isSystem"
+        >
+          <mat-icon>{{ role.isActive ? 'block' : 'check_circle' }}</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+</mat-card>
+
+<ng-template #roleDialog>
+  <h2 mat-dialog-title>
+    {{ editingId ? ('ADMIN.ROLES.EDIT' | translate) : ('ADMIN.ROLES.ADD' | translate) }}
+  </h2>
+  <div mat-dialog-content>
+    <form [formGroup]="form" class="roles__form">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.ROLES.CODE' | translate }}</mat-label>
+        <input matInput formControlName="code" />
+        <mat-error *ngIf="form.get('code')?.hasError('required')">
+          {{ 'ADMIN.ROLES.REQUIRED' | translate }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.ROLES.NAME' | translate }}</mat-label>
+        <input matInput formControlName="name" />
+        <mat-error *ngIf="form.get('name')?.hasError('required')">
+          {{ 'ADMIN.ROLES.REQUIRED' | translate }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.ROLES.DESCRIPTION' | translate }}</mat-label>
+        <textarea matInput formControlName="description" rows="3"></textarea>
+      </mat-form-field>
+    </form>
+  </div>
+  <div mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>
+      {{ 'ADMIN.ROLES.CANCEL' | translate }}
+    </button>
+    <button mat-flat-button color="primary" (click)="save()" [disabled]="form.invalid">
+      {{ 'ADMIN.ROLES.SAVE' | translate }}
+    </button>
+  </div>
+</ng-template>

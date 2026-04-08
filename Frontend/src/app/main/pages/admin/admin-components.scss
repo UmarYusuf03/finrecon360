@@ -1,0 +1,44 @@
+table {
+  width: 100%;
+  margin-top: 12px;
+}
+
+h2 {
+  margin: 0 0 4px;
+  font-weight: 800;
+}
+
+p {
+  margin: 0 0 12px;
+  color: #6b7280;
+}
+
+.components__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.components__actions {
+  display: flex;
+  gap: 4px;
+}
+
+.components__form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 320px;
+}
+
+.status-active {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.status-inactive {
+  color: #dc2626;
+  font-weight: 700;
+}
