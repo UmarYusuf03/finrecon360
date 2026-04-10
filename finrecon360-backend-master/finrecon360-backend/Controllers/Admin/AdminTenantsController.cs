@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace finrecon360_backend.Controllers.Admin
 {
@@ -24,6 +25,7 @@ namespace finrecon360_backend.Controllers.Admin
         private readonly IPasswordHasher _passwordHasher;
         private readonly ITenantUserDirectoryService _tenantUserDirectoryService;
         private readonly ISystemEnforcementService _systemEnforcementService;
+        private readonly ITenantDbProtector _tenantDbProtector;
 
         public AdminTenantsController(
             AppDbContext dbContext,
@@ -31,7 +33,8 @@ namespace finrecon360_backend.Controllers.Admin
             IAuditLogger auditLogger,
             IPasswordHasher passwordHasher,
             ITenantUserDirectoryService tenantUserDirectoryService,
-            ISystemEnforcementService systemEnforcementService)
+            ISystemEnforcementService systemEnforcementService,
+            ITenantDbProtector tenantDbProtector)
         {
             _dbContext = dbContext;
             _userContext = userContext;
@@ -39,6 +42,7 @@ namespace finrecon360_backend.Controllers.Admin
             _passwordHasher = passwordHasher;
             _tenantUserDirectoryService = tenantUserDirectoryService;
             _systemEnforcementService = systemEnforcementService;
+            _tenantDbProtector = tenantDbProtector;
         }
 
         [HttpGet]
@@ -290,6 +294,86 @@ namespace finrecon360_backend.Controllers.Admin
             return NoContent();
         }
 
+        [HttpDelete("{tenantId:guid}")]
+        public async Task<IActionResult> DeleteTenant(Guid tenantId)
+        {
+            if (_userContext.UserId is not { } actorId)
+            {
+                return Unauthorized();
+            }
+
+            var tenant = await _dbContext.Tenants
+                .Include(t => t.TenantUsers)
+                .FirstOrDefaultAsync(t => t.TenantId == tenantId);
+
+            if (tenant is null)
+            {
+                return NotFound();
+            }
+
+            var adminUserIds = tenant.TenantUsers
+                .Where(tu => tu.Role == TenantUserRole.TenantAdmin)
+                .Select(tu => tu.UserId)
+                .Distinct()
+                .ToList();
+
+            var adminEmails = await _dbContext.Users
+                .AsNoTracking()
+                .Where(u => adminUserIds.Contains(u.UserId))
+                .Select(u => u.Email)
+                .ToListAsync();
+
+            var tenantDatabases = await _dbContext.TenantDatabases
+                .Where(d => d.TenantId == tenantId)
+                .ToListAsync();
+
+            foreach (var tenantDatabase in tenantDatabases)
+            {
+                try
+                {
+                    var decrypted = _tenantDbProtector.Unprotect(tenantDatabase.EncryptedConnectionString);
+                    await DropTenantDatabaseIfExistsAsync(decrypted, HttpContext.RequestAborted);
+                }
+                catch
+                {
+                    // Best effort: continue deleting control-plane records even if physical DB cleanup fails.
+                }
+            }
+
+            _dbContext.Tenants.Remove(tenant);
+
+            if (adminEmails.Count > 0)
+            {
+                var emailSet = adminEmails
+                    .Select(e => e.Trim().ToLowerInvariant())
+                    .ToList();
+
+                var registrationRequests = await _dbContext.TenantRegistrationRequests
+                    .Where(r => emailSet.Contains(r.AdminEmail))
+                    .ToListAsync();
+
+                if (registrationRequests.Count > 0)
+                {
+                    _dbContext.TenantRegistrationRequests.RemoveRange(registrationRequests);
+                }
+
+                var usersToDelete = await _dbContext.Users
+                    .Where(u => emailSet.Contains(u.Email) &&
+                                !_dbContext.TenantUsers.Any(tu => tu.UserId == u.UserId && tu.TenantId != tenantId))
+                    .ToListAsync();
+
+                if (usersToDelete.Count > 0)
+                {
+                    _dbContext.Users.RemoveRange(usersToDelete);
+                }
+            }
+
+            await _dbContext.SaveChangesAsync();
+            await _auditLogger.LogAsync(actorId, "TenantDeleted", "Tenant", tenantId.ToString(), null);
+
+            return NoContent();
+        }
+
         private async Task<IActionResult> ApplyTenantEnforcement(Guid tenantId, TenantStatus newStatus, EnforcementActionType actionType, EnforcementActionRequest request)
         {
             var result = await _systemEnforcementService.ApplyTenantActionAsync(tenantId, newStatus, actionType, request, HttpContext.RequestAborted);
@@ -300,6 +384,34 @@ namespace finrecon360_backend.Controllers.Admin
             var actorId = _userContext.UserId!.Value;
             await _auditLogger.LogAsync(actorId, $"Tenant{actionType}", "Tenant", tenantId.ToString(), request.Reason);
             return NoContent();
+        }
+
+        private static async Task DropTenantDatabaseIfExistsAsync(string tenantConnectionString, CancellationToken cancellationToken)
+        {
+            var tenantBuilder = new SqlConnectionStringBuilder(tenantConnectionString);
+            var databaseName = tenantBuilder.InitialCatalog;
+            if (string.IsNullOrWhiteSpace(databaseName))
+            {
+                return;
+            }
+
+            var masterBuilder = new SqlConnectionStringBuilder(tenantConnectionString)
+            {
+                InitialCatalog = "master"
+            };
+
+            await using var connection = new SqlConnection(masterBuilder.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = @"
+IF DB_ID(@databaseName) IS NOT NULL
+BEGIN
+    DECLARE @sql nvarchar(max) = N'ALTER DATABASE [' + REPLACE(@databaseName, ']', ']]') + N'] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [' + REPLACE(@databaseName, ']', ']]') + N']';
+    EXEC(@sql);
+END";
+            command.Parameters.AddWithValue("@databaseName", databaseName);
+            await command.ExecuteNonQueryAsync(cancellationToken);
         }
     }
 }

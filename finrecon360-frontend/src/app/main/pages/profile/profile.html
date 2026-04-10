@@ -120,7 +120,7 @@
           mat-stroked-button
           type="button"
           class="profile__change-btn"
-          (click)="confirmChangePasswordLink()"
+          (click)="openChangePasswordDialog()"
           [disabled]="changePasswordSubmitting"
         >
           {{ changePasswordSubmitting ? 'Sending link...' : 'Change password' }}
@@ -130,6 +130,25 @@
         </button>
       </div>
       <div *ngIf="changePasswordStatus" class="profile__status">{{ changePasswordStatus }}</div>
+      <div *ngIf="changePasswordFallbackLink" class="profile__status profile__status--link">
+        <span>Email delivery failed. Use secure link:</span>
+        <a [href]="changePasswordFallbackLink" target="_blank" rel="noopener noreferrer">Open change password link</a>
+      </div>
     </form>
   </mat-card>
+
+  <div class="dialog-backdrop" *ngIf="changePasswordDialogOpen">
+    <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
+      <h3 id="change-password-title">Send Password Change Link</h3>
+      <p>We will send a secure password change link to <strong>{{ changePasswordMaskedEmail }}</strong>.</p>
+      <p>You can use the link while logged in to confirm your current password and set a new one.</p>
+
+      <div class="dialog-actions">
+        <button type="button" class="ghost-btn" [disabled]="changePasswordSubmitting" (click)="closeChangePasswordDialog()">Cancel</button>
+        <button type="button" class="primary-btn" [disabled]="changePasswordSubmitting" (click)="confirmChangePasswordLink()">
+          {{ changePasswordSubmitting ? 'Sending...' : 'Send Link' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </div>

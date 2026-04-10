@@ -14,6 +14,7 @@ namespace finrecon360_backend.Services
     public interface IOnboardingMagicLinkService
     {
         Task<OnboardingMagicLinkToken?> CreateTokenAsync(Guid userId, string purpose, string? createdIp, CancellationToken cancellationToken = default);
+        Task<OnboardingMagicLinkConsumeResult> ValidateTokenAsync(string token, string purpose, CancellationToken cancellationToken = default);
         Task<OnboardingMagicLinkConsumeResult> ConsumeTokenAsync(string token, string purpose, CancellationToken cancellationToken = default);
     }
 
@@ -103,6 +104,34 @@ namespace finrecon360_backend.Services
             record.UsedAt = now;
             record.LastAttemptAt = now;
             await _dbContext.SaveChangesAsync(cancellationToken);
+
+            return new OnboardingMagicLinkConsumeResult(true, record.GlobalUserId);
+        }
+
+        public async Task<OnboardingMagicLinkConsumeResult> ValidateTokenAsync(string token, string purpose, CancellationToken cancellationToken = default)
+        {
+            var tokenHash = ComputeHash(token);
+            var record = await _dbContext.MagicLinkTokens
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Purpose == purpose && t.TokenHash == tokenHash, cancellationToken);
+
+            if (record == null)
+            {
+                return new OnboardingMagicLinkConsumeResult(false, null);
+            }
+
+            var now = DateTime.UtcNow;
+            var maxAttempts = _options.MaxAttempts <= 0 ? 5 : _options.MaxAttempts;
+
+            if (!CryptographicOperations.FixedTimeEquals(record.TokenHash, tokenHash))
+            {
+                return new OnboardingMagicLinkConsumeResult(false, record.GlobalUserId);
+            }
+
+            if (record.UsedAt != null || record.ExpiresAt <= now || record.AttemptCount >= maxAttempts)
+            {
+                return new OnboardingMagicLinkConsumeResult(false, record.GlobalUserId);
+            }
 
             return new OnboardingMagicLinkConsumeResult(true, record.GlobalUserId);
         }

@@ -1,3 +1,4 @@
+using finrecon360_backend.Data;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -64,7 +65,19 @@ namespace finrecon360_backend.Authorization
                     return;
                 }
 
-                await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
+                TenantDbContext tenantDb;
+                try
+                {
+                    tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
+                }
+                catch (InvalidOperationException)
+                {
+                    // If tenant database is unavailable, deny permission instead of failing the request pipeline.
+                    return;
+                }
+
+                await using (tenantDb)
+                {
                 var isActiveInTenant = await tenantDb.TenantUsers
                     .AsNoTracking()
                     .AnyAsync(tu => tu.UserId == userId.Value && tu.IsActive);
@@ -79,6 +92,7 @@ namespace finrecon360_backend.Authorization
                     .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
                     .Distinct()
                     .ToListAsync();
+                }
             }
             else
             {

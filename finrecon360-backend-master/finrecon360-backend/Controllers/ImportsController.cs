@@ -1,0 +1,780 @@
+using System.Text.Json;
+using finrecon360_backend.Data;
+using finrecon360_backend.Dtos.Imports;
+using finrecon360_backend.Models;
+using finrecon360_backend.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+
+namespace finrecon360_backend.Controllers
+{
+    [ApiController]
+    [Route("api/imports")]
+    [Authorize]
+    [EnableRateLimiting("me")]
+    public class ImportsController : ControllerBase
+    {
+        private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".csv", ".xlsx"
+        };
+
+
+        private readonly AppDbContext _dbContext;
+        private readonly ITenantContext _tenantContext;
+        private readonly ITenantDbContextFactory _tenantDbContextFactory;
+        private readonly IUserContext _userContext;
+        private readonly IImportFileParser _importFileParser;
+        private readonly IImportNormalizationService _normalizationService;
+        private readonly IAuditLogger _auditLogger;
+
+        public ImportsController(
+            AppDbContext dbContext,
+            ITenantContext tenantContext,
+            ITenantDbContextFactory tenantDbContextFactory,
+            IUserContext userContext,
+            IImportFileParser importFileParser,
+            IImportNormalizationService normalizationService,
+            IAuditLogger auditLogger)
+        {
+            _dbContext = dbContext;
+            _tenantContext = tenantContext;
+            _tenantDbContextFactory = tenantDbContextFactory;
+            _userContext = userContext;
+            _importFileParser = importFileParser;
+            _normalizationService = normalizationService;
+            _auditLogger = auditLogger;
+        }
+
+        [HttpPost]
+        [RequestSizeLimit(25 * 1024 * 1024)]
+        public async Task<ActionResult<ImportUploadResponseDto>> Upload([FromForm] IFormFile file, [FromForm] string? sourceType = null)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: false);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "A CSV or XLSX file is required." });
+            }
+
+            var extension = Path.GetExtension(file.FileName);
+            if (!SupportedExtensions.Contains(extension))
+            {
+                return BadRequest(new { message = "Unsupported file type. Only CSV and XLSX are supported." });
+            }
+
+            var batchId = Guid.NewGuid();
+            var now = DateTime.UtcNow;
+            var normalizedSourceType = string.IsNullOrWhiteSpace(sourceType)
+                ? extension.TrimStart('.').ToUpperInvariant()
+                : sourceType.Trim().ToUpperInvariant();
+
+            var batch = new ImportBatch
+            {
+                ImportBatchId = batchId,
+                SourceType = normalizedSourceType,
+                Status = "RECEIVED",
+                ImportedAt = now,
+                UploadedByUserId = _userContext.UserId,
+                OriginalFileName = file.FileName,
+                RawRecordCount = 0,
+                NormalizedRecordCount = 0,
+                ErrorMessage = null
+            };
+
+            tenantDb.ImportBatches.Add(batch);
+            await tenantDb.SaveChangesAsync();
+
+            var tenantImportDir = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "App_Data",
+                "imports",
+                auth.TenantId!.Value.ToString("N"));
+            Directory.CreateDirectory(tenantImportDir);
+
+            var storedFilePath = Path.Combine(tenantImportDir, $"{batchId:N}{extension}");
+            await using (var stream = System.IO.File.Create(storedFilePath))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return Ok(new ImportUploadResponseDto(
+                batch.ImportBatchId,
+                batch.Status,
+                batch.SourceType,
+                batch.OriginalFileName ?? file.FileName,
+                batch.ImportedAt));
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<ImportHistoryResponseDto>> GetHistory(
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: false);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 200);
+
+            var query = tenantDb.ImportBatches.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim();
+                query = query.Where(x =>
+                    (x.OriginalFileName != null && x.OriginalFileName.Contains(term)) ||
+                    x.SourceType.Contains(term));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var statusTerm = status.Trim();
+                query = query.Where(x => x.Status == statusTerm);
+            }
+
+            var total = await query.CountAsync();
+            var users = tenantDb.TenantUsers.AsNoTracking();
+
+            var items = await (from batch in query
+                               join user in users on batch.UploadedByUserId equals user.UserId into userGroup
+                               from user in userGroup.DefaultIfEmpty()
+                               orderby batch.ImportedAt descending
+                               select new ImportHistoryItemDto(
+                                   batch.ImportBatchId,
+                                   batch.SourceType,
+                                   batch.Status,
+                                   batch.ImportedAt,
+                                   batch.OriginalFileName,
+                                   batch.RawRecordCount,
+                                   batch.NormalizedRecordCount,
+                                   batch.ErrorMessage,
+                                   batch.UploadedByUserId,
+                                   user != null ? user.Email : null,
+                                   user != null ? user.DisplayName : null))
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return Ok(new ImportHistoryResponseDto(items, total, page, pageSize));
+        }
+
+        [HttpGet("{id:guid}/validation-rows")]
+        public async Task<ActionResult<ImportValidationRowsResponseDto>> GetValidationRows(
+            Guid id,
+            [FromQuery] string? status = null)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            if (!batch.MappingTemplateId.HasValue)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappingTemplate = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value && x.IsActive);
+            if (mappingTemplate == null)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var rowsQuery = tenantDb.ImportedRawRecords.AsNoTracking()
+                .Where(x => x.ImportBatchId == id);
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var statusValue = status.Trim().ToUpperInvariant();
+                rowsQuery = rowsQuery.Where(x => x.NormalizationStatus == statusValue);
+            }
+
+            var rows = await rowsQuery
+                .OrderBy(x => x.RowNumber)
+                .ToListAsync();
+
+            if (rows.Count == 0)
+            {
+                return Ok(new ImportValidationRowsResponseDto(
+                    id,
+                    0,
+                    0,
+                    0,
+                    new List<ImportValidationRowDto>()));
+            }
+
+            var allRows = await tenantDb.ImportedRawRecords.AsNoTracking()
+                .Where(x => x.ImportBatchId == id)
+                .ToListAsync();
+
+            var validRows = allRows.Count(x => string.Equals(x.NormalizationStatus, "VALID", StringComparison.OrdinalIgnoreCase));
+            var invalidRows = allRows.Count - validRows;
+
+            var responseRows = rows.Select(x => new ImportValidationRowDto(
+                x.ImportedRawRecordId,
+                x.RowNumber ?? 0,
+                x.NormalizationStatus,
+                x.NormalizationErrors,
+                DeserializeRowPayload(x.SourcePayloadJson)))
+                .ToList();
+
+            return Ok(new ImportValidationRowsResponseDto(
+                id,
+                allRows.Count,
+                validRows,
+                invalidRows,
+                responseRows));
+        }
+
+        [HttpPut("{id:guid}/raw-records/{rawRecordId:guid}")]
+        public async Task<ActionResult<ImportValidationRowDto>> UpdateRawRecord(
+            Guid id,
+            Guid rawRecordId,
+            [FromBody] ImportUpdateRawRecordRequest request)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches
+                .FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            if (!batch.MappingTemplateId.HasValue)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappingTemplate = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value && x.IsActive);
+            if (mappingTemplate == null)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var rawRecord = await tenantDb.ImportedRawRecords
+                .FirstOrDefaultAsync(x => x.ImportBatchId == id && x.ImportedRawRecordId == rawRecordId);
+            if (rawRecord == null)
+            {
+                return NotFound();
+            }
+
+            if (request.Payload == null || request.Payload.Count == 0)
+            {
+                return BadRequest(new { message = "Payload is required." });
+            }
+
+            rawRecord.SourcePayloadJson = JsonSerializer.Serialize(request.Payload);
+
+            var mappings = DeserializeMappings(mappingTemplate.MappingJson);
+            var errors = _normalizationService.ValidateRow(request.Payload, mappings);
+
+            if (errors.Count == 0)
+            {
+                rawRecord.NormalizationStatus = "VALID";
+                rawRecord.NormalizationErrors = null;
+            }
+            else
+            {
+                rawRecord.NormalizationStatus = "INVALID";
+                rawRecord.NormalizationErrors = string.Join(" | ", errors);
+            }
+
+            await UpdateBatchValidationStatusAsync(tenantDb, batch);
+            await tenantDb.SaveChangesAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportRowCorrected",
+                "ImportedRawRecord",
+                rawRecordId.ToString(),
+                $"batchId={id};status={rawRecord.NormalizationStatus}");
+
+            return Ok(new ImportValidationRowDto(
+                rawRecord.ImportedRawRecordId,
+                rawRecord.RowNumber ?? 0,
+                rawRecord.NormalizationStatus,
+                rawRecord.NormalizationErrors,
+                DeserializeRowPayload(rawRecord.SourcePayloadJson)));
+        }
+
+        [HttpGet("active-template")]
+        public async Task<ActionResult<ImportMappingTemplateSummaryDto>> GetActiveTemplate([FromQuery] string? sourceType)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (string.IsNullOrWhiteSpace(sourceType))
+            {
+                return BadRequest(new { message = "SourceType is required." });
+            }
+
+            var sourceTypeValue = sourceType.Trim();
+
+            var template = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .Where(x => x.IsActive && x.SourceType == sourceTypeValue)
+                .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (template is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(new ImportMappingTemplateSummaryDto(
+                template.ImportMappingTemplateId,
+                template.Name,
+                template.SourceType,
+                template.CanonicalSchemaVersion,
+                template.Version,
+                template.IsActive,
+                template.MappingJson,
+                template.CreatedAt,
+                template.UpdatedAt));
+        }
+
+        [HttpPost("{id:guid}/parse")]
+        public async Task<ActionResult<ImportParseResponseDto>> Parse(Guid id)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            var filePath = ResolveStoredFilePath(auth.TenantId!.Value, id);
+            if (filePath == null)
+            {
+                return NotFound(new { message = "Uploaded file not found for this batch." });
+            }
+
+            ParsedImportFile parsed;
+            try
+            {
+                parsed = await _importFileParser.ParseAsync(filePath);
+            }
+            catch (Exception ex)
+            {
+                batch.Status = "PARSE_FAILED";
+                batch.ErrorMessage = ex.Message;
+                await tenantDb.SaveChangesAsync();
+                return BadRequest(new { message = ex.Message });
+            }
+
+            var existingRaw = tenantDb.ImportedRawRecords.Where(x => x.ImportBatchId == id);
+            tenantDb.ImportedRawRecords.RemoveRange(existingRaw);
+            var existingNormalized = tenantDb.ImportedNormalizedRecords.Where(x => x.ImportBatchId == id);
+            tenantDb.ImportedNormalizedRecords.RemoveRange(existingNormalized);
+
+            var now = DateTime.UtcNow;
+            for (var i = 0; i < parsed.Rows.Count; i++)
+            {
+                var payloadJson = JsonSerializer.Serialize(parsed.Rows[i]);
+                tenantDb.ImportedRawRecords.Add(new ImportedRawRecord
+                {
+                    ImportedRawRecordId = Guid.NewGuid(),
+                    ImportBatchId = id,
+                    RowNumber = i + 1,
+                    SourcePayloadJson = payloadJson,
+                    NormalizationStatus = "PENDING",
+                    CreatedAt = now
+                });
+            }
+
+            batch.RawRecordCount = parsed.TotalRows;
+            batch.NormalizedRecordCount = 0;
+            batch.Status = "PARSED";
+            batch.ErrorMessage = null;
+            await tenantDb.SaveChangesAsync();
+
+            var samples = parsed.Rows.Take(5).ToList();
+            return Ok(new ImportParseResponseDto(
+                id,
+                batch.Status,
+                parsed.Headers,
+                samples,
+                parsed.TotalRows));
+        }
+
+        [HttpPost("{id:guid}/mapping")]
+        public async Task<ActionResult<ImportMappingSavedResponseDto>> SaveMapping(Guid id, [FromBody] SaveImportMappingRequest request)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            if (request.FieldMappings == null || request.FieldMappings.Count == 0)
+            {
+                return BadRequest(new { message = "FieldMappings is required." });
+            }
+
+            var mappingJson = JsonSerializer.Serialize(request.FieldMappings);
+            var schemaVersion = string.IsNullOrWhiteSpace(request.CanonicalSchemaVersion)
+                ? "v1"
+                : request.CanonicalSchemaVersion.Trim();
+
+            ImportMappingTemplate? existing = null;
+            if (batch.MappingTemplateId.HasValue)
+            {
+                existing = await tenantDb.ImportMappingTemplates.FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value);
+            }
+
+            if (existing == null)
+            {
+                existing = new ImportMappingTemplate
+                {
+                    ImportMappingTemplateId = Guid.NewGuid(),
+                    Name = $"Batch Mapping {id:N}",
+                    SourceType = batch.SourceType,
+                    CanonicalSchemaVersion = schemaVersion,
+                    MappingJson = mappingJson,
+                    Version = 1,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    CreatedByUserId = _userContext.UserId
+                };
+                tenantDb.ImportMappingTemplates.Add(existing);
+                batch.MappingTemplateId = existing.ImportMappingTemplateId;
+            }
+            else
+            {
+                existing.SourceType = batch.SourceType;
+                existing.CanonicalSchemaVersion = schemaVersion;
+                existing.MappingJson = mappingJson;
+                existing.IsActive = true;
+                existing.Version += 1;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+
+            batch.Status = "MAPPED";
+            batch.ErrorMessage = null;
+            await tenantDb.SaveChangesAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                existing.Version == 1 ? "ImportMappingSaved" : "ImportMappingUpdated",
+                "ImportBatch",
+                id.ToString(),
+                $"templateId={existing.ImportMappingTemplateId};version={existing.Version};sourceType={batch.SourceType}");
+
+            return Ok(new ImportMappingSavedResponseDto(
+                id,
+                existing.Version,
+                existing.CanonicalSchemaVersion,
+                existing.UpdatedAt ?? existing.CreatedAt));
+        }
+
+        [HttpPost("{id:guid}/validate")]
+        public async Task<ActionResult<ImportValidateResponseDto>> Validate(Guid id)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            if (!batch.MappingTemplateId.HasValue)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappingTemplate = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value && x.IsActive);
+            if (mappingTemplate == null)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappings = DeserializeMappings(mappingTemplate.MappingJson);
+            var rawRecords = await tenantDb.ImportedRawRecords
+                .Where(x => x.ImportBatchId == id)
+                .OrderBy(x => x.RowNumber)
+                .ToListAsync();
+
+            if (rawRecords.Count == 0)
+            {
+                return BadRequest(new { message = "No parsed records found. Parse the file first." });
+            }
+
+            var errors = new List<ImportValidationErrorDto>();
+            var validRows = 0;
+            foreach (var raw in rawRecords)
+            {
+                var row = DeserializeRowPayload(raw.SourcePayloadJson);
+                var rowErrors = _normalizationService.ValidateRow(row, mappings);
+                if (rowErrors.Count == 0)
+                {
+                    raw.NormalizationStatus = "VALID";
+                    raw.NormalizationErrors = null;
+                    validRows += 1;
+                }
+                else
+                {
+                    raw.NormalizationStatus = "INVALID";
+                    raw.NormalizationErrors = string.Join(" | ", rowErrors);
+                    foreach (var message in rowErrors)
+                    {
+                        errors.Add(new ImportValidationErrorDto(raw.RowNumber ?? 0, message));
+                    }
+                }
+            }
+
+            batch.Status = errors.Count == 0 ? "VALIDATED" : "VALIDATION_FAILED";
+            batch.ErrorMessage = errors.Count == 0 ? null : $"{errors.Count} validation issue(s) found.";
+            await tenantDb.SaveChangesAsync();
+
+            return Ok(new ImportValidateResponseDto(
+                id,
+                batch.Status,
+                rawRecords.Count,
+                validRows,
+                rawRecords.Count - validRows,
+                errors.Take(200).ToList()));
+        }
+
+        [HttpPost("{id:guid}/commit")]
+        public async Task<ActionResult<ImportCommitResponseDto>> Commit(Guid id)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            if (!batch.MappingTemplateId.HasValue)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappingTemplate = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value && x.IsActive);
+            if (mappingTemplate == null)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappings = DeserializeMappings(mappingTemplate.MappingJson);
+            var rawRecords = await tenantDb.ImportedRawRecords
+                .Where(x => x.ImportBatchId == id)
+                .OrderBy(x => x.RowNumber)
+                .ToListAsync();
+
+            if (rawRecords.Count == 0)
+            {
+                return BadRequest(new { message = "No parsed records found. Parse the file first." });
+            }
+
+            if (rawRecords.Any(x => !string.Equals(x.NormalizationStatus, "VALID", StringComparison.OrdinalIgnoreCase)))
+            {
+                return BadRequest(new { message = "All rows must be VALID before commit." });
+            }
+
+            await using var transaction = await tenantDb.Database.BeginTransactionAsync();
+
+            var existingNormalized = tenantDb.ImportedNormalizedRecords.Where(x => x.ImportBatchId == id);
+            tenantDb.ImportedNormalizedRecords.RemoveRange(existingNormalized);
+
+            var normalizedRecords = new List<ImportedNormalizedRecord>(rawRecords.Count);
+            foreach (var raw in rawRecords)
+            {
+                var row = DeserializeRowPayload(raw.SourcePayloadJson);
+                var result = _normalizationService.Normalize(id, raw.ImportedRawRecordId, row, mappings);
+                if (result.Errors.Count > 0)
+                {
+                    return BadRequest(new { message = "Normalization errors detected. Re-run validation." });
+                }
+                normalizedRecords.Add(result.Normalized);
+            }
+
+            tenantDb.ImportedNormalizedRecords.AddRange(normalizedRecords);
+            batch.NormalizedRecordCount = normalizedRecords.Count;
+            batch.Status = "COMMITTED";
+            batch.ErrorMessage = null;
+
+            await tenantDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportCommit",
+                "ImportBatch",
+                id.ToString(),
+                $"normalizedCount={normalizedRecords.Count};sourceType={batch.SourceType}");
+
+            return Ok(new ImportCommitResponseDto(
+                id,
+                batch.Status,
+                normalizedRecords.Count,
+                DateTime.UtcNow));
+        }
+
+        [HttpDelete("{id:guid}")]
+        public async Task<ActionResult<ImportDeleteResponseDto>> Delete(Guid id)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches
+                .FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            await using var transaction = await tenantDb.Database.BeginTransactionAsync();
+
+            var existingRaw = tenantDb.ImportedRawRecords.Where(x => x.ImportBatchId == id);
+            tenantDb.ImportedRawRecords.RemoveRange(existingRaw);
+
+            var existingNormalized = tenantDb.ImportedNormalizedRecords.Where(x => x.ImportBatchId == id);
+            tenantDb.ImportedNormalizedRecords.RemoveRange(existingNormalized);
+
+            tenantDb.ImportBatches.Remove(batch);
+            await tenantDb.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            var fileDeleted = false;
+            var filePath = ResolveStoredFilePath(auth.TenantId!.Value, id);
+            if (!string.IsNullOrWhiteSpace(filePath) && System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    System.IO.File.Delete(filePath);
+                    fileDeleted = true;
+                }
+                catch
+                {
+                    fileDeleted = false;
+                }
+            }
+
+            return Ok(new ImportDeleteResponseDto(id, fileDeleted, DateTime.UtcNow));
+        }
+
+        private async Task<(TenantDbContext? Db, Guid? TenantId, ActionResult? Error)> AuthorizeTenantUserAsync(bool requireAdmin)
+        {
+            if (_userContext.UserId is not { } userId)
+            {
+                return (null, null, Unauthorized());
+            }
+
+            if (!_userContext.IsActive || _userContext.Status == UserStatus.Suspended || _userContext.Status == UserStatus.Banned)
+            {
+                return (null, null, Forbid());
+            }
+
+            var tenant = await _tenantContext.ResolveAsync();
+            if (tenant == null || tenant.Status != TenantStatus.Active)
+            {
+                return (null, null, Forbid());
+            }
+
+            var tenantMembership = await _dbContext.TenantUsers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId);
+
+            if (tenantMembership == null)
+            {
+                return (null, null, Forbid());
+            }
+
+            if (requireAdmin && tenantMembership.Role != TenantUserRole.TenantAdmin)
+            {
+                return (null, null, Forbid());
+            }
+
+            var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
+            var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking().AnyAsync(tu => tu.UserId == userId && tu.IsActive);
+            if (!isActiveInTenant)
+            {
+                await tenantDb.DisposeAsync();
+                return (null, null, Forbid());
+            }
+
+            return (tenantDb, tenant.TenantId, null);
+        }
+
+        private static Dictionary<string, string> DeserializeMappings(string json)
+        {
+            var map = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            return new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static Dictionary<string, string?> DeserializeRowPayload(string json)
+        {
+            var row = JsonSerializer.Deserialize<Dictionary<string, string?>>(json)
+                ?? new Dictionary<string, string?>();
+            return new Dictionary<string, string?>(row, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static async Task UpdateBatchValidationStatusAsync(TenantDbContext tenantDb, ImportBatch batch)
+        {
+            var total = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId);
+            var valid = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId && x.NormalizationStatus == "VALID");
+            var invalid = total - valid;
+
+            batch.Status = invalid == 0 && total > 0 ? "VALIDATED" : "VALIDATION_FAILED";
+            batch.ErrorMessage = invalid == 0 ? null : $"{invalid} validation issue(s) found.";
+        }
+
+
+        private static string? ResolveStoredFilePath(Guid tenantId, Guid batchId)
+        {
+            var dir = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "imports", tenantId.ToString("N"));
+            if (!Directory.Exists(dir))
+            {
+                return null;
+            }
+
+            foreach (var extension in SupportedExtensions)
+            {
+                var path = Path.Combine(dir, $"{batchId:N}{extension}");
+                if (System.IO.File.Exists(path))
+                {
+                    return path;
+                }
+            }
+
+            return null;
+        }
+    }
+}

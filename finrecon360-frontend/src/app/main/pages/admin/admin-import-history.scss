@@ -1,0 +1,45 @@
+.import-history {
+  display: grid;
+  gap: 1rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+input {
+  border: 1px solid #d6d9e4;
+  border-radius: 10px;
+  padding: 9px 10px;
+  min-width: 180px;
+}
+
+.ghost-btn {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #e9edf7;
+  color: #2f3d5c;
+  font-weight: 600;
+}
+
+.loading {
+  color: #5d6781;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.history-table th,
+.history-table td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #e2e6ef;
+}

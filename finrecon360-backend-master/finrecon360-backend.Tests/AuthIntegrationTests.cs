@@ -293,7 +293,7 @@ public class AuthIntegrationTests : IClassFixture<TestWebApplicationFactory>
         };
 
         var response = await client.PostAsJsonAsync("/api/admin/users", payload);
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]

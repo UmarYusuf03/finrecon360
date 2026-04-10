@@ -12,6 +12,8 @@ namespace finrecon360_backend.Services
         private const string MigrationInitial = "202603010001_InitialTenantSchema";
         private const string MigrationRbac = "202603020001_TenantRbacSchema";
         private const string MigrationRbacReconcile = "202603050001_TenantRbacReconcile";
+        private const string MigrationImportArchitecture = "202604090001_TenantImportArchitectureFoundation";
+        private const string MigrationImportBatchMappingLink = "202604100001_TenantImportBatchMappingLink";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -24,6 +26,8 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationInitial, BuildInitialSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationRbac, BuildTenantRbacSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationRbacReconcile, BuildTenantRbacReconcileSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportArchitecture, BuildTenantImportArchitectureSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportBatchMappingLink, BuildTenantImportBatchMappingLinkSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -256,6 +260,8 @@ namespace finrecon360_backend.Services
                 (N'ADMIN.COMPONENTS.EDIT', N'Component Management Edit', N'Edit tenant components', N'Admin'),
                 (N'ADMIN.COMPONENTS.DELETE', N'Component Management Delete', N'Deactivate tenant components', N'Admin'),
                 (N'ADMIN.COMPONENTS.MANAGE', N'Component Management Manage', N'Manage tenant components', N'Admin'),
+                (N'ADMIN.IMPORT_ARCHITECTURE.VIEW', N'Import Architecture View', N'View import architecture foundation', N'Admin'),
+                (N'ADMIN.IMPORT_ARCHITECTURE.MANAGE', N'Import Architecture Manage', N'Manage import architecture templates and metadata', N'Admin'),
                 (N'MATCHER.VIEW', N'Matcher View', N'View matcher', N'Reconciliation'),
                 (N'MATCHER.MANAGE', N'Matcher Manage', N'Manage matcher', N'Reconciliation'),
                 (N'BALANCER.VIEW', N'Balancer View', N'View balancer', N'Reconciliation'),
@@ -286,7 +292,8 @@ namespace finrecon360_backend.Services
                 (N'USER_MGMT', N'User Management', N'/app/admin/users', N'Admin', N'Tenant users'),
                 (N'ROLE_MGMT', N'Role Management', N'/app/admin/roles', N'Admin', N'Tenant roles'),
                 (N'COMPONENT_MGMT', N'Component Management', N'/app/admin/components', N'Admin', N'Tenant components'),
-                (N'PERMISSION_MGMT', N'Permission Management', N'/app/admin/permissions', N'Admin', N'Tenant permissions')
+                (N'PERMISSION_MGMT', N'Permission Management', N'/app/admin/permissions', N'Admin', N'Tenant permissions'),
+                (N'IMPORT_ARCHITECTURE_MGMT', N'Import Architecture', N'/app/admin/import-architecture', N'Admin', N'Tenant import foundation and canonical schema')
             ) v(Code, Name, RoutePath, Category, Description)
             WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = v.Code);
 
@@ -389,6 +396,145 @@ namespace finrecon360_backend.Services
             UPDATE dbo.Roles
             SET IsSystem = 1
             WHERE Code IN (N'ADMIN', N'MANAGER', N'REVIEWER', N'USER') AND IsSystem = 0;
+            """;
+
+        private static string BuildTenantImportArchitectureSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportBatches', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ImportBatches (
+                    ImportBatchId uniqueidentifier NOT NULL PRIMARY KEY,
+                    SourceType nvarchar(100) NOT NULL,
+                    Status nvarchar(50) NOT NULL,
+                    ImportedAt datetime2 NOT NULL CONSTRAINT DF_ImportBatches_ImportedAt DEFAULT SYSUTCDATETIME(),
+                    UploadedByUserId uniqueidentifier NULL,
+                    OriginalFileName nvarchar(260) NULL,
+                    RawRecordCount int NOT NULL CONSTRAINT DF_ImportBatches_RawRecordCount DEFAULT (0),
+                    NormalizedRecordCount int NOT NULL CONSTRAINT DF_ImportBatches_NormalizedRecordCount DEFAULT (0),
+                    ErrorMessage nvarchar(1000) NULL
+                );
+
+                CREATE INDEX IX_ImportBatches_ImportedAt ON dbo.ImportBatches(ImportedAt);
+                CREATE INDEX IX_ImportBatches_SourceType_Status ON dbo.ImportBatches(SourceType, Status);
+            END
+
+            IF OBJECT_ID(N'dbo.ImportedRawRecords', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ImportedRawRecords (
+                    ImportedRawRecordId uniqueidentifier NOT NULL PRIMARY KEY,
+                    ImportBatchId uniqueidentifier NOT NULL,
+                    RowNumber int NULL,
+                    SourcePayloadJson nvarchar(max) NOT NULL,
+                    NormalizationStatus nvarchar(50) NOT NULL CONSTRAINT DF_ImportedRawRecords_NormalizationStatus DEFAULT (N'PENDING'),
+                    NormalizationErrors nvarchar(2000) NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ImportedRawRecords_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT FK_ImportedRawRecords_ImportBatches_ImportBatchId FOREIGN KEY (ImportBatchId) REFERENCES dbo.ImportBatches(ImportBatchId) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IX_ImportedRawRecords_ImportBatchId ON dbo.ImportedRawRecords(ImportBatchId);
+                CREATE INDEX IX_ImportedRawRecords_CreatedAt ON dbo.ImportedRawRecords(CreatedAt);
+            END
+
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ImportedNormalizedRecords (
+                    ImportedNormalizedRecordId uniqueidentifier NOT NULL PRIMARY KEY,
+                    ImportBatchId uniqueidentifier NOT NULL,
+                    SourceRawRecordId uniqueidentifier NULL,
+                    TransactionDate date NOT NULL,
+                    PostingDate date NULL,
+                    ReferenceNumber nvarchar(120) NULL,
+                    Description nvarchar(500) NULL,
+                    AccountCode nvarchar(100) NULL,
+                    AccountName nvarchar(200) NULL,
+                    DebitAmount decimal(18,2) NOT NULL,
+                    CreditAmount decimal(18,2) NOT NULL,
+                    NetAmount decimal(18,2) NOT NULL,
+                    Currency nvarchar(3) NOT NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ImportedNormalizedRecords_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT FK_ImportedNormalizedRecords_ImportBatches_ImportBatchId FOREIGN KEY (ImportBatchId) REFERENCES dbo.ImportBatches(ImportBatchId) ON DELETE CASCADE,
+                    CONSTRAINT FK_ImportedNormalizedRecords_ImportedRawRecords_SourceRawRecordId FOREIGN KEY (SourceRawRecordId) REFERENCES dbo.ImportedRawRecords(ImportedRawRecordId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_ImportedNormalizedRecords_ImportBatchId ON dbo.ImportedNormalizedRecords(ImportBatchId);
+                CREATE INDEX IX_ImportedNormalizedRecords_TransactionDate ON dbo.ImportedNormalizedRecords(TransactionDate);
+            END
+
+            IF OBJECT_ID(N'dbo.ImportMappingTemplates', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ImportMappingTemplates (
+                    ImportMappingTemplateId uniqueidentifier NOT NULL PRIMARY KEY,
+                    Name nvarchar(150) NOT NULL,
+                    SourceType nvarchar(100) NOT NULL,
+                    CanonicalSchemaVersion nvarchar(30) NOT NULL CONSTRAINT DF_ImportMappingTemplates_CanonicalSchemaVersion DEFAULT (N'v1'),
+                    MappingJson nvarchar(max) NOT NULL,
+                    Version int NOT NULL CONSTRAINT DF_ImportMappingTemplates_Version DEFAULT (1),
+                    IsActive bit NOT NULL CONSTRAINT DF_ImportMappingTemplates_IsActive DEFAULT (1),
+                    CreatedByUserId uniqueidentifier NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ImportMappingTemplates_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    UpdatedAt datetime2 NULL
+                );
+
+                CREATE UNIQUE INDEX IX_ImportMappingTemplates_Name ON dbo.ImportMappingTemplates(Name);
+                CREATE INDEX IX_ImportMappingTemplates_SourceType_IsActive ON dbo.ImportMappingTemplates(SourceType, IsActive);
+            END
+
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.IMPORT_ARCHITECTURE.VIEW', N'Import Architecture View', N'View import architecture foundation', N'Admin'),
+                (N'ADMIN.IMPORT_ARCHITECTURE.MANAGE', N'Import Architecture Manage', N'Manage import architecture templates and metadata', N'Admin')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.AppComponents (ComponentId, Code, Name, RoutePath, Category, Description, IsActive)
+            SELECT NEWID(), N'IMPORT_ARCHITECTURE_MGMT', N'Import Architecture', N'/app/admin/import-architecture', N'Admin', N'Tenant import foundation and canonical schema', 1
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = N'IMPORT_ARCHITECTURE_MGMT');
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (N'ADMIN.IMPORT_ARCHITECTURE.VIEW', N'ADMIN.IMPORT_ARCHITECTURE.MANAGE')
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
+        private static string BuildTenantImportBatchMappingLinkSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportBatches', N'U') IS NULL OR OBJECT_ID(N'dbo.ImportMappingTemplates', N'U') IS NULL
+            BEGIN
+                RETURN;
+            END
+
+            IF COL_LENGTH(N'dbo.ImportBatches', N'MappingTemplateId') IS NULL
+            BEGIN
+                ALTER TABLE dbo.ImportBatches
+                ADD MappingTemplateId uniqueidentifier NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.indexes
+                WHERE object_id = OBJECT_ID(N'dbo.ImportBatches')
+                  AND name = N'IX_ImportBatches_MappingTemplateId')
+            BEGIN
+                CREATE INDEX IX_ImportBatches_MappingTemplateId ON dbo.ImportBatches(MappingTemplateId);
+            END
+
+            IF NOT EXISTS (
+                SELECT 1
+                FROM sys.foreign_keys
+                WHERE name = N'FK_ImportBatches_ImportMappingTemplates_MappingTemplateId')
+            BEGIN
+                ALTER TABLE dbo.ImportBatches
+                ADD CONSTRAINT FK_ImportBatches_ImportMappingTemplates_MappingTemplateId
+                    FOREIGN KEY (MappingTemplateId)
+                    REFERENCES dbo.ImportMappingTemplates(ImportMappingTemplateId)
+                    ON DELETE SET NULL;
+            END
             """;
 
         private static async Task ExecuteNonQueryAsync(
