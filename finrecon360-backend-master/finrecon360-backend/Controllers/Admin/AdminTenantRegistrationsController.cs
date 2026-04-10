@@ -238,16 +238,50 @@ namespace finrecon360_backend.Controllers.Admin
             await _dbContext.SaveChangesAsync();
             await _tenantUserDirectoryService.UpsertTenantUserAsync(tenant.TenantId, user, TenantUserRole.TenantAdmin);
 
+            string? onboardingLink = null;
+            var emailSent = false;
+            string? emailError = null;
+
             var magicLink = await _magicLinkService.CreateTokenAsync(user.UserId, MagicLinkPurpose.TenantOnboarding, HttpContext.Connection.RemoteIpAddress?.ToString());
             if (magicLink != null)
             {
-                await SendMagicLinkEmailAsync(user.Email, magicLink.Token);
+                onboardingLink = BuildOnboardingLink(magicLink.Token);
+                if (onboardingLink == null)
+                {
+                    emailError = "FRONTEND_BASE_URL is not configured.";
+                }
+                else
+                {
+                    try
+                    {
+                        await SendMagicLinkEmailAsync(user.Email, onboardingLink);
+                        emailSent = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        emailError = ex.Message;
+                    }
+                }
+            }
+            else
+            {
+                emailError = "Unable to create onboarding token.";
             }
 
             await _auditLogger.LogAsync(reviewerId, "TenantRegistrationApproved", "TenantRegistrationRequest", registration.TenantRegistrationRequestId.ToString(), null);
             await _auditLogger.LogAsync(reviewerId, "TenantProvisioned", "Tenant", tenant.TenantId.ToString(), null);
 
-            return NoContent();
+            if (!emailSent)
+            {
+                await _auditLogger.LogAsync(reviewerId, "TenantOnboardingEmailFailed", "TenantRegistrationRequest", registration.TenantRegistrationRequestId.ToString(), emailError);
+            }
+
+            return Ok(new TenantRegistrationApprovalResponse(
+                registration.TenantRegistrationRequestId,
+                user.Email,
+                onboardingLink,
+                emailSent,
+                emailError));
         }
 
         [HttpPost("{requestId:guid}/reject")]
@@ -282,21 +316,25 @@ namespace finrecon360_backend.Controllers.Admin
             return NoContent();
         }
 
-        private async Task SendMagicLinkEmailAsync(string email, string token)
+        private string? BuildOnboardingLink(string token)
         {
             if (string.IsNullOrWhiteSpace(_magicLinkOptions.FrontendBaseUrl))
             {
-                throw new InvalidOperationException("FRONTEND_BASE_URL is not configured.");
+                return null;
             }
+
+            var baseUrl = _magicLinkOptions.FrontendBaseUrl.TrimEnd('/');
+            return $"{baseUrl}/auth/magic-link?purpose={MagicLinkPurpose.TenantOnboarding}&token={token}";
+        }
+
+        private async Task SendMagicLinkEmailAsync(string email, string magicLink)
+        {
 
             var templateId = _brevoOptions.TemplateIdMagicLinkInvite ?? _brevoOptions.TemplateIdMagicLinkVerify;
             if (templateId <= 0)
             {
                 throw new InvalidOperationException("Brevo invite template id is not configured.");
             }
-
-            var baseUrl = _magicLinkOptions.FrontendBaseUrl.TrimEnd('/');
-            var magicLink = $"{baseUrl}/auth/magic-link?purpose={MagicLinkPurpose.TenantOnboarding}&token={token}";
 
             var parameters = new Dictionary<string, object>
             {

@@ -16,6 +16,10 @@ namespace finrecon360_backend.Data
         public DbSet<TenantComponent> Components => Set<TenantComponent>();
         public DbSet<TenantPermissionAction> PermissionActions => Set<TenantPermissionAction>();
         public DbSet<TenantUserRoleAssignment> UserRoles => Set<TenantUserRoleAssignment>();
+        public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+        public DbSet<ImportedRawRecord> ImportedRawRecords => Set<ImportedRawRecord>();
+        public DbSet<ImportedNormalizedRecord> ImportedNormalizedRecords => Set<ImportedNormalizedRecord>();
+        public DbSet<ImportMappingTemplate> ImportMappingTemplates => Set<ImportMappingTemplate>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -117,6 +121,100 @@ namespace finrecon360_backend.Data
                     .WithMany(r => r.UserRoles)
                     .HasForeignKey(x => x.RoleId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ImportBatch>(entity =>
+            {
+                entity.ToTable("ImportBatches");
+                entity.HasKey(x => x.ImportBatchId);
+                entity.Property(x => x.ImportBatchId).ValueGeneratedNever();
+                entity.Property(x => x.MappingTemplateId);
+                entity.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.Status).HasMaxLength(50).IsRequired();
+                entity.Property(x => x.OriginalFileName).HasMaxLength(260);
+                entity.Property(x => x.ErrorMessage).HasMaxLength(1000);
+                entity.Property(x => x.RawRecordCount).HasDefaultValue(0);
+                entity.Property(x => x.NormalizedRecordCount).HasDefaultValue(0);
+                entity.Property(x => x.ImportedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.ImportedAt);
+                entity.HasIndex(x => new { x.SourceType, x.Status });
+                entity.HasIndex(x => x.MappingTemplateId);
+
+                entity.HasOne(x => x.MappingTemplate)
+                    .WithMany(x => x.Batches)
+                    .HasForeignKey(x => x.MappingTemplateId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<ImportedRawRecord>(entity =>
+            {
+                entity.ToTable("ImportedRawRecords");
+                entity.HasKey(x => x.ImportedRawRecordId);
+                entity.Property(x => x.ImportedRawRecordId).ValueGeneratedNever();
+                entity.Property(x => x.SourcePayloadJson).HasColumnType("nvarchar(max)").IsRequired();
+                entity.Property(x => x.NormalizationStatus).HasMaxLength(50).IsRequired();
+                entity.Property(x => x.NormalizationErrors).HasMaxLength(2000);
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.ImportBatchId);
+                entity.HasIndex(x => x.CreatedAt);
+
+                entity.HasOne(x => x.ImportBatch)
+                    .WithMany(x => x.RawRecords)
+                    .HasForeignKey(x => x.ImportBatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ImportedNormalizedRecord>(entity =>
+            {
+                entity.ToTable("ImportedNormalizedRecords");
+                entity.HasKey(x => x.ImportedNormalizedRecordId);
+                entity.Property(x => x.ImportedNormalizedRecordId).ValueGeneratedNever();
+                entity.Property(x => x.ReferenceNumber).HasMaxLength(120);
+                entity.Property(x => x.Description).HasMaxLength(500);
+                entity.Property(x => x.AccountCode).HasMaxLength(100);
+                entity.Property(x => x.AccountName).HasMaxLength(200);
+                entity.Property(x => x.DebitAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.CreditAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.NetAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.ImportBatchId);
+                entity.HasIndex(x => x.TransactionDate);
+
+                entity.HasOne(x => x.ImportBatch)
+                    .WithMany(x => x.NormalizedRecords)
+                    .HasForeignKey(x => x.ImportBatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SourceRawRecord)
+                    .WithMany(x => x.NormalizedRecords)
+                    .HasForeignKey(x => x.SourceRawRecordId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<ImportMappingTemplate>(entity =>
+            {
+                entity.ToTable("ImportMappingTemplates");
+                entity.HasKey(x => x.ImportMappingTemplateId);
+                entity.Property(x => x.ImportMappingTemplateId).ValueGeneratedNever();
+                entity.Property(x => x.Name).HasMaxLength(150).IsRequired();
+                entity.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.CanonicalSchemaVersion).HasMaxLength(30).IsRequired();
+                entity.Property(x => x.MappingJson).HasColumnType("nvarchar(max)").IsRequired();
+                entity.Property(x => x.Version).HasDefaultValue(1);
+                entity.Property(x => x.IsActive).HasDefaultValue(true);
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.Name).IsUnique();
+                entity.HasIndex(x => new { x.SourceType, x.IsActive });
             });
 
             base.OnModelCreating(modelBuilder);

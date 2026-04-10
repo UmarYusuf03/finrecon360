@@ -1,0 +1,118 @@
+.admin-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.summary {
+  font-size: 13px;
+  color: #5a6478;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.filters input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d6d9e4;
+  border-radius: 6px;
+}
+
+.filters label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: #4f586b;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+
+.primary-btn,
+.ghost-btn {
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: #1d2b64;
+  color: #fff;
+}
+
+.ghost-btn {
+  background: #e8eaf1;
+  color: #1d2230;
+}
+
+.ghost-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.error {
+  color: #b83b3b;
+  margin-bottom: 12px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 10px 8px;
+  border-bottom: 1px solid #e2e6ef;
+}
+
+small {
+  color: #6a7285;
+}
+
+.empty {
+  text-align: center;
+  color: #61677a;
+}
+
+.pager {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+}
+
+@media (max-width: 960px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}

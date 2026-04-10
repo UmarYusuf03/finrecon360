@@ -1,0 +1,175 @@
+<section class="imports-page">
+  <header class="imports-header">
+    <h2>Import Workbench</h2>
+    <p>Upload files, map fields, validate normalization, and commit to canonical tables.</p>
+  </header>
+
+  <div class="notice success" *ngIf="actionMessage">{{ actionMessage }}</div>
+  <div class="notice error" *ngIf="actionError">
+    <span>{{ actionError }}</span>
+    <button
+      class="ghost-btn"
+      type="button"
+      [disabled]="loading || processing"
+      (click)="refreshHistory()"
+    >
+      Refresh History
+    </button>
+  </div>
+
+  <div class="panel upload-panel">
+    <h3>1. Upload</h3>
+    <div class="upload-controls">
+      <input type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)" />
+      <input type="text" [(ngModel)]="sourceType" placeholder="Source type (CSV, BANK, ERP...)" />
+      <button class="primary-btn" [disabled]="processing" (click)="upload()">Upload File</button>
+    </div>
+  </div>
+
+  <div class="panel history-panel">
+    <h3>2. History</h3>
+    <div class="history-filters">
+      <input type="text" [(ngModel)]="search" placeholder="Search by file/source" />
+      <input type="text" [(ngModel)]="statusFilter" placeholder="Status filter" />
+      <button class="ghost-btn" (click)="refreshHistory()">Refresh</button>
+    </div>
+
+    <div *ngIf="loading" class="loading">Loading history...</div>
+    <table *ngIf="!loading" class="history-table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Raw</th>
+          <th>Normalized</th>
+          <th>Imported</th>
+          <th *ngIf="canManage">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let item of history"
+          [class.active]="selectedBatch?.id === item.id"
+          (click)="selectBatch(item)"
+        >
+          <td>{{ item.originalFileName || 'n/a' }}</td>
+          <td>{{ item.sourceType }}</td>
+          <td>{{ item.status }}</td>
+          <td>{{ item.rawRecordCount }}</td>
+          <td>{{ item.normalizedRecordCount }}</td>
+          <td>{{ item.importedAt | date: 'short' }}</td>
+          <td *ngIf="canManage">
+            <button
+              class="ghost-btn danger-ghost"
+              type="button"
+              [disabled]="processing"
+              (click)="deleteBatch(item, $event)"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel process-panel" *ngIf="selectedBatch as batch">
+    <h3>3. Process Batch</h3>
+    <p class="batch-meta">
+      Batch: <strong>{{ batch.id }}</strong> | Status: <strong>{{ batch.status }}</strong>
+    </p>
+
+    <div class="process-actions">
+      <button class="primary-btn" [disabled]="processing || !canManage" (click)="parseSelected()">
+        Parse
+      </button>
+      <button class="primary-btn" [disabled]="processing || !canManage" (click)="saveMapping()">
+        Save Mapping
+      </button>
+      <button
+        class="warning-btn"
+        [disabled]="processing || !canManage"
+        (click)="validateSelected()"
+      >
+        Validate
+      </button>
+      <button class="danger-btn" [disabled]="processing || !canManage" (click)="commitSelected()">
+        Commit
+      </button>
+    </div>
+
+    <p class="hint" *ngIf="!canManage">
+      Parse/Mapping/Validate/Commit requires tenant admin access.
+    </p>
+
+    <div class="mapping-grid" *ngIf="parseResult as parsed">
+      <h4>Header Mapping</h4>
+      <p>Parsed rows: {{ parsed.parsedRowCount }}</p>
+      <div class="mapping-row" *ngFor="let field of canonicalFields">
+        <label>{{ field }}</label>
+        <select [(ngModel)]="mapping[field]">
+          <option value="">-- Select source header --</option>
+          <option *ngFor="let header of parsed.headers" [value]="header">{{ header }}</option>
+        </select>
+      </div>
+
+      <h4>Sample Rows</h4>
+      <pre class="sample-json">{{ parsed.sampleRows | json }}</pre>
+    </div>
+
+    <div class="validation" *ngIf="validateResult as validation">
+      <h4>Validation Report</h4>
+      <p>
+        Total: {{ validation.totalRows }} | Valid: {{ validation.validRows }} | Invalid:
+        {{ validation.invalidRows }}
+      </p>
+
+      <table class="error-table" *ngIf="validation.errors.length > 0">
+        <thead>
+          <tr>
+            <th>Row</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let err of validation.errors">
+            <td>{{ err.rowNumber }}</td>
+            <td>{{ err.message }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
+    <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">
+      <h3 id="delete-import-title">Delete Import Batch</h3>
+      <p>
+        This will permanently remove the stored file and all parsed records for
+        <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong
+        >.
+      </p>
+      <p>Are you sure you want to continue?</p>
+
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="ghost-btn"
+          [disabled]="processing"
+          (click)="closeDeleteDialog()"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="danger-btn"
+          [disabled]="processing"
+          (click)="confirmDeleteBatch()"
+        >
+          {{ processing ? 'Deleting...' : 'Delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

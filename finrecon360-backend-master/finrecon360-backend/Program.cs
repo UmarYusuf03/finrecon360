@@ -135,6 +135,7 @@ builder.Services.AddScoped<ISystemEnforcementService, SystemEnforcementService>(
 builder.Services.AddScoped<IOnboardingTokenService, OnboardingTokenService>();
 builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkService>();
 builder.Services.AddScoped<IStripeCheckoutService, StripeCheckoutService>();
+builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
@@ -320,30 +321,7 @@ builder.Services
                     return;
                 }
 
-                var path = context.HttpContext.Request.Path.Value ?? string.Empty;
-                if (path.StartsWith("/api/admin", StringComparison.OrdinalIgnoreCase) ||
-                    path.StartsWith("/api/system", StringComparison.OrdinalIgnoreCase) ||
-                    path.StartsWith("/api/public", StringComparison.OrdinalIgnoreCase) ||
-                    path.StartsWith("/api/onboarding", StringComparison.OrdinalIgnoreCase) ||
-                    path.StartsWith("/api/auth", StringComparison.OrdinalIgnoreCase) ||
-                    path.StartsWith("/api/webhooks", StringComparison.OrdinalIgnoreCase) ||
-                    path.StartsWith("/api/me", StringComparison.OrdinalIgnoreCase))
-                {
-                    return;
-                }
-
-                var tenantContext = context.HttpContext.RequestServices.GetRequiredService<ITenantContext>();
-                var tenant = await tenantContext.ResolveAsync();
-                if (tenant == null)
-                {
-                    context.Fail("Tenant context is missing.");
-                    return;
-                }
-
-                if (tenant.Status != TenantStatus.Active)
-                {
-                    context.Fail("Tenant is not active.");
-                }
+                // Tenant-specific checks are enforced in endpoint authorization logic.
             }
         };
     });

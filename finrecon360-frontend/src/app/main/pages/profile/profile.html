@@ -120,7 +120,7 @@
           mat-stroked-button
           type="button"
           class="profile__change-btn"
-          (click)="confirmChangePasswordLink()"
+          (click)="openChangePasswordDialog()"
           [disabled]="changePasswordSubmitting"
         >
           {{ changePasswordSubmitting ? 'Sending link...' : 'Change password' }}
@@ -130,10 +130,12 @@
         </button>
       </div>
       <div *ngIf="changePasswordStatus" class="profile__status">{{ changePasswordStatus }}</div>
+      <div *ngIf="changePasswordFallbackLink" class="profile__status profile__status--link">
+        <span>Email delivery failed. Use secure link:</span>
+        <a [href]="changePasswordFallbackLink" target="_blank" rel="noopener noreferrer">Open change password link</a>
+      </div>
     </form>
   </mat-card>
-<<<<<<< Updated upstream
-=======
 
   <div class="dialog-backdrop" *ngIf="changePasswordDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
@@ -151,5 +153,4 @@
   </div>
 
   <app-profile-subscription></app-profile-subscription>
->>>>>>> Stashed changes
 </div>

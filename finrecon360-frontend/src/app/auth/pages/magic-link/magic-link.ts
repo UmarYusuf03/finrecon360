@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
@@ -18,6 +19,10 @@ type MagicLinkState = 'loading' | 'ready' | 'success' | 'error';
   styleUrls: ['./magic-link.scss'],
 })
 export class MagicLinkComponent implements OnInit, OnDestroy {
+  private static readonly PendingOnboardingTokenKey = 'fr360_pending_onboarding_token';
+  private static readonly PendingOnboardingTenantKey = 'fr360_pending_onboarding_tenant';
+  private static readonly PendingMagicLinkTokenKey = 'fr360_pending_magic_link_token';
+
   state: MagicLinkState = 'loading';
   purpose: MagicLinkPurpose | null = null;
   token: string | null = null;
@@ -77,6 +82,17 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
       }
 
       if (purpose === 'TenantOnboarding') {
+        const pendingOnboardingToken = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTokenKey);
+        const pendingTenantName = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTenantKey);
+        const pendingMagicLinkToken = sessionStorage.getItem(MagicLinkComponent.PendingMagicLinkTokenKey);
+
+        if (pendingOnboardingToken && pendingMagicLinkToken === token) {
+          this.onboardingToken = pendingOnboardingToken;
+          this.tenantName = pendingTenantName;
+          this.state = 'ready';
+          return;
+        }
+
         this.verifyOnboarding(token);
         return;
       }
@@ -143,7 +159,7 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
   }
 
   submitOnboardingPassword(): void {
-    if (!this.onboardingToken || this.onboardingForm.invalid) {
+    if (!this.onboardingToken || !this.token || this.onboardingForm.invalid) {
       this.onboardingForm.markAllAsTouched();
       return;
     }
@@ -154,16 +170,25 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
     this.errorMessage = null;
 
     this.authService
-      .setOnboardingPassword({ onboardingToken: this.onboardingToken, password, confirmPassword })
+      .setOnboardingPassword({ onboardingToken: this.onboardingToken, magicLinkToken: this.token, password, confirmPassword })
       .subscribe({
         next: () => {
+          sessionStorage.removeItem(MagicLinkComponent.PendingOnboardingTokenKey);
+          sessionStorage.removeItem(MagicLinkComponent.PendingOnboardingTenantKey);
+          sessionStorage.removeItem(MagicLinkComponent.PendingMagicLinkTokenKey);
+
           sessionStorage.setItem('fr360_onboarding_token', this.onboardingToken!);
           sessionStorage.setItem('fr360_onboarding_tenant', this.tenantName ?? '');
           this.router.navigateByUrl('/onboarding/subscribe');
         },
-        error: () => {
+        error: (error: unknown) => {
           this.state = 'error';
-          this.errorMessage = 'Unable to set password. Please request a new link.';
+          if (error instanceof HttpErrorResponse) {
+            const body = error.error as { message?: string } | null;
+            this.errorMessage = body?.message ?? 'Unable to set password. Please request a new link.';
+          } else {
+            this.errorMessage = 'Unable to set password. Please request a new link.';
+          }
         },
       });
   }
@@ -192,11 +217,32 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
       next: (result) => {
         this.onboardingToken = result.onboardingToken;
         this.tenantName = result.tenantName;
+
+        sessionStorage.setItem(MagicLinkComponent.PendingOnboardingTokenKey, result.onboardingToken);
+        sessionStorage.setItem(MagicLinkComponent.PendingOnboardingTenantKey, result.tenantName ?? '');
+        sessionStorage.setItem(MagicLinkComponent.PendingMagicLinkTokenKey, token);
+
         this.state = 'ready';
       },
-      error: () => {
+      error: (error: unknown) => {
+        const pendingOnboardingToken = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTokenKey);
+        const pendingTenantName = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTenantKey);
+        const pendingMagicLinkToken = sessionStorage.getItem(MagicLinkComponent.PendingMagicLinkTokenKey);
+
+        if (pendingOnboardingToken && pendingMagicLinkToken === token) {
+          this.onboardingToken = pendingOnboardingToken;
+          this.tenantName = pendingTenantName;
+          this.state = 'ready';
+          return;
+        }
+
         this.state = 'error';
-        this.errorMessage = 'This onboarding link is invalid or expired.';
+        if (error instanceof HttpErrorResponse) {
+          const body = error.error as { message?: string } | null;
+          this.errorMessage = body?.message ?? 'This onboarding link is invalid or expired.';
+        } else {
+          this.errorMessage = 'This onboarding link is invalid or expired.';
+        }
       },
     });
   }

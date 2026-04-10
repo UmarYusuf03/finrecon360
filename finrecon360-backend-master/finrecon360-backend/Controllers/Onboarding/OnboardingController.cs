@@ -37,13 +37,13 @@ namespace finrecon360_backend.Controllers.Onboarding
         [HttpPost("magic-link/verify")]
         public async Task<ActionResult<OnboardingMagicLinkVerifyResponse>> VerifyMagicLink([FromBody] OnboardingMagicLinkVerifyRequest request)
         {
-            var consume = await _magicLinkService.ConsumeTokenAsync(request.Token, MagicLinkPurpose.TenantOnboarding);
-            if (!consume.Success || consume.UserId == null)
+            var validation = await _magicLinkService.ValidateTokenAsync(request.Token, MagicLinkPurpose.TenantOnboarding);
+            if (!validation.Success || validation.UserId == null)
             {
                 return BadRequest(new { message = "Invalid or expired token." });
             }
 
-            var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == consume.UserId.Value);
+            var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == validation.UserId.Value);
             if (user == null)
             {
                 return BadRequest(new { message = "Invalid or expired token." });
@@ -86,10 +86,21 @@ namespace finrecon360_backend.Controllers.Onboarding
                 return BadRequest(new { message = "Passwords do not match." });
             }
 
+            if (string.IsNullOrWhiteSpace(request.MagicLinkToken))
+            {
+                return BadRequest(new { message = "Missing onboarding magic link token." });
+            }
+
             var result = _tokenService.ValidateToken(request.OnboardingToken);
             if (!result.Success || result.UserId == null)
             {
                 return BadRequest(new { message = "Invalid or expired onboarding token." });
+            }
+
+            var consume = await _magicLinkService.ConsumeTokenAsync(request.MagicLinkToken, MagicLinkPurpose.TenantOnboarding);
+            if (!consume.Success || consume.UserId != result.UserId)
+            {
+                return BadRequest(new { message = "Invalid or expired token." });
             }
 
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.UserId == result.UserId.Value);
@@ -152,6 +163,23 @@ namespace finrecon360_backend.Controllers.Onboarding
 
             _dbContext.Subscriptions.Add(subscription);
             await _dbContext.SaveChangesAsync();
+
+            if (!_stripeCheckoutService.IsConfigured())
+            {
+                var now = DateTime.UtcNow;
+                subscription.Status = SubscriptionStatus.Active;
+                subscription.CurrentPeriodStart = now;
+                subscription.CurrentPeriodEnd = now.AddDays(plan.DurationDays);
+
+                tenant.Status = TenantStatus.Active;
+                tenant.ActivatedAt = now;
+                tenant.CurrentSubscriptionId = subscription.SubscriptionId;
+
+                await _dbContext.SaveChangesAsync();
+                await _auditLogger.LogAsync(tokenResult.UserId.Value, "OnboardingCheckoutBypassed", "Subscription", subscription.SubscriptionId.ToString(), "Stripe not configured; local activation applied.");
+
+                return Ok(new OnboardingCheckoutResponse(_stripeCheckoutService.GetFallbackCheckoutUrl()));
+            }
 
             var session = await _stripeCheckoutService.CreateCheckoutSessionAsync(
                 plan.Name,

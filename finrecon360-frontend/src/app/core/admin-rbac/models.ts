@@ -43,10 +43,42 @@ export interface AdminUserSummary {
   roles: RoleCode[];
 }
 
-
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+export interface CanonicalField {
+  field: string;
+  dataType: string;
+  required: boolean;
+  description: string;
+}
+
+export interface CanonicalSchema {
+  version: string;
+  fields: CanonicalField[];
+}
+
+export interface ImportArchitectureOverview {
+  totalImportBatches: number;
+  totalRawRecords: number;
+  totalNormalizedRecords: number;
+  activeMappingTemplates: number;
+  latestImportAt?: string | null;
+  canonicalSchema: CanonicalSchema;
+}
+
+export interface ImportMappingTemplate {
+  id: string;
+  name: string;
+  sourceType: string;
+  canonicalSchemaVersion: string;
+  version: number;
+  isActive: boolean;
+  mappingJson: string;
+  createdAt: string;
+  updatedAt?: string | null;
 }

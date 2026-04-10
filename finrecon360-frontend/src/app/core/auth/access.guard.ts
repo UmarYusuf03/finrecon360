@@ -10,12 +10,28 @@ import { PermissionCode, RoleCode } from './models';
 export class AccessGuard implements CanActivate {
   private readonly enforceTenantActiveStatus = true;
 
-  constructor(private authService: AuthService, private router: Router) {}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+  ) {}
 
   canActivate(route: ActivatedRouteSnapshot): boolean | UrlTree {
     const user = this.authService.currentUser;
     if (!user) {
       return this.router.parseUrl('/auth/login');
+    }
+
+    const requiredScope = route.data?.['scope'] as 'tenant' | 'system' | undefined;
+    if (requiredScope === 'tenant' && user.isSystemAdmin) {
+      return this.router.parseUrl('/app/not-authorized');
+    }
+
+    if (requiredScope === 'tenant' && !user.tenantId) {
+      return this.router.parseUrl('/app/not-authorized');
+    }
+
+    if (requiredScope === 'system' && !user.isSystemAdmin) {
+      return this.router.parseUrl('/app/not-authorized');
     }
 
     if (user.status && ['Suspended', 'Banned'].includes(user.status)) {
@@ -28,7 +44,8 @@ export class AccessGuard implements CanActivate {
 
     const isAdminArea =
       (requiredRoles && requiredRoles.includes('ADMIN')) ||
-      (requiredPermissions && requiredPermissions.some((permission) => permission.startsWith('ADMIN.')));
+      (requiredPermissions &&
+        requiredPermissions.some((permission) => permission.startsWith('ADMIN.')));
 
     if (
       this.enforceTenantActiveStatus &&
@@ -39,8 +56,7 @@ export class AccessGuard implements CanActivate {
       return this.router.parseUrl('/app/not-authorized');
     }
 
-    const hasRole =
-      !requiredRoles || requiredRoles.some((role) => user.roles.includes(role));
+    const hasRole = !requiredRoles || requiredRoles.some((role) => user.roles.includes(role));
 
     const hasPermissions =
       !requiredPermissions ||
@@ -57,7 +73,10 @@ export class AccessGuard implements CanActivate {
     return this.router.parseUrl('/app/not-authorized');
   }
 
-  private hasPermission(grantedPermissions: PermissionCode[], requiredPermission: PermissionCode): boolean {
+  private hasPermission(
+    grantedPermissions: PermissionCode[],
+    requiredPermission: PermissionCode,
+  ): boolean {
     if (grantedPermissions.includes(requiredPermission)) {
       return true;
     }

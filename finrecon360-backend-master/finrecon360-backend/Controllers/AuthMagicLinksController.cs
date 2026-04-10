@@ -22,6 +22,7 @@ namespace finrecon360_backend.Controllers
         private readonly IPasswordHasher _passwordHasher;
         private readonly BrevoOptions _brevoOptions;
         private readonly MagicLinkOptions _magicLinkOptions;
+        private readonly ILogger<AuthMagicLinksController> _logger;
 
         public AuthMagicLinksController(
             AppDbContext dbContext,
@@ -31,7 +32,8 @@ namespace finrecon360_backend.Controllers
             IUserContext userContext,
             IPasswordHasher passwordHasher,
             IOptions<BrevoOptions> brevoOptions,
-            IOptions<MagicLinkOptions> magicLinkOptions)
+            IOptions<MagicLinkOptions> magicLinkOptions,
+            ILogger<AuthMagicLinksController> logger)
         {
             _dbContext = dbContext;
             _magicLinkService = magicLinkService;
@@ -41,6 +43,7 @@ namespace finrecon360_backend.Controllers
             _passwordHasher = passwordHasher;
             _brevoOptions = brevoOptions.Value;
             _magicLinkOptions = magicLinkOptions.Value;
+            _logger = logger;
         }
 
         [HttpPost("verify-email-link")]
@@ -136,14 +139,47 @@ namespace finrecon360_backend.Controllers
             }
 
             var token = await _magicLinkService.CreateTokenAsync(user.Email, user.UserId, MagicLinkPurpose.ChangePassword, HttpContext.Connection.RemoteIpAddress?.ToString());
-            if (token != null)
+
+            if (token == null)
             {
-                var templateId = _brevoOptions.TemplateIdMagicLinkChange ?? _brevoOptions.TemplateIdMagicLinkReset;
+                await _auditLogger.LogAsync(user.UserId, "MagicLinkRequested", "AuthActionToken", null, "purpose=ChangePassword;cooldown=true");
+                return Ok(new
+                {
+                    message = "A recent change password link was already sent. Please wait a moment before requesting another.",
+                    emailSent = false,
+                    cooldownActive = true,
+                    fallbackLink = (string?)null,
+                    deliveryError = "Cooldown active."
+                });
+            }
+
+            var templateId = _brevoOptions.TemplateIdMagicLinkChange ?? _brevoOptions.TemplateIdMagicLinkReset;
+            var fallbackLink = BuildMagicLink(token, MagicLinkPurpose.ChangePassword);
+            var emailSent = false;
+            string? deliveryError = null;
+
+            try
+            {
                 await SendMagicLinkEmailAsync(user.Email, templateId, token, MagicLinkPurpose.ChangePassword);
+                emailSent = true;
+            }
+            catch (Exception ex)
+            {
+                deliveryError = "Email delivery failed. You can continue using the secure link below.";
+                _logger.LogWarning(ex, "Failed to send change password link email for user {UserId}", user.UserId);
             }
 
             await _auditLogger.LogAsync(user.UserId, "MagicLinkRequested", "AuthActionToken", null, "purpose=ChangePassword");
-            return Ok(new { message = "If an account exists, a link was sent." });
+            return Ok(new
+            {
+                message = emailSent
+                    ? "Check your email for the password change link."
+                    : "Email delivery failed. Use the secure link below.",
+                emailSent,
+                cooldownActive = false,
+                fallbackLink = emailSent ? null : fallbackLink,
+                deliveryError
+            });
         }
 
         [HttpPost("confirm-change-password-link")]
@@ -186,18 +222,11 @@ namespace finrecon360_backend.Controllers
 
         private async Task SendMagicLinkEmailAsync(string email, long templateId, MagicLinkToken token, string purpose)
         {
-            if (string.IsNullOrWhiteSpace(_magicLinkOptions.FrontendBaseUrl))
-            {
-                throw new InvalidOperationException("FRONTEND_BASE_URL is not configured.");
-            }
-
             if (templateId <= 0)
             {
                 throw new InvalidOperationException("Brevo template id not configured.");
             }
-
-            var baseUrl = _magicLinkOptions.FrontendBaseUrl.TrimEnd('/');
-            var magicLink = $"{baseUrl}/auth/magic-link?purpose={purpose}&token={token.Token}";
+            var magicLink = BuildMagicLink(token, purpose);
 
             var parameters = new Dictionary<string, object>
             {
@@ -206,6 +235,17 @@ namespace finrecon360_backend.Controllers
             };
 
             await _emailSender.SendTemplateAsync(email, templateId, parameters);
+        }
+
+        private string BuildMagicLink(MagicLinkToken token, string purpose)
+        {
+            if (string.IsNullOrWhiteSpace(_magicLinkOptions.FrontendBaseUrl))
+            {
+                throw new InvalidOperationException("FRONTEND_BASE_URL is not configured.");
+            }
+
+            var baseUrl = _magicLinkOptions.FrontendBaseUrl.TrimEnd('/');
+            return $"{baseUrl}/auth/magic-link?purpose={purpose}&token={token.Token}";
         }
 
         private async Task<Models.User?> ResolveUserAsync(Guid? userId, string? email)

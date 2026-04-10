@@ -40,6 +40,15 @@ export const API_ENDPOINTS = {
     SET_PASSWORD: '/api/onboarding/set-password',
     CHECKOUT: '/api/onboarding/subscriptions/checkout',
   },
+  IMPORTS: {
+    BASE: '/api/imports',
+    BY_ID: (id: string) => `/api/imports/${id}`,
+    PARSE: (id: string) => `/api/imports/${id}/parse`,
+    MAPPING: (id: string) => `/api/imports/${id}/mapping`,
+    VALIDATE: (id: string) => `/api/imports/${id}/validate`,
+    COMMIT: (id: string) => `/api/imports/${id}/commit`,
+    DELETE: (id: string) => `/api/imports/${id}`,
+  },
   ME: '/api/me',
   USERS: {
     BASE: '/api/users',
@@ -84,11 +93,13 @@ export const API_ENDPOINTS = {
     ACTIONS: '/api/admin/actions',
     COMPONENTS: '/api/admin/components',
     USERS: '/api/admin/users',
+    IMPORT_ARCHITECTURE: '/api/admin/import-architecture',
   },
   SYSTEM: {
     TENANT_REGISTRATIONS: '/api/system/tenant-registrations',
     TENANTS: '/api/system/tenants',
     PLANS: '/api/system/plans',
+    AUDIT_LOGS: '/api/system/audit-logs',
     ENFORCEMENT_USERS: (tenantId: string) => `/api/system/enforcement/tenants/${tenantId}/users`,
   },
 } as const;

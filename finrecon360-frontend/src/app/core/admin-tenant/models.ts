@@ -9,6 +9,14 @@ export interface TenantRegistrationSummary {
   submittedAt: string;
 }
 
+export interface TenantRegistrationApprovalResult {
+  requestId: string;
+  adminEmail: string;
+  onboardingLink?: string | null;
+  emailSent: boolean;
+  emailError?: string | null;
+}
+
 export interface TenantSummary {
   id: string;
   name: string;

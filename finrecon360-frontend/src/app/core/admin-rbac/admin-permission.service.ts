@@ -4,7 +4,12 @@ import { BehaviorSubject, Observable, of, forkJoin } from 'rxjs';
 import { filter, map, take } from 'rxjs/operators';
 
 import { API_BASE_URL, API_ENDPOINTS, USE_MOCK_API } from '../constants/api.constants';
-import { ActionDefinition, AppComponentResource, PermissionAssignment, PagedResult } from './models';
+import {
+  ActionDefinition,
+  AppComponentResource,
+  PermissionAssignment,
+  PagedResult,
+} from './models';
 import { AdminComponentService } from './admin-component.service';
 
 interface ActionDto {
@@ -57,12 +62,16 @@ export class AdminPermissionService {
     TENANT_MGMT: 'ADMIN.TENANTS',
     PLAN_MGMT: 'ADMIN.PLANS',
     ENFORCEMENT_MGMT: 'ADMIN.ENFORCEMENT',
+    IMPORT_ARCHITECTURE_MGMT: 'ADMIN.IMPORT_ARCHITECTURE',
   };
 
   private readonly actionsSubject = new BehaviorSubject<ActionDefinition[]>([]);
   private actionsLoaded = false;
 
-  constructor(private http: HttpClient, private componentService: AdminComponentService) {}
+  constructor(
+    private http: HttpClient,
+    private componentService: AdminComponentService,
+  ) {}
 
   getActions(): Observable<ActionDefinition[]> {
     if (USE_MOCK_API) {
@@ -72,7 +81,9 @@ export class AdminPermissionService {
     if (!this.actionsLoaded) {
       this.actionsLoaded = true;
       this.http
-        .get<PagedResult<ActionDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ACTIONS}?page=1&pageSize=100`)
+        .get<PagedResult<ActionDto>>(
+          `${API_BASE_URL}${API_ENDPOINTS.ADMIN.ACTIONS}?page=1&pageSize=100`,
+        )
         .pipe(
           map((result) =>
             result.items
@@ -82,8 +93,8 @@ export class AdminPermissionService {
                 code: action.code,
                 name: action.name,
                 description: action.description ?? undefined,
-              }))
-          )
+              })),
+          ),
         )
         .subscribe((actions) => this.actionsSubject.next(actions));
     }
@@ -100,15 +111,17 @@ export class AdminPermissionService {
       components: this.componentService.getComponents().pipe(
         filter((components) => components.length > 0),
         take(1),
-        map((components) => components.filter((component) => component.isActive))
+        map((components) => components.filter((component) => component.isActive)),
       ),
       actions: this.getActions().pipe(
         filter((actions) => actions.length > 0),
-        take(1)
+        take(1),
       ),
       role: this.http.get<RoleDetailDto>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}/${roleId}`),
     }).pipe(
-      map(({ components, actions, role }) => this.buildAssignments(role.permissions, components, actions, roleId))
+      map(({ components, actions, role }) =>
+        this.buildAssignments(role.permissions, components, actions, roleId),
+      ),
     );
   }
 
@@ -124,7 +137,9 @@ export class AdminPermissionService {
     }
 
     return this.http
-      .get<PagedResult<PermissionDto>>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.PERMISSIONS}?page=1&pageSize=500`)
+      .get<
+        PagedResult<PermissionDto>
+      >(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.PERMISSIONS}?page=1&pageSize=500`)
       .pipe(map((result) => new Set(result.items.map((permission) => permission.code))));
   }
 
@@ -139,16 +154,19 @@ export class AdminPermissionService {
     }
 
     const permissionCodes = assignments.map((assignment) => assignment.permissionCode);
-    return this.http.put<void>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}/${roleId}/permissions`, {
-      permissionCodes,
-    });
+    return this.http.put<void>(
+      `${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}/${roleId}/permissions`,
+      {
+        permissionCodes,
+      },
+    );
   }
 
   private buildAssignments(
     permissions: PermissionDto[],
     components: AppComponentResource[],
     actions: ActionDefinition[],
-    roleId: string
+    roleId: string,
   ): PermissionAssignment[] {
     const permissionCodes = new Set(permissions.map((permission) => permission.code));
     const assignments: PermissionAssignment[] = [];

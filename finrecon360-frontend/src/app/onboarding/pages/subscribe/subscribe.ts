@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
@@ -64,8 +65,13 @@ export class OnboardingSubscribeComponent implements OnInit {
         next: (response) => {
           window.location.href = response.checkoutUrl;
         },
-        error: () => {
-          this.error = 'Unable to start checkout. Please try again.';
+        error: (error: unknown) => {
+          if (error instanceof HttpErrorResponse) {
+            const body = error.error as { message?: string } | null;
+            this.error = body?.message ?? 'Unable to start checkout. Please try again.';
+          } else {
+            this.error = 'Unable to start checkout. Please try again.';
+          }
           this.loading = false;
         },
       });

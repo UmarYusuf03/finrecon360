@@ -69,7 +69,16 @@ namespace finrecon360_backend.Services
                 }, out var validatedToken);
 
                 var sub = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+                if (string.IsNullOrWhiteSpace(sub))
+                {
+                    sub = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+                }
+
                 var email = principal.FindFirstValue(JwtRegisteredClaimNames.Email);
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    email = principal.FindFirstValue(ClaimTypes.Email);
+                }
                 var tenantIdValue = principal.FindFirstValue("tenantId");
 
                 if (!Guid.TryParse(sub, out var userId) || !Guid.TryParse(tenantIdValue, out var tenantId))

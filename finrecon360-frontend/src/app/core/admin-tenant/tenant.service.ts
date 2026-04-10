@@ -37,4 +37,8 @@ export class TenantService {
   reinstate(id: string): Observable<void> {
     return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}/${id}/reinstate`, {});
   }
+
+  deleteTenant(id: string): Observable<void> {
+    return this.http.delete<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANTS}/${id}`);
+  }
 }
