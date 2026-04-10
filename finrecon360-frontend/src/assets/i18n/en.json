@@ -158,6 +158,35 @@
       "EMAIL_INVALID": "Enter a valid email",
       "REQUIRED": "This field is required"
     },
+    "IMPORT_ARCHITECTURE": {
+      "TITLE": "Import Architecture",
+      "COPY": "Tenant-isolated import foundations and canonical transaction shape.",
+      "TOTAL_BATCHES": "Import batches",
+      "TOTAL_RAW": "Raw records",
+      "TOTAL_NORMALIZED": "Normalized records",
+      "ACTIVE_TEMPLATES": "Active templates",
+      "LATEST_IMPORT": "Latest import:",
+      "CANONICAL_TITLE": "Canonical schema definition",
+      "FIELD": "Field",
+      "DATA_TYPE": "Data type",
+      "REQUIRED": "Required",
+      "DESCRIPTION": "Description",
+      "TEMPLATE_TITLE": "Import mapping templates",
+      "TEMPLATE_NAME": "Template name",
+      "SOURCE_TYPE": "Source type",
+      "SCHEMA_VERSION": "Schema version",
+      "MAPPING_JSON": "Mapping JSON",
+      "ACTIVE": "Active",
+      "UPDATE_TEMPLATE": "Update template",
+      "CREATE_TEMPLATE": "Create template",
+      "RESET_FORM": "Reset",
+      "VERSION": "Version",
+      "STATUS": "Status",
+      "UPDATED_AT": "Updated",
+      "ACTIONS": "Actions",
+      "EDIT": "Edit",
+      "DEACTIVATE": "Deactivate"
+    },
     "TENANT_REGISTRATIONS": {
       "TITLE": "Tenant Registrations"
     },
@@ -169,6 +198,9 @@
     },
     "ENFORCEMENT": {
       "TITLE": "Enforcement"
+    },
+    "AUDIT_LOGS": {
+      "TITLE": "Audit Logs"
     }
   },
   "MATCHER": {

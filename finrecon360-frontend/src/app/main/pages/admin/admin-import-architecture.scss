@@ -1,0 +1,53 @@
+.import-architecture {
+  display: grid;
+  gap: 1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.stat-item {
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e0e3ea;
+  background: linear-gradient(140deg, #f9fbff, #f1f6ff);
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  color: #506075;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  color: #1e2a44;
+}
+
+.latest-import {
+  margin-top: 0.8rem;
+  color: #2a3b56;
+}
+
+.full-width-table {
+  width: 100%;
+}
+
+.template-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.mapping-json-field {
+  width: 100%;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}

@@ -28,4 +28,11 @@ namespace finrecon360_backend.Dtos.Admin
     {
         public string? Note { get; set; }
     }
+
+    public record TenantRegistrationApprovalResponse(
+        Guid RequestId,
+        string AdminEmail,
+        string? OnboardingLink,
+        bool EmailSent,
+        string? EmailError);
 }

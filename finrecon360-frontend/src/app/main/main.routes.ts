@@ -31,6 +31,7 @@ export const mainRoutes: Routes = [
             'ADMIN.COMPONENTS.VIEW',
             'ADMIN.PERMISSIONS.VIEW',
             'ADMIN.USERS.VIEW',
+            'ADMIN.IMPORT_ARCHITECTURE.VIEW',
           ],
         },
         children: [
@@ -61,6 +62,15 @@ export const mainRoutes: Routes = [
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.USERS.VIEW'] },
           },
+          {
+            path: 'import-architecture',
+            loadComponent: () =>
+              import('./pages/admin/admin-import-architecture').then(
+                (m) => m.AdminImportArchitectureComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'] },
+          },
         ],
       },
       {
@@ -80,7 +90,9 @@ export const mainRoutes: Routes = [
           {
             path: 'tenant-registrations',
             loadComponent: () =>
-              import('./pages/admin/admin-tenant-registrations').then((m) => m.AdminTenantRegistrationsComponent),
+              import('./pages/admin/admin-tenant-registrations').then(
+                (m) => m.AdminTenantRegistrationsComponent,
+              ),
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.TENANT_REGISTRATIONS.MANAGE'] },
           },
@@ -105,6 +117,13 @@ export const mainRoutes: Routes = [
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.ENFORCEMENT.MANAGE'] },
           },
+          {
+            path: 'audit-logs',
+            loadComponent: () =>
+              import('./pages/admin/admin-audit-logs').then((m) => m.AdminAuditLogsComponent),
+            canActivate: [AccessGuard],
+            data: { roles: ['ADMIN'], permissions: ['ADMIN.TENANTS.MANAGE'] },
+          },
         ],
       },
       {
@@ -112,6 +131,13 @@ export const mainRoutes: Routes = [
         component: MatcherPageComponent,
         canActivate: [AccessGuard],
         data: { permissions: ['MATCHER.VIEW'] },
+      },
+      {
+        path: 'imports',
+        loadComponent: () =>
+          import('./pages/imports/imports-workbench').then((m) => m.ImportsWorkbenchComponent),
+        canActivate: [AccessGuard],
+        data: { scope: 'tenant' },
       },
       {
         path: 'profile',

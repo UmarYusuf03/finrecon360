@@ -1,7 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTabsModule } from '@angular/material/tabs';
-import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  ActivatedRoute,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { map, take } from 'rxjs/operators';
@@ -13,25 +19,86 @@ type AdminLink = {
   label: string;
   permission: string;
   scope: 'tenant' | 'system';
+  role?: string;
 };
 
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, MatTabsModule, TranslateModule],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    MatTabsModule,
+    TranslateModule,
+  ],
   templateUrl: './admin-shell.html',
   styleUrls: ['./admin-shell.scss'],
 })
 export class AdminShellComponent implements OnInit {
   private readonly links: AdminLink[] = [
-    { path: '/app/admin/roles', label: 'ADMIN.ROLES.TITLE', permission: 'ADMIN.ROLES.VIEW', scope: 'tenant' },
-    { path: '/app/admin/components', label: 'ADMIN.COMPONENTS.TITLE', permission: 'ADMIN.COMPONENTS.VIEW', scope: 'tenant' },
-    { path: '/app/admin/permissions', label: 'ADMIN.PERMISSIONS.TITLE', permission: 'ADMIN.PERMISSIONS.VIEW', scope: 'tenant' },
-    { path: '/app/admin/users', label: 'ADMIN.USERS.TITLE', permission: 'ADMIN.USERS.VIEW', scope: 'tenant' },
-    { path: '/app/system/tenant-registrations', label: 'ADMIN.TENANT_REGISTRATIONS.TITLE', permission: 'ADMIN.TENANT_REGISTRATIONS.MANAGE', scope: 'system' },
-    { path: '/app/system/tenants', label: 'ADMIN.TENANTS.TITLE', permission: 'ADMIN.TENANTS.MANAGE', scope: 'system' },
-    { path: '/app/system/plans', label: 'ADMIN.PLANS.TITLE', permission: 'ADMIN.PLANS.MANAGE', scope: 'system' },
-    { path: '/app/system/enforcement', label: 'ADMIN.ENFORCEMENT.TITLE', permission: 'ADMIN.ENFORCEMENT.MANAGE', scope: 'system' },
+    {
+      path: '/app/admin/roles',
+      label: 'ADMIN.ROLES.TITLE',
+      permission: 'ADMIN.ROLES.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/components',
+      label: 'ADMIN.COMPONENTS.TITLE',
+      permission: 'ADMIN.COMPONENTS.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/permissions',
+      label: 'ADMIN.PERMISSIONS.TITLE',
+      permission: 'ADMIN.PERMISSIONS.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/users',
+      label: 'ADMIN.USERS.TITLE',
+      permission: 'ADMIN.USERS.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/import-architecture',
+      label: 'ADMIN.IMPORT_ARCHITECTURE.TITLE',
+      permission: 'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/system/tenant-registrations',
+      label: 'ADMIN.TENANT_REGISTRATIONS.TITLE',
+      permission: 'ADMIN.TENANT_REGISTRATIONS.MANAGE',
+      scope: 'system',
+    },
+    {
+      path: '/app/system/tenants',
+      label: 'ADMIN.TENANTS.TITLE',
+      permission: 'ADMIN.TENANTS.MANAGE',
+      scope: 'system',
+    },
+    {
+      path: '/app/system/plans',
+      label: 'ADMIN.PLANS.TITLE',
+      permission: 'ADMIN.PLANS.MANAGE',
+      scope: 'system',
+    },
+    {
+      path: '/app/system/enforcement',
+      label: 'ADMIN.ENFORCEMENT.TITLE',
+      permission: 'ADMIN.ENFORCEMENT.MANAGE',
+      scope: 'system',
+    },
+    {
+      path: '/app/system/audit-logs',
+      label: 'ADMIN.AUDIT_LOGS.TITLE',
+      permission: 'ADMIN.TENANTS.MANAGE',
+      scope: 'system',
+      role: 'ADMIN',
+    },
   ];
 
   readonly visibleLinks$: Observable<AdminLink[]>;
@@ -39,7 +106,7 @@ export class AdminShellComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
   ) {
     this.scope = (this.route.snapshot.data['scope'] as 'tenant' | 'system' | undefined) ?? 'tenant';
     this.visibleLinks$ = this.authService.currentUser$.pipe(
@@ -56,16 +123,25 @@ export class AdminShellComponent implements OnInit {
           return [] as AdminLink[];
         }
 
-        return this.links.filter(
-          (link) => link.scope === this.scope && this.hasPermission(user.permissions, link.permission)
-        );
-      })
+        return this.links.filter((link) => {
+          if (link.scope !== this.scope) {
+            return false;
+          }
+
+          if (!this.hasPermission(user.permissions, link.permission)) {
+            return false;
+          }
+
+          return this.hasRole(user.roles, link.role);
+        });
+      }),
     );
   }
 
   ngOnInit(): void {
     this.visibleLinks$.pipe(take(1)).subscribe((links) => {
-      const onScopeRoot = this.router.url === `/app/${this.scope}` || this.router.url === `/app/${this.scope}/`;
+      const onScopeRoot =
+        this.router.url === `/app/${this.scope}` || this.router.url === `/app/${this.scope}/`;
       if (!onScopeRoot) {
         return;
       }
@@ -91,5 +167,13 @@ export class AdminShellComponent implements OnInit {
 
     const manageCode = `${requiredPermission.slice(0, separatorIndex)}.MANAGE`;
     return grantedPermissions.includes(manageCode);
+  }
+
+  private hasRole(grantedRoles: string[], requiredRole?: string): boolean {
+    if (!requiredRole) {
+      return true;
+    }
+
+    return grantedRoles.includes(requiredRole);
   }
 }

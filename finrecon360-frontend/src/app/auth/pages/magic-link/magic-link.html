@@ -1,10 +1,10 @@
 <div class="auth-page">
   <div class="auth-logo">finRecon360</div>
 
-  <div class="auth-card auth-card--narrow">
+  <div class="auth-card auth-card--narrow magic-card">
     <div class="auth-card-icon--key">
       <div class="auth-card-icon-inner">
-        LINK
+        SECURE
       </div>
     </div>
 
@@ -12,54 +12,58 @@
     <p class="auth-subtitle" *ngIf="purpose === 'EmailVerify'">Verifying your email...</p>
     <p class="auth-subtitle" *ngIf="purpose === 'PasswordReset'">Set a new password</p>
     <p class="auth-subtitle" *ngIf="purpose === 'ChangePassword'">Confirm your password change</p>
-    <p class="auth-subtitle" *ngIf="purpose === 'TenantOnboarding'">Set your admin password</p>
+    <p class="auth-subtitle" *ngIf="purpose === 'TenantOnboarding'">Set your tenant admin password</p>
 
-    <div *ngIf="state === 'loading'" class="auth-helper-text text-center" style="margin-top: 24px;">
+    <div *ngIf="state === 'loading'" class="auth-helper-text text-center state-message">
       Please wait while we process your request.
     </div>
 
-    <div *ngIf="state === 'error'" class="auth-helper-text text-center" style="margin-top: 24px;">
+    <div *ngIf="state === 'error'" class="auth-helper-text text-center state-message error-message">
       {{ errorMessage || 'This link is invalid or expired.' }}
     </div>
 
-    <div *ngIf="state === 'success'" class="auth-helper-text text-center" style="margin-top: 24px;">
+    <div *ngIf="state === 'success'" class="auth-helper-text text-center state-message">
       Your request was completed successfully.
-      <div style="margin-top: 16px;">
+      <div class="state-actions">
         <a routerLink="/auth/login" class="auth-link">Go to Sign In</a>
       </div>
     </div>
 
-    <form *ngIf="state === 'ready' && purpose === 'PasswordReset'" [formGroup]="resetForm" class="auth-form" style="margin-top: 24px;">
+    <form *ngIf="state === 'ready' && purpose === 'PasswordReset'" [formGroup]="resetForm" class="auth-form aligned-form form-shell">
       <label class="field-label">New Password</label>
       <input type="password" class="auth-input" formControlName="newPassword" placeholder="New password">
-      <label class="field-label" style="margin-top: 12px;">Confirm Password</label>
+      <label class="field-label field-gap">Confirm Password</label>
       <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm new password">
-      <button class="primary-btn" type="button" style="margin-top: 20px;" (click)="submitPasswordReset()">
+      <button class="primary-btn submit-btn" type="button" (click)="submitPasswordReset()">
         Update Password
       </button>
     </form>
 
-    <form *ngIf="state === 'ready' && purpose === 'ChangePassword'" [formGroup]="changeForm" class="auth-form" style="margin-top: 24px;">
+    <form *ngIf="state === 'ready' && purpose === 'ChangePassword'" [formGroup]="changeForm" class="auth-form aligned-form form-shell">
       <label class="field-label">Current Password</label>
       <input type="password" class="auth-input" formControlName="currentPassword" placeholder="Current password">
-      <label class="field-label" style="margin-top: 12px;">New Password</label>
+      <label class="field-label field-gap">New Password</label>
       <input type="password" class="auth-input" formControlName="newPassword" placeholder="New password">
-      <label class="field-label" style="margin-top: 12px;">Confirm Password</label>
+      <label class="field-label field-gap">Confirm Password</label>
       <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm new password">
-      <button class="primary-btn" type="button" style="margin-top: 20px;" (click)="submitChangePassword()">
+      <button class="primary-btn submit-btn" type="button" (click)="submitChangePassword()">
         Update Password
       </button>
     </form>
 
-    <form *ngIf="state === 'ready' && purpose === 'TenantOnboarding'" [formGroup]="onboardingForm" class="auth-form" style="margin-top: 24px;">
-      <div class="auth-helper-text" *ngIf="tenantName" style="margin-bottom: 12px;">
-        Tenant: {{ tenantName }}
+    <form *ngIf="state === 'ready' && purpose === 'TenantOnboarding'" [formGroup]="onboardingForm" class="auth-form aligned-form form-shell form-shell--onboarding">
+      <div class="tenant-pill" *ngIf="tenantName">
+        <span class="tenant-pill__label">Tenant</span>
+        <span class="tenant-pill__value">{{ tenantName }}</span>
       </div>
+      <p class="auth-helper-text onboarding-copy">
+        Use at least 8 characters. You will continue to subscription setup after this step.
+      </p>
       <label class="field-label">Password</label>
       <input type="password" class="auth-input" formControlName="password" placeholder="Set password">
-      <label class="field-label" style="margin-top: 12px;">Confirm Password</label>
+      <label class="field-label field-gap">Confirm Password</label>
       <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm password">
-      <button class="primary-btn" type="button" style="margin-top: 20px;" (click)="submitOnboardingPassword()">
+      <button class="primary-btn submit-btn" type="button" (click)="submitOnboardingPassword()">
         Continue to Subscription
       </button>
     </form>

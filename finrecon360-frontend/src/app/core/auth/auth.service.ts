@@ -41,6 +41,14 @@ interface MeResponse {
   permissions: string[];
 }
 
+export interface ChangePasswordLinkResponse {
+  message: string;
+  emailSent?: boolean;
+  cooldownActive?: boolean;
+  fallbackLink?: string | null;
+  deliveryError?: string | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -103,11 +111,27 @@ export class AuthService {
   }
 
   get isAuthenticated(): boolean {
-    return !!this.currentUserSubject.value;
+    const user = this.currentUserSubject.value;
+    if (!user) {
+      return false;
+    }
+
+    if (this.isTokenExpired(user.token)) {
+      this.logout();
+      return false;
+    }
+
+    return true;
   }
 
   getAccessToken(): string | null {
-    return this.currentUserSubject.value?.token ?? null;
+    const token = this.currentUserSubject.value?.token ?? null;
+    if (this.isTokenExpired(token)) {
+      this.logout();
+      return null;
+    }
+
+    return token;
   }
 
   updateCurrentUser(patch: Partial<CurrentUser>): void {
@@ -121,7 +145,7 @@ export class AuthService {
   login(email: string, password: string): Observable<CurrentUser> {
     if (USE_MOCK_API) {
       const account = this.mockAccounts.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
       );
 
       if (!account) {
@@ -143,7 +167,7 @@ export class AuthService {
         tap((u) => {
           this.currentUserSubject.next(u);
           this.persist(u);
-        })
+        }),
       );
     }
 
@@ -165,9 +189,9 @@ export class AuthService {
             email: loginResponse.email,
             displayName: loginResponse.fullName,
             isSystemAdmin: false,
-            tenantId: canReuseTenantContext ? previousUser?.tenantId ?? null : null,
-            tenantName: canReuseTenantContext ? previousUser?.tenantName ?? null : null,
-            tenantStatus: canReuseTenantContext ? previousUser?.tenantStatus ?? null : null,
+            tenantId: canReuseTenantContext ? (previousUser?.tenantId ?? null) : null,
+            tenantName: canReuseTenantContext ? (previousUser?.tenantName ?? null) : null,
+            tenantStatus: canReuseTenantContext ? (previousUser?.tenantStatus ?? null) : null,
             roles: [],
             permissions: [],
             token: loginResponse.token,
@@ -193,9 +217,9 @@ export class AuthService {
               this.currentUserSubject.next(updated);
               this.persist(updated);
               return updated;
-            })
+            }),
           );
-        })
+        }),
       );
   }
 
@@ -216,18 +240,29 @@ export class AuthService {
       .pipe(map(() => void 0));
   }
 
-  verifyOnboardingMagicLink(token: string): Observable<{ onboardingToken: string; email: string; tenantName: string }> {
+  verifyOnboardingMagicLink(
+    token: string,
+  ): Observable<{ onboardingToken: string; email: string; tenantName: string }> {
     if (USE_MOCK_API) {
-      return of({ onboardingToken: 'mock', email: 'mock@finrecon.local', tenantName: 'Mock Tenant' }).pipe(delay(200));
+      return of({
+        onboardingToken: 'mock',
+        email: 'mock@finrecon.local',
+        tenantName: 'Mock Tenant',
+      }).pipe(delay(200));
     }
 
     return this.http.post<{ onboardingToken: string; email: string; tenantName: string }>(
       `${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.VERIFY_MAGIC_LINK}`,
-      { token }
+      { token },
     );
   }
 
-  setOnboardingPassword(payload: { onboardingToken: string; password: string; confirmPassword: string }): Observable<void> {
+  setOnboardingPassword(payload: {
+    onboardingToken: string;
+    magicLinkToken: string;
+    password: string;
+    confirmPassword: string;
+  }): Observable<void> {
     if (USE_MOCK_API) {
       return of(void 0).pipe(delay(200));
     }
@@ -237,12 +272,18 @@ export class AuthService {
       .pipe(map(() => void 0));
   }
 
-  createOnboardingCheckout(payload: { onboardingToken: string; planId: string }): Observable<{ checkoutUrl: string }> {
+  createOnboardingCheckout(payload: {
+    onboardingToken: string;
+    planId: string;
+  }): Observable<{ checkoutUrl: string }> {
     if (USE_MOCK_API) {
       return of({ checkoutUrl: 'https://example.com/checkout' }).pipe(delay(200));
     }
 
-    return this.http.post<{ checkoutUrl: string }>(`${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.CHECKOUT}`, payload);
+    return this.http.post<{ checkoutUrl: string }>(
+      `${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.CHECKOUT}`,
+      payload,
+    );
   }
 
   register(payload: {
@@ -293,16 +334,27 @@ export class AuthService {
       .pipe(map(() => void 0));
   }
 
-  requestChangePasswordLink(): Observable<void> {
+  requestChangePasswordLink(): Observable<ChangePasswordLinkResponse> {
     if (USE_MOCK_API) {
-      return of(void 0).pipe(delay(200));
+      return of({
+        message: 'Check your email for the password change link.',
+        emailSent: true,
+        cooldownActive: false,
+        fallbackLink: null,
+        deliveryError: null,
+      }).pipe(delay(200));
     }
-    return this.http
-      .post<void>(`${API_BASE_URL}${API_ENDPOINTS.AUTH.REQUEST_CHANGE_PASSWORD_LINK}`, {})
-      .pipe(map(() => void 0));
+    return this.http.post<ChangePasswordLinkResponse>(
+      `${API_BASE_URL}${API_ENDPOINTS.AUTH.REQUEST_CHANGE_PASSWORD_LINK}`,
+      {},
+    );
   }
 
-  confirmChangePasswordLink(token: string, currentPassword: string, newPassword: string): Observable<void> {
+  confirmChangePasswordLink(
+    token: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Observable<void> {
     if (USE_MOCK_API) {
       return of(void 0).pipe(delay(200));
     }
@@ -350,7 +402,7 @@ export class AuthService {
           this.logout();
         }
         return throwError(() => err);
-      })
+      }),
     );
   }
 
@@ -373,9 +425,41 @@ export class AuthService {
     const raw = localStorage.getItem(this.storageKey);
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as CurrentUser;
+      const parsed = JSON.parse(raw) as CurrentUser;
+      if (this.isTokenExpired(parsed.token)) {
+        localStorage.removeItem(this.storageKey);
+        return null;
+      }
+
+      return parsed;
     } catch {
       return null;
+    }
+  }
+
+  private isTokenExpired(token: string | null | undefined): boolean {
+    if (!token) {
+      return true;
+    }
+
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        return !USE_MOCK_API;
+      }
+
+      const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+      const decoded = atob(padded);
+      const parsed = JSON.parse(decoded) as { exp?: number };
+
+      if (typeof parsed.exp !== 'number') {
+        return !USE_MOCK_API;
+      }
+
+      return Date.now() >= parsed.exp * 1000;
+    } catch {
+      return !USE_MOCK_API;
     }
   }
 }

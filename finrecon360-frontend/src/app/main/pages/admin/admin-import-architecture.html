@@ -1,0 +1,207 @@
+<section class="import-architecture">
+  <mat-card class="summary-card">
+    <mat-card-header>
+      <mat-card-title>{{ 'ADMIN.IMPORT_ARCHITECTURE.TITLE' | translate }}</mat-card-title>
+      <mat-card-subtitle>{{ 'ADMIN.IMPORT_ARCHITECTURE.COPY' | translate }}</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content *ngIf="overview as data; else loadingState">
+      <div class="stats-grid">
+        <article class="stat-item">
+          <span class="stat-label">{{
+            'ADMIN.IMPORT_ARCHITECTURE.TOTAL_BATCHES' | translate
+          }}</span>
+          <strong class="stat-value">{{ data.totalImportBatches }}</strong>
+        </article>
+
+        <article class="stat-item">
+          <span class="stat-label">{{ 'ADMIN.IMPORT_ARCHITECTURE.TOTAL_RAW' | translate }}</span>
+          <strong class="stat-value">{{ data.totalRawRecords }}</strong>
+        </article>
+
+        <article class="stat-item">
+          <span class="stat-label">{{
+            'ADMIN.IMPORT_ARCHITECTURE.TOTAL_NORMALIZED' | translate
+          }}</span>
+          <strong class="stat-value">{{ data.totalNormalizedRecords }}</strong>
+        </article>
+
+        <article class="stat-item">
+          <span class="stat-label">{{
+            'ADMIN.IMPORT_ARCHITECTURE.ACTIVE_TEMPLATES' | translate
+          }}</span>
+          <strong class="stat-value">{{ data.activeMappingTemplates }}</strong>
+        </article>
+      </div>
+
+      <div class="latest-import" *ngIf="data.latestImportAt as latestImportAt">
+        {{ 'ADMIN.IMPORT_ARCHITECTURE.LATEST_IMPORT' | translate }}
+        <strong>{{ latestImportAt | date: 'medium' }}</strong>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <ng-template #loadingState>
+    <mat-card-content>
+      <p>{{ loading ? ('COMMON.LOADING' | translate) : ('COMMON.NO_DATA' | translate) }}</p>
+    </mat-card-content>
+  </ng-template>
+
+  <mat-card class="canonical-card" *ngIf="overview as data">
+    <mat-card-header>
+      <mat-card-title>
+        {{ 'ADMIN.IMPORT_ARCHITECTURE.CANONICAL_TITLE' | translate }}
+        <small>({{ data.canonicalSchema.version }})</small>
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <table mat-table [dataSource]="canonicalFields" class="mat-elevation-z1 full-width-table">
+        <ng-container matColumnDef="field">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.FIELD' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">{{ element.field }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="dataType">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.DATA_TYPE' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">{{ element.dataType }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="required">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.REQUIRED' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">{{ element.required ? 'Yes' : 'No' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="description">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.DESCRIPTION' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let element">{{ element.description }}</td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedCanonicalColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedCanonicalColumns"></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="templates-card">
+    <mat-card-header>
+      <mat-card-title>{{ 'ADMIN.IMPORT_ARCHITECTURE.TEMPLATE_TITLE' | translate }}</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="templateForm" class="template-form" (ngSubmit)="saveTemplate()">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'ADMIN.IMPORT_ARCHITECTURE.TEMPLATE_NAME' | translate }}</mat-label>
+          <input matInput formControlName="name" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'ADMIN.IMPORT_ARCHITECTURE.SOURCE_TYPE' | translate }}</mat-label>
+          <input matInput formControlName="sourceType" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>{{ 'ADMIN.IMPORT_ARCHITECTURE.SCHEMA_VERSION' | translate }}</mat-label>
+          <input matInput formControlName="canonicalSchemaVersion" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="mapping-json-field">
+          <mat-label>{{ 'ADMIN.IMPORT_ARCHITECTURE.MAPPING_JSON' | translate }}</mat-label>
+          <textarea matInput rows="8" formControlName="mappingJson"></textarea>
+        </mat-form-field>
+
+        <mat-checkbox formControlName="isActive">{{
+          'ADMIN.IMPORT_ARCHITECTURE.ACTIVE' | translate
+        }}</mat-checkbox>
+
+        <div class="form-actions">
+          <button mat-flat-button color="primary" type="submit" [disabled]="saving">
+            {{
+              editingTemplateId
+                ? ('ADMIN.IMPORT_ARCHITECTURE.UPDATE_TEMPLATE' | translate)
+                : ('ADMIN.IMPORT_ARCHITECTURE.CREATE_TEMPLATE' | translate)
+            }}
+          </button>
+          <button mat-stroked-button type="button" (click)="startCreate()">
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.RESET_FORM' | translate }}
+          </button>
+        </div>
+      </form>
+
+      <table mat-table [dataSource]="templates" class="mat-elevation-z1 full-width-table">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.TEMPLATE_NAME' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let template">{{ template.name }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="sourceType">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.SOURCE_TYPE' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let template">{{ template.sourceType }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="version">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.VERSION' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let template">{{ template.version }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.STATUS' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let template">
+            {{ template.isActive ? 'Active' : 'Inactive' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="updatedAt">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.UPDATED_AT' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let template">
+            {{ template.updatedAt || template.createdAt | date: 'medium' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>
+            {{ 'ADMIN.IMPORT_ARCHITECTURE.ACTIONS' | translate }}
+          </th>
+          <td mat-cell *matCellDef="let template">
+            <button mat-button type="button" (click)="startEdit(template)">
+              {{ 'ADMIN.IMPORT_ARCHITECTURE.EDIT' | translate }}
+            </button>
+            <button
+              mat-button
+              type="button"
+              color="warn"
+              *ngIf="template.isActive"
+              (click)="deactivateTemplate(template)"
+            >
+              {{ 'ADMIN.IMPORT_ARCHITECTURE.DEACTIVATE' | translate }}
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedTemplateColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedTemplateColumns; trackBy: trackByTemplateId"
+        ></tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</section>

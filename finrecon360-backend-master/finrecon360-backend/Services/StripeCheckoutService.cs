@@ -9,6 +9,8 @@ namespace finrecon360_backend.Services
     {
         Task<Session> CreateCheckoutSessionAsync(string name, long amountCents, string currency, Guid tenantId, Guid subscriptionId, Guid userId, CancellationToken cancellationToken = default);
         Event ParseWebhookEvent(string payload, string signatureHeader);
+        bool IsConfigured();
+        string GetFallbackCheckoutUrl();
     }
 
     public class StripeCheckoutService : IStripeCheckoutService
@@ -23,6 +25,11 @@ namespace finrecon360_backend.Services
 
         public async Task<Session> CreateCheckoutSessionAsync(string name, long amountCents, string currency, Guid tenantId, Guid subscriptionId, Guid userId, CancellationToken cancellationToken = default)
         {
+            if (!IsConfigured())
+            {
+                throw new InvalidOperationException("Stripe is not configured for checkout.");
+            }
+
             var options = new SessionCreateOptions
             {
                 Mode = "payment",
@@ -55,6 +62,27 @@ namespace finrecon360_backend.Services
 
             var service = new SessionService();
             return await service.CreateAsync(options, cancellationToken: cancellationToken);
+        }
+
+        public bool IsConfigured()
+        {
+            if (string.IsNullOrWhiteSpace(_options.ApiKey))
+            {
+                return false;
+            }
+
+            // Stripe secret keys are expected to start with sk_.
+            return _options.ApiKey.StartsWith("sk_", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public string GetFallbackCheckoutUrl()
+        {
+            if (!string.IsNullOrWhiteSpace(_options.SuccessUrl))
+            {
+                return _options.SuccessUrl;
+            }
+
+            return "http://localhost:4200/onboarding/success";
         }
 
         public Event ParseWebhookEvent(string payload, string signatureHeader)

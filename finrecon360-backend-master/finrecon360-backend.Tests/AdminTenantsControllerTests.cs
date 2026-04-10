@@ -101,7 +101,8 @@ public class AdminTenantsControllerTests
             new StubAuditLogger(),
             new Sha256PasswordHasher(),
             new StubTenantUserDirectoryService(),
-            new StubSystemEnforcementService());
+            new StubSystemEnforcementService(),
+            new StubTenantDbProtector());
     }
 
     private sealed class StubUserContext : IUserContext
@@ -152,5 +153,12 @@ public class AdminTenantsControllerTests
 
         public Task<EnforcementApplyResult> ReinstateUserAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default)
             => Task.FromResult(EnforcementApplyResult.Success);
+    }
+
+    private sealed class StubTenantDbProtector : ITenantDbProtector
+    {
+        public string Protect(string plainText) => plainText;
+
+        public string Unprotect(string protectedText) => protectedText;
     }
 }

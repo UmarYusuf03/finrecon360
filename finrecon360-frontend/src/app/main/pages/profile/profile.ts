@@ -13,7 +13,7 @@ import { RouterModule, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Subject, takeUntil } from 'rxjs';
 
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService, ChangePasswordLinkResponse } from '../../../core/auth/auth.service';
 import { SUPPORTED_LANGUAGES } from '../../../core/constants/languages';
 import { UserProfileDetails } from '../../models/profile.models';
 import { ProfileService } from '../../services/profile.service';
@@ -48,6 +48,9 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   changePasswordStatus: string | null = null;
   changePasswordSubmitting = false;
+  changePasswordDialogOpen = false;
+  changePasswordMaskedEmail = 'your email';
+  changePasswordFallbackLink: string | null = null;
 
   profileImageUrl: string | null = null;
   profileImageStatus: string | null = null;
@@ -122,24 +125,37 @@ export class ProfileComponent implements OnInit, OnDestroy {
       });
   }
 
-  confirmChangePasswordLink(): void {
+  openChangePasswordDialog(): void {
     const email = this.form.get('email')?.value as string;
-    const masked = this.maskEmail(email);
-    if (!confirm(`Send a password change link to ${masked}?`)) {
+    this.changePasswordMaskedEmail = this.maskEmail(email);
+    this.changePasswordDialogOpen = true;
+  }
+
+  closeChangePasswordDialog(): void {
+    if (this.changePasswordSubmitting) {
       return;
     }
 
+    this.changePasswordDialogOpen = false;
+  }
+
+  confirmChangePasswordLink(): void {
+    this.changePasswordDialogOpen = false;
+
     this.changePasswordSubmitting = true;
     this.changePasswordStatus = null;
+    this.changePasswordFallbackLink = null;
 
     this.authService.requestChangePasswordLink().subscribe({
-      next: () => {
+      next: (response: ChangePasswordLinkResponse) => {
         this.changePasswordSubmitting = false;
-        this.changePasswordStatus = 'Check your email for the password change link.';
+        this.changePasswordStatus = response.message || 'Check your email for the password change link.';
+        this.changePasswordFallbackLink = response.fallbackLink ?? null;
       },
-      error: () => {
+      error: (error) => {
         this.changePasswordSubmitting = false;
-        this.changePasswordStatus = 'If the email exists, you will receive a link shortly.';
+        const message = error?.error?.message as string | undefined;
+        this.changePasswordStatus = message ?? 'Unable to request a password change link right now.';
       },
     });
   }
