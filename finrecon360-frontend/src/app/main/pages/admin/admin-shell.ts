@@ -69,6 +69,18 @@ export class AdminShellComponent implements OnInit {
       scope: 'tenant',
     },
     {
+      path: '/app/admin/import-history',
+      label: 'ADMIN.IMPORT_HISTORY.TITLE',
+      permission: 'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/audit-logs',
+      label: 'ADMIN.TENANT_AUDIT_LOGS.TITLE',
+      permission: 'ADMIN.USERS.VIEW',
+      scope: 'tenant',
+    },
+    {
       path: '/app/system/tenant-registrations',
       label: 'ADMIN.TENANT_REGISTRATIONS.TITLE',
       permission: 'ADMIN.TENANT_REGISTRATIONS.MANAGE',

@@ -184,6 +184,8 @@
             <button mat-button type="button" (click)="startEdit(template)">
               {{ 'ADMIN.IMPORT_ARCHITECTURE.EDIT' | translate }}
             </button>
+            <button mat-button type="button" (click)="startRename(template)">Rename</button>
+            <button mat-button type="button" (click)="reuseTemplate(template)">Reuse</button>
             <button
               mat-button
               type="button"
@@ -192,6 +194,9 @@
               (click)="deactivateTemplate(template)"
             >
               {{ 'ADMIN.IMPORT_ARCHITECTURE.DEACTIVATE' | translate }}
+            </button>
+            <button mat-button type="button" color="warn" (click)="deleteTemplate(template)">
+              Delete
             </button>
           </td>
         </ng-container>
@@ -204,4 +209,28 @@
       </table>
     </mat-card-content>
   </mat-card>
+
+  <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
+    <div
+      class="dialog-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-template-title"
+    >
+      <h3 id="delete-template-title">Delete Mapping Template</h3>
+      <p>
+        This will permanently remove
+        <strong>{{ deleteTarget?.name }}</strong
+        >.
+      </p>
+      <p>Any existing imports will keep their stored mappings.</p>
+
+      <div class="dialog-actions">
+        <button mat-stroked-button type="button" (click)="closeDeleteDialog()">Cancel</button>
+        <button mat-flat-button color="warn" type="button" (click)="confirmDeleteTemplate()">
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
 </section>

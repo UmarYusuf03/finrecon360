@@ -10,6 +10,17 @@ export class AuditLogService {
   constructor(private http: HttpClient) {}
 
   getAuditLogs(filters: AuditLogFilters): Observable<AuditLogPage> {
+    return this.getAuditLogsForEndpoint(filters, API_ENDPOINTS.SYSTEM.AUDIT_LOGS);
+  }
+
+  getTenantAuditLogs(filters: AuditLogFilters): Observable<AuditLogPage> {
+    return this.getAuditLogsForEndpoint(filters, API_ENDPOINTS.ADMIN.AUDIT_LOGS);
+  }
+
+  private getAuditLogsForEndpoint(
+    filters: AuditLogFilters,
+    endpoint: string,
+  ): Observable<AuditLogPage> {
     const params = new URLSearchParams();
     params.set('page', String(filters.page));
     params.set('pageSize', String(filters.pageSize));
@@ -39,7 +50,7 @@ export class AuditLogService {
     }
 
     const query = params.toString();
-    const url = `${API_BASE_URL}${API_ENDPOINTS.SYSTEM.AUDIT_LOGS}${query ? `?${query}` : ''}`;
+    const url = `${API_BASE_URL}${endpoint}${query ? `?${query}` : ''}`;
     return this.http.get<AuditLogPage>(url);
   }
 }

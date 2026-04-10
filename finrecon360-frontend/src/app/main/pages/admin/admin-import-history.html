@@ -1,0 +1,45 @@
+<section class="import-history">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>{{ 'ADMIN.IMPORT_HISTORY.TITLE' | translate }}</mat-card-title>
+      <mat-card-subtitle>{{ 'ADMIN.IMPORT_HISTORY.COPY' | translate }}</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="filters">
+        <input type="text" [(ngModel)]="search" placeholder="Search by file/source" />
+        <input type="text" [(ngModel)]="statusFilter" placeholder="Status filter" />
+        <button class="ghost-btn" type="button" (click)="loadHistory()">Refresh</button>
+        <button class="ghost-btn" type="button" (click)="clearFilters()">Reset</button>
+      </div>
+
+      <div *ngIf="loading" class="loading">Loading history...</div>
+      <table *ngIf="!loading" class="history-table">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Uploaded By</th>
+            <th>Email</th>
+            <th>Imported</th>
+            <th>Raw</th>
+            <th>Normalized</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of history">
+            <td>{{ item.originalFileName || 'n/a' }}</td>
+            <td>{{ item.sourceType }}</td>
+            <td>{{ item.status }}</td>
+            <td>{{ item.uploadedByName || 'n/a' }}</td>
+            <td>{{ item.uploadedByEmail || 'n/a' }}</td>
+            <td>{{ item.importedAt | date: 'short' }}</td>
+            <td>{{ item.rawRecordCount }}</td>
+            <td>{{ item.normalizedRecordCount }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </mat-card-content>
+  </mat-card>
+</section>

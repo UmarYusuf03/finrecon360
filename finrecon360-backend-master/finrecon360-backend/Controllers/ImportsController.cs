@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Imports;
@@ -22,33 +21,31 @@ namespace finrecon360_backend.Controllers
             ".csv", ".xlsx"
         };
 
-        private static readonly string[] RequiredCanonicalFields =
-        {
-            "TransactionDate",
-            "DebitAmount",
-            "CreditAmount",
-            "NetAmount",
-            "Currency"
-        };
 
         private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
         private readonly IUserContext _userContext;
         private readonly IImportFileParser _importFileParser;
+        private readonly IImportNormalizationService _normalizationService;
+        private readonly IAuditLogger _auditLogger;
 
         public ImportsController(
             AppDbContext dbContext,
             ITenantContext tenantContext,
             ITenantDbContextFactory tenantDbContextFactory,
             IUserContext userContext,
-            IImportFileParser importFileParser)
+            IImportFileParser importFileParser,
+            IImportNormalizationService normalizationService,
+            IAuditLogger auditLogger)
         {
             _dbContext = dbContext;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
             _importFileParser = importFileParser;
+            _normalizationService = normalizationService;
+            _auditLogger = auditLogger;
         }
 
         [HttpPost]
@@ -144,22 +141,214 @@ namespace finrecon360_backend.Controllers
             }
 
             var total = await query.CountAsync();
-            var items = await query
-                .OrderByDescending(x => x.ImportedAt)
+            var users = tenantDb.TenantUsers.AsNoTracking();
+
+            var items = await (from batch in query
+                               join user in users on batch.UploadedByUserId equals user.UserId into userGroup
+                               from user in userGroup.DefaultIfEmpty()
+                               orderby batch.ImportedAt descending
+                               select new ImportHistoryItemDto(
+                                   batch.ImportBatchId,
+                                   batch.SourceType,
+                                   batch.Status,
+                                   batch.ImportedAt,
+                                   batch.OriginalFileName,
+                                   batch.RawRecordCount,
+                                   batch.NormalizedRecordCount,
+                                   batch.ErrorMessage,
+                                   batch.UploadedByUserId,
+                                   user != null ? user.Email : null,
+                                   user != null ? user.DisplayName : null))
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(x => new ImportHistoryItemDto(
-                    x.ImportBatchId,
-                    x.SourceType,
-                    x.Status,
-                    x.ImportedAt,
-                    x.OriginalFileName,
-                    x.RawRecordCount,
-                    x.NormalizedRecordCount,
-                    x.ErrorMessage))
                 .ToListAsync();
 
             return Ok(new ImportHistoryResponseDto(items, total, page, pageSize));
+        }
+
+        [HttpGet("{id:guid}/validation-rows")]
+        public async Task<ActionResult<ImportValidationRowsResponseDto>> GetValidationRows(
+            Guid id,
+            [FromQuery] string? status = null)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            if (!batch.MappingTemplateId.HasValue)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappingTemplate = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value && x.IsActive);
+            if (mappingTemplate == null)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var rowsQuery = tenantDb.ImportedRawRecords.AsNoTracking()
+                .Where(x => x.ImportBatchId == id);
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var statusValue = status.Trim().ToUpperInvariant();
+                rowsQuery = rowsQuery.Where(x => x.NormalizationStatus == statusValue);
+            }
+
+            var rows = await rowsQuery
+                .OrderBy(x => x.RowNumber)
+                .ToListAsync();
+
+            if (rows.Count == 0)
+            {
+                return Ok(new ImportValidationRowsResponseDto(
+                    id,
+                    0,
+                    0,
+                    0,
+                    new List<ImportValidationRowDto>()));
+            }
+
+            var allRows = await tenantDb.ImportedRawRecords.AsNoTracking()
+                .Where(x => x.ImportBatchId == id)
+                .ToListAsync();
+
+            var validRows = allRows.Count(x => string.Equals(x.NormalizationStatus, "VALID", StringComparison.OrdinalIgnoreCase));
+            var invalidRows = allRows.Count - validRows;
+
+            var responseRows = rows.Select(x => new ImportValidationRowDto(
+                x.ImportedRawRecordId,
+                x.RowNumber ?? 0,
+                x.NormalizationStatus,
+                x.NormalizationErrors,
+                DeserializeRowPayload(x.SourcePayloadJson)))
+                .ToList();
+
+            return Ok(new ImportValidationRowsResponseDto(
+                id,
+                allRows.Count,
+                validRows,
+                invalidRows,
+                responseRows));
+        }
+
+        [HttpPut("{id:guid}/raw-records/{rawRecordId:guid}")]
+        public async Task<ActionResult<ImportValidationRowDto>> UpdateRawRecord(
+            Guid id,
+            Guid rawRecordId,
+            [FromBody] ImportUpdateRawRecordRequest request)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var batch = await tenantDb.ImportBatches
+                .FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            if (!batch.MappingTemplateId.HasValue)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var mappingTemplate = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value && x.IsActive);
+            if (mappingTemplate == null)
+            {
+                return BadRequest(new { message = "No mapping saved for this batch." });
+            }
+
+            var rawRecord = await tenantDb.ImportedRawRecords
+                .FirstOrDefaultAsync(x => x.ImportBatchId == id && x.ImportedRawRecordId == rawRecordId);
+            if (rawRecord == null)
+            {
+                return NotFound();
+            }
+
+            if (request.Payload == null || request.Payload.Count == 0)
+            {
+                return BadRequest(new { message = "Payload is required." });
+            }
+
+            rawRecord.SourcePayloadJson = JsonSerializer.Serialize(request.Payload);
+
+            var mappings = DeserializeMappings(mappingTemplate.MappingJson);
+            var errors = _normalizationService.ValidateRow(request.Payload, mappings);
+
+            if (errors.Count == 0)
+            {
+                rawRecord.NormalizationStatus = "VALID";
+                rawRecord.NormalizationErrors = null;
+            }
+            else
+            {
+                rawRecord.NormalizationStatus = "INVALID";
+                rawRecord.NormalizationErrors = string.Join(" | ", errors);
+            }
+
+            await UpdateBatchValidationStatusAsync(tenantDb, batch);
+            await tenantDb.SaveChangesAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportRowCorrected",
+                "ImportedRawRecord",
+                rawRecordId.ToString(),
+                $"batchId={id};status={rawRecord.NormalizationStatus}");
+
+            return Ok(new ImportValidationRowDto(
+                rawRecord.ImportedRawRecordId,
+                rawRecord.RowNumber ?? 0,
+                rawRecord.NormalizationStatus,
+                rawRecord.NormalizationErrors,
+                DeserializeRowPayload(rawRecord.SourcePayloadJson)));
+        }
+
+        [HttpGet("active-template")]
+        public async Task<ActionResult<ImportMappingTemplateSummaryDto>> GetActiveTemplate([FromQuery] string? sourceType)
+        {
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (string.IsNullOrWhiteSpace(sourceType))
+            {
+                return BadRequest(new { message = "SourceType is required." });
+            }
+
+            var sourceTypeValue = sourceType.Trim();
+
+            var template = await tenantDb.ImportMappingTemplates.AsNoTracking()
+                .Where(x => x.IsActive && x.SourceType == sourceTypeValue)
+                .OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (template is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(new ImportMappingTemplateSummaryDto(
+                template.ImportMappingTemplateId,
+                template.Name,
+                template.SourceType,
+                template.CanonicalSchemaVersion,
+                template.Version,
+                template.IsActive,
+                template.MappingJson,
+                template.CreatedAt,
+                template.UpdatedAt));
         }
 
         [HttpPost("{id:guid}/parse")]
@@ -290,6 +479,13 @@ namespace finrecon360_backend.Controllers
             batch.ErrorMessage = null;
             await tenantDb.SaveChangesAsync();
 
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                existing.Version == 1 ? "ImportMappingSaved" : "ImportMappingUpdated",
+                "ImportBatch",
+                id.ToString(),
+                $"templateId={existing.ImportMappingTemplateId};version={existing.Version};sourceType={batch.SourceType}");
+
             return Ok(new ImportMappingSavedResponseDto(
                 id,
                 existing.Version,
@@ -337,7 +533,8 @@ namespace finrecon360_backend.Controllers
             var validRows = 0;
             foreach (var raw in rawRecords)
             {
-                var rowErrors = ValidateRow(raw, mappings);
+                var row = DeserializeRowPayload(raw.SourcePayloadJson);
+                var rowErrors = _normalizationService.ValidateRow(row, mappings);
                 if (rowErrors.Count == 0)
                 {
                     raw.NormalizationStatus = "VALID";
@@ -418,7 +615,12 @@ namespace finrecon360_backend.Controllers
             foreach (var raw in rawRecords)
             {
                 var row = DeserializeRowPayload(raw.SourcePayloadJson);
-                normalizedRecords.Add(MapToNormalizedRecord(id, raw.ImportedRawRecordId, row, mappings));
+                var result = _normalizationService.Normalize(id, raw.ImportedRawRecordId, row, mappings);
+                if (result.Errors.Count > 0)
+                {
+                    return BadRequest(new { message = "Normalization errors detected. Re-run validation." });
+                }
+                normalizedRecords.Add(result.Normalized);
             }
 
             tenantDb.ImportedNormalizedRecords.AddRange(normalizedRecords);
@@ -428,6 +630,13 @@ namespace finrecon360_backend.Controllers
 
             await tenantDb.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportCommit",
+                "ImportBatch",
+                id.ToString(),
+                $"normalizedCount={normalizedRecords.Count};sourceType={batch.SourceType}");
 
             return Ok(new ImportCommitResponseDto(
                 id,
@@ -457,16 +666,6 @@ namespace finrecon360_backend.Controllers
 
             var existingNormalized = tenantDb.ImportedNormalizedRecords.Where(x => x.ImportBatchId == id);
             tenantDb.ImportedNormalizedRecords.RemoveRange(existingNormalized);
-
-            if (batch.MappingTemplateId.HasValue)
-            {
-                var mappingTemplate = await tenantDb.ImportMappingTemplates
-                    .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == batch.MappingTemplateId.Value);
-                if (mappingTemplate != null)
-                {
-                    tenantDb.ImportMappingTemplates.Remove(mappingTemplate);
-                }
-            }
 
             tenantDb.ImportBatches.Remove(batch);
             await tenantDb.SaveChangesAsync();
@@ -547,69 +746,16 @@ namespace finrecon360_backend.Controllers
             return new Dictionary<string, string?>(row, StringComparer.OrdinalIgnoreCase);
         }
 
-        private static List<string> ValidateRow(ImportedRawRecord raw, Dictionary<string, string> mappings)
+        private static async Task UpdateBatchValidationStatusAsync(TenantDbContext tenantDb, ImportBatch batch)
         {
-            var errors = new List<string>();
-            var row = DeserializeRowPayload(raw.SourcePayloadJson);
+            var total = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId);
+            var valid = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId && x.NormalizationStatus == "VALID");
+            var invalid = total - valid;
 
-            foreach (var requiredField in RequiredCanonicalFields)
-            {
-                if (!mappings.TryGetValue(requiredField, out var sourceColumn) || string.IsNullOrWhiteSpace(sourceColumn))
-                {
-                    errors.Add($"Mapping missing for required field '{requiredField}'.");
-                    continue;
-                }
-
-                row.TryGetValue(sourceColumn, out var value);
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    errors.Add($"Required field '{requiredField}' is empty.");
-                }
-            }
-
-            TryReadDate(row, mappings, "TransactionDate", errors);
-            TryReadDecimal(row, mappings, "DebitAmount", errors);
-            TryReadDecimal(row, mappings, "CreditAmount", errors);
-            TryReadDecimal(row, mappings, "NetAmount", errors);
-
-            return errors;
+            batch.Status = invalid == 0 && total > 0 ? "VALIDATED" : "VALIDATION_FAILED";
+            batch.ErrorMessage = invalid == 0 ? null : $"{invalid} validation issue(s) found.";
         }
 
-        private static ImportedNormalizedRecord MapToNormalizedRecord(
-            Guid batchId,
-            Guid rawRecordId,
-            Dictionary<string, string?> row,
-            Dictionary<string, string> mappings)
-        {
-            var transactionDate = ReadDate(row, mappings, "TransactionDate");
-            var postingDate = TryReadDate(row, mappings, "PostingDate");
-            var referenceNumber = ReadString(row, mappings, "ReferenceNumber");
-            var description = ReadString(row, mappings, "Description");
-            var accountCode = ReadString(row, mappings, "AccountCode");
-            var accountName = ReadString(row, mappings, "AccountName");
-            var debit = ReadDecimal(row, mappings, "DebitAmount");
-            var credit = ReadDecimal(row, mappings, "CreditAmount");
-            var net = ReadDecimal(row, mappings, "NetAmount");
-            var currency = (ReadString(row, mappings, "Currency") ?? "LKR").ToUpperInvariant();
-
-            return new ImportedNormalizedRecord
-            {
-                ImportedNormalizedRecordId = Guid.NewGuid(),
-                ImportBatchId = batchId,
-                SourceRawRecordId = rawRecordId,
-                TransactionDate = transactionDate,
-                PostingDate = postingDate,
-                ReferenceNumber = referenceNumber,
-                Description = description,
-                AccountCode = accountCode,
-                AccountName = accountName,
-                DebitAmount = debit,
-                CreditAmount = credit,
-                NetAmount = net,
-                Currency = currency,
-                CreatedAt = DateTime.UtcNow
-            };
-        }
 
         private static string? ResolveStoredFilePath(Guid tenantId, Guid batchId)
         {
@@ -629,109 +775,6 @@ namespace finrecon360_backend.Controllers
             }
 
             return null;
-        }
-
-        private static string? ReadString(Dictionary<string, string?> row, Dictionary<string, string> mappings, string canonicalField)
-        {
-            if (!mappings.TryGetValue(canonicalField, out var sourceColumn) || string.IsNullOrWhiteSpace(sourceColumn))
-            {
-                return null;
-            }
-
-            row.TryGetValue(sourceColumn, out var value);
-            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        }
-
-        private static decimal ReadDecimal(Dictionary<string, string?> row, Dictionary<string, string> mappings, string canonicalField)
-        {
-            var raw = ReadString(row, mappings, canonicalField) ?? throw new InvalidOperationException($"{canonicalField} is required.");
-            if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var invariant))
-            {
-                return invariant;
-            }
-            if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.CurrentCulture, out var current))
-            {
-                return current;
-            }
-
-            throw new InvalidOperationException($"{canonicalField} is not a valid number.");
-        }
-
-        private static DateTime ReadDate(Dictionary<string, string?> row, Dictionary<string, string> mappings, string canonicalField)
-        {
-            var raw = ReadString(row, mappings, canonicalField) ?? throw new InvalidOperationException($"{canonicalField} is required.");
-            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var invariant))
-            {
-                return invariant;
-            }
-            if (DateTime.TryParse(raw, CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out var current))
-            {
-                return current;
-            }
-
-            throw new InvalidOperationException($"{canonicalField} is not a valid date.");
-        }
-
-        private static DateTime? TryReadDate(Dictionary<string, string?> row, Dictionary<string, string> mappings, string canonicalField)
-        {
-            var raw = ReadString(row, mappings, canonicalField);
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                return null;
-            }
-
-            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var invariant))
-            {
-                return invariant;
-            }
-            if (DateTime.TryParse(raw, CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out var current))
-            {
-                return current;
-            }
-
-            return null;
-        }
-
-        private static void TryReadDate(Dictionary<string, string?> row, Dictionary<string, string> mappings, string canonicalField, List<string> errors)
-        {
-            var raw = ReadString(row, mappings, canonicalField);
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                return;
-            }
-
-            if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out _))
-            {
-                return;
-            }
-
-            if (DateTime.TryParse(raw, CultureInfo.CurrentCulture, DateTimeStyles.AssumeLocal, out _))
-            {
-                return;
-            }
-
-            errors.Add($"Field '{canonicalField}' has invalid date value '{raw}'.");
-        }
-
-        private static void TryReadDecimal(Dictionary<string, string?> row, Dictionary<string, string> mappings, string canonicalField, List<string> errors)
-        {
-            var raw = ReadString(row, mappings, canonicalField);
-            if (string.IsNullOrWhiteSpace(raw))
-            {
-                return;
-            }
-
-            if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
-            {
-                return;
-            }
-
-            if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.CurrentCulture, out _))
-            {
-                return;
-            }
-
-            errors.Add($"Field '{canonicalField}' has invalid numeric value '{raw}'.");
         }
     }
 }

@@ -43,9 +43,13 @@ export const API_ENDPOINTS = {
   IMPORTS: {
     BASE: '/api/imports',
     BY_ID: (id: string) => `/api/imports/${id}`,
+    ACTIVE_TEMPLATE: '/api/imports/active-template',
     PARSE: (id: string) => `/api/imports/${id}/parse`,
     MAPPING: (id: string) => `/api/imports/${id}/mapping`,
     VALIDATE: (id: string) => `/api/imports/${id}/validate`,
+    VALIDATION_ROWS: (id: string) => `/api/imports/${id}/validation-rows`,
+    RAW_RECORD: (id: string, rawRecordId: string) =>
+      `/api/imports/${id}/raw-records/${rawRecordId}`,
     COMMIT: (id: string) => `/api/imports/${id}/commit`,
     DELETE: (id: string) => `/api/imports/${id}`,
   },
@@ -94,6 +98,7 @@ export const API_ENDPOINTS = {
     COMPONENTS: '/api/admin/components',
     USERS: '/api/admin/users',
     IMPORT_ARCHITECTURE: '/api/admin/import-architecture',
+    AUDIT_LOGS: '/api/admin/audit-logs',
   },
   SYSTEM: {
     TENANT_REGISTRATIONS: '/api/system/tenant-registrations',

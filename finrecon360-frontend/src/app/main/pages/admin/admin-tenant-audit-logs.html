@@ -1,0 +1,67 @@
+<section class="admin-card">
+  <div class="header">
+    <h2>{{ 'ADMIN.TENANT_AUDIT_LOGS.TITLE' | translate }}</h2>
+    <div class="summary" *ngIf="!loading">
+      {{ startIndex }} - {{ endIndex }} of {{ totalCount }}
+    </div>
+  </div>
+
+  <div class="filters">
+    <input [(ngModel)]="search" placeholder="Search action/entity/metadata" />
+    <input [(ngModel)]="action" placeholder="Action" />
+    <input [(ngModel)]="entity" placeholder="Entity" />
+    <input [(ngModel)]="userId" placeholder="User ID" />
+    <label>
+      From
+      <input type="datetime-local" [(ngModel)]="fromLocal" />
+    </label>
+    <label>
+      To
+      <input type="datetime-local" [(ngModel)]="toLocal" />
+    </label>
+    <div class="actions">
+      <button class="primary-btn" (click)="applyFilters()">Apply</button>
+      <button class="ghost-btn" (click)="resetFilters()">Reset</button>
+    </div>
+  </div>
+
+  <div class="error" *ngIf="error">{{ error }}</div>
+  <div *ngIf="loading">Loading...</div>
+
+  <div class="table-wrap" *ngIf="!loading && !error">
+    <table>
+      <thead>
+        <tr>
+          <th>Time (UTC)</th>
+          <th>Action</th>
+          <th>Entity</th>
+          <th>Entity ID</th>
+          <th>User</th>
+          <th>Metadata</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let log of logs">
+          <td>{{ log.createdAt | date: 'yyyy-MM-dd HH:mm:ss' : 'UTC' }}</td>
+          <td>{{ log.action }}</td>
+          <td>{{ log.entity || '-' }}</td>
+          <td>{{ log.entityId || '-' }}</td>
+          <td>
+            <div>{{ log.userEmail || log.userDisplayName || '-' }}</div>
+            <small>{{ log.userId || '-' }}</small>
+          </td>
+          <td>{{ formatMetadata(log.metadata) }}</td>
+        </tr>
+        <tr *ngIf="logs.length === 0">
+          <td colspan="6" class="empty">No audit logs found for current filters.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager" *ngIf="!loading && !error">
+    <button class="ghost-btn" (click)="previousPage()" [disabled]="page <= 1">Previous</button>
+    <span>Page {{ page }}</span>
+    <button class="ghost-btn" (click)="nextPage()" [disabled]="!hasNextPage">Next</button>
+  </div>
+</section>

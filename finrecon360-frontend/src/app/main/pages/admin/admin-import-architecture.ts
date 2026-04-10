@@ -17,7 +17,6 @@ import {
   ImportArchitectureOverview,
   ImportMappingTemplate,
 } from '../../../core/admin-rbac/models';
-import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 
 @Component({
   selector: 'app-admin-import-architecture',
@@ -33,7 +32,6 @@ import { HasPermissionDirective } from '../../../core/auth/has-permission.direct
     MatCheckboxModule,
     MatSnackBarModule,
     TranslateModule,
-    HasPermissionDirective,
   ],
   templateUrl: './admin-import-architecture.html',
   styleUrls: ['./admin-import-architecture.scss'],
@@ -46,6 +44,8 @@ export class AdminImportArchitectureComponent implements OnInit {
   loading = false;
   saving = false;
   editingTemplateId: string | null = null;
+  deleteDialogOpen = false;
+  deleteTarget: ImportMappingTemplate | null = null;
 
   templateForm!: FormGroup;
 
@@ -94,6 +94,21 @@ export class AdminImportArchitectureComponent implements OnInit {
       canonicalSchemaVersion: template.canonicalSchemaVersion,
       mappingJson: template.mappingJson,
       isActive: template.isActive,
+    });
+  }
+
+  startRename(template: ImportMappingTemplate): void {
+    this.startEdit(template);
+  }
+
+  reuseTemplate(template: ImportMappingTemplate): void {
+    this.editingTemplateId = null;
+    this.templateForm.reset({
+      name: `${template.name} Copy`,
+      sourceType: template.sourceType,
+      canonicalSchemaVersion: template.canonicalSchemaVersion,
+      mappingJson: template.mappingJson,
+      isActive: true,
     });
   }
 
@@ -173,6 +188,40 @@ export class AdminImportArchitectureComponent implements OnInit {
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
       },
     });
+  }
+
+  deleteTemplate(template: ImportMappingTemplate): void {
+    this.deleteTarget = template;
+    this.deleteDialogOpen = true;
+  }
+
+  confirmDeleteTemplate(): void {
+    if (!this.deleteTarget) {
+      this.deleteDialogOpen = false;
+      return;
+    }
+
+    const target = this.deleteTarget;
+    this.deleteDialogOpen = false;
+    this.deleteTarget = null;
+
+    this.importArchitectureService.deleteMappingTemplate(target.id).subscribe({
+      next: () => {
+        this.snackBar.open('Template deleted.', 'Close', { duration: 2500 });
+        if (this.editingTemplateId === target.id) {
+          this.startCreate();
+        }
+        this.loadTemplates();
+      },
+      error: (error: unknown) => {
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
+    });
+  }
+
+  closeDeleteDialog(): void {
+    this.deleteDialogOpen = false;
+    this.deleteTarget = null;
   }
 
   private loadData(): void {
