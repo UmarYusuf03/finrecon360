@@ -6,10 +6,14 @@ import { API_BASE_URL, API_ENDPOINTS } from '../constants/api.constants';
 import {
   ImportCommitResponse,
   ImportDeleteResponse,
+  ImportActiveTemplateResponse,
   ImportHistoryResponse,
   ImportMappingSavedResponse,
   ImportParseResponse,
   ImportUploadResponse,
+  ImportUpdateRawRecordRequest,
+  ImportValidationRow,
+  ImportValidationRowsResponse,
   ImportValidateResponse,
   SaveImportMappingRequest,
 } from './imports.models';
@@ -66,10 +70,41 @@ export class ImportsService {
     );
   }
 
+  getActiveTemplate(sourceType: string): Observable<ImportActiveTemplateResponse> {
+    const params = new HttpParams().set('sourceType', sourceType);
+    return this.http.get<ImportActiveTemplateResponse>(
+      `${API_BASE_URL}${API_ENDPOINTS.IMPORTS.ACTIVE_TEMPLATE}`,
+      { params },
+    );
+  }
+
   validateImport(id: string): Observable<ImportValidateResponse> {
     return this.http.post<ImportValidateResponse>(
       `${API_BASE_URL}${API_ENDPOINTS.IMPORTS.VALIDATE(id)}`,
       {},
+    );
+  }
+
+  getValidationRows(id: string, status?: string): Observable<ImportValidationRowsResponse> {
+    let params = new HttpParams();
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<ImportValidationRowsResponse>(
+      `${API_BASE_URL}${API_ENDPOINTS.IMPORTS.VALIDATION_ROWS(id)}`,
+      { params },
+    );
+  }
+
+  updateRawRecord(
+    batchId: string,
+    rawRecordId: string,
+    payload: ImportUpdateRawRecordRequest,
+  ): Observable<ImportValidationRow> {
+    return this.http.put<ImportValidationRow>(
+      `${API_BASE_URL}${API_ENDPOINTS.IMPORTS.RAW_RECORD(batchId, rawRecordId)}`,
+      payload,
     );
   }
 

@@ -187,6 +187,13 @@
       "EDIT": "Edit",
       "DEACTIVATE": "Deactivate"
     },
+    "IMPORT_HISTORY": {
+      "TITLE": "Import History",
+      "COPY": "Track uploads, owners, and processing status across your workspace."
+    },
+    "TENANT_AUDIT_LOGS": {
+      "TITLE": "Tenant Audit Logs"
+    },
     "TENANT_REGISTRATIONS": {
       "TITLE": "Tenant Registrations"
     },

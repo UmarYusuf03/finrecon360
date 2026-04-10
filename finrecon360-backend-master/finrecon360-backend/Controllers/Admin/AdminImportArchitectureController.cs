@@ -21,17 +21,20 @@ namespace finrecon360_backend.Controllers.Admin
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
         private readonly IUserContext _userContext;
+        private readonly IAuditLogger _auditLogger;
 
         public AdminImportArchitectureController(
             AppDbContext dbContext,
             ITenantContext tenantContext,
             ITenantDbContextFactory tenantDbContextFactory,
-            IUserContext userContext)
+            IUserContext userContext,
+            IAuditLogger auditLogger)
         {
             _dbContext = dbContext;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
+            _auditLogger = auditLogger;
         }
 
         [HttpGet("overview")]
@@ -141,6 +144,13 @@ namespace finrecon360_backend.Controllers.Admin
             tenantDb.ImportMappingTemplates.Add(template);
             await tenantDb.SaveChangesAsync();
 
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportMappingTemplateCreated",
+                "ImportMappingTemplate",
+                template.ImportMappingTemplateId.ToString(),
+                $"name={template.Name};sourceType={template.SourceType};version={template.Version}");
+
             var response = new ImportMappingTemplateDto(
                 template.ImportMappingTemplateId,
                 template.Name,
@@ -191,6 +201,13 @@ namespace finrecon360_backend.Controllers.Admin
 
             await tenantDb.SaveChangesAsync();
 
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportMappingTemplateUpdated",
+                "ImportMappingTemplate",
+                template.ImportMappingTemplateId.ToString(),
+                $"name={template.Name};sourceType={template.SourceType};version={template.Version};isActive={template.IsActive}");
+
             return Ok(new ImportMappingTemplateDto(
                 template.ImportMappingTemplateId,
                 template.Name,
@@ -225,6 +242,49 @@ namespace finrecon360_backend.Controllers.Admin
             template.IsActive = false;
             template.UpdatedAt = DateTime.UtcNow;
             await tenantDb.SaveChangesAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportMappingTemplateDeactivated",
+                "ImportMappingTemplate",
+                template.ImportMappingTemplateId.ToString(),
+                $"name={template.Name};sourceType={template.SourceType}");
+            return NoContent();
+        }
+
+        [HttpDelete("mapping-templates/{templateId:guid}/hard")]
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        public async Task<IActionResult> DeleteMappingTemplate(Guid templateId)
+        {
+            var auth = await AuthorizeTenantAdminAsync();
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var template = await tenantDb.ImportMappingTemplates
+                .FirstOrDefaultAsync(x => x.ImportMappingTemplateId == templateId);
+            if (template is null)
+            {
+                return NotFound();
+            }
+
+            var batches = await tenantDb.ImportBatches
+                .Where(x => x.MappingTemplateId == templateId)
+                .ToListAsync();
+
+            foreach (var batch in batches)
+            {
+                batch.MappingTemplateId = null;
+            }
+
+            tenantDb.ImportMappingTemplates.Remove(template);
+            await tenantDb.SaveChangesAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportMappingTemplateDeleted",
+                "ImportMappingTemplate",
+                template.ImportMappingTemplateId.ToString(),
+                $"name={template.Name};sourceType={template.SourceType}");
             return NoContent();
         }
 

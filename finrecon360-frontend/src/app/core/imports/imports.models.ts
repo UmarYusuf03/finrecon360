@@ -7,6 +7,9 @@ export interface ImportHistoryItem {
   rawRecordCount: number;
   normalizedRecordCount: number;
   errorMessage?: string | null;
+  uploadedByUserId?: string | null;
+  uploadedByEmail?: string | null;
+  uploadedByName?: string | null;
 }
 
 export interface ImportHistoryResponse {
@@ -44,6 +47,18 @@ export interface ImportMappingSavedResponse {
   savedAt: string;
 }
 
+export interface ImportActiveTemplateResponse {
+  id: string;
+  name: string;
+  sourceType: string;
+  canonicalSchemaVersion: string;
+  version: number;
+  isActive: boolean;
+  mappingJson: string;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
 export interface ImportValidationError {
   rowNumber: number;
   message: string;
@@ -56,6 +71,26 @@ export interface ImportValidateResponse {
   validRows: number;
   invalidRows: number;
   errors: ImportValidationError[];
+}
+
+export interface ImportValidationRow {
+  rawRecordId: string;
+  rowNumber: number;
+  normalizationStatus: string;
+  normalizationErrors?: string | null;
+  payload: Record<string, string | null>;
+}
+
+export interface ImportValidationRowsResponse {
+  batchId: string;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  rows: ImportValidationRow[];
+}
+
+export interface ImportUpdateRawRecordRequest {
+  payload: Record<string, string | null>;
 }
 
 export interface ImportCommitResponse {

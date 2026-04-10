@@ -1,21 +1,33 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { ImportsService } from '../../../core/imports/imports.service';
 import {
+  ImportActiveTemplateResponse,
   ImportHistoryItem,
   ImportParseResponse,
+  ImportValidationRow,
+  ImportValidationRowsResponse,
   ImportValidateResponse,
 } from '../../../core/imports/imports.models';
+
+type ValidationSummary = {
+  missingRequired: number;
+  invalidDate: number;
+  invalidAmount: number;
+  conflictingAmounts: number;
+  other: number;
+};
 
 @Component({
   selector: 'app-imports-workbench',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   templateUrl: './imports-workbench.html',
   styleUrls: ['./imports-workbench.scss'],
 })
@@ -40,6 +52,9 @@ export class ImportsWorkbenchComponent implements OnInit {
 
   sourceType = 'CSV';
   selectedFile: File | null = null;
+  selectedFileName: string | null = null;
+  selectedFileSize: number | null = null;
+  isDragging = false;
 
   history: ImportHistoryItem[] = [];
   selectedBatch: ImportHistoryItem | null = null;
@@ -48,8 +63,13 @@ export class ImportsWorkbenchComponent implements OnInit {
 
   parseResult: ImportParseResponse | null = null;
   validateResult: ImportValidateResponse | null = null;
+  validationSummary: ValidationSummary | null = null;
+  validationRows: ImportValidationRow[] = [];
+  validationTotals: ImportValidationRowsResponse | null = null;
+  validationFilter = 'INVALID';
 
   mapping: Record<string, string> = {};
+  activeTemplate: ImportActiveTemplateResponse | null = null;
 
   canManage = false;
   private authRetryInProgress = false;
@@ -71,7 +91,25 @@ export class ImportsWorkbenchComponent implements OnInit {
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.selectedFile = input.files?.item(0) ?? null;
+    const file = input.files?.item(0) ?? null;
+    this.setSelectedFile(file);
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragging = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragging = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.isDragging = false;
+    const file = event.dataTransfer?.files?.item(0) ?? null;
+    this.setSelectedFile(file);
   }
 
   upload(): void {
@@ -86,7 +124,7 @@ export class ImportsWorkbenchComponent implements OnInit {
       next: (result) => {
         this.processing = false;
         this.actionMessage = `Upload created: ${result.id}`;
-        this.selectedFile = null;
+        this.setSelectedFile(null);
         this.refreshHistory();
       },
       error: (error) => {
@@ -131,7 +169,11 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.selectedBatch = item;
     this.parseResult = null;
     this.validateResult = null;
+    this.validationSummary = null;
+    this.validationRows = [];
+    this.validationTotals = null;
     this.mapping = {};
+    this.activeTemplate = null;
     this.clearAlerts();
   }
 
@@ -150,6 +192,7 @@ export class ImportsWorkbenchComponent implements OnInit {
           this.mapping[field] = '';
         });
         this.actionMessage = 'File parsed. Map source headers to canonical fields.';
+        this.loadActiveTemplate();
         this.refreshHistory();
       },
       error: (error) => {
@@ -197,6 +240,8 @@ export class ImportsWorkbenchComponent implements OnInit {
       next: (res) => {
         this.processing = false;
         this.validateResult = res;
+        this.validationSummary = this.buildValidationSummary(res.errors);
+        this.loadValidationRows();
         this.actionMessage = `Validation done: ${res.validRows} valid, ${res.invalidRows} invalid.`;
         this.refreshHistory();
       },
@@ -261,6 +306,8 @@ export class ImportsWorkbenchComponent implements OnInit {
           this.selectedBatch = null;
           this.parseResult = null;
           this.validateResult = null;
+          this.validationRows = [];
+          this.validationTotals = null;
           this.mapping = {};
         }
         this.actionMessage = 'Import batch deleted.';
@@ -281,9 +328,201 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.deleteTarget = null;
   }
 
+  useActiveTemplate(): void {
+    this.applyActiveTemplate(true);
+  }
+
+  assignFieldToHeader(field: string, header: string | null): void {
+    if (!header) {
+      this.mapping[field] = '';
+      return;
+    }
+
+    const existingField = this.getAssignedFieldForHeader(header);
+    if (existingField && existingField !== field) {
+      this.mapping[existingField] = '';
+    }
+
+    this.mapping[field] = header;
+  }
+
+  onFieldDropped(event: CdkDragDrop<string[]>, header: string): void {
+    const field = event.item.data as string;
+    this.assignFieldToHeader(field, header);
+  }
+
+  getAssignedFieldForHeader(header: string): string | null {
+    return this.canonicalFields.find((field) => this.mapping[field] === header) ?? null;
+  }
+
+  getUnassignedFields(): string[] {
+    return this.canonicalFields.filter((field) => !this.mapping[field]);
+  }
+
+  clearHeaderMapping(header: string): void {
+    const assigned = this.getAssignedFieldForHeader(header);
+    if (assigned) {
+      this.mapping[assigned] = '';
+    }
+  }
+
+  loadValidationRows(): void {
+    if (!this.selectedBatch) return;
+
+    this.importsService.getValidationRows(this.selectedBatch.id, this.validationFilter).subscribe({
+      next: (res) => {
+        this.validationTotals = res;
+        this.validationRows = res.rows;
+      },
+      error: (error) => {
+        if (this.tryRefreshSessionAndRetry(error, () => this.loadValidationRows())) {
+          return;
+        }
+        this.actionError = this.getErrorMessage(error, 'Unable to load validation rows.');
+      },
+    });
+  }
+
+  updateRow(row: ImportValidationRow): void {
+    if (!this.selectedBatch) return;
+
+    this.processing = true;
+    this.clearAlerts();
+    this.importsService
+      .updateRawRecord(this.selectedBatch.id, row.rawRecordId, { payload: row.payload })
+      .subscribe({
+        next: (updated) => {
+          this.processing = false;
+          const index = this.validationRows.findIndex((r) => r.rawRecordId === updated.rawRecordId);
+          if (index >= 0) {
+            this.validationRows[index] = updated;
+          }
+          this.loadValidationRows();
+          this.actionMessage = 'Row updated.';
+        },
+        error: (error) => {
+          this.processing = false;
+          if (this.tryRefreshSessionAndRetry(error, () => this.updateRow(row))) {
+            return;
+          }
+          this.actionError = this.getErrorMessage(error, 'Unable to update row.');
+        },
+      });
+  }
+
+  private loadActiveTemplate(): void {
+    if (!this.selectedBatch || !this.canManage) {
+      return;
+    }
+
+    this.importsService.getActiveTemplate(this.selectedBatch.sourceType).subscribe({
+      next: (template) => {
+        this.activeTemplate = template;
+        const applied = this.applyActiveTemplate(false);
+        if (applied) {
+          this.actionMessage = `File parsed. Applied mapping template "${template.name}".`;
+        }
+      },
+      error: (error) => {
+        if (this.tryRefreshSessionAndRetry(error, () => this.loadActiveTemplate())) {
+          return;
+        }
+
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          this.activeTemplate = null;
+          return;
+        }
+
+        this.actionError = this.getErrorMessage(error, 'Unable to load active template.');
+      },
+    });
+  }
+
+  private applyActiveTemplate(force: boolean): boolean {
+    if (!this.activeTemplate || !this.parseResult) {
+      return false;
+    }
+
+    const shouldApply = force || this.canonicalFields.every((field) => !this.mapping[field]);
+    if (!shouldApply) {
+      return false;
+    }
+
+    const templateMappings = this.parseTemplateMappings(this.activeTemplate.mappingJson);
+    if (!templateMappings) {
+      this.actionError = 'Active mapping template has invalid JSON.';
+      return false;
+    }
+
+    this.canonicalFields.forEach((field) => {
+      this.mapping[field] = templateMappings[field] ?? '';
+    });
+
+    return true;
+  }
+
+  private parseTemplateMappings(payload: string): Record<string, string> | null {
+    try {
+      const parsed = JSON.parse(payload) as Record<string, string>;
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private setSelectedFile(file: File | null): void {
+    this.selectedFile = file;
+    this.selectedFileName = file?.name ?? null;
+    this.selectedFileSize = file?.size ?? null;
+  }
+
   private clearAlerts(): void {
     this.actionMessage = null;
     this.actionError = null;
+  }
+
+  private buildValidationSummary(errors: { message: string }[]): ValidationSummary | null {
+    if (!errors || errors.length === 0) {
+      return null;
+    }
+
+    const summary: ValidationSummary = {
+      missingRequired: 0,
+      invalidDate: 0,
+      invalidAmount: 0,
+      conflictingAmounts: 0,
+      other: 0,
+    };
+
+    errors.forEach((error) => {
+      const message = error.message.toLowerCase();
+      if (message.includes('required')) {
+        summary.missingRequired += 1;
+        return;
+      }
+
+      if (message.includes('date') && message.includes('invalid')) {
+        summary.invalidDate += 1;
+        return;
+      }
+
+      if (message.includes('amount') || message.includes('number')) {
+        summary.invalidAmount += 1;
+        return;
+      }
+
+      if (message.includes('both debit and credit') || message.includes('net amount')) {
+        summary.conflictingAmounts += 1;
+        return;
+      }
+
+      summary.other += 1;
+    });
+
+    return summary;
   }
 
   private tryRefreshSessionAndRetry(error: unknown, retryAction: () => void): boolean {

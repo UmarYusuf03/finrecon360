@@ -13,7 +13,10 @@ namespace finrecon360_backend.Dtos.Imports
         string? OriginalFileName,
         int RawRecordCount,
         int NormalizedRecordCount,
-        string? ErrorMessage);
+        string? ErrorMessage,
+        Guid? UploadedByUserId,
+        string? UploadedByEmail,
+        string? UploadedByName);
 
     public record ImportHistoryResponseDto(
         IReadOnlyList<ImportHistoryItemDto> Items,
@@ -40,6 +43,17 @@ namespace finrecon360_backend.Dtos.Imports
         string CanonicalSchemaVersion,
         DateTime SavedAt);
 
+    public record ImportMappingTemplateSummaryDto(
+        Guid Id,
+        string Name,
+        string SourceType,
+        string CanonicalSchemaVersion,
+        int Version,
+        bool IsActive,
+        string MappingJson,
+        DateTime CreatedAt,
+        DateTime? UpdatedAt);
+
     public record ImportParseResponseDto(
         Guid BatchId,
         string Status,
@@ -58,6 +72,25 @@ namespace finrecon360_backend.Dtos.Imports
         int ValidRows,
         int InvalidRows,
         IReadOnlyList<ImportValidationErrorDto> Errors);
+
+    public record ImportValidationRowDto(
+        Guid RawRecordId,
+        int RowNumber,
+        string NormalizationStatus,
+        string? NormalizationErrors,
+        Dictionary<string, string?> Payload);
+
+    public record ImportValidationRowsResponseDto(
+        Guid BatchId,
+        int TotalRows,
+        int ValidRows,
+        int InvalidRows,
+        IReadOnlyList<ImportValidationRowDto> Rows);
+
+    public class ImportUpdateRawRecordRequest
+    {
+        public Dictionary<string, string?> Payload { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
 
     public record ImportCommitResponseDto(
         Guid BatchId,

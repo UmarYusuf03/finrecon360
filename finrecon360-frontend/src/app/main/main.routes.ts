@@ -71,6 +71,24 @@ export const mainRoutes: Routes = [
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'] },
           },
+          {
+            path: 'import-history',
+            loadComponent: () =>
+              import('./pages/admin/admin-import-history').then(
+                (m) => m.AdminImportHistoryComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'] },
+          },
+          {
+            path: 'audit-logs',
+            loadComponent: () =>
+              import('./pages/admin/admin-tenant-audit-logs').then(
+                (m) => m.AdminTenantAuditLogsComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.USERS.VIEW'] },
+          },
         ],
       },
       {

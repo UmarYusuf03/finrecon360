@@ -111,4 +111,14 @@ export class AdminImportArchitectureService {
       `${API_BASE_URL}${API_ENDPOINTS.ADMIN.IMPORT_ARCHITECTURE}/mapping-templates/${templateId}`,
     );
   }
+
+  deleteMappingTemplate(templateId: string): Observable<void> {
+    if (USE_MOCK_API) {
+      return of(void 0);
+    }
+
+    return this.http.delete<void>(
+      `${API_BASE_URL}${API_ENDPOINTS.ADMIN.IMPORT_ARCHITECTURE}/mapping-templates/${templateId}/hard`,
+    );
+  }
 }

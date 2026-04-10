@@ -119,7 +119,9 @@ public class ImportsControllerIntegrationTests
             new StubTenantContext(tenantId),
             new InMemoryTenantDbContextFactory(tenantDbName),
             new StubUserContext(userId),
-            new ImportFileParser());
+            new ImportFileParser(),
+            new StubImportNormalizationService(),
+            new StubAuditLogger());
     }
 
     private static AppDbContext CreateAppDb()
@@ -328,6 +330,45 @@ public class ImportsControllerIntegrationTests
                 .Options;
 
             return Task.FromResult(new TenantDbContext(options));
+        }
+    }
+
+    private sealed class StubImportNormalizationService : IImportNormalizationService
+    {
+        public IReadOnlyList<string> ValidateRow(Dictionary<string, string?> row, Dictionary<string, string> mappings)
+        {
+            return Array.Empty<string>();
+        }
+
+        public NormalizationResult Normalize(Guid batchId, Guid rawRecordId, Dictionary<string, string?> row, Dictionary<string, string> mappings)
+        {
+            var normalized = new ImportedNormalizedRecord
+            {
+                ImportedNormalizedRecordId = Guid.NewGuid(),
+                ImportBatchId = batchId,
+                SourceRawRecordId = rawRecordId,
+                TransactionDate = DateTime.UtcNow,
+                PostingDate = DateTime.UtcNow,
+                ReferenceNumber = "REF",
+                Description = "Test",
+                AccountCode = "ACC",
+                AccountName = "Account",
+                DebitAmount = 1m,
+                CreditAmount = 0m,
+                NetAmount = 1m,
+                Currency = "LKR",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            return new NormalizationResult(normalized, Array.Empty<string>());
+        }
+    }
+
+    private sealed class StubAuditLogger : IAuditLogger
+    {
+        public Task LogAsync(Guid? userId, string action, string? entity = null, string? entityId = null, string? metadata = null)
+        {
+            return Task.CompletedTask;
         }
     }
 }
