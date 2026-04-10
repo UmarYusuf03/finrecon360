@@ -15,6 +15,7 @@ namespace finrecon360_backend.Dtos.Onboarding
     public class OnboardingSetPasswordRequest
     {
         public string OnboardingToken { get; set; } = string.Empty;
+        public string MagicLinkToken { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string ConfirmPassword { get; set; } = string.Empty;
     }

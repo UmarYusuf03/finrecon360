@@ -16,29 +16,24 @@ import { AuthService } from '../../../core/auth/auth.service';
   standalone: true,
   templateUrl: './login.html',
   styleUrls: ['./login.scss'],
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    RouterModule,
-    MatIconModule,
-    TranslateModule
-  ],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, TranslateModule],
 })
 export class LoginComponent {
   hide = true;
   loginForm: FormGroup;
   isSubmitting = false;
   errorMessageKey: string | null = null;
+  errorMessage: string | null = null;
 
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
     private translate: TranslateService,
-    private router: Router
+    private router: Router,
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required]]
+      password: ['', [Validators.required]],
     });
   }
 
@@ -49,6 +44,7 @@ export class LoginComponent {
     }
 
     this.errorMessageKey = null;
+    this.errorMessage = null;
     this.isSubmitting = true;
     const { email, password } = this.loginForm.value;
 
@@ -57,12 +53,15 @@ export class LoginComponent {
       next: (response) => {
         this.isSubmitting = false;
         const target = response.permissions.includes('ADMIN.DASHBOARD.VIEW')
-          ? (response.isSystemAdmin ? '/app/system' : '/app/admin')
+          ? response.isSystemAdmin
+            ? '/app/system'
+            : '/app/admin'
           : '/app/dashboard';
         this.router.navigateByUrl(target);
       },
       error: (err) => {
         this.isSubmitting = false;
+        this.errorMessage = err?.error?.message ?? err?.message ?? null;
         this.errorMessageKey =
           err?.message === 'invalid-credentials'
             ? 'AUTH.ERROR_INVALID_CREDENTIALS'

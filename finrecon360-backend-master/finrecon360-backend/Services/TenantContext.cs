@@ -49,8 +49,13 @@ namespace finrecon360_backend.Services
                     .Select(tu => new TenantResolution(tu.TenantId, tu.Tenant.Status, tu.Tenant.Name))
                     .FirstOrDefaultAsync(cancellationToken);
 
-                _cached = tenant;
-                return tenant;
+                if (tenant != null)
+                {
+                    _cached = tenant;
+                    return tenant;
+                }
+
+                // Stale/invalid tenant header: continue to deterministic fallback using memberships.
             }
 
             var tenants = await _dbContext.TenantUsers

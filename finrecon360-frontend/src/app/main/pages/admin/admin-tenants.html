@@ -3,6 +3,9 @@
     <h2>Tenants</h2>
   </div>
 
+  <div class="success" *ngIf="actionMessage">{{ actionMessage }}</div>
+  <div class="error" *ngIf="actionError">{{ actionError }}</div>
+
   <div class="layout">
     <div class="list">
       <div *ngIf="loading">Loading...</div>
@@ -34,7 +37,26 @@
           <button class="warning-btn" (click)="suspend()">Suspend</button>
           <button class="danger-btn" (click)="ban()">Ban</button>
           <button class="primary-btn" (click)="reinstate()">Reinstate</button>
+          <button class="danger-btn" (click)="deleteSelectedTenant()">Delete Tenant</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
+    <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-tenant-title">
+      <h3 id="delete-tenant-title">Delete Tenant</h3>
+      <p>
+        You are about to permanently remove
+        <strong>{{ deleteTargetName }}</strong>.
+      </p>
+      <p>This action cannot be undone and will remove tenant access and data mappings from the control plane.</p>
+
+      <div class="dialog-actions">
+        <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDeleteDialog()">Cancel</button>
+        <button type="button" class="danger-btn" [disabled]="processing" (click)="confirmDeleteTenant()">
+          {{ processing ? 'Deleting...' : 'Delete Tenant' }}
+        </button>
       </div>
     </div>
   </div>

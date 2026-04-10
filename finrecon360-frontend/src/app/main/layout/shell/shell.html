@@ -21,10 +21,18 @@
         {{ 'NAV.MATCHER' | translate }}
       </a>
       <a
+        routerLink="/app/imports"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        *ngIf="!(user$ | async)?.isSystemAdmin"
+      >
+        Imports
+      </a>
+      <a
         [routerLink]="getAdminRoot(user$ | async)"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: false }"
-        *ngIf="hasAnyPermission((user$ | async), adminEntryPermissions)"
+        *ngIf="hasAnyPermission(user$ | async, adminEntryPermissions)"
       >
         {{ 'NAV.ADMIN' | translate }}
       </a>

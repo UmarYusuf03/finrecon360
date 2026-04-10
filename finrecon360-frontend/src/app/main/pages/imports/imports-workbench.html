@@ -1,0 +1,307 @@
+<section class="imports-page">
+  <header class="imports-header">
+    <h2>Import Workbench</h2>
+    <p>Upload files, map fields, validate normalization, and commit to canonical tables.</p>
+  </header>
+
+  <div class="notice success" *ngIf="actionMessage">{{ actionMessage }}</div>
+  <div class="notice error" *ngIf="actionError">
+    <span>{{ actionError }}</span>
+    <button
+      class="ghost-btn"
+      type="button"
+      [disabled]="loading || processing"
+      (click)="refreshHistory()"
+    >
+      Refresh History
+    </button>
+  </div>
+
+  <div class="panel upload-panel">
+    <h3>1. Upload</h3>
+    <div
+      class="upload-dropzone"
+      [class.dragging]="isDragging"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      <p class="drop-title">Drag & drop a CSV or XLSX file here</p>
+      <p class="drop-subtitle">or click to browse</p>
+      <input type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)" />
+    </div>
+    <div class="upload-controls">
+      <input type="text" [(ngModel)]="sourceType" placeholder="Source type (CSV, BANK, ERP...)" />
+      <button class="primary-btn" [disabled]="processing" (click)="upload()">Upload File</button>
+    </div>
+    <div class="file-meta" *ngIf="selectedFileName">
+      <strong>{{ selectedFileName }}</strong>
+      <span *ngIf="selectedFileSize">({{ selectedFileSize | number }} bytes)</span>
+    </div>
+  </div>
+
+  <div class="panel history-panel">
+    <h3>2. History</h3>
+    <div class="history-filters">
+      <input type="text" [(ngModel)]="search" placeholder="Search by file/source" />
+      <input type="text" [(ngModel)]="statusFilter" placeholder="Status filter" />
+      <button class="ghost-btn" (click)="refreshHistory()">Refresh</button>
+    </div>
+
+    <div *ngIf="loading" class="loading">Loading history...</div>
+    <table *ngIf="!loading" class="history-table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Source</th>
+          <th>Status</th>
+          <th>Raw</th>
+          <th>Normalized</th>
+          <th>Imported</th>
+          <th *ngIf="canManage">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let item of history"
+          [class.active]="selectedBatch?.id === item.id"
+          (click)="selectBatch(item)"
+        >
+          <td>{{ item.originalFileName || 'n/a' }}</td>
+          <td>{{ item.sourceType }}</td>
+          <td>{{ item.status }}</td>
+          <td>{{ item.rawRecordCount }}</td>
+          <td>{{ item.normalizedRecordCount }}</td>
+          <td>{{ item.importedAt | date: 'short' }}</td>
+          <td *ngIf="canManage">
+            <button
+              class="ghost-btn danger-ghost"
+              type="button"
+              [disabled]="processing"
+              (click)="deleteBatch(item, $event)"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel process-panel" *ngIf="selectedBatch as batch">
+    <h3>3. Process Batch</h3>
+    <p class="batch-meta">
+      Batch: <strong>{{ batch.id }}</strong> | Status: <strong>{{ batch.status }}</strong>
+    </p>
+
+    <div class="process-actions">
+      <button class="primary-btn" [disabled]="processing || !canManage" (click)="parseSelected()">
+        Parse
+      </button>
+      <button class="primary-btn" [disabled]="processing || !canManage" (click)="saveMapping()">
+        Save Mapping
+      </button>
+      <button
+        class="warning-btn"
+        [disabled]="processing || !canManage"
+        (click)="validateSelected()"
+      >
+        Validate
+      </button>
+      <button class="danger-btn" [disabled]="processing || !canManage" (click)="commitSelected()">
+        Commit
+      </button>
+    </div>
+
+    <p class="hint" *ngIf="!canManage">
+      Parse/Mapping/Validate/Commit requires tenant admin access.
+    </p>
+
+    <div class="mapping-grid" *ngIf="parseResult as parsed">
+      <h4>2. Column Mapping</h4>
+      <p>Parsed rows: {{ parsed.parsedRowCount }}</p>
+      <div class="template-banner" *ngIf="activeTemplate as template">
+        <span>
+          Active template: <strong>{{ template.name }}</strong>
+        </span>
+        <button class="ghost-btn" type="button" (click)="useActiveTemplate()">Use template</button>
+      </div>
+
+      <div class="mapping-columns">
+        <div class="mapping-fields">
+          <h5>System fields</h5>
+          <div
+            class="field-chip"
+            *ngFor="let field of getUnassignedFields()"
+            cdkDrag
+            [cdkDragData]="field"
+          >
+            {{ field }}
+          </div>
+          <p class="muted" *ngIf="getUnassignedFields().length === 0">All fields assigned.</p>
+        </div>
+
+        <div class="mapping-headers">
+          <h5>Uploaded headers</h5>
+          <div
+            class="header-row"
+            *ngFor="let header of parsed.headers"
+            cdkDropList
+            (cdkDropListDropped)="onFieldDropped($event, header)"
+          >
+            <div class="header-label">{{ header }}</div>
+            <div class="header-drop">
+              <ng-container *ngIf="getAssignedFieldForHeader(header) as assigned; else dropHint">
+                <span class="assigned-chip" cdkDrag [cdkDragData]="assigned">{{ assigned }}</span>
+              </ng-container>
+              <ng-template #dropHint>
+                <span class="drop-hint">Drop field here</span>
+              </ng-template>
+            </div>
+            <div class="header-actions">
+              <select
+                [ngModel]="getAssignedFieldForHeader(header)"
+                (ngModelChange)="assignFieldToHeader($event, header)"
+              >
+                <option [ngValue]="null">-- Select field --</option>
+                <option *ngFor="let field of canonicalFields" [ngValue]="field">{{ field }}</option>
+              </select>
+              <button class="ghost-btn small" type="button" (click)="clearHeaderMapping(header)">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h4>Sample Rows</h4>
+      <pre class="sample-json">{{ parsed.sampleRows | json }}</pre>
+    </div>
+
+    <div class="validation" *ngIf="validateResult as validation">
+      <h4>3. Validation Review</h4>
+      <p>
+        Total: {{ validation.totalRows }} | Valid: {{ validation.validRows }} | Invalid:
+        {{ validation.invalidRows }}
+      </p>
+
+      <div class="validation-summary" *ngIf="validationSummary as summary">
+        <span class="summary-pill" *ngIf="summary.missingRequired > 0">
+          Missing fields: {{ summary.missingRequired }}
+        </span>
+        <span class="summary-pill" *ngIf="summary.invalidDate > 0">
+          Invalid dates: {{ summary.invalidDate }}
+        </span>
+        <span class="summary-pill" *ngIf="summary.invalidAmount > 0">
+          Amount issues: {{ summary.invalidAmount }}
+        </span>
+        <span class="summary-pill" *ngIf="summary.conflictingAmounts > 0">
+          Conflicts: {{ summary.conflictingAmounts }}
+        </span>
+        <span class="summary-pill" *ngIf="summary.other > 0"> Other: {{ summary.other }} </span>
+      </div>
+
+      <div class="validation-dashboard" *ngIf="validationTotals as totals">
+        <div class="dashboard-card">
+          <span class="dashboard-label">Fixed</span>
+          <strong>{{ totals.validRows }}</strong>
+        </div>
+        <div class="dashboard-card">
+          <span class="dashboard-label">Errors</span>
+          <strong>{{ totals.invalidRows }}</strong>
+        </div>
+      </div>
+
+      <div class="validation-filters">
+        <button
+          class="ghost-btn"
+          type="button"
+          [class.active]="validationFilter === 'INVALID'"
+          (click)="validationFilter = 'INVALID'; loadValidationRows()"
+        >
+          Errors
+        </button>
+        <button
+          class="ghost-btn"
+          type="button"
+          [class.active]="validationFilter === 'VALID'"
+          (click)="validationFilter = 'VALID'; loadValidationRows()"
+        >
+          Fixed
+        </button>
+        <button
+          class="ghost-btn"
+          type="button"
+          [class.active]="validationFilter === ''"
+          (click)="validationFilter = ''; loadValidationRows()"
+        >
+          All
+        </button>
+      </div>
+
+      <table class="validation-table" *ngIf="validationRows.length > 0 && parseResult as parsed">
+        <thead>
+          <tr>
+            <th>Row</th>
+            <th>Status</th>
+            <th>Errors</th>
+            <th *ngFor="let header of parsed.headers">{{ header }}</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of validationRows">
+            <td>{{ row.rowNumber }}</td>
+            <td>{{ row.normalizationStatus }}</td>
+            <td>{{ row.normalizationErrors || '—' }}</td>
+            <td *ngFor="let header of parsed.headers">
+              <input type="text" [(ngModel)]="row.payload[header]" />
+            </td>
+            <td>
+              <button
+                class="primary-btn"
+                type="button"
+                [disabled]="processing"
+                (click)="updateRow(row)"
+              >
+                Save Fix
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="hint" *ngIf="validationRows.length === 0">No rows to display.</p>
+    </div>
+  </div>
+
+  <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
+    <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">
+      <h3 id="delete-import-title">Delete Import Batch</h3>
+      <p>
+        This will permanently remove the stored file and all parsed records for
+        <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong
+        >.
+      </p>
+      <p>Are you sure you want to continue?</p>
+
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="ghost-btn"
+          [disabled]="processing"
+          (click)="closeDeleteDialog()"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="danger-btn"
+          [disabled]="processing"
+          (click)="confirmDeleteBatch()"
+        >
+          {{ processing ? 'Deleting...' : 'Delete' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

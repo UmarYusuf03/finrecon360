@@ -13,4 +13,5 @@ export const authRoutes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'verify-code', component: VerifyCodeComponent },
+  { path: 'magic-link', component: MagicLinkComponent },
 ];

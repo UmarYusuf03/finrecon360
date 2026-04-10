@@ -1,0 +1,121 @@
+<mat-card>
+  <div class="components__header">
+    <div>
+      <h2>{{ 'ADMIN.COMPONENTS.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.COMPONENTS.COPY' | translate }}</p>
+    </div>
+    <button
+      mat-flat-button
+      color="primary"
+      *appHasPermission="'ADMIN.COMPONENTS.MANAGE'"
+      (click)="openAdd(componentDialog)"
+    >
+      {{ 'ADMIN.COMPONENTS.ADD' | translate }}
+    </button>
+  </div>
+
+  <table mat-table [dataSource]="components" class="mat-elevation-z1">
+    <ng-container matColumnDef="code">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.COMPONENTS.CODE' | translate }}</th>
+      <td mat-cell *matCellDef="let c">{{ c.code }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.COMPONENTS.NAME' | translate }}</th>
+      <td mat-cell *matCellDef="let c">{{ c.name }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="route">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.COMPONENTS.ROUTE' | translate }}</th>
+      <td mat-cell *matCellDef="let c">{{ c.routePath }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="category">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.COMPONENTS.CATEGORY' | translate }}</th>
+      <td mat-cell *matCellDef="let c">{{ c.category }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.COMPONENTS.STATUS' | translate }}</th>
+      <td mat-cell *matCellDef="let c">
+        <span [ngClass]="c.isActive ? 'status-active' : 'status-inactive'">
+          {{ c.isActive ? ('ADMIN.COMPONENTS.ACTIVE' | translate) : ('ADMIN.COMPONENTS.INACTIVE' | translate) }}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let c" class="components__actions">
+        <button
+          mat-icon-button
+          *appHasPermission="'ADMIN.COMPONENTS.MANAGE'"
+          (click)="openEdit(c, componentDialog)"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          *appHasPermission="'ADMIN.COMPONENTS.MANAGE'"
+          (click)="toggleActive(c)"
+        >
+          <mat-icon>{{ c.isActive ? 'block' : 'check_circle' }}</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+</mat-card>
+
+<ng-template #componentDialog>
+  <h2 mat-dialog-title>
+    {{ editingId ? ('ADMIN.COMPONENTS.EDIT' | translate) : ('ADMIN.COMPONENTS.ADD' | translate) }}
+  </h2>
+  <div mat-dialog-content>
+    <form [formGroup]="form" class="components__form">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.COMPONENTS.CODE' | translate }}</mat-label>
+        <input matInput formControlName="code" />
+        <mat-error *ngIf="form.get('code')?.hasError('required')">
+          {{ 'ADMIN.COMPONENTS.REQUIRED' | translate }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.COMPONENTS.NAME' | translate }}</mat-label>
+        <input matInput formControlName="name" />
+        <mat-error *ngIf="form.get('name')?.hasError('required')">
+          {{ 'ADMIN.COMPONENTS.REQUIRED' | translate }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.COMPONENTS.ROUTE' | translate }}</mat-label>
+        <input matInput formControlName="routePath" />
+        <mat-error *ngIf="form.get('routePath')?.hasError('required')">
+          {{ 'ADMIN.COMPONENTS.REQUIRED' | translate }}
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.COMPONENTS.CATEGORY' | translate }}</mat-label>
+        <input matInput formControlName="category" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ 'ADMIN.COMPONENTS.DESCRIPTION' | translate }}</mat-label>
+        <textarea matInput formControlName="description" rows="3"></textarea>
+      </mat-form-field>
+    </form>
+  </div>
+  <div mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>
+      {{ 'ADMIN.COMPONENTS.CANCEL' | translate }}
+    </button>
+    <button mat-flat-button color="primary" (click)="save()" [disabled]="form.invalid">
+      {{ 'ADMIN.COMPONENTS.SAVE' | translate }}
+    </button>
+  </div>
+</ng-template>
