@@ -7,18 +7,11 @@ namespace finrecon360_backend.Services.BankAccounts
 {
     public class BankAccountService
     {
-        private readonly TenantDbContext _tenantDbContext;
-
-        public BankAccountService(TenantDbContext tenantDbContext)
-        {
-            _tenantDbContext = tenantDbContext;
-        }
-
-        public async Task<BankAccountResponse> CreateAsync(CreateBankAccountRequest request, CancellationToken ct)
+        public async Task<BankAccountResponse> CreateAsync(TenantDbContext tenantDb, CreateBankAccountRequest request, CancellationToken ct)
         {
             var accountNumber = NormalizeAccountNumber(request.AccountNumber);
 
-            var exists = await _tenantDbContext.BankAccounts
+            var exists = await tenantDb.BankAccounts
                 .AsNoTracking()
                 .AnyAsync(x => x.AccountNumber == accountNumber, ct);
 
@@ -39,15 +32,15 @@ namespace finrecon360_backend.Services.BankAccounts
                 UpdatedAt = null
             };
 
-            _tenantDbContext.BankAccounts.Add(entity);
-            await _tenantDbContext.SaveChangesAsync(ct);
+            tenantDb.BankAccounts.Add(entity);
+            await tenantDb.SaveChangesAsync(ct);
 
             return Map(entity);
         }
 
-        public async Task<List<BankAccountResponse>> GetAllAsync(CancellationToken ct)
+        public async Task<List<BankAccountResponse>> GetAllAsync(TenantDbContext tenantDb, CancellationToken ct)
         {
-            var items = await _tenantDbContext.BankAccounts
+            var items = await tenantDb.BankAccounts
                 .AsNoTracking()
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync(ct);
@@ -55,18 +48,18 @@ namespace finrecon360_backend.Services.BankAccounts
             return items.Select(Map).ToList();
         }
 
-        public async Task<BankAccountResponse?> GetByIdAsync(Guid id, CancellationToken ct)
+        public async Task<BankAccountResponse?> GetByIdAsync(TenantDbContext tenantDb, Guid id, CancellationToken ct)
         {
-            var entity = await _tenantDbContext.BankAccounts
+            var entity = await tenantDb.BankAccounts
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.BankAccountId == id, ct);
 
             return entity == null ? null : Map(entity);
         }
 
-        public async Task<bool> UpdateAsync(Guid id, UpdateBankAccountRequest request, CancellationToken ct)
+        public async Task<bool> UpdateAsync(TenantDbContext tenantDb, Guid id, UpdateBankAccountRequest request, CancellationToken ct)
         {
-            var entity = await _tenantDbContext.BankAccounts
+            var entity = await tenantDb.BankAccounts
                 .FirstOrDefaultAsync(x => x.BankAccountId == id, ct);
 
             if (entity == null)
@@ -80,7 +73,7 @@ namespace finrecon360_backend.Services.BankAccounts
 
                 if (!string.Equals(entity.AccountNumber, accountNumber, StringComparison.Ordinal))
                 {
-                    var duplicateExists = await _tenantDbContext.BankAccounts
+                    var duplicateExists = await tenantDb.BankAccounts
                         .AsNoTracking()
                         .AnyAsync(x => x.BankAccountId != id && x.AccountNumber == accountNumber, ct);
 
@@ -115,13 +108,13 @@ namespace finrecon360_backend.Services.BankAccounts
 
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _tenantDbContext.SaveChangesAsync(ct);
+            await tenantDb.SaveChangesAsync(ct);
             return true;
         }
 
-        public async Task<bool> DeactivateAsync(Guid id, CancellationToken ct)
+        public async Task<bool> DeactivateAsync(TenantDbContext tenantDb, Guid id, CancellationToken ct)
         {
-            var entity = await _tenantDbContext.BankAccounts
+            var entity = await tenantDb.BankAccounts
                 .FirstOrDefaultAsync(x => x.BankAccountId == id, ct);
 
             if (entity == null)
@@ -132,7 +125,7 @@ namespace finrecon360_backend.Services.BankAccounts
             entity.IsActive = false;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            await _tenantDbContext.SaveChangesAsync(ct);
+            await tenantDb.SaveChangesAsync(ct);
             return true;
         }
 

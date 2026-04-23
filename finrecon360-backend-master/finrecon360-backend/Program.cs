@@ -4,6 +4,7 @@ using finrecon360_backend.Dtos.Auth;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services;
 using finrecon360_backend.Options;
+using finrecon360_backend.Services.BankAccounts;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -137,6 +138,7 @@ builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkServi
 builder.Services.AddScoped<IStripeCheckoutService, StripeCheckoutService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
+builder.Services.AddScoped<BankAccountService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
