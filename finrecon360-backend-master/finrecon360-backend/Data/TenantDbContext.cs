@@ -16,6 +16,7 @@ namespace finrecon360_backend.Data
         public DbSet<TenantComponent> Components => Set<TenantComponent>();
         public DbSet<TenantPermissionAction> PermissionActions => Set<TenantPermissionAction>();
         public DbSet<TenantUserRoleAssignment> UserRoles => Set<TenantUserRoleAssignment>();
+        public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
         public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
         public DbSet<ImportedRawRecord> ImportedRawRecords => Set<ImportedRawRecord>();
         public DbSet<ImportedNormalizedRecord> ImportedNormalizedRecords => Set<ImportedNormalizedRecord>();
@@ -121,6 +122,23 @@ namespace finrecon360_backend.Data
                     .WithMany(r => r.UserRoles)
                     .HasForeignKey(x => x.RoleId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<BankAccount>(entity =>
+            {
+                entity.ToTable("BankAccounts");
+                entity.HasKey(x => x.BankAccountId);
+                entity.Property(x => x.BankAccountId).ValueGeneratedNever();
+                entity.Property(x => x.BankName).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.AccountName).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.AccountNumber).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.Currency).HasMaxLength(10).IsRequired();
+                entity.Property(x => x.IsActive).HasDefaultValue(true);
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.AccountNumber).IsUnique();
             });
 
             modelBuilder.Entity<ImportBatch>(entity =>

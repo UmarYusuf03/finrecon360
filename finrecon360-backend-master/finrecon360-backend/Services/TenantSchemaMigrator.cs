@@ -14,6 +14,7 @@ namespace finrecon360_backend.Services
         private const string MigrationRbacReconcile = "202603050001_TenantRbacReconcile";
         private const string MigrationImportArchitecture = "202604090001_TenantImportArchitectureFoundation";
         private const string MigrationImportBatchMappingLink = "202604100001_TenantImportBatchMappingLink";
+        private const string MigrationBankAccounts = "202604230001_TenantBankAccounts";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -28,6 +29,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationRbacReconcile, BuildTenantRbacReconcileSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportArchitecture, BuildTenantImportArchitectureSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportBatchMappingLink, BuildTenantImportBatchMappingLinkSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationBankAccounts, BuildTenantBankAccountsSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -534,6 +536,25 @@ namespace finrecon360_backend.Services
                     FOREIGN KEY (MappingTemplateId)
                     REFERENCES dbo.ImportMappingTemplates(ImportMappingTemplateId)
                     ON DELETE SET NULL;
+            END
+            """;
+
+        private static string BuildTenantBankAccountsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.BankAccounts', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.BankAccounts (
+                    BankAccountId uniqueidentifier NOT NULL PRIMARY KEY,
+                    BankName nvarchar(200) NOT NULL,
+                    AccountName nvarchar(200) NOT NULL,
+                    AccountNumber nvarchar(100) NOT NULL,
+                    Currency nvarchar(10) NOT NULL,
+                    IsActive bit NOT NULL CONSTRAINT DF_BankAccounts_IsActive DEFAULT (1),
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_BankAccounts_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    UpdatedAt datetime2 NULL
+                );
+
+                CREATE UNIQUE INDEX IX_BankAccounts_AccountNumber ON dbo.BankAccounts(AccountNumber);
             END
             """;
 

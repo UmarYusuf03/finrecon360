@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using finrecon360_backend.Data;
 
 #nullable disable
 
 namespace finrecon360_backend.Migrations
 {
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260305133000_AddTenantRegistrationContactAndBusinessFields")]
     public partial class AddTenantRegistrationContactAndBusinessFields : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
