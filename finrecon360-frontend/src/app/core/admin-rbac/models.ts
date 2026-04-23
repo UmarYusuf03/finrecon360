@@ -43,6 +43,17 @@ export interface AdminUserSummary {
   roles: RoleCode[];
 }
 
+export interface BankAccount {
+  bankAccountId: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;

@@ -1,0 +1,141 @@
+<mat-card>
+  <div class="roles__header">
+    <div>
+      <h2>Bank Accounts</h2>
+      <p>Manage tenant bank accounts used by the reconciliation workflow.</p>
+    </div>
+    <div class="roles__actions">
+      <button mat-button type="button" (click)="refresh()" [disabled]="loading">
+        Refresh
+      </button>
+      <button mat-flat-button color="primary" type="button" (click)="openAdd(bankAccountDialog)">
+        Add Bank Account
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" style="display: flex; justify-content: center; padding: 24px;">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <table mat-table [dataSource]="bankAccounts" class="mat-elevation-z1" *ngIf="!loading">
+    <ng-container matColumnDef="bankName">
+      <th mat-header-cell *matHeaderCellDef>Bank</th>
+      <td mat-cell *matCellDef="let account">{{ account.bankName }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="accountName">
+      <th mat-header-cell *matHeaderCellDef>Account Name</th>
+      <td mat-cell *matCellDef="let account">{{ account.accountName }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="accountNumber">
+      <th mat-header-cell *matHeaderCellDef>Account Number</th>
+      <td mat-cell *matCellDef="let account">{{ account.accountNumber }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="currency">
+      <th mat-header-cell *matHeaderCellDef>Currency</th>
+      <td mat-cell *matCellDef="let account">{{ account.currency }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef>Status</th>
+      <td mat-cell *matCellDef="let account">
+        <span [ngClass]="account.isActive ? 'status-active' : 'status-inactive'">
+          {{ account.isActive ? 'Active' : 'Inactive' }}
+        </span>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let account" class="roles__actions">
+        <button
+          mat-icon-button
+          type="button"
+          (click)="openEdit(account, bankAccountDialog)"
+          aria-label="Edit bank account"
+        >
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          type="button"
+          (click)="deactivate(account)"
+          [disabled]="!account.isActive || deactivatingId === account.bankAccountId"
+          aria-label="Deactivate bank account"
+        >
+          <mat-icon>block</mat-icon>
+        </button>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+
+  <p *ngIf="!loading && bankAccounts.length === 0">No bank accounts found.</p>
+</mat-card>
+
+<ng-template #bankAccountDialog>
+  <h2 mat-dialog-title>
+    {{ editingId ? 'Edit Bank Account' : 'Add Bank Account' }}
+  </h2>
+  <div mat-dialog-content>
+    <form [formGroup]="form" class="roles__form">
+      <mat-form-field appearance="outline">
+        <mat-label>Bank Name</mat-label>
+        <input matInput formControlName="bankName" />
+        <mat-error *ngIf="form.get('bankName')?.hasError('required')">
+          Bank name is required.
+        </mat-error>
+        <mat-error *ngIf="form.get('bankName')?.hasError('maxlength')">
+          Bank name cannot exceed 200 characters.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Account Name</mat-label>
+        <input matInput formControlName="accountName" />
+        <mat-error *ngIf="form.get('accountName')?.hasError('required')">
+          Account name is required.
+        </mat-error>
+        <mat-error *ngIf="form.get('accountName')?.hasError('maxlength')">
+          Account name cannot exceed 200 characters.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Account Number</mat-label>
+        <input matInput formControlName="accountNumber" />
+        <mat-error *ngIf="form.get('accountNumber')?.hasError('required')">
+          Account number is required.
+        </mat-error>
+        <mat-error *ngIf="form.get('accountNumber')?.hasError('maxlength')">
+          Account number cannot exceed 100 characters.
+        </mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Currency</mat-label>
+        <input matInput formControlName="currency" />
+        <mat-error *ngIf="form.get('currency')?.hasError('required')">
+          Currency is required.
+        </mat-error>
+        <mat-error *ngIf="form.get('currency')?.hasError('maxlength')">
+          Currency cannot exceed 10 characters.
+        </mat-error>
+      </mat-form-field>
+    </form>
+    <p *ngIf="saveError" class="users__error">{{ saveError }}</p>
+  </div>
+  <div mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close [disabled]="saving">
+      Cancel
+    </button>
+    <button mat-flat-button color="primary" type="button" (click)="save()" [disabled]="saving">
+      {{ saving ? 'Saving...' : 'Save' }}
+    </button>
+  </div>
+</ng-template>
