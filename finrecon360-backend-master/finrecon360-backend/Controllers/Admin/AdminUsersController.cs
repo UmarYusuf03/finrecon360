@@ -140,18 +140,18 @@ namespace finrecon360_backend.Controllers.Admin
             var displayName = request.DisplayName.Trim();
             var phoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
 
-            var maxAccounts = await _dbContext.Tenants
+            var maxUsers = await _dbContext.Tenants
                 .AsNoTracking()
                 .Where(t => t.TenantId == tenantId)
-                .Select(t => t.CurrentSubscription != null ? (int?)t.CurrentSubscription.Plan.MaxAccounts : null)
+                .Select(t => t.CurrentSubscription != null ? (int?)t.CurrentSubscription.Plan.MaxUsers : null)
                 .FirstOrDefaultAsync();
 
-            if (maxAccounts.HasValue)
+            if (maxUsers.HasValue)
             {
                 var currentUsers = await _dbContext.TenantUsers.AsNoTracking().Where(tu => tu.TenantId == tenantId).Select(tu => tu.UserId).Distinct().CountAsync();
-                if (currentUsers >= maxAccounts.Value)
+                if (currentUsers >= maxUsers.Value)
                 {
-                    return BadRequest(new { message = $"Tenant user limit reached ({maxAccounts.Value})." });
+                    return BadRequest(new { message = $"Tenant user limit reached ({maxUsers.Value})." });
                 }
             }
 
@@ -180,12 +180,31 @@ namespace finrecon360_backend.Controllers.Admin
                     CreatedAt = DateTime.UtcNow,
                     EmailConfirmed = false,
                     IsActive = true,
-                    Status = UserStatus.Active
+                    Status = UserStatus.Active,
+                    UserType = UserType.TenantOperational
                 };
                 _dbContext.Users.Add(user);
             }
             else
             {
+                if (user.UserType == UserType.SystemAdmin)
+                {
+                    return Conflict(new { message = "System admin accounts cannot be assigned as tenant operational users." });
+                }
+
+                if (user.UserType == UserType.GlobalPublic)
+                {
+                    var hasAnyTenantMembershipForExisting = await _dbContext.TenantUsers.AsNoTracking()
+                        .AnyAsync(tu => tu.UserId == user.UserId);
+                    if (hasAnyTenantMembershipForExisting)
+                    {
+                        return Conflict(new { message = "This account cannot be assigned due to inconsistent tenant membership state." });
+                    }
+
+                    user.UserType = UserType.TenantOperational;
+                    user.UpdatedAt = DateTime.UtcNow;
+                }
+
                 var hasOtherTenantMembership = await _dbContext.TenantUsers.AsNoTracking()
                     .AnyAsync(tu => tu.UserId == user.UserId && tu.TenantId != tenantId);
                 if (hasOtherTenantMembership)

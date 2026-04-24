@@ -24,6 +24,7 @@ export class AdminPlansComponent implements OnInit {
       priceCents: [0, [Validators.required, Validators.min(0)]],
       currency: ['USD', Validators.required],
       durationDays: [30, [Validators.required, Validators.min(1)]],
+      maxUsers: [10, [Validators.required, Validators.min(1)]],
       maxAccounts: [1, [Validators.required, Validators.min(1)]],
     });
   }
@@ -49,6 +50,7 @@ export class AdminPlansComponent implements OnInit {
       priceCents: 0,
       currency: 'USD',
       durationDays: 30,
+      maxUsers: 10,
       maxAccounts: 1,
     });
   }

@@ -22,6 +22,7 @@ namespace finrecon360_backend.Data
                 new("ADMIN.TENANT_REGISTRATIONS.MANAGE", "Tenant Registrations", "Admin", "Review tenant registrations"),
                 new("ADMIN.PLANS.MANAGE", "Subscription Plans", "Admin", "Manage subscription plans"),
                 new("ADMIN.ENFORCEMENT.MANAGE", "Enforcement Actions", "Admin", "Manage suspensions and bans"),
+                new("ADMIN.IMPORT_WORKBENCH.VIEW", "Import Workbench View", "Admin", "View import workbench"),
                 new("ROLE_MANAGEMENT", "Role Management", "Admin", "Manage roles"),
                 new("PERMISSION_MANAGEMENT", "Permission Management", "Admin", "Manage permissions"),
                 new("USER_MANAGEMENT", "User Management", "Admin", "Manage users"),
@@ -187,6 +188,7 @@ namespace finrecon360_backend.Data
                     EmailConfirmed = true,
                     IsActive = true,
                     Status = UserStatus.Active,
+                    UserType = UserType.SystemAdmin,
                     IsSystemAdmin = true
                 };
                 db.Users.Add(user);
@@ -194,6 +196,7 @@ namespace finrecon360_backend.Data
             else
             {
                 user.PasswordHash = hasher.Hash(password);
+                user.UserType = UserType.SystemAdmin;
                 user.IsSystemAdmin = true;
                 user.IsActive = true;
                 user.Status = UserStatus.Active;
@@ -229,6 +232,9 @@ namespace finrecon360_backend.Data
                 ("ROLE_MGMT", "Role Management", "/app/admin/roles", "Admin", "Admin roles"),
                 ("PERMISSION_MGMT", "Permission Management", "/app/admin/permissions", "Admin", "Admin permissions")
                 ,
+                ("IMPORT_WORKBENCH_MGMT", "Import Workbench", "/app/imports/workbench", "Admin", "Import workbench"),
+                ("AUDIT_LOGS_MGMT", "Audit Logs", "/app/admin/audit-logs", "Admin", "Tenant audit logs"),
+                ("IMPORT_ARCHITECTURE_MGMT", "Import Architecture", "/app/imports/import-architecture", "Admin", "Import architecture"),
                 ("TENANT_REG_MGMT", "Tenant Registrations", "/app/system/tenant-registrations", "Admin", "Tenant registration approvals"),
                 ("TENANT_MGMT", "Tenants", "/app/system/tenants", "Admin", "Tenant management"),
                 ("PLAN_MGMT", "Subscription Plans", "/app/system/plans", "Admin", "Subscription plans"),
