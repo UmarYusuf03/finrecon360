@@ -19,3 +19,7 @@
 .vscode/
 *.log
 finrecon.session.sql
+
+# Local generated docs
+endpoints.txt
+detailedExplanation.txt
