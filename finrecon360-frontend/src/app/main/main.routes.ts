@@ -23,6 +23,18 @@ export const mainRoutes: Routes = [
       {
         path: 'admin',
         component: AdminShellComponent,
+        canActivate: [AccessGuard],
+        data: {
+          scope: 'tenant',
+          anyPermissions: [
+            'ADMIN.BANK_ACCOUNTS.VIEW',
+            'ADMIN.ROLES.VIEW',
+            'ADMIN.COMPONENTS.VIEW',
+            'ADMIN.PERMISSIONS.VIEW',
+            'ADMIN.USERS.VIEW',
+            'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+          ],
+        },
         children: [
           {
             path: 'bank-accounts',
@@ -30,6 +42,8 @@ export const mainRoutes: Routes = [
               import('./pages/admin/admin-bank-accounts').then(
                 (m) => m.AdminBankAccountsComponent,
               ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.BANK_ACCOUNTS.VIEW'] },
           },
           {
             path: 'roles',

@@ -75,6 +75,7 @@ export class AdminPermissionService {
     IMPORT_WORKBENCH_MGMT: 'ADMIN.IMPORT_WORKBENCH',
     IMPORT_ARCHITECTURE_MGMT: 'ADMIN.IMPORT_ARCHITECTURE',
     AUDIT_LOGS_MGMT: 'ADMIN.AUDIT_LOGS',
+    BANK_ACCOUNTS_MGMT: 'ADMIN.BANK_ACCOUNTS',
   };
 
   private readonly actionsSubject = new BehaviorSubject<ActionDefinition[]>([]);
