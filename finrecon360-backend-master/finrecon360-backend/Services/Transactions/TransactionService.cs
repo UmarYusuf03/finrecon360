@@ -87,6 +87,18 @@ namespace finrecon360_backend.Services.Transactions
             return items.Select(Map).ToList();
         }
 
+        public async Task<List<TransactionResponse>> GetJournalReadyAsync(TenantDbContext db, CancellationToken ct)
+        {
+            var items = await db.Transactions
+                .AsNoTracking()
+                .Where(x => x.TransactionState == TransactionState.JournalReady)
+                .OrderBy(x => x.TransactionDate)
+                .ThenBy(x => x.CreatedAt)
+                .ToListAsync(ct);
+
+            return items.Select(Map).ToList();
+        }
+
         public async Task<TransactionResponse?> GetByIdAsync(TenantDbContext db, Guid id, CancellationToken ct)
         {
             var entity = await db.Transactions
