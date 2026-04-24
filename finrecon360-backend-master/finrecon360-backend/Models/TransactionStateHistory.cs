@@ -8,6 +8,7 @@ namespace finrecon360_backend.Models
         public TransactionState ToState { get; set; }
         public Guid? ChangedByUserId { get; set; }
         public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
+        public string? Note { get; set; }
 
         public Transaction Transaction { get; set; } = null!;
     }

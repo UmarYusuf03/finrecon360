@@ -10,9 +10,16 @@ namespace finrecon360_backend.Models
         public TransactionType TransactionType { get; set; }
         public PaymentMethod PaymentMethod { get; set; }
         public TransactionState TransactionState { get; set; } = TransactionState.Pending;
+        public Guid? CreatedByUserId { get; set; }
+        public DateTime? ApprovedAt { get; set; }
+        public Guid? ApprovedByUserId { get; set; }
+        public DateTime? RejectedAt { get; set; }
+        public Guid? RejectedByUserId { get; set; }
+        public string? RejectionReason { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
         public BankAccount? BankAccount { get; set; }
+        public ICollection<TransactionStateHistory> StateHistories { get; set; } = new List<TransactionStateHistory>();
     }
 }
