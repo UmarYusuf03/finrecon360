@@ -67,6 +67,18 @@ namespace finrecon360_backend.Controllers.Admin
             return Ok(result);
         }
 
+        [HttpGet("journal-ready")]
+        [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
+        public async Task<ActionResult<List<TransactionResponse>>> GetJournalReady(CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var result = await _transactionService.GetJournalReadyAsync(tenantDb, ct);
+            return Ok(result);
+        }
+
         [HttpGet("{id:guid}")]
         [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
         public async Task<ActionResult<TransactionResponse>> GetById(Guid id, CancellationToken ct)
