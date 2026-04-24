@@ -1,3 +1,4 @@
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.BankAccounts;
 using finrecon360_backend.Services;
@@ -34,6 +35,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.MANAGE")]
         public async Task<ActionResult<BankAccountResponse>> Create(
             [FromBody] CreateBankAccountRequest request,
             CancellationToken ct)
@@ -54,6 +56,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.VIEW")]
         public async Task<ActionResult<List<BankAccountResponse>>> GetAll(CancellationToken ct)
         {
             var auth = await AuthorizeTenantAdminAsync(ct);
@@ -65,6 +68,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet("{id:guid}")]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.VIEW")]
         public async Task<ActionResult<BankAccountResponse>> GetById(Guid id, CancellationToken ct)
         {
             var auth = await AuthorizeTenantAdminAsync(ct);
@@ -81,6 +85,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("{id:guid}")]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.MANAGE")]
         public async Task<IActionResult> Update(
             Guid id,
             [FromBody] UpdateBankAccountRequest request,
@@ -107,6 +112,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpDelete("{id:guid}")]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.MANAGE")]
         public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
         {
             var auth = await AuthorizeTenantAdminAsync(ct);

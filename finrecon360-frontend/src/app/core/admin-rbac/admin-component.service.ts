@@ -31,6 +31,7 @@ export class AdminComponentService {
     { id: 'cmp-roles', code: 'ROLE_MGMT', name: 'Role Management', routePath: '/app/admin/roles', category: 'Admin', isActive: true },
     { id: 'cmp-components', code: 'COMPONENT_MGMT', name: 'Component Management', routePath: '/app/admin/components', category: 'Admin', isActive: true },
     { id: 'cmp-perm', code: 'PERMISSION_MGMT', name: 'Permission Management', routePath: '/app/admin/permissions', category: 'Admin', isActive: true },
+    { id: 'cmp-bank-accounts', code: 'BANK_ACCOUNTS_MGMT', name: 'Bank Accounts', routePath: '/app/admin/bank-accounts', category: 'Admin', isActive: true },
   ];
   private readonly componentsSubject = new BehaviorSubject<AppComponentResource[]>(USE_MOCK_API ? this.mockComponents : []);
   private loaded = false;

@@ -41,7 +41,7 @@ export class AdminShellComponent implements OnInit {
     {
       path: '/app/admin/bank-accounts',
       label: 'Bank Accounts',
-      permission: '',
+      permission: 'ADMIN.BANK_ACCOUNTS.VIEW',
       scope: 'tenant',
     },
     {
@@ -174,10 +174,6 @@ export class AdminShellComponent implements OnInit {
   }
 
   private hasPermission(grantedPermissions: string[], requiredPermission: string): boolean {
-    if (!requiredPermission) {
-      return true;
-    }
-
     if (grantedPermissions.includes(requiredPermission)) {
       return true;
     }

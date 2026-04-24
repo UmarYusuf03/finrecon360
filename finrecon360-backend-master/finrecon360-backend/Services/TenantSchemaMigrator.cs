@@ -15,6 +15,8 @@ namespace finrecon360_backend.Services
         private const string MigrationImportArchitecture = "202604090001_TenantImportArchitectureFoundation";
         private const string MigrationImportBatchMappingLink = "202604100001_TenantImportBatchMappingLink";
         private const string MigrationBankAccounts = "202604230001_TenantBankAccounts";
+        private const string MigrationBankAccountsPermissions = "202604230002_TenantBankAccountsPermissions";
+        private const string MigrationTransactions = "202604230003_TenantTransactions";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -30,6 +32,8 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationImportArchitecture, BuildTenantImportArchitectureSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportBatchMappingLink, BuildTenantImportBatchMappingLinkSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationBankAccounts, BuildTenantBankAccountsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationBankAccountsPermissions, BuildTenantBankAccountsPermissionsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactions, BuildTenantTransactionsSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -555,6 +559,78 @@ namespace finrecon360_backend.Services
                 );
 
                 CREATE UNIQUE INDEX IX_BankAccounts_AccountNumber ON dbo.BankAccounts(AccountNumber);
+            END
+            """;
+
+        private static string BuildTenantBankAccountsPermissionsSql() =>
+            """
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.BANK_ACCOUNTS.VIEW', N'Bank Accounts View', N'View tenant bank accounts', N'Admin'),
+                (N'ADMIN.BANK_ACCOUNTS.MANAGE', N'Bank Accounts Manage', N'Manage tenant bank accounts', N'Admin')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.AppComponents (ComponentId, Code, Name, RoutePath, Category, Description, IsActive)
+            SELECT NEWID(), N'BANK_ACCOUNTS_MGMT', N'Bank Accounts', N'/app/admin/bank-accounts', N'Admin', N'Tenant bank account management', 1
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = N'BANK_ACCOUNTS_MGMT');
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (N'ADMIN.BANK_ACCOUNTS.VIEW', N'ADMIN.BANK_ACCOUNTS.MANAGE')
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
+        private static string BuildTenantTransactionsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.Transactions', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.Transactions (
+                    TransactionId uniqueidentifier NOT NULL PRIMARY KEY,
+                    Amount decimal(18,2) NOT NULL,
+                    TransactionDate datetime2 NOT NULL,
+                    Description nvarchar(500) NOT NULL,
+                    BankAccountId uniqueidentifier NULL,
+                    TransactionType nvarchar(20) NOT NULL,
+                    PaymentMethod nvarchar(20) NOT NULL,
+                    TransactionState nvarchar(30) NOT NULL CONSTRAINT DF_Transactions_TransactionState DEFAULT (N'Pending'),
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_Transactions_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    UpdatedAt datetime2 NULL,
+                    CONSTRAINT CK_Transactions_Amount_Positive CHECK (Amount > 0),
+                    CONSTRAINT CK_Transactions_TransactionType CHECK (TransactionType IN (N'CashIn', N'CashOut')),
+                    CONSTRAINT CK_Transactions_PaymentMethod CHECK (PaymentMethod IN (N'Cash', N'Card')),
+                    CONSTRAINT CK_Transactions_TransactionState CHECK (TransactionState IN (N'Pending', N'Approved', N'Rejected', N'NeedsBankMatch', N'JournalReady')),
+                    CONSTRAINT CK_Transactions_PaymentMethod_BankAccount CHECK (PaymentMethod <> N'Card' OR BankAccountId IS NOT NULL),
+                    CONSTRAINT FK_Transactions_BankAccounts_BankAccountId FOREIGN KEY (BankAccountId) REFERENCES dbo.BankAccounts(BankAccountId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_Transactions_TransactionDate ON dbo.Transactions(TransactionDate);
+                CREATE INDEX IX_Transactions_BankAccountId ON dbo.Transactions(BankAccountId);
+                CREATE INDEX IX_Transactions_TransactionState ON dbo.Transactions(TransactionState);
+            END
+
+            IF OBJECT_ID(N'dbo.TransactionStateHistories', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.TransactionStateHistories (
+                    TransactionStateHistoryId uniqueidentifier NOT NULL PRIMARY KEY,
+                    TransactionId uniqueidentifier NOT NULL,
+                    FromState nvarchar(30) NOT NULL,
+                    ToState nvarchar(30) NOT NULL,
+                    ChangedByUserId uniqueidentifier NULL,
+                    ChangedAt datetime2 NOT NULL CONSTRAINT DF_TransactionStateHistories_ChangedAt DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT CK_TransactionStateHistories_FromState CHECK (FromState IN (N'Pending', N'Approved', N'Rejected', N'NeedsBankMatch', N'JournalReady')),
+                    CONSTRAINT CK_TransactionStateHistories_ToState CHECK (ToState IN (N'Pending', N'Approved', N'Rejected', N'NeedsBankMatch', N'JournalReady')),
+                    CONSTRAINT FK_TransactionStateHistories_Transactions_TransactionId FOREIGN KEY (TransactionId) REFERENCES dbo.Transactions(TransactionId) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IX_TransactionStateHistories_TransactionId ON dbo.TransactionStateHistories(TransactionId);
+                CREATE INDEX IX_TransactionStateHistories_ChangedAt ON dbo.TransactionStateHistories(ChangedAt);
             END
             """;
 
