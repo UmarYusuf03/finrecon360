@@ -17,6 +17,8 @@ namespace finrecon360_backend.Services
         private const string MigrationBankAccounts = "202604230001_TenantBankAccounts";
         private const string MigrationBankAccountsPermissions = "202604230002_TenantBankAccountsPermissions";
         private const string MigrationTransactions = "202604230003_TenantTransactions";
+        private const string MigrationTransactionPermissions = "202604230004_TenantTransactionPermissions";
+        private const string MigrationTransactionApprovalFields = "202604230005_TenantTransactionApprovalFields";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -34,6 +36,8 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationBankAccounts, BuildTenantBankAccountsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationBankAccountsPermissions, BuildTenantBankAccountsPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactions, BuildTenantTransactionsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactionPermissions, BuildTenantTransactionPermissionsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactionApprovalFields, BuildTenantTransactionApprovalFieldsSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -631,6 +635,102 @@ namespace finrecon360_backend.Services
 
                 CREATE INDEX IX_TransactionStateHistories_TransactionId ON dbo.TransactionStateHistories(TransactionId);
                 CREATE INDEX IX_TransactionStateHistories_ChangedAt ON dbo.TransactionStateHistories(ChangedAt);
+            END
+            """;
+
+        private static string BuildTenantTransactionPermissionsSql() =>
+            """
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.TRANSACTIONS.VIEW', N'Transactions View', N'View tenant transactions', N'Admin'),
+                (N'ADMIN.TRANSACTIONS.MANAGE', N'Transactions Manage', N'Manage tenant transactions', N'Admin')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.AppComponents (ComponentId, Code, Name, RoutePath, Category, Description, IsActive)
+            SELECT NEWID(), N'TRANSACTIONS_MGMT', N'Transactions', N'/app/admin/transactions', N'Admin', N'Tenant transaction management', 1
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = N'TRANSACTIONS_MGMT');
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (N'ADMIN.TRANSACTIONS.VIEW', N'ADMIN.TRANSACTIONS.MANAGE')
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
+        private static string BuildTenantTransactionApprovalFieldsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.Transactions', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.Transactions', N'CreatedByUserId') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD CreatedByUserId uniqueidentifier NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.Transactions', N'ApprovedAt') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD ApprovedAt datetime2 NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.Transactions', N'ApprovedByUserId') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD ApprovedByUserId uniqueidentifier NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.Transactions', N'RejectedAt') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD RejectedAt datetime2 NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.Transactions', N'RejectedByUserId') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD RejectedByUserId uniqueidentifier NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.Transactions', N'RejectionReason') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD RejectionReason nvarchar(500) NULL;
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.Transactions')
+                      AND name = N'IX_Transactions_CreatedByUserId')
+                BEGIN
+                    CREATE INDEX IX_Transactions_CreatedByUserId ON dbo.Transactions(CreatedByUserId);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.Transactions')
+                      AND name = N'IX_Transactions_ApprovedByUserId')
+                BEGIN
+                    CREATE INDEX IX_Transactions_ApprovedByUserId ON dbo.Transactions(ApprovedByUserId);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.Transactions')
+                      AND name = N'IX_Transactions_RejectedByUserId')
+                BEGIN
+                    CREATE INDEX IX_Transactions_RejectedByUserId ON dbo.Transactions(RejectedByUserId);
+                END
+            END
+
+            IF OBJECT_ID(N'dbo.TransactionStateHistories', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.TransactionStateHistories', N'Note') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.TransactionStateHistories ADD Note nvarchar(500) NULL;
+                END
             END
             """;
 

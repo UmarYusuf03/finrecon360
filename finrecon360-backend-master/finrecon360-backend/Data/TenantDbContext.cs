@@ -165,13 +165,19 @@ namespace finrecon360_backend.Data
                     .HasMaxLength(30)
                     .HasDefaultValue(TransactionState.Pending)
                     .IsRequired();
+                entity.Property(x => x.RejectionReason).HasMaxLength(500);
                 entity.Property(x => x.CreatedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.ApprovedAt).HasColumnType("datetime2");
+                entity.Property(x => x.RejectedAt).HasColumnType("datetime2");
                 entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
                 entity.HasIndex(x => x.TransactionDate);
                 entity.HasIndex(x => x.BankAccountId);
                 entity.HasIndex(x => x.TransactionState);
+                entity.HasIndex(x => x.CreatedByUserId);
+                entity.HasIndex(x => x.ApprovedByUserId);
+                entity.HasIndex(x => x.RejectedByUserId);
 
                 entity.HasOne(x => x.BankAccount)
                     .WithMany()
@@ -193,11 +199,12 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.ChangedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.Note).HasMaxLength(500);
                 entity.HasIndex(x => x.TransactionId);
                 entity.HasIndex(x => x.ChangedAt);
 
                 entity.HasOne(x => x.Transaction)
-                    .WithMany()
+                    .WithMany(x => x.StateHistories)
                     .HasForeignKey(x => x.TransactionId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
