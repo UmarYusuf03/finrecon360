@@ -7,6 +7,7 @@ namespace finrecon360_backend.Dtos.Admin
         long PriceCents,
         string Currency,
         int DurationDays,
+        int MaxUsers,
         int MaxAccounts,
         bool IsActive);
 
@@ -17,6 +18,7 @@ namespace finrecon360_backend.Dtos.Admin
         public long PriceCents { get; set; }
         public string Currency { get; set; } = "USD";
         public int DurationDays { get; set; }
+        public int MaxUsers { get; set; }
         public int MaxAccounts { get; set; }
     }
 
@@ -27,6 +29,7 @@ namespace finrecon360_backend.Dtos.Admin
         public long PriceCents { get; set; }
         public string Currency { get; set; } = "USD";
         public int DurationDays { get; set; }
+        public int MaxUsers { get; set; }
         public int MaxAccounts { get; set; }
     }
 }

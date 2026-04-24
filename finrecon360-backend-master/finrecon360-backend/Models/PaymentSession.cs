@@ -5,8 +5,8 @@ namespace finrecon360_backend.Models
         public Guid PaymentSessionId { get; set; }
         public Guid TenantId { get; set; }
         public Guid SubscriptionId { get; set; }
-        public string StripeSessionId { get; set; } = string.Empty;
-        public string? StripeCustomerId { get; set; }
+        public string ProviderSessionId { get; set; } = string.Empty;
+        public string? ProviderReferenceId { get; set; }
         public PaymentSessionStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }

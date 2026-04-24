@@ -21,12 +21,13 @@ Implemented frontend areas:
 - public tenant registration
 - system-admin screens for tenant registrations, tenants, plans, and enforcement
 - tenant-admin screens for users, roles, permissions, and components
+- tenant-admin import architecture screens (canonical schema and mapping-template management)
+- imports workbench (upload, parse, map, validate, row correction, commit, delete)
 - dashboard, matcher placeholder, and profile surfaces
 - permission-aware navigation and route guards
 
 Not yet implemented as full production workflows:
 
-- canonical import mapping UI
 - bank statement import workflow
 - transaction approvals workflow
 - exception management workflow
@@ -74,6 +75,9 @@ The current frontend now blocks non-system-admin access when `tenantStatus !== '
 - `/onboarding/*` for onboarding subscription flow
 - `/app/system/*` for system-admin screens
 - `/app/admin/*` for tenant-admin screens
+- `/app/admin/import-architecture` for canonical schema and mapping-template management
+- `/app/admin/import-history` for tenant import history admin view
+- `/app/imports` for operational import workbench flow
 - `/app/matcher` as the current reconciliation placeholder surface
 - `/app/profile`
 
@@ -106,9 +110,11 @@ Test behavior:
 
 ## Known Contradictions And Gaps Vs Target Architecture
 
-### 1. Finance UX Is Mostly Placeholder State
+### 1. Finance UX Is Partially Implemented
 
-The target architecture includes imports, canonical mapping, approvals, reconciliation confirmation, journal gating, and reporting. The current frontend only has early placeholder-level surfaces for parts of that area.
+The target architecture includes imports, canonical mapping, approvals, reconciliation confirmation, journal gating, and reporting.
+
+Current frontend has working canonical import and mapping-template UX, but reconciliation, approvals, journal posting, bank-statement matching, and reporting remain incomplete or placeholder.
 
 ### 2. Global User Concept Is Not Expressed Cleanly In UI
 
@@ -123,3 +129,8 @@ There is no fully realized standalone global-user product area yet.
 ### 3. Some Shared Labels Still Say "Admin"
 
 The route split is now in place, but some shared component names and labels still use generic "admin" wording. That is naming debt rather than a routing-boundary problem.
+
+## Target Rule Note (Not Yet In UI Workflow)
+
+- cash cashout target: approval should allow journal posting
+- card cashout target: approval should require bank-statement match before journal posting

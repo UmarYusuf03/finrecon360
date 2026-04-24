@@ -21,6 +21,11 @@
   grid-template-columns: repeat(3, minmax(180px, 1fr));
   gap: 10px;
   margin-bottom: 14px;
+  align-items: end;
+}
+
+.filters > * {
+  min-width: 0;
 }
 
 .filters input {
@@ -28,6 +33,7 @@
   padding: 8px;
   border: 1px solid #d6d9e4;
   border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .filters label {
@@ -37,10 +43,21 @@
   color: #4f586b;
 }
 
+.filters label input[type='datetime-local'] {
+  min-width: 0;
+}
+
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: end;
+  justify-content: flex-start;
+}
+
+.actions .primary-btn,
+.actions .ghost-btn {
+  white-space: nowrap;
 }
 
 .primary-btn,

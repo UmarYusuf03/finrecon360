@@ -24,7 +24,7 @@
         routerLink="/app/imports"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
-        *ngIf="!(user$ | async)?.isSystemAdmin"
+        *ngIf="!(user$ | async)?.isSystemAdmin && hasAnyPermission(user$ | async, importEntryPermissions)"
       >
         Imports
       </a>

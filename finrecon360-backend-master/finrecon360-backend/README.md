@@ -14,15 +14,16 @@ Implemented backend areas:
 - public tenant registration
 - system-admin review of tenant registrations
 - tenant provisioning with one tenant database per tenant
-- Stripe checkout for subscription activation
+- PayHere checkout for subscription activation
 - tenant and user enforcement
 - tenant-scoped RBAC in tenant databases
 - tenant-admin management of users, roles, permissions, components, and actions
+- canonical import pipeline foundation (upload, parse, mapping, validation, normalization, commit)
+- tenant-admin import architecture APIs (canonical schema and mapping-template management)
 - `api/me` tenant resolution and permission hydration
 
 Not yet implemented as finance-operational modules:
 
-- canonical ERP import pipeline
 - transaction state and transaction state history
 - cash-in and cashout workflow orchestration
 - bank statement matching
@@ -51,7 +52,7 @@ Current control-plane entities include:
 
 ### Tenant Database
 
-Each tenant database currently contains RBAC and tenant-directory structures:
+Each tenant database currently contains RBAC, tenant-directory, and import-foundation structures:
 
 - `TenantUsers`
 - `Roles`
@@ -60,8 +61,12 @@ Each tenant database currently contains RBAC and tenant-directory structures:
 - `AppComponents`
 - `PermissionActions`
 - `UserRoles`
+- `ImportBatches`
+- `ImportedRawRecords`
+- `ImportedNormalizedRecords`
+- `ImportMappingTemplates`
 
-At present, tenant databases do not yet contain the finance-operational tables described in the architecture baseline.
+At present, tenant databases include canonical import tables, but do not yet contain full reconciliation, transaction-state-history, and journal-orchestration tables described in the architecture baseline.
 
 ## Auth And Onboarding Flow
 
@@ -92,8 +97,8 @@ The current onboarding path is:
    - initial tenant-admin membership
 4. Tenant admin receives onboarding magic link
 5. Tenant admin sets password through `api/onboarding/set-password`
-6. Tenant admin selects plan and creates Stripe checkout through `api/onboarding/subscriptions/checkout`
-7. Stripe webhook activates the subscription and tenant
+6. Tenant admin selects plan and creates PayHere checkout through `api/onboarding/subscriptions/checkout`
+7. PayHere webhook activates the subscription and tenant
 
 ## Authorization Model
 
@@ -141,7 +146,7 @@ Backend auth and authorization enforce active-tenant access for tenant-scoped ro
 - `POST /api/onboarding/magic-link/verify`
 - `POST /api/onboarding/set-password`
 - `POST /api/onboarding/subscriptions/checkout`
-- `POST /api/webhooks/stripe`
+- `POST /api/webhooks/payhere`
 
 ### Tenant Admin
 
@@ -154,6 +159,31 @@ Backend auth and authorization enforce active-tenant access for tenant-scoped ro
 - `GET/POST/PUT /api/admin/actions`
 - `GET /api/admin/permissions`
 
+### Imports
+
+- `POST /api/imports` (upload CSV/XLSX)
+- `GET /api/imports` (history)
+- `POST /api/imports/{id}/parse`
+- `POST /api/imports/{id}/mapping`
+- `POST /api/imports/{id}/validate`
+- `POST /api/imports/{id}/commit`
+- `GET /api/imports/{id}/validation-rows`
+- `PUT /api/imports/{id}/raw-records/{rawRecordId}`
+- `GET /api/imports/active-template`
+- `DELETE /api/imports/{id}`
+
+### Tenant Admin Import Architecture
+
+- `GET /api/admin/import-architecture/overview`
+- `GET /api/admin/import-architecture/canonical-schema`
+- `GET/POST /api/admin/import-architecture/mapping-templates`
+- `PUT/DELETE /api/admin/import-architecture/mapping-templates/{templateId}`
+- `DELETE /api/admin/import-architecture/mapping-templates/{templateId}/hard`
+- `POST /api/admin/import-architecture/batches`
+- `GET /api/admin/import-architecture/batches/{batchId}`
+- `POST /api/admin/import-architecture/batches/{batchId}/raw-records`
+- `POST /api/admin/import-architecture/batches/{batchId}/normalized-records`
+
 ### System Admin
 
 - `GET/POST /api/system/tenant-registrations/*`
@@ -165,31 +195,33 @@ Backend auth and authorization enforce active-tenant access for tenant-scoped ro
 - `GET/POST/PUT /api/system/plans`
 - `POST /api/system/enforcement/tenants/{tenantId}/users/{userId}/*`
 
-## Known Contradictions And Gaps Vs Target Architecture
+## Known Gaps Vs Target Architecture
 
-### 1. Global User Separation Is Not Fully Modeled
-
-The target design describes global or public users as conceptually distinct from tenant operational users. The current backend uses a shared global `Users` table and links those records into tenant membership. That is workable, but it is not a strict separate-identity model.
-
-### 2. Subscription Limits Do Not Match The Intended Semantics
-
-`Plan` currently exposes `MaxAccounts`. Tenant user creation currently reads that field to enforce the tenant user cap. This is a mismatch between model name and actual behavior.
-
-### 3. Finance Workflows Are Not Built Yet
+### 1. Finance Workflows Are Not Built Yet
 
 The architecture baseline documents:
 
-- canonical imports
 - reconciliation
 - cashout state rules
 - journal gating
 - reporting snapshots
 
-Those are not present as working backend modules in the current codebase.
+Canonical import foundations are now present in the current codebase. Reconciliation, cashout-state workflows, journal gating, and reporting snapshots are still not present as complete backend modules.
 
-### 4. Auth Direction Is Mixed
+### 2. Auth Direction Is Mixed
 
 The target narrative describes a magic-link or token-driven direction. The current backend supports onboarding and verification magic links, but normal login remains email-plus-password with JWT issuance.
+
+## Alignment Updates Implemented
+
+- Subscription limits: `Plan` now models both `MaxUsers` and `MaxAccounts`, and tenant user creation enforces `MaxUsers`.
+- Global/public separation: `UserType` now classifies identities as `GlobalPublic`, `TenantOperational`, or `SystemAdmin`, and tenant assignment flows enforce these boundaries.
+
+## Target Business Rules Tracked But Not Yet Implemented
+
+- cash cashout target rule: approval should permit journal posting
+- card cashout target rule: approval should require successful bank-statement match before journal posting
+- transaction audit target rule: transition tracking should be modeled through `TransactionState` and `TransactionStateHistory`
 
 ## Environment Variables
 
@@ -205,10 +237,10 @@ Important values:
 - `SYSTEM_ADMIN_PASSWORD`
 - `TENANT_DB_TEMPLATE`
 - Brevo settings
-- Stripe settings
+- PayHere settings
 
 ## Local Development Notes
 
 - Startup runs control-plane EF migrations automatically outside testing and design-time environments.
 - Startup seeding creates roles, permissions, components, actions, and the configured system admin.
-- Temporary tenant bypass seeding has been removed. Use the real registration, approval, onboarding, and Stripe flow for tenant activation.
+- Temporary tenant bypass seeding has been removed. Use the real registration, approval, onboarding, and PayHere flow for tenant activation.

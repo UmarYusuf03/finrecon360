@@ -57,6 +57,7 @@ export interface PlanSummary {
   priceCents: number;
   currency: string;
   durationDays: number;
+  maxUsers: number;
   maxAccounts: number;
   isActive: boolean;
 }

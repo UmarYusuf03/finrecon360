@@ -100,4 +100,17 @@ Frontend unit tests use `src/environments/environment.test.ts` with `mockApi: tr
 
 ## Current Scope Warning
 
-The target architecture describes future finance workflows such as canonical imports, reconciliation, journaling, and reporting snapshots. Those are not fully implemented in this repository yet. Current local development is primarily around tenancy, onboarding, RBAC, and admin surfaces.
+The target architecture describes broader finance workflows such as reconciliation orchestration, journal gating, transaction state history, cashout branching rules, and reporting snapshots. Those are not fully implemented in this repository yet.
+
+What is already implemented beyond tenancy/onboarding/RBAC:
+
+- canonical import foundation in backend and frontend (`/app/imports` and `/app/admin/import-architecture`)
+- import pipeline stages: upload -> parse -> field mapping -> validation -> normalization commit
+- canonical schema and mapping-template management APIs for tenant-admin users
+
+What remains target-state:
+
+- cashout workflow branching (cash approval -> journal vs card approval -> bank match -> journal)
+- transaction state and transaction state history entities
+- reconciliation engine and journal posting orchestration modules
+- reporting snapshot jobs and finance KPI tables

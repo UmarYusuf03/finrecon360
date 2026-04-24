@@ -18,15 +18,28 @@ The codebase currently implements these areas:
 - tenant provisioning and tenant database creation
 - tenant-scoped RBAC and tenant user management
 - onboarding via magic link, password setup, and Stripe checkout activation
+- canonical import foundation (upload, parse, map, validate, normalize, commit)
 - basic dashboard and profile surfaces
 
-The codebase does not yet implement the full finance-operational target described in the architecture baseline. In particular, canonical ERP import, transaction state history, cashout workflow control, reconciliation orchestration, journal posting rules, and reporting snapshots are not present as working backend modules today.
+The codebase still does not implement the full finance-operational target described in the architecture baseline. In particular, transaction state history, cashout workflow control, reconciliation orchestration, journal posting rules, and reporting snapshots are not present as working backend modules today.
 
 ## Important Contradictions To Keep In View
 
-- Subscription enforcement does not yet match the target design. The current `Plan` model exposes `MaxAccounts`, and tenant user creation currently uses that field as the user-cap check.
-- The target design treats global or public users as distinct from tenant operational users. The current implementation still centers on one global `Users` table plus tenant membership links, so the distinction is not modeled as cleanly as the target architecture describes.
-- Finance workflow modules in the architecture document are target-state only at this point; the current repository mainly implements onboarding, tenancy, and RBAC foundations.
+- Subscription enforcement now separates `MaxUsers` (tenant operational user cap) and `MaxAccounts` (bank account cap) in the `Plan` model and user-creation enforcement path.
+- Global/public identity separation is now explicitly modeled through `UserType` (`GlobalPublic`, `TenantOperational`, `SystemAdmin`) with tenant-assignment guards and controlled conversion for onboarding/admin assignment flows.
+- Finance workflow modules are only partially implemented at this point. Canonical import is present, but reconciliation, transaction-state history, cashout workflow gating, journal posting orchestration, and reporting snapshots are still target-state.
+
+## Role Boundaries (Current vs Target)
+
+- System Admin: implemented for plan, tenant registration review, tenant lifecycle enforcement, and platform governance.
+- Tenant Admin: implemented for tenant user/RBAC/component/action administration and import architecture ownership.
+- Global/Public User: explicitly classified via `UserType.GlobalPublic`; tenant operational users are classified separately as `UserType.TenantOperational`.
+
+## Target Rules Tracked But Not Yet Implemented
+
+- Cash cashout target rule: approval should be sufficient for journal posting.
+- Card cashout target rule: approval should require bank-statement match before journal posting.
+- Transaction lifecycle target rule: use `TransactionState` + `TransactionStateHistory` instead of single ad hoc status fields.
 
 ## Notes
 

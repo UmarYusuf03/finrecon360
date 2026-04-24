@@ -50,6 +50,14 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
                 ["Jwt:Audience"] = "test-audience",
                 ["Jwt:ExpiresMinutes"] = "60",
                 ["FRONTEND_BASE_URL"] = "http://localhost:4200",
+                ["PAYHERE_MERCHANT_ID"] = "123123",
+                ["PAYHERE_MERCHANT_SECRET"] = "secret123",
+                ["PAYHERE_CHECKOUT_BASE_URL"] = "https://sandbox.payhere.lk/pay/checkout",
+                ["PAYHERE_RETURN_URL"] = "http://localhost:4200/onboarding/success",
+                ["PAYHERE_CANCEL_URL"] = "http://localhost:4200/onboarding/cancel",
+                ["PAYHERE_NOTIFY_URL"] = "http://localhost/api/webhooks/payhere",
+                ["PAYHERE_CURRENCY"] = "LKR",
+                ["PAYMENT_ALLOW_LOCAL_BYPASS"] = "false",
                 ["BREVO_TEMPLATE_ID_MAGICLINK_VERIFY"] = "1",
                 ["BREVO_TEMPLATE_ID_MAGICLINK_INVITE"] = "4",
                 ["BREVO_TEMPLATE_ID_MAGICLINK_RESET"] = "2",
@@ -66,6 +74,9 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
             {
                 options.UseInMemoryDatabase(_dbName);
             });
+
+            services.RemoveAll(typeof(ITenantUserDirectoryService));
+            services.AddSingleton<ITenantUserDirectoryService, NoOpTenantUserDirectoryService>();
 
             services.RemoveAll(typeof(IEmailSender));
             services.AddSingleton<IEmailSender>(EmailSender);
@@ -112,6 +123,19 @@ services.Configure<JwtSettings>(options =>
                 options.FrontendBaseUrl = "http://localhost:4200";
             });
         });
+    }
+
+    private sealed class NoOpTenantUserDirectoryService : ITenantUserDirectoryService
+    {
+        public Task UpsertTenantUserAsync(Guid tenantId, User user, TenantUserRole role, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task ReplaceTenantAdminsAsync(Guid tenantId, IReadOnlyCollection<User> admins, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     public static HttpClient CreateAuthenticatedClient(TestWebApplicationFactory factory, Guid userId, string email)

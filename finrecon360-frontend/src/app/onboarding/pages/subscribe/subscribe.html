@@ -16,6 +16,9 @@
           Duration: {{ plan.durationDays }} days
         </div>
         <div class="meta">
+          Max users: {{ plan.maxUsers }}
+        </div>
+        <div class="meta">
           Max accounts: {{ plan.maxAccounts }}
         </div>
         <button class="primary-btn" (click)="selectPlan(plan)">Select</button>

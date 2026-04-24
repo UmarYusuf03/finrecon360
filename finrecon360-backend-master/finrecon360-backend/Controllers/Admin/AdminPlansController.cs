@@ -36,6 +36,7 @@ namespace finrecon360_backend.Controllers.Admin
                     p.PriceCents,
                     p.Currency,
                     p.DurationDays,
+                    p.MaxUsers,
                     p.MaxAccounts,
                     p.IsActive))
                 .ToListAsync();
@@ -63,6 +64,7 @@ namespace finrecon360_backend.Controllers.Admin
                 PriceCents = request.PriceCents,
                 Currency = request.Currency.Trim().ToUpperInvariant(),
                 DurationDays = request.DurationDays,
+                MaxUsers = request.MaxUsers,
                 MaxAccounts = request.MaxAccounts,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -78,6 +80,7 @@ namespace finrecon360_backend.Controllers.Admin
                 plan.PriceCents,
                 plan.Currency,
                 plan.DurationDays,
+                plan.MaxUsers,
                 plan.MaxAccounts,
                 plan.IsActive));
         }
@@ -106,6 +109,7 @@ namespace finrecon360_backend.Controllers.Admin
             plan.PriceCents = request.PriceCents;
             plan.Currency = request.Currency.Trim().ToUpperInvariant();
             plan.DurationDays = request.DurationDays;
+            plan.MaxUsers = request.MaxUsers;
             plan.MaxAccounts = request.MaxAccounts;
 
             await _dbContext.SaveChangesAsync();
@@ -117,6 +121,7 @@ namespace finrecon360_backend.Controllers.Admin
                 plan.PriceCents,
                 plan.Currency,
                 plan.DurationDays,
+                plan.MaxUsers,
                 plan.MaxAccounts,
                 plan.IsActive));
         }

@@ -39,10 +39,16 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.ROLES.VIEW',
     'ADMIN.COMPONENTS.VIEW',
     'ADMIN.PERMISSIONS.VIEW',
+    'ADMIN.AUDIT_LOGS.VIEW',
     'ADMIN.TENANT_REGISTRATIONS.MANAGE',
     'ADMIN.TENANTS.MANAGE',
     'ADMIN.PLANS.MANAGE',
     'ADMIN.ENFORCEMENT.MANAGE',
+  ];
+
+  readonly importEntryPermissions: string[] = [
+    'ADMIN.IMPORT_WORKBENCH.VIEW',
+    'ADMIN.IMPORT_ARCHITECTURE.VIEW',
   ];
 
   user$: Observable<CurrentUser | null>;

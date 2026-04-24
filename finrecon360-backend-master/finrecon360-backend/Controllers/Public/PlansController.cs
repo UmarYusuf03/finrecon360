@@ -30,6 +30,7 @@ namespace finrecon360_backend.Controllers.Public
                     p.PriceCents,
                     p.Currency,
                     p.DurationDays,
+                    p.MaxUsers,
                     p.MaxAccounts))
                 .ToListAsync();
 

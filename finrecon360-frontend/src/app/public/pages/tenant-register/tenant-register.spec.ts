@@ -51,4 +51,12 @@ describe('TenantRegisterComponent', () => {
     expect(component.success).toBeTrue();
     expect(component.error).toBeNull();
   });
+
+  it('shows admin-email assignment helper text', () => {
+    const host: HTMLElement = fixture.nativeElement;
+    const helperText = host.textContent ?? '';
+
+    expect(helperText).toContain('This email will be set as the initial Tenant Admin account');
+    expect(helperText).toContain('onboarding magic link');
+  });
 });

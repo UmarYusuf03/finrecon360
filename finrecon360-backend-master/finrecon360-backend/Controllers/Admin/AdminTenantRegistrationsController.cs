@@ -199,7 +199,8 @@ namespace finrecon360_backend.Controllers.Admin
                     CreatedAt = DateTime.UtcNow,
                     EmailConfirmed = false,
                     IsActive = true,
-                    Status = UserStatus.Invited
+                    Status = UserStatus.Invited,
+                    UserType = UserType.TenantOperational
                 };
                 _dbContext.Users.Add(user);
             }
@@ -209,12 +210,20 @@ namespace finrecon360_backend.Controllers.Admin
             }
             else
             {
+                if (user.UserType == UserType.SystemAdmin)
+                {
+                    return Conflict(new { message = "System admin accounts cannot be used as tenant operational admins." });
+                }
+
                 var hasAnyTenantMembership = await _dbContext.TenantUsers.AsNoTracking()
                     .AnyAsync(tu => tu.UserId == user.UserId);
                 if (hasAnyTenantMembership)
                 {
                     return Conflict(new { message = "Admin email is already assigned to another tenant." });
                 }
+
+                user.UserType = UserType.TenantOperational;
+                user.UpdatedAt = DateTime.UtcNow;
             }
 
             var tenantUser = new TenantUser

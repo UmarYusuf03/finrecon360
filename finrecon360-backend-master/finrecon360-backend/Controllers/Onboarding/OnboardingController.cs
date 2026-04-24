@@ -15,7 +15,9 @@ namespace finrecon360_backend.Controllers.Onboarding
         private readonly IOnboardingMagicLinkService _magicLinkService;
         private readonly IOnboardingTokenService _tokenService;
         private readonly IPasswordHasher _passwordHasher;
-        private readonly IStripeCheckoutService _stripeCheckoutService;
+        private readonly IPaymentCheckoutService _paymentCheckoutService;
+        private readonly IWebHostEnvironment _environment;
+        private readonly IConfiguration _configuration;
         private readonly IAuditLogger _auditLogger;
 
         public OnboardingController(
@@ -23,14 +25,18 @@ namespace finrecon360_backend.Controllers.Onboarding
             IOnboardingMagicLinkService magicLinkService,
             IOnboardingTokenService tokenService,
             IPasswordHasher passwordHasher,
-            IStripeCheckoutService stripeCheckoutService,
+            IPaymentCheckoutService paymentCheckoutService,
+            IWebHostEnvironment environment,
+            IConfiguration configuration,
             IAuditLogger auditLogger)
         {
             _dbContext = dbContext;
             _magicLinkService = magicLinkService;
             _tokenService = tokenService;
             _passwordHasher = passwordHasher;
-            _stripeCheckoutService = stripeCheckoutService;
+            _paymentCheckoutService = paymentCheckoutService;
+            _environment = environment;
+            _configuration = configuration;
             _auditLogger = auditLogger;
         }
 
@@ -164,8 +170,24 @@ namespace finrecon360_backend.Controllers.Onboarding
             _dbContext.Subscriptions.Add(subscription);
             await _dbContext.SaveChangesAsync();
 
-            if (!_stripeCheckoutService.IsConfigured())
+            if (!_paymentCheckoutService.IsConfigured())
             {
+                var allowLocalBypass = _configuration.GetValue<bool>("PAYMENT_ALLOW_LOCAL_BYPASS", false);
+                if (_environment.IsProduction() || !allowLocalBypass)
+                {
+                    await _auditLogger.LogAsync(
+                        tokenResult.UserId.Value,
+                        "OnboardingCheckoutBlocked",
+                        "Subscription",
+                        subscription.SubscriptionId.ToString(),
+                        "Payment provider is not configured and bypass is disabled.");
+
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                    {
+                        message = "Payment service is not configured. Please contact support."
+                    });
+                }
+
                 var now = DateTime.UtcNow;
                 subscription.Status = SubscriptionStatus.Active;
                 subscription.CurrentPeriodStart = now;
@@ -176,12 +198,17 @@ namespace finrecon360_backend.Controllers.Onboarding
                 tenant.CurrentSubscriptionId = subscription.SubscriptionId;
 
                 await _dbContext.SaveChangesAsync();
-                await _auditLogger.LogAsync(tokenResult.UserId.Value, "OnboardingCheckoutBypassed", "Subscription", subscription.SubscriptionId.ToString(), "Stripe not configured; local activation applied.");
+                await _auditLogger.LogAsync(
+                    tokenResult.UserId.Value,
+                    "OnboardingCheckoutBypassed",
+                    "Subscription",
+                    subscription.SubscriptionId.ToString(),
+                    $"{_paymentCheckoutService.GetProviderName()} not configured; local activation applied.");
 
-                return Ok(new OnboardingCheckoutResponse(_stripeCheckoutService.GetFallbackCheckoutUrl()));
+                return Ok(new OnboardingCheckoutResponse(_paymentCheckoutService.GetFallbackCheckoutUrl()));
             }
 
-            var session = await _stripeCheckoutService.CreateCheckoutSessionAsync(
+            var session = await _paymentCheckoutService.CreateCheckoutSessionAsync(
                 plan.Name,
                 plan.PriceCents,
                 plan.Currency,
@@ -194,8 +221,8 @@ namespace finrecon360_backend.Controllers.Onboarding
                 PaymentSessionId = Guid.NewGuid(),
                 TenantId = tenant.TenantId,
                 SubscriptionId = subscription.SubscriptionId,
-                StripeSessionId = session.Id,
-                StripeCustomerId = session.CustomerId,
+                ProviderSessionId = session.SessionId,
+                ProviderReferenceId = session.CustomerId,
                 Status = PaymentSessionStatus.Created,
                 CreatedAt = DateTime.UtcNow
             };
@@ -203,9 +230,14 @@ namespace finrecon360_backend.Controllers.Onboarding
             _dbContext.PaymentSessions.Add(paymentSession);
             await _dbContext.SaveChangesAsync();
 
-            await _auditLogger.LogAsync(tokenResult.UserId.Value, "OnboardingCheckoutCreated", "Subscription", subscription.SubscriptionId.ToString(), null);
+            await _auditLogger.LogAsync(
+                tokenResult.UserId.Value,
+                "OnboardingCheckoutCreated",
+                "Subscription",
+                subscription.SubscriptionId.ToString(),
+                $"provider={session.Provider};sessionId={session.SessionId}");
 
-            return Ok(new OnboardingCheckoutResponse(session.Url));
+            return Ok(new OnboardingCheckoutResponse(session.CheckoutUrl));
         }
     }
 }

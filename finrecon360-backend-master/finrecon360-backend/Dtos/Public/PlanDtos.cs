@@ -7,5 +7,6 @@ namespace finrecon360_backend.Dtos.Public
         long PriceCents,
         string Currency,
         int DurationDays,
+        int MaxUsers,
         int MaxAccounts);
 }

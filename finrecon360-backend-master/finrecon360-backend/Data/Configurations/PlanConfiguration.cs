@@ -27,6 +27,12 @@ namespace finrecon360_backend.Data.Configurations
                 .HasMaxLength(8)
                 .HasDefaultValue("USD");
 
+            builder.Property(p => p.MaxUsers)
+                .HasDefaultValue(10);
+
+            builder.Property(p => p.MaxAccounts)
+                .HasDefaultValue(3);
+
             builder.Property(p => p.IsActive)
                 .HasDefaultValue(true);
 

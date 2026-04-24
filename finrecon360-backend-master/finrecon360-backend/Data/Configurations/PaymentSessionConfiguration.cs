@@ -15,11 +15,11 @@ namespace finrecon360_backend.Data.Configurations
             builder.Property(p => p.PaymentSessionId)
                 .ValueGeneratedNever();
 
-            builder.Property(p => p.StripeSessionId)
+            builder.Property(p => p.ProviderSessionId)
                 .HasMaxLength(256)
                 .IsRequired();
 
-            builder.Property(p => p.StripeCustomerId)
+            builder.Property(p => p.ProviderReferenceId)
                 .HasMaxLength(256);
 
             builder.Property(p => p.Status)
@@ -44,7 +44,7 @@ namespace finrecon360_backend.Data.Configurations
                 .HasForeignKey(p => p.SubscriptionId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasIndex(p => p.StripeSessionId)
+            builder.HasIndex(p => p.ProviderSessionId)
                 .IsUnique();
         }
     }

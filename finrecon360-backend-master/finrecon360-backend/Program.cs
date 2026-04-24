@@ -103,12 +103,15 @@ builder.Services.Configure<TenantProvisioningOptions>(options =>
         ?? builder.Configuration["TENANT_DB_DEFAULT"];
 });
 
-builder.Services.Configure<StripeOptions>(options =>
+builder.Services.Configure<PayHereOptions>(options =>
 {
-    options.ApiKey = builder.Configuration["STRIPE_API_KEY"] ?? string.Empty;
-    options.WebhookSecret = builder.Configuration["STRIPE_WEBHOOK_SECRET"] ?? string.Empty;
-    options.SuccessUrl = builder.Configuration["STRIPE_SUCCESS_URL"] ?? string.Empty;
-    options.CancelUrl = builder.Configuration["STRIPE_CANCEL_URL"] ?? string.Empty;
+    options.MerchantId = builder.Configuration["PAYHERE_MERCHANT_ID"] ?? string.Empty;
+    options.MerchantSecret = builder.Configuration["PAYHERE_MERCHANT_SECRET"] ?? string.Empty;
+    options.CheckoutBaseUrl = builder.Configuration["PAYHERE_CHECKOUT_BASE_URL"] ?? "https://sandbox.payhere.lk/pay/checkout";
+    options.ReturnUrl = builder.Configuration["PAYHERE_RETURN_URL"] ?? string.Empty;
+    options.CancelUrl = builder.Configuration["PAYHERE_CANCEL_URL"] ?? string.Empty;
+    options.NotifyUrl = builder.Configuration["PAYHERE_NOTIFY_URL"] ?? string.Empty;
+    options.Currency = builder.Configuration["PAYHERE_CURRENCY"] ?? "LKR";
 });
 
 builder.Services.Configure<OnboardingTokenOptions>(options =>
@@ -134,7 +137,8 @@ builder.Services.AddScoped<ITenantUserDirectoryService, TenantUserDirectoryServi
 builder.Services.AddScoped<ISystemEnforcementService, SystemEnforcementService>();
 builder.Services.AddScoped<IOnboardingTokenService, OnboardingTokenService>();
 builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkService>();
-builder.Services.AddScoped<IStripeCheckoutService, StripeCheckoutService>();
+builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
+builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
 
@@ -339,7 +343,10 @@ if (!app.Environment.IsEnvironment("DesignTime") && !app.Environment.IsEnvironme
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+    if (db.Database.IsRelational())
+    {
+        await db.Database.MigrateAsync();
+    }
     await DbSeeder.SeedAsync(db);
 }
 
@@ -441,7 +448,8 @@ app.MapPost("/api/auth/register", async (
         CreatedAt = DateTime.UtcNow,
         EmailConfirmed = false,
         IsActive = true,
-        Status = UserStatus.Active
+        Status = UserStatus.Active,
+        UserType = UserType.GlobalPublic
     };
 
     db.Users.Add(user);

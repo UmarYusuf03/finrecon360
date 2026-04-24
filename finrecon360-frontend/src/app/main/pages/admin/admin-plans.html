@@ -10,6 +10,7 @@
         <th>Name</th>
         <th>Price</th>
         <th>Duration</th>
+        <th>Max Users</th>
         <th>Max Accounts</th>
         <th>Status</th>
         <th></th>
@@ -21,6 +22,7 @@
         <td>{{ plan.name }}</td>
         <td>{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</td>
         <td>{{ plan.durationDays }} days</td>
+        <td>{{ plan.maxUsers }}</td>
         <td>{{ plan.maxAccounts }}</td>
         <td>{{ plan.isActive ? 'Active' : 'Inactive' }}</td>
         <td class="actions">
@@ -39,6 +41,7 @@
     <input type="number" formControlName="priceCents" placeholder="Price (cents)" />
     <input formControlName="currency" placeholder="Currency" />
     <input type="number" formControlName="durationDays" placeholder="Duration (days)" />
+    <input type="number" formControlName="maxUsers" placeholder="Max users" />
     <input type="number" formControlName="maxAccounts" placeholder="Max accounts" />
     <div class="actions">
       <button class="primary-btn" type="button" (click)="save()">

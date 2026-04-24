@@ -62,7 +62,9 @@ export class AdminPermissionService {
     TENANT_MGMT: 'ADMIN.TENANTS',
     PLAN_MGMT: 'ADMIN.PLANS',
     ENFORCEMENT_MGMT: 'ADMIN.ENFORCEMENT',
+    IMPORT_WORKBENCH_MGMT: 'ADMIN.IMPORT_WORKBENCH',
     IMPORT_ARCHITECTURE_MGMT: 'ADMIN.IMPORT_ARCHITECTURE',
+    AUDIT_LOGS_MGMT: 'ADMIN.AUDIT_LOGS',
   };
 
   private readonly actionsSubject = new BehaviorSubject<ActionDefinition[]>([]);

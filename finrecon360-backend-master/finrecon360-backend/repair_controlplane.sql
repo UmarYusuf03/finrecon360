@@ -21,12 +21,19 @@ BEGIN
         [PriceCents] bigint NOT NULL,
         [Currency] nvarchar(8) NOT NULL CONSTRAINT [DF_Plans_Currency] DEFAULT (N'USD'),
         [DurationDays] int NOT NULL,
+        [MaxUsers] int NOT NULL CONSTRAINT [DF_Plans_MaxUsers] DEFAULT (10),
         [MaxAccounts] int NOT NULL,
         [IsActive] bit NOT NULL CONSTRAINT [DF_Plans_IsActive] DEFAULT (1),
         [CreatedAt] datetime2 NOT NULL CONSTRAINT [DF_Plans_CreatedAt] DEFAULT (SYSUTCDATETIME()),
         CONSTRAINT [PK_Plans] PRIMARY KEY ([PlanId])
     );
     CREATE UNIQUE INDEX [IX_Plans_Code] ON [Plans] ([Code]);
+END
+
+IF COL_LENGTH('Plans', 'MaxUsers') IS NULL
+BEGIN
+    ALTER TABLE [Plans] ADD [MaxUsers] int NOT NULL CONSTRAINT [DF_Plans_MaxUsers] DEFAULT (10);
+    UPDATE [Plans] SET [MaxUsers] = [MaxAccounts] WHERE [MaxUsers] = 10;
 END
 
 IF OBJECT_ID(N'[Subscriptions]', N'U') IS NULL
