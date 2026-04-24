@@ -21,6 +21,8 @@ namespace finrecon360_backend.Data
         public DbSet<ImportedNormalizedRecord> ImportedNormalizedRecords => Set<ImportedNormalizedRecord>();
         public DbSet<ImportMappingTemplate> ImportMappingTemplates => Set<ImportMappingTemplate>();
 
+        
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<TenantScopedUser>(entity =>

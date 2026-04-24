@@ -137,6 +137,7 @@ builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkServi
 builder.Services.AddScoped<IStripeCheckoutService, StripeCheckoutService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
+builder.Services.AddScoped<IReconciliationService, ReconciliationService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");

@@ -33,12 +33,12 @@ namespace finrecon360_backend.Data.Configurations
             builder.HasOne(s => s.Tenant)
                 .WithMany()
                 .HasForeignKey(s => s.TenantId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(s => s.Plan)
                 .WithMany(p => p.Subscriptions)
                 .HasForeignKey(s => s.PlanId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

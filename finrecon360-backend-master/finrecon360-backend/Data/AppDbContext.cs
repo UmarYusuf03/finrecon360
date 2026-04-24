@@ -1,15 +1,57 @@
 ﻿using finrecon360_backend.Data.Configurations;
 using finrecon360_backend.Models;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 
 namespace finrecon360_backend.Data
 {
     public class AppDbContext : DbContext
     {
+        private readonly IServiceProvider? _serviceProvider;
+        private Guid? _currentTenantId;
+        private bool _tenantResolved;
+
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base(options)
         {
+        }
+
+        public AppDbContext(DbContextOptions<AppDbContext> options, IServiceProvider serviceProvider)
+            : base(options)
+        {
+            _serviceProvider = serviceProvider;
+        }
+
+        private Guid CurrentTenantId
+        {
+            get
+            {
+                if (_tenantResolved)
+                {
+                    return _currentTenantId ?? Guid.Empty;
+                }
+
+                _tenantResolved = true;
+
+                if (_serviceProvider == null)
+                {
+                    return Guid.Empty;
+                }
+
+                try
+                {
+                    var tenantContext = _serviceProvider.GetService(typeof(finrecon360_backend.Services.ITenantContext)) as finrecon360_backend.Services.ITenantContext;
+                    var resolved = tenantContext?.ResolveAsync().GetAwaiter().GetResult();
+                    _currentTenantId = resolved?.TenantId;
+                }
+                catch
+                {
+                    _currentTenantId = null;
+                }
+
+                return _currentTenantId ?? Guid.Empty;
+            }
         }
 
         public DbSet<User> Users => Set<User>();
@@ -30,6 +72,13 @@ namespace finrecon360_backend.Data
         public DbSet<PaymentSession> PaymentSessions => Set<PaymentSession>();
         public DbSet<MagicLinkToken> MagicLinkTokens => Set<MagicLinkToken>();
         public DbSet<EnforcementAction> EnforcementActions => Set<EnforcementAction>();
+        public DbSet<BankStatementImport> BankStatementImports => Set<BankStatementImport>();
+        public DbSet<BankStatementLine> BankStatementLines => Set<BankStatementLine>();
+        public DbSet<ReconciliationRun> ReconciliationRuns => Set<ReconciliationRun>();
+        public DbSet<MatchGroup> MatchGroups => Set<MatchGroup>();
+        public DbSet<MatchDecision> MatchDecisions => Set<MatchDecision>();
+        public DbSet<ReconciliationException> ReconciliationExceptions => Set<ReconciliationException>();
+        public DbSet<ReportSnapshot> ReportSnapshots => Set<ReportSnapshot>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -52,7 +101,54 @@ namespace finrecon360_backend.Data
             modelBuilder.ApplyConfiguration(new MagicLinkTokenConfiguration());
             modelBuilder.ApplyConfiguration(new EnforcementActionConfiguration());
 
-            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<BankStatementImport>()
+                .Property(x => x.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<ReconciliationRun>()
+                .Property(x => x.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<MatchGroup>()
+                .Property(x => x.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<MatchDecision>()
+                .Property(x => x.Decision)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<ReconciliationException>()
+                .Property(x => x.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<MatchDecision>()
+                .HasOne(x => x.MatchGroup)
+                .WithMany(x => x.MatchDecisions)
+                .HasForeignKey(x => x.MatchGroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<BankStatementImport>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<BankStatementLine>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<ReconciliationRun>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<MatchGroup>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<MatchDecision>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<ReconciliationException>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<ReportSnapshot>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            
         }
     }
 }
