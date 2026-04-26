@@ -54,6 +54,42 @@ export interface BankAccount {
   updatedAt?: string | null;
 }
 
+export interface Transaction {
+  transactionId: string;
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+  transactionState: string;
+  createdByUserId?: string | null;
+  approvedAt?: string | null;
+  approvedByUserId?: string | null;
+  rejectedAt?: string | null;
+  rejectedByUserId?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface CreateTransactionRequest {
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+}
+
+export interface ApproveTransactionRequest {
+  note?: string | null;
+}
+
+export interface RejectTransactionRequest {
+  reason: string;
+}
+
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;
