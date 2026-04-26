@@ -50,4 +50,13 @@ namespace finrecon360_backend.Dtos.Transactions
         string? RejectionReason,
         DateTime CreatedAt,
         DateTime? UpdatedAt);
+
+    public record TransactionStateHistoryResponse(
+        Guid TransactionStateHistoryId,
+        Guid TransactionId,
+        string FromState,
+        string ToState,
+        Guid? ChangedByUserId,
+        DateTime ChangedAt,
+        string? Note);
 }

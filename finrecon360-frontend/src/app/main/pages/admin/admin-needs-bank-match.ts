@@ -7,11 +7,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 
+import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
-import { Transaction } from '../../../core/admin-rbac/models';
+import { BankAccount, Transaction } from '../../../core/admin-rbac/models';
 
 @Component({
-  selector: 'app-admin-journal-ready',
+  selector: 'app-admin-needs-bank-match',
   standalone: true,
   imports: [
     CommonModule,
@@ -21,36 +22,59 @@ import { Transaction } from '../../../core/admin-rbac/models';
     MatSnackBarModule,
     MatProgressSpinnerModule,
   ],
-  templateUrl: './admin-journal-ready.html',
+  templateUrl: './admin-needs-bank-match.html',
 })
-export class AdminJournalReadyComponent implements OnInit {
-  displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'description', 'createdAt'];
+export class AdminNeedsBankMatchComponent implements OnInit {
+  displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'description', 'state'];
   transactions: Transaction[] = [];
+  bankAccounts: BankAccount[] = [];
   loading = false;
 
   constructor(
     private transactionService: TransactionService,
+    private bankAccountService: BankAccountService,
     private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit(): void {
-    this.loadJournalReady();
+    this.loadBankAccounts();
+    this.loadNeedsBankMatch();
   }
 
   refresh(): void {
-    this.loadJournalReady();
+    this.loadNeedsBankMatch();
   }
 
-  private loadJournalReady(): void {
+  getBankAccountLabel(bankAccountId?: string | null): string {
+    if (!bankAccountId) {
+      return '-';
+    }
+
+    const account = this.bankAccounts.find((item) => item.bankAccountId === bankAccountId);
+    return account ? `${account.bankName} - ${account.accountNumber}` : bankAccountId;
+  }
+
+  private loadNeedsBankMatch(): void {
     this.loading = true;
-    // The backend only returns JournalReady items; NeedsBankMatch remains outside this queue.
-    this.transactionService.getJournalReady().subscribe({
+    // This queue is read-only until the matcher/reconciliation member owns the next handoff.
+    this.transactionService.getNeedsBankMatch().subscribe({
       next: (transactions) => {
         this.transactions = transactions;
         this.loading = false;
       },
       error: (error: unknown) => {
         this.loading = false;
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
+    });
+  }
+
+  private loadBankAccounts(): void {
+    this.bankAccountService.getAll().subscribe({
+      next: (accounts) => {
+        this.bankAccounts = accounts;
+      },
+      error: (error: unknown) => {
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
       },
     });

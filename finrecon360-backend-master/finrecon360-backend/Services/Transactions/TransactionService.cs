@@ -59,6 +59,7 @@ namespace finrecon360_backend.Services.Transactions
                 UpdatedAt = null
             };
 
+            // Transactions enter the workflow as Pending and get an initial history row for audit continuity.
             var history = new TransactionStateHistory
             {
                 TransactionStateHistoryId = Guid.NewGuid(),
@@ -89,9 +90,23 @@ namespace finrecon360_backend.Services.Transactions
 
         public async Task<List<TransactionResponse>> GetJournalReadyAsync(TenantDbContext db, CancellationToken ct)
         {
+            // Intentionally excludes NeedsBankMatch items; those must be matched before journal posting.
             var items = await db.Transactions
                 .AsNoTracking()
                 .Where(x => x.TransactionState == TransactionState.JournalReady)
+                .OrderBy(x => x.TransactionDate)
+                .ThenBy(x => x.CreatedAt)
+                .ToListAsync(ct);
+
+            return items.Select(Map).ToList();
+        }
+
+        public async Task<List<TransactionResponse>> GetNeedsBankMatchAsync(TenantDbContext db, CancellationToken ct)
+        {
+            // This queue is the handoff point for the future matcher/reconciliation workflow.
+            var items = await db.Transactions
+                .AsNoTracking()
+                .Where(x => x.TransactionState == TransactionState.NeedsBankMatch)
                 .OrderBy(x => x.TransactionDate)
                 .ThenBy(x => x.CreatedAt)
                 .ToListAsync(ct);
@@ -106,6 +121,20 @@ namespace finrecon360_backend.Services.Transactions
                 .FirstOrDefaultAsync(x => x.TransactionId == id, ct);
 
             return entity == null ? null : Map(entity);
+        }
+
+        public async Task<List<TransactionStateHistoryResponse>> GetHistoryAsync(
+            TenantDbContext db,
+            Guid transactionId,
+            CancellationToken ct)
+        {
+            var items = await db.TransactionStateHistories
+                .AsNoTracking()
+                .Where(x => x.TransactionId == transactionId)
+                .OrderBy(x => x.ChangedAt)
+                .ToListAsync(ct);
+
+            return items.Select(MapHistory).ToList();
         }
 
         public async Task<TransactionResponse?> ApproveAsync(
@@ -130,6 +159,8 @@ namespace finrecon360_backend.Services.Transactions
 
             var now = DateTime.UtcNow;
             var fromState = entity.TransactionState;
+            // Cash and other non-card-cashout approvals can move straight to JournalReady.
+            // Card cash-outs pause at NeedsBankMatch so the matcher module can take over first.
             var toState = entity.TransactionType == TransactionType.CashOut && entity.PaymentMethod == PaymentMethod.Card
                 ? TransactionState.NeedsBankMatch
                 : TransactionState.JournalReady;
@@ -202,6 +233,7 @@ namespace finrecon360_backend.Services.Transactions
             DateTime changedAt,
             string? note)
         {
+            // Keep state changes append-only so approval/rejection decisions remain reviewable.
             db.TransactionStateHistories.Add(new TransactionStateHistory
             {
                 TransactionStateHistoryId = Guid.NewGuid(),
@@ -264,5 +296,15 @@ namespace finrecon360_backend.Services.Transactions
                 entity.RejectionReason,
                 entity.CreatedAt,
                 entity.UpdatedAt);
+
+        private static TransactionStateHistoryResponse MapHistory(TransactionStateHistory entity) =>
+            new(
+                entity.TransactionStateHistoryId,
+                entity.TransactionId,
+                entity.FromState.ToString(),
+                entity.ToState.ToString(),
+                entity.ChangedByUserId,
+                entity.ChangedAt,
+                entity.Note);
     }
 }

@@ -1,5 +1,6 @@
 namespace finrecon360_backend.Models
 {
+    // Records every transaction lifecycle transition for tenant-side audit/review.
     public class TransactionStateHistory
     {
         public Guid TransactionStateHistoryId { get; set; }

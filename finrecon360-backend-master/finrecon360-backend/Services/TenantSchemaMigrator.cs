@@ -617,6 +617,7 @@ namespace finrecon360_backend.Services
               );
             """;
 
+        // Tenant transaction tables are created here because operational data lives in each tenant DB.
         private static string BuildTenantTransactionsSql() =>
             """
             IF OBJECT_ID(N'dbo.Transactions', N'U') IS NULL
@@ -689,6 +690,7 @@ namespace finrecon360_backend.Services
               );
             """;
 
+        // Adds approval metadata without rebuilding tenant transaction tables already in use.
         private static string BuildTenantTransactionApprovalFieldsSql() =>
             """
             IF OBJECT_ID(N'dbo.Transactions', N'U') IS NOT NULL

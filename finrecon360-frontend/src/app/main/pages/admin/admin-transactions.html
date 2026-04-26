@@ -1,11 +1,14 @@
-<mat-card>
-  <div class="roles__header">
+<mat-card class="transactions-card">
+  <div class="transactions-header">
     <div>
       <h2>Transactions</h2>
       <p>Create and review tenant cash-in and cash-out transactions.</p>
     </div>
-    <div class="roles__actions">
-      <button mat-button type="button" (click)="refresh()" [disabled]="loading">Refresh</button>
+    <div class="transactions-header__actions">
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
       <button
         mat-flat-button
         color="primary"
@@ -13,16 +16,17 @@
         (click)="openAdd(transactionDialog)"
         [disabled]="!canManageTransactions"
       >
+        <mat-icon>add</mat-icon>
         Add Transaction
       </button>
     </div>
   </div>
 
-  <div *ngIf="loading" style="display: flex; justify-content: center; padding: 24px;">
+  <div *ngIf="loading" class="transactions-loading">
     <mat-spinner diameter="36"></mat-spinner>
   </div>
 
-  <table mat-table [dataSource]="transactions" class="mat-elevation-z1" *ngIf="!loading">
+  <table mat-table [dataSource]="transactions" class="transactions-table mat-elevation-z1" *ngIf="!loading && transactions.length > 0">
     <ng-container matColumnDef="transactionDate">
       <th mat-header-cell *matHeaderCellDef>Date</th>
       <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
@@ -30,7 +34,7 @@
 
     <ng-container matColumnDef="amount">
       <th mat-header-cell *matHeaderCellDef>Amount</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.amount | number: '1.2-2' }}</td>
+      <td mat-cell *matCellDef="let transaction" class="amount-cell">{{ transaction.amount | number: '1.2-2' }}</td>
     </ng-container>
 
     <ng-container matColumnDef="type">
@@ -45,32 +49,52 @@
 
     <ng-container matColumnDef="bankAccount">
       <th mat-header-cell *matHeaderCellDef>Bank Account</th>
-      <td mat-cell *matCellDef="let transaction">{{ getBankAccountLabel(transaction.bankAccountId) }}</td>
+      <td mat-cell *matCellDef="let transaction">
+        <span class="bank-account-label">{{ getBankAccountLabel(transaction.bankAccountId) }}</span>
+      </td>
     </ng-container>
 
     <ng-container matColumnDef="state">
       <th mat-header-cell *matHeaderCellDef>State</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionState }}</td>
+      <td mat-cell *matCellDef="let transaction">
+        <span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">
+          {{ getStateLabel(transaction.transactionState) }}
+        </span>
+      </td>
     </ng-container>
 
     <ng-container matColumnDef="actions">
       <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let transaction" class="roles__actions">
+      <td mat-cell *matCellDef="let transaction" class="transaction-actions">
         <button
           mat-icon-button
+          class="action-button action-history"
+          type="button"
+          (click)="openHistory(transaction, historyDialog)"
+          aria-label="View transaction history"
+          title="History"
+        >
+          <mat-icon>history</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          class="action-button action-approve"
           type="button"
           (click)="approve(transaction)"
-          [disabled]="!canManageTransactions || transaction.transactionState !== 'Pending' || actionId === transaction.transactionId"
+          [disabled]="!canManageTransactions || !isPending(transaction) || isActionBusy(transaction)"
           aria-label="Approve transaction"
+          title="Approve"
         >
           <mat-icon>check_circle</mat-icon>
         </button>
         <button
           mat-icon-button
+          class="action-button action-reject"
           type="button"
           (click)="openReject(transaction, rejectDialog)"
-          [disabled]="!canManageTransactions || transaction.transactionState !== 'Pending' || actionId === transaction.transactionId"
+          [disabled]="!canManageTransactions || !isPending(transaction) || isActionBusy(transaction)"
           aria-label="Reject transaction"
+          title="Reject"
         >
           <mat-icon>cancel</mat-icon>
         </button>
@@ -81,13 +105,18 @@
     <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
   </table>
 
-  <p *ngIf="!loading && transactions.length === 0">No transactions found.</p>
+  <div *ngIf="!loading && transactions.length === 0" class="transactions-empty">
+    <mat-icon>receipt_long</mat-icon>
+    <h3>No transactions yet</h3>
+    <p>Create a cash-in or cash-out transaction to start the approval workflow.</p>
+  </div>
 </mat-card>
 
 <ng-template #transactionDialog>
   <h2 mat-dialog-title>Add Transaction</h2>
-  <div mat-dialog-content>
-    <form [formGroup]="form" class="roles__form">
+  <div mat-dialog-content class="transaction-dialog">
+    <form [formGroup]="form" class="transaction-form">
+      <div class="transaction-form__grid">
       <mat-form-field appearance="outline">
         <mat-label>Amount</mat-label>
         <input matInput type="number" min="0.01" step="0.01" formControlName="amount" />
@@ -100,6 +129,7 @@
         <input matInput type="date" formControlName="transactionDate" />
         <mat-error *ngIf="form.get('transactionDate')?.hasError('required')">Transaction date is required.</mat-error>
       </mat-form-field>
+      </div>
 
       <mat-form-field appearance="outline">
         <mat-label>Description</mat-label>
@@ -108,6 +138,7 @@
         <mat-error *ngIf="form.get('description')?.hasError('maxlength')">Description cannot exceed 500 characters.</mat-error>
       </mat-form-field>
 
+      <div class="transaction-form__grid">
       <mat-form-field appearance="outline">
         <mat-label>Transaction Type</mat-label>
         <mat-select formControlName="transactionType">
@@ -123,6 +154,7 @@
         </mat-select>
         <mat-error *ngIf="form.get('paymentMethod')?.hasError('required')">Payment method is required.</mat-error>
       </mat-form-field>
+      </div>
 
       <mat-form-field appearance="outline">
         <mat-label>Bank Account</mat-label>
@@ -132,6 +164,7 @@
             {{ account.bankName }} - {{ account.accountNumber }}
           </mat-option>
         </mat-select>
+        <mat-hint>Required for card payments. Optional for cash payments.</mat-hint>
         <mat-error *ngIf="form.get('bankAccountId')?.hasError('required')">Bank account is required for card transactions.</mat-error>
       </mat-form-field>
     </form>
@@ -140,8 +173,52 @@
   <div mat-dialog-actions align="end">
     <button mat-button mat-dialog-close [disabled]="saving">Cancel</button>
     <button mat-flat-button color="primary" type="button" (click)="save()" [disabled]="saving">
+      <mat-spinner *ngIf="saving" diameter="18"></mat-spinner>
       {{ saving ? 'Saving...' : 'Save' }}
     </button>
+  </div>
+</ng-template>
+
+<ng-template #historyDialog>
+  <h2 mat-dialog-title>Transaction History</h2>
+  <div mat-dialog-content>
+    <p *ngIf="historyTransaction">
+      {{ historyTransaction.description }} - {{ historyTransaction.transactionState }}
+    </p>
+
+    <div *ngIf="historyLoading" style="display: flex; justify-content: center; padding: 24px;">
+      <mat-spinner diameter="32"></mat-spinner>
+    </div>
+
+    <table mat-table [dataSource]="history" class="mat-elevation-z1" *ngIf="!historyLoading && history.length > 0">
+      <ng-container matColumnDef="changedAt">
+        <th mat-header-cell *matHeaderCellDef>Changed</th>
+        <td mat-cell *matCellDef="let item">{{ item.changedAt | date: 'short' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="transition">
+        <th mat-header-cell *matHeaderCellDef>Transition</th>
+        <td mat-cell *matCellDef="let item">{{ item.fromState }} -> {{ item.toState }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="changedBy">
+        <th mat-header-cell *matHeaderCellDef>Changed By</th>
+        <td mat-cell *matCellDef="let item">{{ item.changedByUserId || '-' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="note">
+        <th mat-header-cell *matHeaderCellDef>Note</th>
+        <td mat-cell *matCellDef="let item">{{ item.note || '-' }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: historyColumns"></tr>
+    </table>
+
+    <p *ngIf="!historyLoading && history.length === 0">No history records found.</p>
+  </div>
+  <div mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>Close</button>
   </div>
 </ng-template>
 

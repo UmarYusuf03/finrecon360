@@ -9,6 +9,7 @@ import {
   CreateTransactionRequest,
   RejectTransactionRequest,
   Transaction,
+  TransactionStateHistory,
 } from './models';
 
 @Injectable({
@@ -85,6 +86,7 @@ export class TransactionService {
 
   getJournalReady(): Observable<Transaction[]> {
     if (USE_MOCK_API) {
+      // Mirrors the backend queue: NeedsBankMatch transactions are not journal-ready yet.
       return of(
         this.transactionsSubject.value
           .filter((item) => item.transactionState === 'JournalReady')
@@ -96,6 +98,39 @@ export class TransactionService {
     }
 
     return this.http.get<Transaction[]>(`${this.baseUrl}/journal-ready`);
+  }
+
+  getNeedsBankMatch(): Observable<Transaction[]> {
+    if (USE_MOCK_API) {
+      // Mirrors the backend handoff queue for future matcher/reconciliation work.
+      return of(
+        this.transactionsSubject.value
+          .filter((item) => item.transactionState === 'NeedsBankMatch')
+          .sort((left, right) =>
+            left.transactionDate.localeCompare(right.transactionDate) ||
+            left.createdAt.localeCompare(right.createdAt),
+          ),
+      );
+    }
+
+    return this.http.get<Transaction[]>(`${this.baseUrl}/needs-bank-match`);
+  }
+
+  getHistory(id: string): Observable<TransactionStateHistory[]> {
+    if (USE_MOCK_API) {
+      const transaction = this.transactionsSubject.value.find((item) => item.transactionId === id);
+      return of(transaction ? [{
+        transactionStateHistoryId: `${id}-history-created`,
+        transactionId: id,
+        fromState: 'Pending',
+        toState: transaction.transactionState,
+        changedByUserId: transaction.createdByUserId ?? null,
+        changedAt: transaction.updatedAt ?? transaction.createdAt,
+        note: transaction.transactionState === 'Pending' ? 'Transaction created' : null,
+      }] : []);
+    }
+
+    return this.http.get<TransactionStateHistory[]>(`${this.baseUrl}/${id}/history`);
   }
 
   private updateMockState(
@@ -114,6 +149,7 @@ export class TransactionService {
 
         const nextState = action === 'reject'
           ? 'Rejected'
+          // Card cash-outs wait for bank matching before they can enter the journal queue.
           : transaction.transactionType === 'CashOut' && transaction.paymentMethod === 'Card'
             ? 'NeedsBankMatch'
             : 'JournalReady';

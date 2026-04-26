@@ -79,6 +79,18 @@ namespace finrecon360_backend.Controllers.Admin
             return Ok(result);
         }
 
+        [HttpGet("needs-bank-match")]
+        [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
+        public async Task<ActionResult<List<TransactionResponse>>> GetNeedsBankMatch(CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var result = await _transactionService.GetNeedsBankMatchAsync(tenantDb, ct);
+            return Ok(result);
+        }
+
         [HttpGet("{id:guid}")]
         [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
         public async Task<ActionResult<TransactionResponse>> GetById(Guid id, CancellationToken ct)
@@ -93,6 +105,24 @@ namespace finrecon360_backend.Controllers.Admin
                 return NotFound();
             }
 
+            return Ok(result);
+        }
+
+        [HttpGet("{id:guid}/history")]
+        [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
+        public async Task<ActionResult<List<TransactionStateHistoryResponse>>> GetHistory(Guid id, CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var transaction = await _transactionService.GetByIdAsync(tenantDb, id, ct);
+            if (transaction == null)
+            {
+                return NotFound();
+            }
+
+            var result = await _transactionService.GetHistoryAsync(tenantDb, id, ct);
             return Ok(result);
         }
 
@@ -161,6 +191,7 @@ namespace finrecon360_backend.Controllers.Admin
                 .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId, ct);
             if (!isTenantMember) return (null, null, Forbid());
 
+            // Tenant operational data is per-database, so resolve and open the tenant DB per request.
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, ct);
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking()
                 .AnyAsync(tu => tu.UserId == userId && tu.IsActive, ct);

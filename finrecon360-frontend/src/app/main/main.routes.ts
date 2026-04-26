@@ -57,6 +57,15 @@ export const mainRoutes: Routes = [
             data: { permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
           },
           {
+            path: 'needs-bank-match',
+            loadComponent: () =>
+              import('./pages/admin/admin-needs-bank-match').then(
+                (m) => m.AdminNeedsBankMatchComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+          },
+          {
             path: 'bank-accounts',
             loadComponent: () =>
               import('./pages/admin/admin-bank-accounts').then(

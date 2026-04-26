@@ -9,6 +9,7 @@ namespace finrecon360_backend.Models
         public Guid? BankAccountId { get; set; }
         public TransactionType TransactionType { get; set; }
         public PaymentMethod PaymentMethod { get; set; }
+        // Pending is the entry state; approvals move to JournalReady or NeedsBankMatch depending on payment path.
         public TransactionState TransactionState { get; set; } = TransactionState.Pending;
         public Guid? CreatedByUserId { get; set; }
         public DateTime? ApprovedAt { get; set; }
@@ -20,6 +21,7 @@ namespace finrecon360_backend.Models
         public DateTime? UpdatedAt { get; set; }
 
         public BankAccount? BankAccount { get; set; }
+        // Append-only lifecycle trail used for approval review and audit evidence.
         public ICollection<TransactionStateHistory> StateHistories { get; set; } = new List<TransactionStateHistory>();
     }
 }
