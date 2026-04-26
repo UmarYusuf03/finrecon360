@@ -9,6 +9,7 @@
         public bool EmailConfirmed { get; set; }
         public bool IsActive { get; set; }
         public UserStatus Status { get; set; } = UserStatus.Active;
+        public UserType UserType { get; set; } = UserType.GlobalPublic;
         public bool IsSystemAdmin { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

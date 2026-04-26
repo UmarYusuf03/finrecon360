@@ -1,0 +1,66 @@
+namespace finrecon360_backend.Services
+{
+    public record PaymentCheckoutSession(string Provider, string SessionId, string? CustomerId, string CheckoutUrl);
+
+    public interface IPaymentCheckoutService
+    {
+        Task<PaymentCheckoutSession> CreateCheckoutSessionAsync(
+            string name,
+            long amountCents,
+            string currency,
+            Guid tenantId,
+            Guid subscriptionId,
+            Guid userId,
+            CancellationToken cancellationToken = default);
+
+        bool IsConfigured();
+        string GetFallbackCheckoutUrl();
+        string GetProviderName();
+    }
+
+    public class PaymentCheckoutService : IPaymentCheckoutService
+    {
+        private readonly IPayHereCheckoutService _payHereCheckoutService;
+
+        public PaymentCheckoutService(
+            IPayHereCheckoutService payHereCheckoutService)
+        {
+            _payHereCheckoutService = payHereCheckoutService;
+        }
+
+        public async Task<PaymentCheckoutSession> CreateCheckoutSessionAsync(
+            string name,
+            long amountCents,
+            string currency,
+            Guid tenantId,
+            Guid subscriptionId,
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var session = await _payHereCheckoutService.CreateCheckoutSessionAsync(
+                name,
+                amountCents,
+                tenantId,
+                subscriptionId,
+                userId,
+                cancellationToken);
+
+            return new PaymentCheckoutSession("PayHere", session.OrderId, null, session.CheckoutUrl);
+        }
+
+        public bool IsConfigured()
+        {
+            return _payHereCheckoutService.IsConfigured();
+        }
+
+        public string GetFallbackCheckoutUrl()
+        {
+            return _payHereCheckoutService.GetFallbackCheckoutUrl();
+        }
+
+        public string GetProviderName()
+        {
+            return "PayHere";
+        }
+    }
+}

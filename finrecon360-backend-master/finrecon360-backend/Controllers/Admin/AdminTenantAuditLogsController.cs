@@ -14,7 +14,7 @@ namespace finrecon360_backend.Controllers.Admin
     [ApiController]
     [Route("api/admin/audit-logs")]
     [Authorize]
-    [RequirePermission("ADMIN.USERS.VIEW")]
+    [RequirePermission("ADMIN.AUDIT_LOGS.VIEW")]
     [EnableRateLimiting("admin")]
     public class AdminTenantAuditLogsController : ControllerBase
     {
