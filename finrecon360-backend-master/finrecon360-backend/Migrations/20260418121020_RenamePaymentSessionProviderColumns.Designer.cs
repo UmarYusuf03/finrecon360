@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using finrecon360_backend.Data;
 
@@ -11,9 +12,11 @@ using finrecon360_backend.Data;
 namespace finrecon360_backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260418121020_RenamePaymentSessionProviderColumns")]
+    partial class RenamePaymentSessionProviderColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -166,107 +169,6 @@ namespace finrecon360_backend.Migrations
                     b.ToTable("AuthActionTokens", (string)null);
                 });
 
-            modelBuilder.Entity("finrecon360_backend.Models.BankStatementImport", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BankAccountId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BatchId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(260)
-                        .HasColumnType("nvarchar(260)");
-
-                    b.Property<DateTime>("ImportDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("TotalRows")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("ValidRows")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("BankStatementImports");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.BankStatementLine", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<Guid>("BankStatementImportId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<bool>("IsReconciled")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("PostingDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReferenceNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("TransactionDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BankStatementImportId");
-
-                    b.ToTable("BankStatementLines");
-                });
-
             modelBuilder.Entity("finrecon360_backend.Models.EnforcementAction", b =>
                 {
                     b.Property<Guid>("EnforcementActionId")
@@ -357,89 +259,6 @@ namespace finrecon360_backend.Migrations
                     b.HasIndex("GlobalUserId", "Purpose", "ExpiresAt");
 
                     b.ToTable("MagicLinkTokens", (string)null);
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.MatchDecision", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("DecidedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("DecidedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Decision")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DecisionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("MatchGroupId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MatchGroupId");
-
-                    b.ToTable("MatchDecisions");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.MatchGroup", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal?>("MatchConfidenceScore")
-                        .HasColumnType("decimal(5,4)");
-
-                    b.Property<Guid>("ReconciliationRunId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReconciliationRunId");
-
-                    b.ToTable("MatchGroups");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.PaymentSession", b =>
@@ -616,131 +435,6 @@ namespace finrecon360_backend.Migrations
                         .IsUnique();
 
                     b.ToTable("Plans", (string)null);
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.ReconciliationException", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("BankStatementLineId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("CanonicalTransactionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("ReconciliationRunId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BankStatementLineId");
-
-                    b.HasIndex("ReconciliationRunId");
-
-                    b.ToTable("Exception");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.ReconciliationRun", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("BankAccountId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("RunDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("TotalMatchesProposed")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ReconciliationRuns");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.ReportSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("PendingCardMatches")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("ReconciliationCompletionPercentage")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<DateTime>("SnapshotDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("TotalUnmatchedCashouts")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ReportSnapshots");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.Role", b =>
@@ -1173,17 +867,6 @@ namespace finrecon360_backend.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("finrecon360_backend.Models.BankStatementLine", b =>
-                {
-                    b.HasOne("finrecon360_backend.Models.BankStatementImport", "BankStatementImport")
-                        .WithMany("BankStatementLines")
-                        .HasForeignKey("BankStatementImportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BankStatementImport");
-                });
-
             modelBuilder.Entity("finrecon360_backend.Models.MagicLinkToken", b =>
                 {
                     b.HasOne("finrecon360_backend.Models.User", "GlobalUser")
@@ -1193,28 +876,6 @@ namespace finrecon360_backend.Migrations
                         .IsRequired();
 
                     b.Navigation("GlobalUser");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.MatchDecision", b =>
-                {
-                    b.HasOne("finrecon360_backend.Models.MatchGroup", "MatchGroup")
-                        .WithMany("MatchDecisions")
-                        .HasForeignKey("MatchGroupId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("MatchGroup");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.MatchGroup", b =>
-                {
-                    b.HasOne("finrecon360_backend.Models.ReconciliationRun", "ReconciliationRun")
-                        .WithMany("MatchGroups")
-                        .HasForeignKey("ReconciliationRunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReconciliationRun");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.PaymentSession", b =>
@@ -1234,23 +895,6 @@ namespace finrecon360_backend.Migrations
                     b.Navigation("Subscription");
 
                     b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.ReconciliationException", b =>
-                {
-                    b.HasOne("finrecon360_backend.Models.BankStatementLine", "BankStatementLine")
-                        .WithMany("Exceptions")
-                        .HasForeignKey("BankStatementLineId");
-
-                    b.HasOne("finrecon360_backend.Models.ReconciliationRun", "ReconciliationRun")
-                        .WithMany("Exceptions")
-                        .HasForeignKey("ReconciliationRunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BankStatementLine");
-
-                    b.Navigation("ReconciliationRun");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.RolePermission", b =>
@@ -1277,13 +921,13 @@ namespace finrecon360_backend.Migrations
                     b.HasOne("finrecon360_backend.Models.Plan", "Plan")
                         .WithMany("Subscriptions")
                         .HasForeignKey("PlanId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("finrecon360_backend.Models.Tenant", "Tenant")
                         .WithMany()
                         .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Plan");
@@ -1360,21 +1004,6 @@ namespace finrecon360_backend.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("finrecon360_backend.Models.BankStatementImport", b =>
-                {
-                    b.Navigation("BankStatementLines");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.BankStatementLine", b =>
-                {
-                    b.Navigation("Exceptions");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.MatchGroup", b =>
-                {
-                    b.Navigation("MatchDecisions");
-                });
-
             modelBuilder.Entity("finrecon360_backend.Models.Permission", b =>
                 {
                     b.Navigation("RolePermissions");
@@ -1383,13 +1012,6 @@ namespace finrecon360_backend.Migrations
             modelBuilder.Entity("finrecon360_backend.Models.Plan", b =>
                 {
                     b.Navigation("Subscriptions");
-                });
-
-            modelBuilder.Entity("finrecon360_backend.Models.ReconciliationRun", b =>
-                {
-                    b.Navigation("Exceptions");
-
-                    b.Navigation("MatchGroups");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.Role", b =>

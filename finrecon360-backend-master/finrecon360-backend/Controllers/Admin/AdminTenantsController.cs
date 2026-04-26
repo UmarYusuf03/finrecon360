@@ -186,13 +186,30 @@ namespace finrecon360_backend.Controllers.Admin
                             CreatedAt = DateTime.UtcNow,
                             EmailConfirmed = false,
                             IsActive = true,
-                            Status = UserStatus.Invited
+                            Status = UserStatus.Invited,
+                            UserType = UserType.TenantOperational
                         };
                         _dbContext.Users.Add(user);
                     }
                     else if (user.Status == UserStatus.Banned)
                     {
                         return BadRequest(new { message = $"User {normalized} is banned and cannot be added." });
+                    }
+                    else if (user.UserType == UserType.SystemAdmin)
+                    {
+                        return BadRequest(new { message = $"User {normalized} is a system admin and cannot be added as a tenant operational admin." });
+                    }
+                    else if (user.UserType == UserType.GlobalPublic)
+                    {
+                        var hasOtherTenantMembership = await _dbContext.TenantUsers.AsNoTracking()
+                            .AnyAsync(tu => tu.UserId == user.UserId && tu.TenantId != tenantId);
+                        if (hasOtherTenantMembership)
+                        {
+                            return Conflict(new { message = $"Admin email {normalized} is already assigned to another tenant." });
+                        }
+
+                        user.UserType = UserType.TenantOperational;
+                        user.UpdatedAt = DateTime.UtcNow;
                     }
 
                     userIds.Add(user.UserId);
@@ -211,6 +228,30 @@ namespace finrecon360_backend.Controllers.Admin
                 if (existingUserIds.Count != requestedUserIds.Count)
                 {
                     return BadRequest(new { message = "One or more selected users were not found." });
+                }
+
+                var hasSystemAdminUser = await _dbContext.Users
+                    .AsNoTracking()
+                    .AnyAsync(u => requestedUserIds.Contains(u.UserId) && u.UserType == UserType.SystemAdmin);
+                if (hasSystemAdminUser)
+                {
+                    return BadRequest(new { message = "System admin accounts cannot be assigned as tenant operational admins." });
+                }
+
+                var globalPublicUsers = await _dbContext.Users
+                    .Where(u => requestedUserIds.Contains(u.UserId) && u.UserType == UserType.GlobalPublic)
+                    .ToListAsync();
+                foreach (var globalUser in globalPublicUsers)
+                {
+                    var hasOtherTenantMembership = await _dbContext.TenantUsers.AsNoTracking()
+                        .AnyAsync(tu => tu.UserId == globalUser.UserId && tu.TenantId != tenantId);
+                    if (hasOtherTenantMembership)
+                    {
+                        return Conflict(new { message = "One or more selected users are already assigned to another tenant." });
+                    }
+
+                    globalUser.UserType = UserType.TenantOperational;
+                    globalUser.UpdatedAt = DateTime.UtcNow;
                 }
             }
 

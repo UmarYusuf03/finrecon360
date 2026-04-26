@@ -40,6 +40,12 @@ namespace finrecon360_backend.Data.Configurations
                 .HasDefaultValue(UserStatus.Active)
                 .HasSentinel(UserStatus.Active);
 
+            builder.Property(u => u.UserType)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .HasDefaultValue(UserType.GlobalPublic)
+                .HasSentinel(UserType.GlobalPublic);
+
             builder.Property(u => u.IsSystemAdmin)
                 .HasDefaultValue(false);
 

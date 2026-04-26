@@ -1,0 +1,23 @@
+<div class="imports-shell">
+  <nav mat-tab-nav-bar backgroundColor="primary" color="primary">
+    <a
+      mat-tab-link
+      *ngFor="let link of visibleLinks$ | async"
+      [routerLink]="link.path"
+      routerLinkActive="active-link"
+      [routerLinkActiveOptions]="{ exact: true }"
+      #rla="routerLinkActive"
+      [active]="rla.isActive"
+      [class.active-link]="rla.isActive"
+    >
+      <ng-container *ngIf="link.label.startsWith('ADMIN.'); else staticLabel">
+        {{ link.label | translate }}
+      </ng-container>
+      <ng-template #staticLabel>{{ link.label }}</ng-template>
+    </a>
+  </nav>
+
+  <div class="imports-shell__content">
+    <router-outlet></router-outlet>
+  </div>
+</div>
