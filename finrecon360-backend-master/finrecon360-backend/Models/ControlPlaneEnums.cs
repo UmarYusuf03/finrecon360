@@ -1,5 +1,12 @@
 namespace finrecon360_backend.Models
 {
+    public enum UserType
+    {
+        GlobalPublic = 0,
+        TenantOperational = 1,
+        SystemAdmin = 2
+    }
+
     public enum UserStatus
     {
         Invited = 0,

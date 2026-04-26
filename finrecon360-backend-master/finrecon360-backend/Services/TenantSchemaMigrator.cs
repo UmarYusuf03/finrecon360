@@ -270,8 +270,10 @@ namespace finrecon360_backend.Services
                 (N'ADMIN.COMPONENTS.EDIT', N'Component Management Edit', N'Edit tenant components', N'Admin'),
                 (N'ADMIN.COMPONENTS.DELETE', N'Component Management Delete', N'Deactivate tenant components', N'Admin'),
                 (N'ADMIN.COMPONENTS.MANAGE', N'Component Management Manage', N'Manage tenant components', N'Admin'),
+                (N'ADMIN.IMPORT_WORKBENCH.VIEW', N'Import Workbench View', N'View import workbench', N'Admin'),
                 (N'ADMIN.IMPORT_ARCHITECTURE.VIEW', N'Import Architecture View', N'View import architecture foundation', N'Admin'),
                 (N'ADMIN.IMPORT_ARCHITECTURE.MANAGE', N'Import Architecture Manage', N'Manage import architecture templates and metadata', N'Admin'),
+                (N'ADMIN.AUDIT_LOGS.VIEW', N'Audit Logs View', N'View tenant audit logs', N'Admin'),
                 (N'MATCHER.VIEW', N'Matcher View', N'View matcher', N'Reconciliation'),
                 (N'MATCHER.MANAGE', N'Matcher Manage', N'Manage matcher', N'Reconciliation'),
                 (N'BALANCER.VIEW', N'Balancer View', N'View balancer', N'Reconciliation'),
@@ -303,9 +305,21 @@ namespace finrecon360_backend.Services
                 (N'ROLE_MGMT', N'Role Management', N'/app/admin/roles', N'Admin', N'Tenant roles'),
                 (N'COMPONENT_MGMT', N'Component Management', N'/app/admin/components', N'Admin', N'Tenant components'),
                 (N'PERMISSION_MGMT', N'Permission Management', N'/app/admin/permissions', N'Admin', N'Tenant permissions'),
-                (N'IMPORT_ARCHITECTURE_MGMT', N'Import Architecture', N'/app/admin/import-architecture', N'Admin', N'Tenant import foundation and canonical schema')
+                                (N'IMPORT_WORKBENCH_MGMT', N'Import Workbench', N'/app/imports/workbench', N'Admin', N'Tenant imports processing workspace'),
+                                (N'IMPORT_ARCHITECTURE_MGMT', N'Import Architecture', N'/app/imports/import-architecture', N'Admin', N'Tenant import foundation and canonical schema'),
+                                (N'AUDIT_LOGS_MGMT', N'Audit Logs', N'/app/admin/audit-logs', N'Admin', N'Tenant audit logs')
             ) v(Code, Name, RoutePath, Category, Description)
             WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = v.Code);
+
+                        UPDATE dbo.AppComponents
+                        SET RoutePath = N'/app/imports/workbench'
+                        WHERE Code = N'IMPORT_WORKBENCH_MGMT'
+                            AND RoutePath <> N'/app/imports/workbench';
+
+                        UPDATE dbo.AppComponents
+                        SET RoutePath = N'/app/imports/import-architecture'
+                        WHERE Code = N'IMPORT_ARCHITECTURE_MGMT'
+                            AND RoutePath <> N'/app/imports/import-architecture';
 
             INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
             SELECT r.RoleId, p.PermissionId
@@ -325,6 +339,8 @@ namespace finrecon360_backend.Services
                 (N'ADMIN.USERS.VIEW'),
                 (N'ADMIN.USERS.CREATE'),
                 (N'ADMIN.USERS.EDIT'),
+                (N'ADMIN.IMPORT_WORKBENCH.VIEW'),
+                (N'ADMIN.AUDIT_LOGS.VIEW'),
                 (N'ADMIN.ROLES.VIEW'),
                 (N'ADMIN.PERMISSIONS.VIEW'),
                 (N'ADMIN.COMPONENTS.VIEW'),
@@ -493,18 +509,28 @@ namespace finrecon360_backend.Services
             SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
             FROM (VALUES
                 (N'ADMIN.IMPORT_ARCHITECTURE.VIEW', N'Import Architecture View', N'View import architecture foundation', N'Admin'),
-                (N'ADMIN.IMPORT_ARCHITECTURE.MANAGE', N'Import Architecture Manage', N'Manage import architecture templates and metadata', N'Admin')
+                                (N'ADMIN.IMPORT_ARCHITECTURE.MANAGE', N'Import Architecture Manage', N'Manage import architecture templates and metadata', N'Admin'),
+                                (N'ADMIN.AUDIT_LOGS.VIEW', N'Audit Logs View', N'View tenant audit logs', N'Admin')
             ) v(Code, Name, Description, Module)
             WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
 
             INSERT INTO dbo.AppComponents (ComponentId, Code, Name, RoutePath, Category, Description, IsActive)
-            SELECT NEWID(), N'IMPORT_ARCHITECTURE_MGMT', N'Import Architecture', N'/app/admin/import-architecture', N'Admin', N'Tenant import foundation and canonical schema', 1
+                        SELECT NEWID(), N'IMPORT_ARCHITECTURE_MGMT', N'Import Architecture', N'/app/imports/import-architecture', N'Admin', N'Tenant import foundation and canonical schema', 1
             WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = N'IMPORT_ARCHITECTURE_MGMT');
+
+                        INSERT INTO dbo.AppComponents (ComponentId, Code, Name, RoutePath, Category, Description, IsActive)
+                        SELECT NEWID(), N'AUDIT_LOGS_MGMT', N'Audit Logs', N'/app/admin/audit-logs', N'Admin', N'Tenant audit logs', 1
+                        WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = N'AUDIT_LOGS_MGMT');
+
+                        UPDATE dbo.AppComponents
+                        SET RoutePath = N'/app/imports/import-architecture'
+                        WHERE Code = N'IMPORT_ARCHITECTURE_MGMT'
+                            AND RoutePath <> N'/app/imports/import-architecture';
 
             INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
             SELECT r.RoleId, p.PermissionId
             FROM dbo.Roles r
-            INNER JOIN dbo.Permissions p ON p.Code IN (N'ADMIN.IMPORT_ARCHITECTURE.VIEW', N'ADMIN.IMPORT_ARCHITECTURE.MANAGE')
+                        INNER JOIN dbo.Permissions p ON p.Code IN (N'ADMIN.IMPORT_ARCHITECTURE.VIEW', N'ADMIN.IMPORT_ARCHITECTURE.MANAGE', N'ADMIN.AUDIT_LOGS.VIEW')
             WHERE r.Code = N'ADMIN'
               AND NOT EXISTS (
                   SELECT 1 FROM dbo.RolePermissions rp

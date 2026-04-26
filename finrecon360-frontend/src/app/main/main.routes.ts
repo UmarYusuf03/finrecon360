@@ -9,6 +9,7 @@ import { AdminPermissionsComponent } from './pages/admin/admin-permissions';
 import { AdminRolesComponent } from './pages/admin/admin-roles';
 import { AdminUsersComponent } from './pages/admin/admin-users';
 import { DashboardComponent } from './pages/dashboard/dashboard';
+import { ImportsShellComponent } from './pages/imports/imports-shell';
 import { MatcherPageComponent } from './pages/matcher/matcher-page';
 import { NotAuthorizedComponent } from './pages/not-authorized/not-authorized';
 import { ProfileComponent } from './pages/profile/profile';
@@ -33,7 +34,7 @@ export const mainRoutes: Routes = [
             'ADMIN.COMPONENTS.VIEW',
             'ADMIN.PERMISSIONS.VIEW',
             'ADMIN.USERS.VIEW',
-            'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+            'ADMIN.AUDIT_LOGS.VIEW',
           ],
         },
         children: [
@@ -92,31 +93,13 @@ export const mainRoutes: Routes = [
             data: { permissions: ['ADMIN.USERS.VIEW'] },
           },
           {
-            path: 'import-architecture',
-            loadComponent: () =>
-              import('./pages/admin/admin-import-architecture').then(
-                (m) => m.AdminImportArchitectureComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'] },
-          },
-          {
-            path: 'import-history',
-            loadComponent: () =>
-              import('./pages/admin/admin-import-history').then(
-                (m) => m.AdminImportHistoryComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'] },
-          },
-          {
             path: 'audit-logs',
             loadComponent: () =>
               import('./pages/admin/admin-tenant-audit-logs').then(
                 (m) => m.AdminTenantAuditLogsComponent,
               ),
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.USERS.VIEW'] },
+            data: { permissions: ['ADMIN.AUDIT_LOGS.VIEW'] },
           },
         ],
       },
@@ -181,10 +164,40 @@ export const mainRoutes: Routes = [
       },
       {
         path: 'imports',
-        loadComponent: () =>
-          import('./pages/imports/imports-workbench').then((m) => m.ImportsWorkbenchComponent),
+        component: ImportsShellComponent,
         canActivate: [AccessGuard],
-        data: { scope: 'tenant' },
+        data: {
+          scope: 'tenant',
+          anyPermissions: ['ADMIN.IMPORT_WORKBENCH.VIEW', 'ADMIN.IMPORT_ARCHITECTURE.VIEW'],
+        },
+        children: [
+          {
+            path: 'workbench',
+            loadComponent: () =>
+              import('./pages/imports/imports-workbench').then((m) => m.ImportsWorkbenchComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.IMPORT_WORKBENCH.VIEW'] },
+          },
+          {
+            path: 'import-architecture',
+            loadComponent: () =>
+              import('./pages/admin/admin-import-architecture').then(
+                (m) => m.AdminImportArchitectureComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'] },
+          },
+          {
+            path: 'import-history',
+            loadComponent: () =>
+              import('./pages/admin/admin-import-history').then(
+                (m) => m.AdminImportHistoryComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'] },
+          },
+          { path: '', pathMatch: 'full', redirectTo: 'workbench' },
+        ],
       },
       {
         path: 'profile',
