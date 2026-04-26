@@ -15,18 +15,22 @@ namespace finrecon360_backend.Controllers.Admin
     public class ReconciliationController : ControllerBase
     {
         private readonly IReconciliationService _reconciliationService;
+        private readonly IMatchingEngineService _matchingEngineService;
         private readonly ILogger<ReconciliationController> _logger;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReconciliationController"/> class.
         /// </summary>
         /// <param name="reconciliationService">Reconciliation service dependency.</param>
+        /// <param name="matchingEngineService">Matching engine service dependency.</param>
         /// <param name="logger">Logger dependency.</param>
         public ReconciliationController(
             IReconciliationService reconciliationService,
+            IMatchingEngineService matchingEngineService,
             ILogger<ReconciliationController> logger)
         {
             _reconciliationService = reconciliationService;
+            _matchingEngineService = matchingEngineService;
             _logger = logger;
         }
 
@@ -83,6 +87,25 @@ namespace finrecon360_backend.Controllers.Admin
             }
 
             return Ok(run);
+        }
+
+        /// <summary>
+        /// Runs the automated matching engine for a bank statement import.
+        /// </summary>
+        /// <param name="request">Matching request payload.</param>
+        /// <returns>Matching summary.</returns>
+        [HttpPost("~/api/tenant-admin/reconciliation/run-automated-matching")]
+        public async Task<ActionResult<MatchingSummaryResponse>> RunAutomatedMatching([FromBody] RunMatchingRequest request)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                _logger.LogWarning("RunAutomatedMatching rejected because user identifier claim is missing or invalid.");
+                return Unauthorized();
+            }
+
+            var summary = await _matchingEngineService.RunAutomatedMatchingAsync(request.BankStatementImportId, userId);
+            return Ok(summary);
         }
     }
 }

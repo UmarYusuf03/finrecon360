@@ -337,6 +337,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddScoped<IBankStatementImportService, BankStatementImportService>();
+builder.Services.AddScoped<IMatchingEngineService, MatchingEngineService>();
 
 var app = builder.Build();
 

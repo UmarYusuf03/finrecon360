@@ -267,6 +267,42 @@ namespace finrecon360_backend.Migrations
                     b.ToTable("BankStatementLines");
                 });
 
+            modelBuilder.Entity("finrecon360_backend.Models.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContactNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Customers");
+                });
+
             modelBuilder.Entity("finrecon360_backend.Models.EnforcementAction", b =>
                 {
                     b.Property<Guid>("EnforcementActionId")
@@ -306,6 +342,58 @@ namespace finrecon360_backend.Migrations
                     b.HasIndex("TargetType", "TargetId");
 
                     b.ToTable("EnforcementActions", (string)null);
+                });
+
+            modelBuilder.Entity("finrecon360_backend.Models.Invoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsReconciled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("IssueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("Invoices");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.MagicLinkToken", b =>
@@ -440,6 +528,103 @@ namespace finrecon360_backend.Migrations
                     b.HasIndex("ReconciliationRunId");
 
                     b.ToTable("MatchGroups");
+                });
+
+            modelBuilder.Entity("finrecon360_backend.Models.Order", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CustomerName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("PaymentGatewayPayoutId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentGatewayPayoutId");
+
+                    b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("finrecon360_backend.Models.PaymentGatewayPayout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("GrossAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsReconciled")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("PayoutDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("ProcessingFees")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ProviderName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PaymentGatewayPayouts");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.PaymentSession", b =>
@@ -849,6 +1034,53 @@ namespace finrecon360_backend.Migrations
                     b.ToTable("Subscriptions", (string)null);
                 });
 
+            modelBuilder.Entity("finrecon360_backend.Models.SystemTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsReconciled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SystemTransactions");
+                });
+
             modelBuilder.Entity("finrecon360_backend.Models.Tenant", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -1184,6 +1416,17 @@ namespace finrecon360_backend.Migrations
                     b.Navigation("BankStatementImport");
                 });
 
+            modelBuilder.Entity("finrecon360_backend.Models.Invoice", b =>
+                {
+                    b.HasOne("finrecon360_backend.Models.Customer", "Customer")
+                        .WithMany("Invoices")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("finrecon360_backend.Models.MagicLinkToken", b =>
                 {
                     b.HasOne("finrecon360_backend.Models.User", "GlobalUser")
@@ -1215,6 +1458,16 @@ namespace finrecon360_backend.Migrations
                         .IsRequired();
 
                     b.Navigation("ReconciliationRun");
+                });
+
+            modelBuilder.Entity("finrecon360_backend.Models.Order", b =>
+                {
+                    b.HasOne("finrecon360_backend.Models.PaymentGatewayPayout", "PaymentGatewayPayout")
+                        .WithMany("Orders")
+                        .HasForeignKey("PaymentGatewayPayoutId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("PaymentGatewayPayout");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.PaymentSession", b =>
@@ -1370,9 +1623,19 @@ namespace finrecon360_backend.Migrations
                     b.Navigation("Exceptions");
                 });
 
+            modelBuilder.Entity("finrecon360_backend.Models.Customer", b =>
+                {
+                    b.Navigation("Invoices");
+                });
+
             modelBuilder.Entity("finrecon360_backend.Models.MatchGroup", b =>
                 {
                     b.Navigation("MatchDecisions");
+                });
+
+            modelBuilder.Entity("finrecon360_backend.Models.PaymentGatewayPayout", b =>
+                {
+                    b.Navigation("Orders");
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.Permission", b =>

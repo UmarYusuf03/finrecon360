@@ -72,6 +72,11 @@ namespace finrecon360_backend.Data
         public DbSet<PaymentSession> PaymentSessions => Set<PaymentSession>();
         public DbSet<MagicLinkToken> MagicLinkTokens => Set<MagicLinkToken>();
         public DbSet<EnforcementAction> EnforcementActions => Set<EnforcementAction>();
+        public DbSet<SystemTransaction> SystemTransactions => Set<SystemTransaction>();
+        public DbSet<Customer> Customers => Set<Customer>();
+        public DbSet<Invoice> Invoices => Set<Invoice>();
+        public DbSet<PaymentGatewayPayout> PaymentGatewayPayouts => Set<PaymentGatewayPayout>();
+        public DbSet<Order> Orders => Set<Order>();
         public DbSet<BankStatementImport> BankStatementImports => Set<BankStatementImport>();
         public DbSet<BankStatementLine> BankStatementLines => Set<BankStatementLine>();
         public DbSet<ReconciliationRun> ReconciliationRuns => Set<ReconciliationRun>();
@@ -100,6 +105,69 @@ namespace finrecon360_backend.Data
             modelBuilder.ApplyConfiguration(new PaymentSessionConfiguration());
             modelBuilder.ApplyConfiguration(new MagicLinkTokenConfiguration());
             modelBuilder.ApplyConfiguration(new EnforcementActionConfiguration());
+
+            modelBuilder.Entity<SystemTransaction>()
+                .Property(x => x.Type)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<SystemTransaction>()
+                .Property(x => x.Amount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Invoice>()
+                .Property(x => x.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<Invoice>()
+                .Property(x => x.TotalAmount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<PaymentGatewayPayout>()
+                .Property(x => x.Status)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<PaymentGatewayPayout>()
+                .Property(x => x.GrossAmount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<PaymentGatewayPayout>()
+                .Property(x => x.ProcessingFees)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<PaymentGatewayPayout>()
+                .Property(x => x.NetAmount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Order>()
+                .Property(x => x.TotalAmount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Customer>()
+                .HasMany(x => x.Invoices)
+                .WithOne(x => x.Customer)
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PaymentGatewayPayout>()
+                .HasMany(x => x.Orders)
+                .WithOne(x => x.PaymentGatewayPayout)
+                .HasForeignKey(x => x.PaymentGatewayPayoutId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<SystemTransaction>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<Customer>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<Invoice>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<PaymentGatewayPayout>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<Order>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
 
             modelBuilder.Entity<BankStatementImport>()
                 .Property(x => x.Status)
@@ -148,7 +216,7 @@ namespace finrecon360_backend.Data
             modelBuilder.Entity<ReportSnapshot>()
                 .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
 
-            
+
         }
     }
 }
