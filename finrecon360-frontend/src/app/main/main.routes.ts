@@ -28,6 +28,7 @@ export const mainRoutes: Routes = [
           scope: 'tenant',
           anyPermissions: [
             'ADMIN.BANK_ACCOUNTS.VIEW',
+            'ADMIN.TRANSACTIONS.VIEW',
             'ADMIN.ROLES.VIEW',
             'ADMIN.COMPONENTS.VIEW',
             'ADMIN.PERMISSIONS.VIEW',
@@ -36,6 +37,24 @@ export const mainRoutes: Routes = [
           ],
         },
         children: [
+          {
+            path: 'transactions',
+            loadComponent: () =>
+              import('./pages/admin/admin-transactions').then(
+                (m) => m.AdminTransactionsComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+          },
+          {
+            path: 'journal-ready',
+            loadComponent: () =>
+              import('./pages/admin/admin-journal-ready').then(
+                (m) => m.AdminJournalReadyComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+          },
           {
             path: 'bank-accounts',
             loadComponent: () =>
