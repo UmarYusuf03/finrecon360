@@ -51,6 +51,12 @@ export class AdminShellComponent implements OnInit {
       scope: 'tenant',
     },
     {
+      path: '/app/admin/needs-bank-match',
+      label: 'Needs Bank Match',
+      permission: 'ADMIN.TRANSACTIONS.VIEW',
+      scope: 'tenant',
+    },
+    {
       path: '/app/admin/bank-accounts',
       label: 'Bank Accounts',
       permission: 'ADMIN.BANK_ACCOUNTS.VIEW',

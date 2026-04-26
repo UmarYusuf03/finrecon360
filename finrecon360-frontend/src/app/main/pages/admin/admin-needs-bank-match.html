@@ -1,0 +1,57 @@
+<mat-card>
+  <div class="roles__header">
+    <div>
+      <h2>Needs Bank Match</h2>
+      <p>Approved card cash-outs waiting for matcher/reconciliation handoff. No matching actions are available in this module.</p>
+    </div>
+    <div class="roles__actions">
+      <button mat-button type="button" (click)="refresh()" [disabled]="loading">Refresh</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" style="display: flex; justify-content: center; padding: 24px;">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <table mat-table [dataSource]="transactions" class="mat-elevation-z1" *ngIf="!loading">
+    <ng-container matColumnDef="transactionDate">
+      <th mat-header-cell *matHeaderCellDef>Date</th>
+      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="amount">
+      <th mat-header-cell *matHeaderCellDef>Amount</th>
+      <td mat-cell *matCellDef="let transaction">{{ transaction.amount | number: '1.2-2' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="type">
+      <th mat-header-cell *matHeaderCellDef>Type</th>
+      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="method">
+      <th mat-header-cell *matHeaderCellDef>Method</th>
+      <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="bankAccount">
+      <th mat-header-cell *matHeaderCellDef>Bank Account</th>
+      <td mat-cell *matCellDef="let transaction">{{ getBankAccountLabel(transaction.bankAccountId) }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="description">
+      <th mat-header-cell *matHeaderCellDef>Description</th>
+      <td mat-cell *matCellDef="let transaction">{{ transaction.description }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="state">
+      <th mat-header-cell *matHeaderCellDef>State</th>
+      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionState }}</td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+
+  <p *ngIf="!loading && transactions.length === 0">No transactions need bank matching.</p>
+</mat-card>

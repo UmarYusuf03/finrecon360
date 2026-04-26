@@ -73,6 +73,16 @@ export interface Transaction {
   updatedAt?: string | null;
 }
 
+export interface TransactionStateHistory {
+  transactionStateHistoryId: string;
+  transactionId: string;
+  fromState: string;
+  toState: string;
+  changedByUserId?: string | null;
+  changedAt: string;
+  note?: string | null;
+}
+
 export interface CreateTransactionRequest {
   amount: number;
   transactionDate: string;

@@ -17,6 +17,7 @@ namespace finrecon360_backend.Models
         Pending,
         Approved,
         Rejected,
+        // Card cash-outs pause here until the bank-match phase promotes them to JournalReady.
         NeedsBankMatch,
         JournalReady
     }
