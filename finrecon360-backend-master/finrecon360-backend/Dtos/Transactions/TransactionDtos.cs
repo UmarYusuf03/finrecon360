@@ -20,6 +20,24 @@ namespace finrecon360_backend.Dtos.Transactions
         public string PaymentMethod { get; set; } = string.Empty;
     }
 
+    public class UpdateTransactionRequest
+    {
+        public decimal Amount { get; set; }
+        public DateTime TransactionDate { get; set; }
+
+        [Required]
+        [MaxLength(500)]
+        public string Description { get; set; } = string.Empty;
+
+        public Guid? BankAccountId { get; set; }
+
+        [Required]
+        public string TransactionType { get; set; } = string.Empty;
+
+        [Required]
+        public string PaymentMethod { get; set; } = string.Empty;
+    }
+
     public class ApproveTransactionRequest
     {
         [MaxLength(500)]

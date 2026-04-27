@@ -53,6 +53,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.IMPORT_ARCHITECTURE.VIEW',
   ];
 
+  readonly transactionEntryPermissions: string[] = ['ADMIN.TRANSACTIONS.VIEW'];
+
   user$: Observable<CurrentUser | null>;
   profileImageUrl: string | null = null;
 
