@@ -20,3 +20,7 @@
 # Local ide and db sessions
 **/.vscode/
 finrecon.session.sql
+
+# Local generated docs
+endpoints.txt
+detailedExplanation.txt

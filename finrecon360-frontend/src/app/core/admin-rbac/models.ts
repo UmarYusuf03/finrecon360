@@ -75,6 +75,71 @@ export interface AdminUserSummary {
  * WHY: Standardized wrapper for paginated endpoints to ensure uniform client-side handling 
  * of infinite scrolling or standard pagination UI components across all admin tables.
  */
+export interface BankAccount {
+  bankAccountId: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface Transaction {
+  transactionId: string;
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+  transactionState: string;
+  createdByUserId?: string | null;
+  approvedAt?: string | null;
+  approvedByUserId?: string | null;
+  rejectedAt?: string | null;
+  rejectedByUserId?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface TransactionStateHistory {
+  transactionStateHistoryId: string;
+  transactionId: string;
+  fromState: string;
+  toState: string;
+  changedByUserId?: string | null;
+  changedAt: string;
+  note?: string | null;
+}
+
+export interface CreateTransactionRequest {
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+}
+
+export interface UpdateTransactionRequest {
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+}
+
+export interface ApproveTransactionRequest {
+  note?: string | null;
+}
+
+export interface RejectTransactionRequest {
+  reason: string;
+}
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;

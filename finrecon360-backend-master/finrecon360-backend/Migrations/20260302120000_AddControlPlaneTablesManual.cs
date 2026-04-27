@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using finrecon360_backend.Data;
 
 #nullable disable
 
 namespace finrecon360_backend.Migrations
 {
+    [DbContext(typeof(AppDbContext))]
     [Migration("20260302120000_AddControlPlaneTablesManual")]
     public partial class AddControlPlaneTablesManual : Migration
     {
@@ -135,7 +138,7 @@ namespace finrecon360_backend.Migrations
                 BEGIN
                     ALTER TABLE [Tenants]
                     ADD CONSTRAINT [FK_Tenants_Subscriptions_CurrentSubscriptionId]
-                    FOREIGN KEY ([CurrentSubscriptionId]) REFERENCES [Subscriptions] ([SubscriptionId]) ON DELETE SET NULL;
+                    FOREIGN KEY ([CurrentSubscriptionId]) REFERENCES [Subscriptions] ([SubscriptionId]) ON DELETE NO ACTION;
                 END
                 """
             );
@@ -155,7 +158,7 @@ namespace finrecon360_backend.Migrations
                         [PaidAt] datetime2 NULL,
                         CONSTRAINT [PK_PaymentSessions] PRIMARY KEY ([PaymentSessionId]),
                         CONSTRAINT [FK_PaymentSessions_Tenants_TenantId] FOREIGN KEY ([TenantId]) REFERENCES [Tenants] ([TenantId]) ON DELETE CASCADE,
-                        CONSTRAINT [FK_PaymentSessions_Subscriptions_SubscriptionId] FOREIGN KEY ([SubscriptionId]) REFERENCES [Subscriptions] ([SubscriptionId]) ON DELETE CASCADE
+                        CONSTRAINT [FK_PaymentSessions_Subscriptions_SubscriptionId] FOREIGN KEY ([SubscriptionId]) REFERENCES [Subscriptions] ([SubscriptionId]) ON DELETE NO ACTION
                     );
                     CREATE UNIQUE INDEX [IX_PaymentSessions_StripeSessionId] ON [PaymentSessions] ([StripeSessionId]);
                 END

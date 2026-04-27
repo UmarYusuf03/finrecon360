@@ -24,6 +24,14 @@
         </a>
       </ng-container>
       <a
+        routerLink="/app/transactions"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: false }"
+        *ngIf="!(user$ | async)?.isSystemAdmin && hasAnyPermission(user$ | async, transactionEntryPermissions)"
+      >
+        Transactions
+      </a>
+      <a
         routerLink="/app/imports"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
