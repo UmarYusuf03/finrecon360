@@ -40,30 +40,18 @@ export const mainRoutes: Routes = [
         children: [
           {
             path: 'transactions',
-            loadComponent: () =>
-              import('./pages/admin/admin-transactions').then(
-                (m) => m.AdminTransactionsComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+            pathMatch: 'full',
+            redirectTo: '/app/transactions',
           },
           {
             path: 'journal-ready',
-            loadComponent: () =>
-              import('./pages/admin/admin-journal-ready').then(
-                (m) => m.AdminJournalReadyComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+            pathMatch: 'full',
+            redirectTo: '/app/transactions/journal-ready',
           },
           {
             path: 'needs-bank-match',
-            loadComponent: () =>
-              import('./pages/admin/admin-needs-bank-match').then(
-                (m) => m.AdminNeedsBankMatchComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+            pathMatch: 'full',
+            redirectTo: '/app/transactions/needs-bank-match',
           },
           {
             path: 'bank-accounts',
@@ -162,6 +150,36 @@ export const mainRoutes: Routes = [
               import('./pages/admin/admin-audit-logs').then((m) => m.AdminAuditLogsComponent),
             canActivate: [AccessGuard],
             data: { roles: ['ADMIN'], permissions: ['ADMIN.TENANTS.MANAGE'] },
+          },
+        ],
+      },
+      {
+        // Transactions workflow moved out of Admin into its own module.
+        // Keeps Admin focused on configuration and Transactions on workflow.
+        path: 'transactions',
+        canActivate: [AccessGuard],
+        data: { scope: 'tenant', permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./pages/admin/admin-transactions').then(
+                (m) => m.AdminTransactionsComponent,
+              ),
+          },
+          {
+            path: 'journal-ready',
+            loadComponent: () =>
+              import('./pages/admin/admin-journal-ready').then(
+                (m) => m.AdminJournalReadyComponent,
+              ),
+          },
+          {
+            path: 'needs-bank-match',
+            loadComponent: () =>
+              import('./pages/admin/admin-needs-bank-match').then(
+                (m) => m.AdminNeedsBankMatchComponent,
+              ),
           },
         ],
       },

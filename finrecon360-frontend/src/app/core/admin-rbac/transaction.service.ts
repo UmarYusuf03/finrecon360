@@ -10,6 +10,7 @@ import {
   RejectTransactionRequest,
   Transaction,
   TransactionStateHistory,
+  UpdateTransactionRequest,
 } from './models';
 
 @Injectable({
@@ -65,6 +66,46 @@ export class TransactionService {
 
     return this.http.post<Transaction>(this.baseUrl, data).pipe(
       tap((created) => this.transactionsSubject.next([created, ...this.transactionsSubject.value])),
+    );
+  }
+
+  update(id: string, data: UpdateTransactionRequest): Observable<Transaction> {
+    if (USE_MOCK_API) {
+      const now = new Date().toISOString();
+      let updated!: Transaction;
+
+      this.transactionsSubject.next(
+        this.transactionsSubject.value.map((transaction) => {
+          if (transaction.transactionId !== id) {
+            return transaction;
+          }
+
+          updated = {
+            ...transaction,
+            amount: data.amount,
+            transactionDate: data.transactionDate,
+            description: data.description,
+            bankAccountId: data.bankAccountId ?? null,
+            transactionType: data.transactionType,
+            paymentMethod: data.paymentMethod,
+            updatedAt: now,
+          };
+
+          return updated;
+        }),
+      );
+
+      return of(updated);
+    }
+
+    return this.http.put<Transaction>(`${this.baseUrl}/${id}`, data).pipe(
+      tap((updated) =>
+        this.transactionsSubject.next(
+          this.transactionsSubject.value.map((transaction) =>
+            transaction.transactionId === updated.transactionId ? updated : transaction,
+          ),
+        ),
+      ),
     );
   }
 

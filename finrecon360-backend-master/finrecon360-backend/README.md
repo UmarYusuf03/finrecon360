@@ -18,26 +18,17 @@ Implemented backend areas:
 - tenant and user enforcement
 - tenant-scoped RBAC in tenant databases
 - tenant-admin management of users, roles, permissions, components, and actions
-<<<<<<< HEAD
 - canonical import pipeline foundation (upload, parse, mapping, validation, normalization, commit)
 - tenant-admin import architecture APIs (canonical schema and mapping-template management)
-=======
 - tenant-admin bank account management
 - tenant-admin transaction capture
 - transaction approval and rejection with state history
 - journal-ready transaction queue
 - needs-bank-match transaction queue
->>>>>>> d3c695b (feat(transactions): changes to approval flow, journal-ready & needs-bank-match queues, history, UI polish, and documentation)
 - `api/me` tenant resolution and permission hydration
 
 Not yet implemented as finance-operational modules:
 
-<<<<<<< HEAD
-- transaction state and transaction state history
-- cash-in and cashout workflow orchestration
-=======
-- canonical ERP import pipeline
->>>>>>> d3c695b (feat(transactions): changes to approval flow, journal-ready & needs-bank-match queues, history, UI polish, and documentation)
 - bank statement matching
 - full cash-in and cashout workflow orchestration
 - human-confirmed reconciliation engine
@@ -74,21 +65,16 @@ Each tenant database currently contains RBAC, tenant-directory, and import-found
 - `AppComponents`
 - `PermissionActions`
 - `UserRoles`
-<<<<<<< HEAD
 - `ImportBatches`
 - `ImportedRawRecords`
 - `ImportedNormalizedRecords`
 - `ImportMappingTemplates`
-
-At present, tenant databases include canonical import tables, but do not yet contain full reconciliation, transaction-state-history, and journal-orchestration tables described in the architecture baseline.
-=======
 - `BankAccounts`
 - `Transactions`
 - `TransactionStateHistories`
 - import staging and mapping tables
 
 Tenant finance tables are created by `TenantSchemaMigrator` when a tenant DB is initialized or opened through the tenant DB factory.
->>>>>>> d3c695b (feat(transactions): changes to approval flow, journal-ready & needs-bank-match queues, history, UI polish, and documentation)
 
 ## Auth And Onboarding Flow
 
@@ -402,9 +388,50 @@ GET /api/admin/transactions/{transactionId}/history
 Current tenant-admin frontend routes:
 
 - `/app/admin/bank-accounts`
-- `/app/admin/transactions`
-- `/app/admin/journal-ready`
-- `/app/admin/needs-bank-match`
+- `/app/transactions`
+- `/app/transactions/journal-ready`
+- `/app/transactions/needs-bank-match`
+
+Old `/app/admin/transactions`, `/app/admin/journal-ready`, and `/app/admin/needs-bank-match` URLs redirect to the new workflow routes.
+
+### Member 3 - Transactions & Approval Workflow (Final)
+
+Member 3 owns tenant-scoped transaction capture, approvals, state history, and queue visibility. These pages now live in a dedicated Transactions module instead of the Admin configuration area.
+
+Features:
+
+- Transaction creation for `CashIn` and `CashOut`.
+- Approval and rejection workflow.
+- Transaction states: `Pending`, `JournalReady`, `NeedsBankMatch`, and `Rejected`.
+- State transition rule: `CashOut` with `Cash` moves to `JournalReady` after approval.
+- State transition rule: `CashOut` with `Card` moves to `NeedsBankMatch` after approval.
+- Edit is allowed only while a transaction is `Pending`.
+- Transaction history tracks lifecycle transitions, timestamps, user IDs, and notes.
+
+UI improvements:
+
+- Transactions moved out of Admin into `/app/transactions`.
+- Workflow navigation: Transactions / Journal Ready / Needs Bank Match.
+- Clickable `JournalReady` and `NeedsBankMatch` state badges route to the matching queue.
+- Journal Ready supports Date / Amount sorting and Year / Month filtering.
+- Transaction tables use modern, softer styling consistent with the FinRecon360 theme.
+
+Validation:
+
+- Transaction date is validated with a minimum of `2000-01-01` and a maximum of today.
+- Card transactions require a bank account.
+- Save and workflow actions prevent duplicate submissions while requests are in progress.
+- Approved and rejected transactions are immutable.
+
+Audit:
+
+- The Transaction History modal shows amount, transaction date, type/method, current state, transitions, timestamps, changed-by user ID, and notes.
+- State changes are append-only through `TransactionStateHistory`.
+
+Notes:
+
+- Approved transactions cannot be edited.
+- Corrections must be handled through future reversal or adjustment transactions to preserve audit integrity.
 
 ### Imports
 
@@ -444,9 +471,6 @@ Current tenant-admin frontend routes:
 
 ## Known Gaps Vs Target Architecture
 
-<<<<<<< HEAD
-### 1. Finance Workflows Are Not Built Yet
-=======
 ### 1. Global User Separation Is Not Fully Modeled
 
 The target design describes global or public users as conceptually distinct from tenant operational users. The current backend uses a shared global `Users` table and links those records into tenant membership. That is workable, but it is not a strict separate-identity model.
@@ -456,7 +480,6 @@ The target design describes global or public users as conceptually distinct from
 `Plan` currently exposes `MaxAccounts`. Tenant user creation currently reads that field to enforce the tenant user cap. This is a mismatch between model name and actual behavior.
 
 ### 3. Finance Workflows Are Partially Built
->>>>>>> d3c695b (feat(transactions): changes to approval flow, journal-ready & needs-bank-match queues, history, UI polish, and documentation)
 
 The architecture baseline documents:
 
@@ -465,11 +488,7 @@ The architecture baseline documents:
 - journal gating
 - reporting snapshots
 
-<<<<<<< HEAD
-Canonical import foundations are now present in the current codebase. Reconciliation, cashout-state workflows, journal gating, and reporting snapshots are still not present as complete backend modules.
-=======
 Bank accounts, basic transaction capture, approval/rejection, transaction history, and a journal-ready queue are present. Bank matching, journal posting execution, reconciliation, and reporting snapshots are still pending.
->>>>>>> d3c695b (feat(transactions): changes to approval flow, journal-ready & needs-bank-match queues, history, UI polish, and documentation)
 
 ### 2. Auth Direction Is Mixed
 

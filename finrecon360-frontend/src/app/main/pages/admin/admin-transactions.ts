@@ -1,7 +1,15 @@
 import { Component, OnInit, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
@@ -12,15 +20,17 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Observable } from 'rxjs';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
 import {
   BankAccount,
-  CreateTransactionRequest,
   RejectTransactionRequest,
   Transaction,
   TransactionStateHistory,
+  UpdateTransactionRequest,
 } from '../../../core/admin-rbac/models';
 import { AuthService } from '../../../core/auth/auth.service';
 
@@ -40,185 +50,11 @@ import { AuthService } from '../../../core/auth/auth.service';
     MatSelectModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    RouterLink,
+    RouterLinkActive,
   ],
   templateUrl: './admin-transactions.html',
-  styles: [`
-    .transactions-card {
-      padding: 4px;
-    }
-
-    .transactions-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 18px;
-    }
-
-    .transactions-header h2 {
-      margin: 0 0 4px;
-    }
-
-    .transactions-header p {
-      margin: 0;
-      color: rgba(0, 0, 0, 0.62);
-    }
-
-    .transactions-header__actions,
-    .transaction-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .transactions-header__actions button {
-      min-height: 40px;
-    }
-
-    .transactions-header__actions mat-icon {
-      margin-right: 6px;
-    }
-
-    .transactions-loading {
-      display: flex;
-      justify-content: center;
-      padding: 32px 24px;
-    }
-
-    .transactions-table {
-      width: 100%;
-      overflow: hidden;
-    }
-
-    .amount-cell {
-      font-variant-numeric: tabular-nums;
-      font-weight: 600;
-    }
-
-    .bank-account-label {
-      color: rgba(0, 0, 0, 0.72);
-    }
-
-    .state-badge {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 4px 10px;
-      font-size: 12px;
-      font-weight: 700;
-      line-height: 1.2;
-      white-space: nowrap;
-    }
-
-    .state-pending {
-      background: #fff7ed;
-      color: #9a3412;
-    }
-
-    .state-journal-ready {
-      background: #ecfdf5;
-      color: #047857;
-    }
-
-    .state-needs-bank-match {
-      background: #eff6ff;
-      color: #1d4ed8;
-    }
-
-    .state-rejected {
-      background: #fef2f2;
-      color: #b91c1c;
-    }
-
-    .state-default {
-      background: #f3f4f6;
-      color: #374151;
-    }
-
-    .action-button {
-      color: rgba(0, 0, 0, 0.64);
-    }
-
-    .action-history {
-      color: #475569;
-    }
-
-    .action-approve:not(:disabled) {
-      color: #047857;
-    }
-
-    .action-reject:not(:disabled) {
-      color: #b91c1c;
-    }
-
-    .action-button:disabled {
-      color: rgba(0, 0, 0, 0.28);
-      background: rgba(0, 0, 0, 0.04);
-    }
-
-    .transactions-empty {
-      display: grid;
-      justify-items: center;
-      gap: 6px;
-      padding: 40px 16px;
-      text-align: center;
-      color: rgba(0, 0, 0, 0.62);
-    }
-
-    .transactions-empty mat-icon {
-      width: 40px;
-      height: 40px;
-      font-size: 40px;
-      color: rgba(0, 0, 0, 0.38);
-    }
-
-    .transactions-empty h3 {
-      margin: 8px 0 0;
-      color: rgba(0, 0, 0, 0.82);
-    }
-
-    .transactions-empty p {
-      margin: 0;
-    }
-
-    .transaction-dialog {
-      min-width: min(640px, 82vw);
-    }
-
-    .transaction-form {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .transaction-form__grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    [mat-dialog-actions] button mat-spinner {
-      display: inline-block;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-
-    @media (max-width: 720px) {
-      .transactions-header {
-        align-items: stretch;
-        flex-direction: column;
-      }
-
-      .transactions-header__actions {
-        justify-content: flex-start;
-        flex-wrap: wrap;
-      }
-
-      .transaction-form__grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  `],
+  styleUrls: ['./admin-transaction-pages.scss'],
 })
 export class AdminTransactionsComponent implements OnInit {
   displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
@@ -228,8 +64,10 @@ export class AdminTransactionsComponent implements OnInit {
   history: TransactionStateHistory[] = [];
   form!: FormGroup;
   rejectForm!: FormGroup;
+  editingTransaction: Transaction | null = null;
   rejectingTransaction: Transaction | null = null;
   historyTransaction: Transaction | null = null;
+  historyError: string | null = null;
   loading = false;
   historyLoading = false;
   saving = false;
@@ -238,6 +76,8 @@ export class AdminTransactionsComponent implements OnInit {
 
   readonly transactionTypes = ['CashIn', 'CashOut'];
   readonly paymentMethods = ['Cash', 'Card'];
+  readonly minTransactionDate = '2000-01-01';
+  readonly maxTransactionDate = new Date().toISOString().slice(0, 10);
 
   constructor(
     private transactionService: TransactionService,
@@ -251,7 +91,7 @@ export class AdminTransactionsComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.fb.group({
       amount: [null, [Validators.required, Validators.min(0.01)]],
-      transactionDate: ['', Validators.required],
+      transactionDate: ['', [Validators.required, this.transactionDateValidator()]],
       description: ['', [Validators.required, Validators.maxLength(500)]],
       transactionType: ['CashIn', Validators.required],
       paymentMethod: ['Cash', Validators.required],
@@ -280,7 +120,9 @@ export class AdminTransactionsComponent implements OnInit {
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
+    this.editingTransaction = null;
     this.saveError = null;
+    this.form.enable({ emitEvent: false });
     this.form.reset({
       amount: null,
       transactionDate: '',
@@ -290,10 +132,38 @@ export class AdminTransactionsComponent implements OnInit {
       bankAccountId: null,
     });
     this.updateBankAccountValidator();
-    this.dialog.open(dialogTemplate);
+    this.dialog.open(dialogTemplate, { width: '760px', maxWidth: '96vw' });
+  }
+
+  openEdit(transaction: Transaction, dialogTemplate: TemplateRef<unknown>): void {
+    // Only Pending transactions can be modified.
+    // Approved/Rejected transactions are locked for audit integrity.
+    if (!this.canManageTransactions || !this.isPending(transaction) || this.isActionBusy(transaction)) {
+      return;
+    }
+
+    this.editingTransaction = transaction;
+    this.saveError = null;
+    this.form.enable({ emitEvent: false });
+    this.form.reset({
+      amount: transaction.amount,
+      transactionDate: transaction.transactionDate.slice(0, 10),
+      description: transaction.description,
+      transactionType: transaction.transactionType,
+      paymentMethod: transaction.paymentMethod,
+      bankAccountId: transaction.bankAccountId ?? null,
+    });
+    this.updateBankAccountValidator();
+    this.dialog.open(dialogTemplate, { width: '760px', maxWidth: '96vw' });
   }
 
   save(): void {
+    if (!this.canManageTransactions) {
+      return;
+    }
+
+    // Prevent duplicate actions while request is in progress.
+    // Ensures idempotent UI behavior.
     if (this.saving) {
       return;
     }
@@ -304,7 +174,7 @@ export class AdminTransactionsComponent implements OnInit {
     }
 
     const raw = this.form.getRawValue();
-    const payload: CreateTransactionRequest = {
+    const payload: UpdateTransactionRequest = {
       amount: Number(raw.amount),
       transactionDate: `${raw.transactionDate}T00:00:00`,
       description: raw.description,
@@ -313,17 +183,24 @@ export class AdminTransactionsComponent implements OnInit {
       bankAccountId: raw.bankAccountId || null,
     };
 
-    this.saving = true;
-    this.saveError = null;
-    this.transactionService.create(payload).subscribe({
+    this.setSavingState(true);
+    const successMessage = this.editingTransaction
+      ? 'Transaction updated successfully.'
+      : 'Transaction created successfully.';
+    const request$: Observable<unknown> = this.editingTransaction
+      ? this.transactionService.update(this.editingTransaction.transactionId, payload)
+      : this.transactionService.create(payload);
+
+    request$.subscribe({
       next: () => {
-        this.saving = false;
+        this.setSavingState(false);
         this.dialog.closeAll();
+        this.editingTransaction = null;
         this.loadTransactions();
-        this.snackBar.open('Transaction created successfully.', 'Close', { duration: 2500 });
+        this.snackBar.open(successMessage, 'Close', { duration: 2500 });
       },
       error: (error: unknown) => {
-        this.saving = false;
+        this.setSavingState(false);
         const message = this.extractErrorMessage(error);
         this.saveError = message;
         this.snackBar.open(message, 'Close', { duration: 3500 });
@@ -332,6 +209,8 @@ export class AdminTransactionsComponent implements OnInit {
   }
 
   approve(transaction: Transaction): void {
+    // Prevent duplicate actions while request is in progress.
+    // Ensures idempotent UI behavior.
     if (!this.canManageTransactions || !this.isPending(transaction) || this.actionId) {
       return;
     }
@@ -351,6 +230,8 @@ export class AdminTransactionsComponent implements OnInit {
   }
 
   openReject(transaction: Transaction, dialogTemplate: TemplateRef<unknown>): void {
+    // Only Pending transactions can be modified.
+    // Approved/Rejected transactions are locked for audit integrity.
     if (!this.canManageTransactions || !this.isPending(transaction) || this.actionId) {
       return;
     }
@@ -363,8 +244,9 @@ export class AdminTransactionsComponent implements OnInit {
   openHistory(transaction: Transaction, dialogTemplate: TemplateRef<unknown>): void {
     this.historyTransaction = transaction;
     this.history = [];
+    this.historyError = null;
     this.historyLoading = true;
-    this.dialog.open(dialogTemplate, { width: '720px' });
+    this.dialog.open(dialogTemplate, { width: '860px', maxWidth: '96vw' });
 
     this.transactionService.getHistory(transaction.transactionId).subscribe({
       next: (history) => {
@@ -373,12 +255,15 @@ export class AdminTransactionsComponent implements OnInit {
       },
       error: (error: unknown) => {
         this.historyLoading = false;
-        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+        this.historyError = this.extractErrorMessage(error);
+        this.snackBar.open(this.historyError, 'Close', { duration: 3500 });
       },
     });
   }
 
   reject(): void {
+    // Prevent duplicate actions while request is in progress.
+    // Ensures idempotent UI behavior.
     if (this.actionId) {
       return;
     }
@@ -448,6 +333,24 @@ export class AdminTransactionsComponent implements OnInit {
     }
   }
 
+  getDialogTitle(): string {
+    return this.editingTransaction ? 'Edit Transaction' : 'Add Transaction';
+  }
+
+  getDialogHelperText(): string {
+    return this.editingTransaction
+      ? 'Only pending transactions can be edited before approval.'
+      : 'Create a new pending transaction for approval.';
+  }
+
+  getSaveButtonLabel(): string {
+    if (this.saving) {
+      return 'Saving...';
+    }
+
+    return this.editingTransaction ? 'Update Transaction' : 'Create Transaction';
+  }
+
   private loadTransactions(): void {
     this.loading = true;
     this.transactionService.getAll().subscribe({
@@ -489,12 +392,64 @@ export class AdminTransactionsComponent implements OnInit {
     bankAccountControl.updateValueAndValidity({ emitEvent: false });
   }
 
-  private extractErrorMessage(error: unknown): string {
-    if (error instanceof HttpErrorResponse) {
-      const body = error.error as { message?: string } | null;
-      return body?.message ?? `Request failed with status ${error.status}.`;
+  private setSavingState(isSaving: boolean): void {
+    this.saving = isSaving;
+    this.saveError = isSaving ? null : this.saveError;
+
+    if (isSaving) {
+      this.form.disable({ emitEvent: false });
+      return;
     }
 
-    return 'Request failed.';
+    this.form.enable({ emitEvent: false });
+    this.updateBankAccountValidator();
+  }
+
+  private transactionDateValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value = control.value;
+      if (!value) {
+        return null;
+      }
+
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return { invalidDate: true };
+      }
+
+      const parsed = new Date(`${value}T00:00:00`);
+      if (Number.isNaN(parsed.getTime())) {
+        return { invalidDate: true };
+      }
+
+      if (value < this.minTransactionDate) {
+        return { minDate: true };
+      }
+
+      if (value > this.maxTransactionDate) {
+        return { maxDate: true };
+      }
+
+      return null;
+    };
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      if (typeof error.error === 'string' && error.error.trim()) {
+        return error.error.trim();
+      }
+
+      const body = error.error as { message?: string; error?: { message?: string } } | null;
+      return body?.message
+        ?? body?.error?.message
+        ?? error.message
+        ?? `Request failed with status ${error.status}.`;
+    }
+
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    return 'Request failed. Please review the form and try again.';
   }
 }

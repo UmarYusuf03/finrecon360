@@ -3,9 +3,11 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
@@ -19,10 +21,14 @@ import { BankAccount, Transaction } from '../../../core/admin-rbac/models';
     MatCardModule,
     MatTableModule,
     MatButtonModule,
+    MatIconModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    RouterLink,
+    RouterLinkActive,
   ],
   templateUrl: './admin-needs-bank-match.html',
+  styleUrls: ['./admin-transaction-pages.scss'],
 })
 export class AdminNeedsBankMatchComponent implements OnInit {
   displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'description', 'state'];
@@ -42,6 +48,10 @@ export class AdminNeedsBankMatchComponent implements OnInit {
   }
 
   refresh(): void {
+    if (this.loading) {
+      return;
+    }
+
     this.loadNeedsBankMatch();
   }
 
@@ -52,6 +62,32 @@ export class AdminNeedsBankMatchComponent implements OnInit {
 
     const account = this.bankAccounts.find((item) => item.bankAccountId === bankAccountId);
     return account ? `${account.bankName} - ${account.accountNumber}` : bankAccountId;
+  }
+
+  getStateLabel(state: string): string {
+    switch (state) {
+      case 'JournalReady':
+        return 'Journal Ready';
+      case 'NeedsBankMatch':
+        return 'Needs Bank Match';
+      default:
+        return state;
+    }
+  }
+
+  getStateClass(state: string): string {
+    switch (state) {
+      case 'Pending':
+        return 'state-pending';
+      case 'JournalReady':
+        return 'state-journal-ready';
+      case 'NeedsBankMatch':
+        return 'state-needs-bank-match';
+      case 'Rejected':
+        return 'state-rejected';
+      default:
+        return 'state-default';
+    }
   }
 
   private loadNeedsBankMatch(): void {

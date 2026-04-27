@@ -92,6 +92,15 @@ export interface CreateTransactionRequest {
   paymentMethod: string;
 }
 
+export interface UpdateTransactionRequest {
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+}
+
 export interface ApproveTransactionRequest {
   note?: string | null;
 }

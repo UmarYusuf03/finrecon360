@@ -108,6 +108,37 @@ namespace finrecon360_backend.Controllers.Admin
             return Ok(result);
         }
 
+        // IMPORTANT:
+        // Once a transaction is approved or rejected, it becomes immutable.
+        // This ensures audit integrity for financial records.
+        // Any corrections must be handled through reversal or adjustment transactions.
+        [HttpPut("{id:guid}")]
+        [RequirePermission("ADMIN.TRANSACTIONS.MANAGE")]
+        public async Task<ActionResult<TransactionResponse>> Update(
+            Guid id,
+            [FromBody] UpdateTransactionRequest request,
+            CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            try
+            {
+                var result = await _transactionService.UpdateAsync(tenantDb, id, request, auth.UserId!.Value, ct);
+                if (result == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpGet("{id:guid}/history")]
         [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
         public async Task<ActionResult<List<TransactionStateHistoryResponse>>> GetHistory(Guid id, CancellationToken ct)
@@ -126,6 +157,10 @@ namespace finrecon360_backend.Controllers.Admin
             return Ok(result);
         }
 
+        // IMPORTANT:
+        // Once a transaction is approved or rejected, it becomes immutable.
+        // This ensures audit integrity for financial records.
+        // Any corrections must be handled through reversal or adjustment transactions.
         [HttpPost("{id:guid}/approve")]
         [RequirePermission("ADMIN.TRANSACTIONS.MANAGE")]
         public async Task<ActionResult<TransactionResponse>> Approve(
@@ -153,6 +188,10 @@ namespace finrecon360_backend.Controllers.Admin
             }
         }
 
+        // IMPORTANT:
+        // Once a transaction is approved or rejected, it becomes immutable.
+        // This ensures audit integrity for financial records.
+        // Any corrections must be handled through reversal or adjustment transactions.
         [HttpPost("{id:guid}/reject")]
         [RequirePermission("ADMIN.TRANSACTIONS.MANAGE")]
         public async Task<ActionResult<TransactionResponse>> Reject(

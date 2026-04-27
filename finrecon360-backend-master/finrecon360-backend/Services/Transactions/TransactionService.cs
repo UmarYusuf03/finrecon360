@@ -7,52 +7,34 @@ namespace finrecon360_backend.Services.Transactions
 {
     public class TransactionService
     {
+        private static readonly DateTime MinimumTransactionDate = new(2000, 1, 1);
+
         public async Task<TransactionResponse> CreateAsync(
             TenantDbContext db,
             CreateTransactionRequest request,
             Guid userId,
             CancellationToken ct)
         {
-            if (request.Amount <= 0)
-            {
-                throw new InvalidOperationException("Amount must be greater than zero.");
-            }
-
-            if (request.TransactionDate == default)
-            {
-                throw new InvalidOperationException("TransactionDate is required.");
-            }
-
-            var transactionType = ParseEnum<TransactionType>(request.TransactionType, nameof(request.TransactionType));
-            var paymentMethod = ParseEnum<PaymentMethod>(request.PaymentMethod, nameof(request.PaymentMethod));
-
-            if (paymentMethod == PaymentMethod.Card && request.BankAccountId == null)
-            {
-                throw new InvalidOperationException("BankAccountId is required for card transactions.");
-            }
-
-            if (request.BankAccountId.HasValue)
-            {
-                var bankAccountExists = await db.BankAccounts
-                    .AsNoTracking()
-                    .AnyAsync(x => x.BankAccountId == request.BankAccountId.Value, ct);
-
-                if (!bankAccountExists)
-                {
-                    throw new InvalidOperationException("Bank account was not found.");
-                }
-            }
+            var validated = await ValidateTransactionAsync(
+                db,
+                request.Amount,
+                request.TransactionDate,
+                request.Description,
+                request.BankAccountId,
+                request.TransactionType,
+                request.PaymentMethod,
+                ct);
 
             var now = DateTime.UtcNow;
             var entity = new Transaction
             {
                 TransactionId = Guid.NewGuid(),
-                Amount = request.Amount,
-                TransactionDate = request.TransactionDate,
-                Description = request.Description.Trim(),
-                BankAccountId = request.BankAccountId,
-                TransactionType = transactionType,
-                PaymentMethod = paymentMethod,
+                Amount = validated.Amount,
+                TransactionDate = validated.TransactionDate,
+                Description = validated.Description,
+                BankAccountId = validated.BankAccountId,
+                TransactionType = validated.TransactionType,
+                PaymentMethod = validated.PaymentMethod,
                 TransactionState = TransactionState.Pending,
                 CreatedByUserId = userId,
                 CreatedAt = now,
@@ -73,6 +55,53 @@ namespace finrecon360_backend.Services.Transactions
 
             db.Transactions.Add(entity);
             db.TransactionStateHistories.Add(history);
+            await db.SaveChangesAsync(ct);
+
+            return Map(entity);
+        }
+
+        public async Task<TransactionResponse?> UpdateAsync(
+            TenantDbContext db,
+            Guid transactionId,
+            UpdateTransactionRequest request,
+            Guid userId,
+            CancellationToken ct)
+        {
+            var entity = await db.Transactions
+                .FirstOrDefaultAsync(x => x.TransactionId == transactionId, ct);
+
+            if (entity == null)
+            {
+                return null;
+            }
+
+            if (entity.TransactionState != TransactionState.Pending)
+            {
+                throw new InvalidOperationException("Only pending transactions can be edited.");
+            }
+
+            // Approved transactions are immutable. Corrections should be handled via future
+            // reversal/correction workflows to preserve audit history.
+            var validated = await ValidateTransactionAsync(
+                db,
+                request.Amount,
+                request.TransactionDate,
+                request.Description,
+                request.BankAccountId,
+                request.TransactionType,
+                request.PaymentMethod,
+                ct);
+
+            _ = userId;
+
+            entity.Amount = validated.Amount;
+            entity.TransactionDate = validated.TransactionDate;
+            entity.Description = validated.Description;
+            entity.BankAccountId = validated.BankAccountId;
+            entity.TransactionType = validated.TransactionType;
+            entity.PaymentMethod = validated.PaymentMethod;
+            entity.UpdatedAt = DateTime.UtcNow;
+
             await db.SaveChangesAsync(ct);
 
             return Map(entity);
@@ -159,8 +188,9 @@ namespace finrecon360_backend.Services.Transactions
 
             var now = DateTime.UtcNow;
             var fromState = entity.TransactionState;
-            // Cash and other non-card-cashout approvals can move straight to JournalReady.
-            // Card cash-outs pause at NeedsBankMatch so the matcher module can take over first.
+            // Business Rule:
+            // CashOut (Cash) -> directly eligible for journal posting.
+            // CashOut (Card) -> requires bank reconciliation before journal posting.
             var toState = entity.TransactionType == TransactionType.CashOut && entity.PaymentMethod == PaymentMethod.Card
                 ? TransactionState.NeedsBankMatch
                 : TransactionState.JournalReady;
@@ -222,6 +252,77 @@ namespace finrecon360_backend.Services.Transactions
             }
 
             throw new InvalidOperationException($"{fieldName} is invalid.");
+        }
+
+        private async Task<ValidatedTransaction> ValidateTransactionAsync(
+            TenantDbContext db,
+            decimal amount,
+            DateTime transactionDate,
+            string? description,
+            Guid? bankAccountId,
+            string transactionType,
+            string paymentMethod,
+            CancellationToken ct)
+        {
+            if (amount <= 0)
+            {
+                throw new InvalidOperationException("Amount must be greater than zero.");
+            }
+
+            if (transactionDate == default)
+            {
+                throw new InvalidOperationException("TransactionDate is required.");
+            }
+
+            var normalizedTransactionDate = transactionDate.Date;
+            if (normalizedTransactionDate < MinimumTransactionDate)
+            {
+                throw new InvalidOperationException("TransactionDate cannot be earlier than 2000-01-01.");
+            }
+
+            if (normalizedTransactionDate > DateTime.UtcNow.Date)
+            {
+                throw new InvalidOperationException("TransactionDate cannot be in the future.");
+            }
+
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                throw new InvalidOperationException("Description is required.");
+            }
+
+            var normalizedDescription = description.Trim();
+            if (normalizedDescription.Length > 500)
+            {
+                throw new InvalidOperationException("Description cannot exceed 500 characters.");
+            }
+
+            var normalizedTransactionType = ParseEnum<TransactionType>(transactionType, nameof(transactionType));
+            var normalizedPaymentMethod = ParseEnum<PaymentMethod>(paymentMethod, nameof(paymentMethod));
+
+            if (normalizedPaymentMethod == PaymentMethod.Card && bankAccountId == null)
+            {
+                throw new InvalidOperationException("BankAccountId is required for card transactions.");
+            }
+
+            if (bankAccountId.HasValue)
+            {
+                var bankAccountExists = await db.BankAccounts
+                    .AsNoTracking()
+                    .AnyAsync(x => x.BankAccountId == bankAccountId.Value && x.IsActive, ct);
+
+                if (!bankAccountExists)
+                {
+                    throw new InvalidOperationException("Active bank account was not found.");
+                }
+            }
+
+            return new ValidatedTransaction(
+                amount,
+                normalizedTransactionDate,
+                normalizedDescription,
+                bankAccountId,
+                normalizedTransactionType,
+                normalizedPaymentMethod);
         }
 
         private static void AddStateHistory(
@@ -306,5 +407,13 @@ namespace finrecon360_backend.Services.Transactions
                 entity.ChangedByUserId,
                 entity.ChangedAt,
                 entity.Note);
+
+        private sealed record ValidatedTransaction(
+            decimal Amount,
+            DateTime TransactionDate,
+            string Description,
+            Guid? BankAccountId,
+            TransactionType TransactionType,
+            PaymentMethod PaymentMethod);
     }
 }
