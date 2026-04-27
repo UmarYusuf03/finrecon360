@@ -16,6 +16,9 @@ namespace finrecon360_backend.Data
         public DbSet<TenantComponent> Components => Set<TenantComponent>();
         public DbSet<TenantPermissionAction> PermissionActions => Set<TenantPermissionAction>();
         public DbSet<TenantUserRoleAssignment> UserRoles => Set<TenantUserRoleAssignment>();
+        public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
+        public DbSet<Transaction> Transactions => Set<Transaction>();
+        public DbSet<TransactionStateHistory> TransactionStateHistories => Set<TransactionStateHistory>();
         public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
         public DbSet<ImportedRawRecord> ImportedRawRecords => Set<ImportedRawRecord>();
         public DbSet<ImportedNormalizedRecord> ImportedNormalizedRecords => Set<ImportedNormalizedRecord>();
@@ -120,6 +123,89 @@ namespace finrecon360_backend.Data
                 entity.HasOne(x => x.Role)
                     .WithMany(r => r.UserRoles)
                     .HasForeignKey(x => x.RoleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<BankAccount>(entity =>
+            {
+                entity.ToTable("BankAccounts");
+                entity.HasKey(x => x.BankAccountId);
+                entity.Property(x => x.BankAccountId).ValueGeneratedNever();
+                entity.Property(x => x.BankName).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.AccountName).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.AccountNumber).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.Currency).HasMaxLength(10).IsRequired();
+                entity.Property(x => x.IsActive).HasDefaultValue(true);
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.AccountNumber).IsUnique();
+            });
+
+            modelBuilder.Entity<Transaction>(entity =>
+            {
+                entity.ToTable("Transactions", table =>
+                {
+                    table.HasCheckConstraint("CK_Transactions_Amount_Positive", "[Amount] > 0");
+                    table.HasCheckConstraint("CK_Transactions_TransactionType", "[TransactionType] IN (N'CashIn', N'CashOut')");
+                    table.HasCheckConstraint("CK_Transactions_PaymentMethod", "[PaymentMethod] IN (N'Cash', N'Card')");
+                    table.HasCheckConstraint("CK_Transactions_TransactionState", "[TransactionState] IN (N'Pending', N'Approved', N'Rejected', N'NeedsBankMatch', N'JournalReady')");
+                    table.HasCheckConstraint("CK_Transactions_PaymentMethod_BankAccount", "([PaymentMethod] <> N'Card' OR [BankAccountId] IS NOT NULL)");
+                });
+                entity.HasKey(x => x.TransactionId);
+                entity.Property(x => x.TransactionId).ValueGeneratedNever();
+                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)").IsRequired();
+                entity.Property(x => x.TransactionDate).HasColumnType("datetime2").IsRequired();
+                entity.Property(x => x.Description).HasMaxLength(500).IsRequired();
+                entity.Property(x => x.TransactionType).HasConversion<string>().HasMaxLength(20).IsRequired();
+                entity.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(20).IsRequired();
+                entity.Property(x => x.TransactionState)
+                    .HasConversion<string>()
+                    .HasMaxLength(30)
+                    .HasDefaultValue(TransactionState.Pending)
+                    .IsRequired();
+                entity.Property(x => x.RejectionReason).HasMaxLength(500);
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.ApprovedAt).HasColumnType("datetime2");
+                entity.Property(x => x.RejectedAt).HasColumnType("datetime2");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.TransactionDate);
+                entity.HasIndex(x => x.BankAccountId);
+                entity.HasIndex(x => x.TransactionState);
+                entity.HasIndex(x => x.CreatedByUserId);
+                entity.HasIndex(x => x.ApprovedByUserId);
+                entity.HasIndex(x => x.RejectedByUserId);
+
+                entity.HasOne(x => x.BankAccount)
+                    .WithMany()
+                    .HasForeignKey(x => x.BankAccountId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<TransactionStateHistory>(entity =>
+            {
+                entity.ToTable("TransactionStateHistories", table =>
+                {
+                    table.HasCheckConstraint("CK_TransactionStateHistories_FromState", "[FromState] IN (N'Pending', N'Approved', N'Rejected', N'NeedsBankMatch', N'JournalReady')");
+                    table.HasCheckConstraint("CK_TransactionStateHistories_ToState", "[ToState] IN (N'Pending', N'Approved', N'Rejected', N'NeedsBankMatch', N'JournalReady')");
+                });
+                entity.HasKey(x => x.TransactionStateHistoryId);
+                entity.Property(x => x.TransactionStateHistoryId).ValueGeneratedNever();
+                entity.Property(x => x.FromState).HasConversion<string>().HasMaxLength(30).IsRequired();
+                entity.Property(x => x.ToState).HasConversion<string>().HasMaxLength(30).IsRequired();
+                entity.Property(x => x.ChangedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.Note).HasMaxLength(500);
+                entity.HasIndex(x => x.TransactionId);
+                entity.HasIndex(x => x.ChangedAt);
+
+                entity.HasOne(x => x.Transaction)
+                    .WithMany(x => x.StateHistories)
+                    .HasForeignKey(x => x.TransactionId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 

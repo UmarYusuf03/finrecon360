@@ -28,6 +28,8 @@ export const mainRoutes: Routes = [
         data: {
           scope: 'tenant',
           anyPermissions: [
+            'ADMIN.BANK_ACCOUNTS.VIEW',
+            'ADMIN.TRANSACTIONS.VIEW',
             'ADMIN.ROLES.VIEW',
             'ADMIN.COMPONENTS.VIEW',
             'ADMIN.PERMISSIONS.VIEW',
@@ -36,6 +38,30 @@ export const mainRoutes: Routes = [
           ],
         },
         children: [
+          {
+            path: 'transactions',
+            pathMatch: 'full',
+            redirectTo: '/app/transactions',
+          },
+          {
+            path: 'journal-ready',
+            pathMatch: 'full',
+            redirectTo: '/app/transactions/journal-ready',
+          },
+          {
+            path: 'needs-bank-match',
+            pathMatch: 'full',
+            redirectTo: '/app/transactions/needs-bank-match',
+          },
+          {
+            path: 'bank-accounts',
+            loadComponent: () =>
+              import('./pages/admin/admin-bank-accounts').then(
+                (m) => m.AdminBankAccountsComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.BANK_ACCOUNTS.VIEW'] },
+          },
           {
             path: 'roles',
             loadComponent: () =>
@@ -124,6 +150,36 @@ export const mainRoutes: Routes = [
               import('./pages/admin/admin-audit-logs').then((m) => m.AdminAuditLogsComponent),
             canActivate: [AccessGuard],
             data: { roles: ['ADMIN'], permissions: ['ADMIN.TENANTS.MANAGE'] },
+          },
+        ],
+      },
+      {
+        // Transactions workflow moved out of Admin into its own module.
+        // Keeps Admin focused on configuration and Transactions on workflow.
+        path: 'transactions',
+        canActivate: [AccessGuard],
+        data: { scope: 'tenant', permissions: ['ADMIN.TRANSACTIONS.VIEW'] },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./pages/admin/admin-transactions').then(
+                (m) => m.AdminTransactionsComponent,
+              ),
+          },
+          {
+            path: 'journal-ready',
+            loadComponent: () =>
+              import('./pages/admin/admin-journal-ready').then(
+                (m) => m.AdminJournalReadyComponent,
+              ),
+          },
+          {
+            path: 'needs-bank-match',
+            loadComponent: () =>
+              import('./pages/admin/admin-needs-bank-match').then(
+                (m) => m.AdminNeedsBankMatchComponent,
+              ),
           },
         ],
       },

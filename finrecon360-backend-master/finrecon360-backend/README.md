@@ -20,15 +20,19 @@ Implemented backend areas:
 - tenant-admin management of users, roles, permissions, components, and actions
 - canonical import pipeline foundation (upload, parse, mapping, validation, normalization, commit)
 - tenant-admin import architecture APIs (canonical schema and mapping-template management)
+- tenant-admin bank account management
+- tenant-admin transaction capture
+- transaction approval and rejection with state history
+- journal-ready transaction queue
+- needs-bank-match transaction queue
 - `api/me` tenant resolution and permission hydration
 
 Not yet implemented as finance-operational modules:
 
-- transaction state and transaction state history
-- cash-in and cashout workflow orchestration
 - bank statement matching
+- full cash-in and cashout workflow orchestration
 - human-confirmed reconciliation engine
-- journal posting workflow
+- journal posting execution workflow
 - reporting snapshot jobs and reporting tables
 
 ## Architecture Boundaries In Code
@@ -65,8 +69,12 @@ Each tenant database currently contains RBAC, tenant-directory, and import-found
 - `ImportedRawRecords`
 - `ImportedNormalizedRecords`
 - `ImportMappingTemplates`
+- `BankAccounts`
+- `Transactions`
+- `TransactionStateHistories`
+- import staging and mapping tables
 
-At present, tenant databases include canonical import tables, but do not yet contain full reconciliation, transaction-state-history, and journal-orchestration tables described in the architecture baseline.
+Tenant finance tables are created by `TenantSchemaMigrator` when a tenant DB is initialized or opened through the tenant DB factory.
 
 ## Auth And Onboarding Flow
 
@@ -158,6 +166,272 @@ Backend auth and authorization enforce active-tenant access for tenant-scoped ro
 - `GET/POST/PUT /api/admin/components`
 - `GET/POST/PUT /api/admin/actions`
 - `GET /api/admin/permissions`
+- `GET/POST/PUT/DELETE /api/admin/bank-accounts`
+- `GET/POST /api/admin/transactions`
+- `GET /api/admin/transactions/{id}`
+- `POST /api/admin/transactions/{id}/approve`
+- `POST /api/admin/transactions/{id}/reject`
+- `GET /api/admin/transactions/{id}/history`
+- `GET /api/admin/transactions/journal-ready`
+- `GET /api/admin/transactions/needs-bank-match`
+
+## Member 3 Tenant Finance Modules
+
+### Bank Accounts
+
+Bank accounts are tenant-scoped business data. They are stored in each tenant database, not the control-plane database.
+
+Current backend endpoints:
+
+- `GET /api/admin/bank-accounts`
+- `GET /api/admin/bank-accounts/{id}`
+- `POST /api/admin/bank-accounts`
+- `PUT /api/admin/bank-accounts/{id}`
+- `DELETE /api/admin/bank-accounts/{id}` soft-deactivates the account
+
+Required permissions:
+
+- `ADMIN.BANK_ACCOUNTS.VIEW`
+- `ADMIN.BANK_ACCOUNTS.MANAGE`
+
+### Transactions
+
+Transactions are tenant-scoped and are linked optionally to a bank account.
+
+Current transaction fields include:
+
+- amount
+- transaction date
+- description
+- transaction type: `CashIn` or `CashOut`
+- payment method: `Cash` or `Card`
+- optional bank account
+- current state
+- approval/rejection metadata
+
+Validation rules:
+
+- `Amount` must be greater than zero.
+- `TransactionDate` is required.
+- `Card` transactions require `BankAccountId`.
+- `Cash` transactions may have `BankAccountId` null or populated.
+
+Required permissions:
+
+- `ADMIN.TRANSACTIONS.VIEW`
+- `ADMIN.TRANSACTIONS.MANAGE`
+
+### Transaction States
+
+Current states:
+
+- `Pending`: transaction was created and is waiting for approval.
+- `Approved`: retained as an enum value, but current approval flow moves approved items into the next operational state.
+- `Rejected`: transaction was rejected with a reason.
+- `NeedsBankMatch`: approved card cash-out that must be matched before journal posting.
+- `JournalReady`: approved transaction ready for journal posting.
+
+Every create, approval, and rejection writes a `TransactionStateHistory` record.
+
+Transaction history can be read with:
+
+- `GET /api/admin/transactions/{id}/history`
+
+### Approval And Rejection Flow
+
+Approval rules:
+
+- Only `Pending` transactions can be approved.
+- Approved `CashOut` + `Card` transactions move to `NeedsBankMatch`.
+- Other approved transactions move to `JournalReady`.
+
+Rejection rules:
+
+- Only `Pending` transactions can be rejected.
+- A rejection reason is required.
+- Rejected transactions move to `Rejected`.
+
+### Lifecycle Flow
+
+- Create transaction: starts at `Pending`.
+- Approve cash transaction: moves directly to `JournalReady`.
+- Approve card `CashOut`: moves to `NeedsBankMatch`.
+- `NeedsBankMatch` is a handoff state for the matcher module and does not appear in the journal-ready queue.
+- Reject transaction: moves to `Rejected`.
+
+### Journal-Ready Queue
+
+The journal-ready queue is read-only for now:
+
+- `GET /api/admin/transactions/journal-ready`
+
+It returns transactions where `TransactionState == JournalReady`, ordered by transaction date and creation time. Journal posting itself is not implemented yet.
+
+### Needs-Bank-Match Queue
+
+The needs-bank-match queue is read-only for now:
+
+- `GET /api/admin/transactions/needs-bank-match`
+
+It returns transactions where `TransactionState == NeedsBankMatch`. This is the handoff point for future matcher/reconciliation work; this module does not confirm matches or move those transactions to `JournalReady`.
+
+### Tenant Admin Vs System Admin
+
+System admins manage the control plane. They do not automatically have access to tenant finance data.
+
+To use tenant finance endpoints, the logged-in user must:
+
+- be authenticated
+- resolve to an active tenant
+- exist in control-plane `TenantUsers`
+- exist in the tenant database `TenantUsers`
+- have the required tenant permissions in the tenant database
+
+Use a tenant admin user created during tenant approval/onboarding for finance testing. If you need a system admin to test tenant finance locally, explicitly add that user to the tenant and tenant database instead of relying on `IsSystemAdmin`.
+
+### Local Setup Checklist
+
+For Bank Accounts and Transactions to work locally:
+
+- The tenant must be `Active`.
+- The tenant database must exist and be reachable through `TENANT_DB_TEMPLATE`.
+- The tenant user must exist in the control-plane `TenantUsers` table.
+- The same user must exist in the tenant database `TenantUsers` table.
+- The tenant admin role must have `ADMIN.BANK_ACCOUNTS.*` and `ADMIN.TRANSACTIONS.*` permissions.
+- Send `X-Tenant-Id` when testing if the user has multiple tenant memberships.
+
+### Postman Testing Flow
+
+Use a tenant-admin JWT and include:
+
+- `Authorization: Bearer <token>`
+- `X-Tenant-Id: <tenant-guid>`
+
+Create a cash transaction:
+
+```http
+POST /api/admin/transactions
+Content-Type: application/json
+
+{
+  "amount": 1250.00,
+  "transactionDate": "2026-04-27T00:00:00Z",
+  "description": "Cash receipt",
+  "bankAccountId": null,
+  "transactionType": "CashIn",
+  "paymentMethod": "Cash"
+}
+```
+
+Approve the cash transaction. It should become `JournalReady`:
+
+```http
+POST /api/admin/transactions/{transactionId}/approve
+Content-Type: application/json
+
+{
+  "note": "Approved for journal posting"
+}
+```
+
+Create a card cash-out transaction:
+
+```http
+POST /api/admin/transactions
+Content-Type: application/json
+
+{
+  "amount": 500.00,
+  "transactionDate": "2026-04-27T00:00:00Z",
+  "description": "Card vendor payment",
+  "bankAccountId": "<bank-account-guid>",
+  "transactionType": "CashOut",
+  "paymentMethod": "Card"
+}
+```
+
+Approve the card cash-out. It should become `NeedsBankMatch`:
+
+```http
+POST /api/admin/transactions/{transactionId}/approve
+Content-Type: application/json
+
+{
+  "note": "Approved, pending bank match"
+}
+```
+
+Check the journal-ready queue:
+
+```http
+GET /api/admin/transactions/journal-ready
+```
+
+Only `JournalReady` transactions should appear. `NeedsBankMatch` transactions should not appear.
+
+Check the needs-bank-match queue:
+
+```http
+GET /api/admin/transactions/needs-bank-match
+```
+
+Only `NeedsBankMatch` transactions should appear.
+
+Check a transaction lifecycle history:
+
+```http
+GET /api/admin/transactions/{transactionId}/history
+```
+
+### Frontend Routes
+
+Current tenant-admin frontend routes:
+
+- `/app/admin/bank-accounts`
+- `/app/transactions`
+- `/app/transactions/journal-ready`
+- `/app/transactions/needs-bank-match`
+
+Old `/app/admin/transactions`, `/app/admin/journal-ready`, and `/app/admin/needs-bank-match` URLs redirect to the new workflow routes.
+
+### Member 3 - Transactions & Approval Workflow (Final)
+
+Member 3 owns tenant-scoped transaction capture, approvals, state history, and queue visibility. These pages now live in a dedicated Transactions module instead of the Admin configuration area.
+
+Features:
+
+- Transaction creation for `CashIn` and `CashOut`.
+- Approval and rejection workflow.
+- Transaction states: `Pending`, `JournalReady`, `NeedsBankMatch`, and `Rejected`.
+- State transition rule: `CashOut` with `Cash` moves to `JournalReady` after approval.
+- State transition rule: `CashOut` with `Card` moves to `NeedsBankMatch` after approval.
+- Edit is allowed only while a transaction is `Pending`.
+- Transaction history tracks lifecycle transitions, timestamps, user IDs, and notes.
+
+UI improvements:
+
+- Transactions moved out of Admin into `/app/transactions`.
+- Workflow navigation: Transactions / Journal Ready / Needs Bank Match.
+- Clickable `JournalReady` and `NeedsBankMatch` state badges route to the matching queue.
+- Journal Ready supports Date / Amount sorting and Year / Month filtering.
+- Transaction tables use modern, softer styling consistent with the FinRecon360 theme.
+
+Validation:
+
+- Transaction date is validated with a minimum of `2000-01-01` and a maximum of today.
+- Card transactions require a bank account.
+- Save and workflow actions prevent duplicate submissions while requests are in progress.
+- Approved and rejected transactions are immutable.
+
+Audit:
+
+- The Transaction History modal shows amount, transaction date, type/method, current state, transitions, timestamps, changed-by user ID, and notes.
+- State changes are append-only through `TransactionStateHistory`.
+
+Notes:
+
+- Approved transactions cannot be edited.
+- Corrections must be handled through future reversal or adjustment transactions to preserve audit integrity.
 
 ### Imports
 
@@ -197,16 +471,24 @@ Backend auth and authorization enforce active-tenant access for tenant-scoped ro
 
 ## Known Gaps Vs Target Architecture
 
-### 1. Finance Workflows Are Not Built Yet
+### 1. Global User Separation Is Not Fully Modeled
+
+The target design describes global or public users as conceptually distinct from tenant operational users. The current backend uses a shared global `Users` table and links those records into tenant membership. That is workable, but it is not a strict separate-identity model.
+
+### 2. Subscription Limits Do Not Match The Intended Semantics
+
+`Plan` currently exposes `MaxAccounts`. Tenant user creation currently reads that field to enforce the tenant user cap. This is a mismatch between model name and actual behavior.
+
+### 3. Finance Workflows Are Partially Built
 
 The architecture baseline documents:
 
 - reconciliation
-- cashout state rules
+- full cashout state rules
 - journal gating
 - reporting snapshots
 
-Canonical import foundations are now present in the current codebase. Reconciliation, cashout-state workflows, journal gating, and reporting snapshots are still not present as complete backend modules.
+Bank accounts, basic transaction capture, approval/rejection, transaction history, and a journal-ready queue are present. Bank matching, journal posting execution, reconciliation, and reporting snapshots are still pending.
 
 ### 2. Auth Direction Is Mixed
 

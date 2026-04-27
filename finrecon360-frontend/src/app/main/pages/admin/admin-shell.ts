@@ -39,6 +39,12 @@ type AdminLink = {
 export class AdminShellComponent implements OnInit {
   private readonly links: AdminLink[] = [
     {
+      path: '/app/admin/bank-accounts',
+      label: 'Bank Accounts',
+      permission: 'ADMIN.BANK_ACCOUNTS.VIEW',
+      scope: 'tenant',
+    },
+    {
       path: '/app/admin/roles',
       label: 'ADMIN.ROLES.TITLE',
       permission: 'ADMIN.ROLES.VIEW',
