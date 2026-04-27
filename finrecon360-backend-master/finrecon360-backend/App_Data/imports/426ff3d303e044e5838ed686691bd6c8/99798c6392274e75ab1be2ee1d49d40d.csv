@@ -1,0 +1,5 @@
+Date,Posted On,Doc Ref,Narration,GL Code,GL Name,Dr,Cr,Amount,CCY
+2026-04-10,2026-04-11,INV-2001,Office chairs,7001,Furniture,450.00,0.00,450.00,USD
+2026-04-12,2026-04-12,RCPT-9902,Courier charges,7200,Logistics,0.00,35.75,-35.75,USD
+2026-04-14,2026-04-15,BILL-3321,HR software license,6300,Software Licenses,120.00,0.00,120.00,USD
+2026-04-16,2026-04-16,PAY-8801,Refund to customer,4100,Sales Returns,0.00,65.00,-65.00,USD
