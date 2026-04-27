@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Data
 {
+    /// <summary>
+    /// WHY: This aggressive seeding guarantees that a freshly deployed instance 
+    /// is immediately usable with all required RBAC tables populated and a root 
+    /// super-admin provisioned, avoiding the need for out-of-band SQL scripts.
+    /// </summary>
     public static class DbSeeder
     {
         public static async Task SeedAsync(AppDbContext db)

@@ -3,6 +3,12 @@ using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Authorization
 {
+    /// <summary>
+    /// WHY: We bypass standard [Authorize(Roles="X")] checks in favor of a dynamic custom 
+    /// `PERM:` scheme. This allows developers to decorate controllers with specific capability 
+    /// strings (e.g., [RequirePermission("DASHBOARD.VIEW")]) without having to manually 
+    /// map hundreds of static policies in `Program.cs`.
+    /// </summary>
     public class PermissionPolicyProvider : IAuthorizationPolicyProvider
     {
         public const string PolicyPrefix = "PERM:";

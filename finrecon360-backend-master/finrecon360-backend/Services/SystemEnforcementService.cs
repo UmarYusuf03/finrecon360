@@ -35,6 +35,11 @@ namespace finrecon360_backend.Services
         Task<EnforcementApplyResult> ReinstateUserAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// WHY: Centralizes all account lockdowns (suspensions/bans). By forcing controllers 
+    /// to use this service, we guarantee that all enforcement actions generate a mandatory 
+    /// audit log (`EnforcementAction`), preserving a complete history of administrative interventions.
+    /// </summary>
     public class SystemEnforcementService : ISystemEnforcementService
     {
         private readonly AppDbContext _dbContext;
@@ -178,7 +183,8 @@ namespace finrecon360_backend.Services
                 return EnforcementApplyResult.NotFound;
             }
 
-            // User reinstatement is tenant-scoped; if tenant itself is suspended/banned, keep user blocked.
+            // WHY: User reinstatement is tenant-scoped; if the tenant itself is suspended or banned, 
+            // the system must prevent an administrator from reactivating a user within that isolated context.
             if (tenant.Status != TenantStatus.Active)
             {
                 return EnforcementApplyResult.InvalidTarget;

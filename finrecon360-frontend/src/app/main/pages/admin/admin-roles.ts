@@ -17,6 +17,11 @@ import { HasPermissionDirective } from '../../../core/auth/has-permission.direct
 import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
 import { Role } from '../../../core/admin-rbac/models';
 
+/**
+ * WHY: This component serves as the CRUD interface for Roles. 
+ * Form state is managed locally here rather than via NgRx/Redux to minimize boilerplate 
+ * for simple entity administration, delegating standard caching to the `AdminRoleService`.
+ */
 @Component({
   selector: 'app-admin-roles',
   standalone: true,
@@ -57,6 +62,12 @@ export class AdminRolesComponent implements OnInit {
       name: ['', Validators.required],
       description: [''],
     });
+
+    /**
+     * WHY: We subscribe to the `BehaviorSubject` of the service.
+     * The list is sorted to always pin 'System' (immutable/core) roles at the top,
+     * so that administrators immediately see the most critical built-in personas first.
+     */
     this.adminRoleService.getRoles().subscribe((roles) => {
       this.roles = [...roles].sort((left, right) => {
         if (!!left.isSystem !== !!right.isSystem) {
@@ -120,6 +131,10 @@ export class AdminRolesComponent implements OnInit {
     }
   }
 
+  /**
+   * WHY: System roles are intrinsic to the operational logic of the platform 
+   * (e.g., hardcoded checks for Super Admin). Deactivating them would break core workflows.
+   */
   deactivate(role: Role): void {
     if (role.isSystem) return; // avoid switching off built-ins
     this.adminRoleService.deactivateRole(role.id).subscribe({

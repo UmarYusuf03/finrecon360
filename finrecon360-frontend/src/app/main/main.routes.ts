@@ -20,7 +20,12 @@ export const mainRoutes: Routes = [
     component: ShellComponent,
     canActivate: [AuthGuard],
     children: [
-      { path: 'dashboard', component: DashboardComponent },
+      {
+        path: 'dashboard',
+        component: DashboardComponent,
+        canActivate: [AccessGuard],
+        data: { scope: 'tenant', permissions: ['ADMIN.DASHBOARD.VIEW'] },
+      },
       {
         path: 'admin',
         component: AdminShellComponent,
@@ -131,7 +136,7 @@ export const mainRoutes: Routes = [
         path: 'matcher',
         component: MatcherPageComponent,
         canActivate: [AccessGuard],
-        data: { permissions: ['MATCHER.VIEW'] },
+        data: { scope: 'tenant', permissions: ['MATCHER.VIEW'] },
       },
       {
         path: 'imports',

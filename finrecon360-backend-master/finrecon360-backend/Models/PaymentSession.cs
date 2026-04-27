@@ -1,5 +1,10 @@
 namespace finrecon360_backend.Models
 {
+    /// <summary>
+    /// WHY: Tracks discrete interaction attempts with the 3rd-party Payment Gateway. 
+    /// By recording `ProviderSessionId` prior to webhook confirmation, the system can gracefully 
+    /// handle abandoned checkouts, duplicate callbacks, and async eventual consistency.
+    /// </summary>
     public class PaymentSession
     {
         public Guid PaymentSessionId { get; set; }

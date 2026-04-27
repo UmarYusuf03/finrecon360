@@ -16,6 +16,11 @@ interface ComponentDto {
   isActive: boolean;
 }
 
+/**
+ * WHY: This service manages the logical feature modules ("Components") that exist within the application. 
+ * Like the RoleService, it leverages a `BehaviorSubject` for singleton caching, ensuring that the 
+ * permission matrix and component lists don't redundantly fetch the same immutable baseline data.
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -37,6 +42,10 @@ export class AdminComponentService {
 
   constructor(private http: HttpClient) {}
 
+  /**
+   * WHY: Utilizes lazy initialization. Defers the network cost of loading component definitions 
+   * until a protected route or the admin portal explicitly requests them. 
+   */
   getComponents(): Observable<AppComponentResource[]> {
     if (USE_MOCK_API) {
       return this.componentsSubject.asObservable();
@@ -49,6 +58,10 @@ export class AdminComponentService {
     return this.componentsSubject.asObservable();
   }
 
+  /**
+   * WHY: Appends the successfully created component to the active subject stream, 
+   * averting a full refresh and allowing downstream observers (like the matrix) to immediately react.
+   */
   createComponent(payload: Partial<AppComponentResource>): Observable<AppComponentResource> {
     if (USE_MOCK_API) {
       const newComponent: AppComponentResource = {
@@ -72,6 +85,10 @@ export class AdminComponentService {
       );
   }
 
+  /**
+   * WHY: Inline stream mutation provides immediate UI feedback across all component views 
+   * when a component descriptor (like its Name or Category) is altered.
+   */
   updateComponent(id: string, payload: Partial<AppComponentResource>): Observable<AppComponentResource> {
     if (USE_MOCK_API) {
       const updatedList = this.componentsSubject.value.map((component) =>

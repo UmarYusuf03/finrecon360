@@ -3,6 +3,11 @@ using finrecon360_backend.Models;
 
 namespace finrecon360_backend.Data
 {
+    /// <summary>
+    /// WHY: This context strictly represents the isolated data model for a single tenant 
+    /// operations (such as their specific role mappings, import batches, and transaction sets).
+    /// Connection strings for this context are injected dynamically at runtime via the TenantDbResolver.
+    /// </summary>
     public class TenantDbContext : DbContext
     {
         public TenantDbContext(DbContextOptions<TenantDbContext> options) : base(options)

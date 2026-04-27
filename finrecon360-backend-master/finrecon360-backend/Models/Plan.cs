@@ -1,5 +1,10 @@
 namespace finrecon360_backend.Models
 {
+    /// <summary>
+    /// WHY: Represents the global canonical pricing tiers. It is stored in the 
+    /// central control plane instead of tenant DBs because plans are platform-wide parameters 
+    /// that dictate tier-limits (MaxUsers) before a tenant is legally permitted to scale.
+    /// </summary>
     public class Plan
     {
         public Guid PlanId { get; set; }

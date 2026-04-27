@@ -517,7 +517,7 @@ app.MapGet("/api/dashboard/summary", () =>
 
     return Results.Ok(summary);
 })
-.RequireAuthorization();   // 🔒 JWT required
+.RequireAuthorization($"{finrecon360_backend.Authorization.PermissionPolicyProvider.PolicyPrefix}ADMIN.DASHBOARD.VIEW");   // 🔒 tenant permission required
 
 #endregion
 

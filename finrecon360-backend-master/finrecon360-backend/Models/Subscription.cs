@@ -1,5 +1,10 @@
 namespace finrecon360_backend.Models
 {
+    /// <summary>
+    /// WHY: Decouples the financial billing lifecycle from the physical `Tenant` record. 
+    /// A single tenant can have multiple historical subscriptions (e.g., Trial -> Expired -> Pro), 
+    /// enabling complete auditability of their billing timeline without migrating primary keys.
+    /// </summary>
     public class Subscription
     {
         public Guid SubscriptionId { get; set; }
