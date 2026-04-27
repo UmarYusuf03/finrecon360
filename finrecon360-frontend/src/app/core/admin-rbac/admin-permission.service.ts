@@ -38,6 +38,11 @@ interface PermissionDto {
   module?: string | null;
 }
 
+/**
+ * WHY: This service acts as the central coordinator for resolving the complex many-to-many 
+ * relationships between Roles, Components, and Actions. It translates flat backend 
+ * permission arrays into structured assignments usable by the frontend's RBAC matrix UI.
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -52,6 +57,11 @@ export class AdminPermissionService {
     { id: 'act-manage', code: 'MANAGE', name: 'ADMIN.PERMISSIONS.ACTION_MANAGE' },
   ];
 
+  /**
+   * WHY: Frontend UI component codes (like 'USER_MGMT') often do not 1:1 match the 
+   * standardized backend permission prefixes (like 'ADMIN.USERS'). This map bridges 
+   * the gap so the UI matrix can dynamically generate the correct `ADMIN.XXX.VIEW` strings.
+   */
   private readonly componentPrefixOverrides: Record<string, string> = {
     USER_MGMT: 'ADMIN.USERS',
     ROLE_MGMT: 'ADMIN.ROLES',
@@ -104,6 +114,11 @@ export class AdminPermissionService {
     return this.actionsSubject.asObservable();
   }
 
+  /**
+   * WHY: Getting a role's assignments requires knowing all possible components and actions 
+   * to build the visual matrix. We `forkJoin` here rather than having the UI components 
+   * orchestrate it to ensure the service remains the single source of truth for the RBAC state.
+   */
   getRoleAssignments(roleId: string): Observable<PermissionAssignment[]> {
     if (USE_MOCK_API) {
       return of([]);
@@ -145,6 +160,11 @@ export class AdminPermissionService {
       .pipe(map((result) => new Set(result.items.map((permission) => permission.code))));
   }
 
+  /**
+   * WHY: Provides a safe abstraction for UI components to determine the literal string used 
+   * by the backend for a given route/action, protecting components from needing to know 
+   * about `componentPrefixOverrides`.
+   */
   getPermissionCodeForComponent(componentCode: string, actionCode: string): string {
     const prefix = this.componentPrefixOverrides[componentCode] ?? componentCode;
     return `${prefix}.${actionCode}`;
@@ -164,6 +184,11 @@ export class AdminPermissionService {
     );
   }
 
+  /**
+   * WHY: The backend typically returns a flat list of `PermissionDto` objects assigned to a role. 
+   * The matrix UI requires an object per cell (Component x Action). This method crosses 
+   * the domains to generate assignments ONLY for the intersection of authorized permissions.
+   */
   private buildAssignments(
     permissions: PermissionDto[],
     components: AppComponentResource[],

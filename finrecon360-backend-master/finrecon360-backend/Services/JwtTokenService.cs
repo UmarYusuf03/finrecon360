@@ -1,4 +1,4 @@
-﻿using finrecon360_backend.Models;
+using finrecon360_backend.Models;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -14,6 +14,10 @@ namespace finrecon360_backend.Services
         string GenerateToken(User user);
     }
 
+    /// <summary>
+    /// WHY: Isolates JWT generation into a distinct service so token secrets, lifetimes, 
+    /// and static claim mappings are logically grouped, making token verification deterministic across the API.
+    /// </summary>
     public class JwtTokenService : IJwtTokenService
     {
         private readonly JwtSettings _jwtSettings;

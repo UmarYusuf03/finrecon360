@@ -15,6 +15,12 @@ interface AdminUserDto {
   roles: string[];
 }
 
+/**
+ * WHY: Distinct from a typical 'ProfileService', this service is solely focused on tenant-wide 
+ * administrative actions on users, such as assigning roles, suspending, or banning them. 
+ * Managing users often requires reloading state because backend actions (like suspending) 
+ * might cascade into other side logic.
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -54,6 +60,11 @@ export class AdminUserService {
     return this.usersSubject.asObservable();
   }
 
+  /**
+   * WHY: Creating a user involves identity provider integrations (e.g., auth0, local DB) and role mapping.
+   * After the initial creation responds successfully, we do a full `refreshUsers()` to ensure 
+   * the local list picks up any server-side generated profile traits or status normalizations.
+   */
   createUser(payload: Partial<AdminUserSummary> & { password?: string }): Observable<AdminUserSummary> {
     if (USE_MOCK_API) {
       const newUser: AdminUserSummary = {

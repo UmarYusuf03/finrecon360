@@ -24,6 +24,12 @@ import {
   Role,
 } from '../../../core/admin-rbac/models';
 
+/**
+ * WHY: This is one of the most complex UI components. It renders a dense matrix of 
+ * Components (rows) x Actions (columns). It handles the 'dirty' state of checkboxes locally 
+ * and only flushes updates to the backend explicitly via a Save action to prevent 
+ * rapid, disjointed API spamming while an admin clicks multiple toggles.
+ */
 @Component({
   selector: 'app-admin-permissions',
   standalone: true,
@@ -122,6 +128,11 @@ export class AdminPermissionsComponent implements OnInit {
     );
   }
 
+  /**
+   * WHY: Since various deployments might not have certain modules enabled (e.g., Tenant A 
+   * doesn't buy the Analytics module), this ensures that disabled features don't show up 
+   * as togglable checkmarks in the matrix.
+   */
   isApplicable(component: AppComponentResource, action: ActionDefinition): boolean {
     if (this.availablePermissionCodes.size === 0) {
       return true;
@@ -131,6 +142,11 @@ export class AdminPermissionsComponent implements OnInit {
     return this.availablePermissionCodes.has(code);
   }
 
+  /**
+   * WHY: Implements cascading business logic for user-friendly matrix toggling.
+   * e.g., enabling 'MANAGE' implies all other CRUD. Enabling 'EDIT' implies 'VIEW'. 
+   * Disabling 'VIEW' strips all other cascading permissions since you can't edit what you can't see.
+   */
   toggle(component: AppComponentResource, action: ActionDefinition): void {
     const roleId = this.form.get('roleId')?.value;
     if (!roleId || !this.isApplicable(component, action)) return;
@@ -195,6 +211,11 @@ export class AdminPermissionsComponent implements OnInit {
     });
   }
 
+  /**
+   * WHY: Deep-compares the current memory state to the initial snapshot to accurately
+   * highlight the 'Save' button only when true logical changes exist, ignoring toggles 
+   * that were flipped and then reverted.
+   */
   get hasChanges(): boolean {
     const current = new Set(this.assignments.map((a) => a.permissionCode));
     const original = new Set(this.originalAssignments.map((a) => a.permissionCode));

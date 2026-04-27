@@ -5,11 +5,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Authorization
 {
+    /// <summary>
+    /// WHY: This custom handler serves as the policy evaluation engine. It determines 
+    /// if an endpoint required permission is a "Control Plane" (system-level) permission 
+    /// or a Tenant-level permission, dynamically checking the correct database and user states.
+    /// </summary>
     public class PermissionHandler : AuthorizationHandler<PermissionRequirement>
     {
         private static readonly HashSet<string> ControlPlanePermissions = new(StringComparer.OrdinalIgnoreCase)
         {
-            "ADMIN.DASHBOARD.VIEW",
             "ADMIN.TENANT_REGISTRATIONS.MANAGE",
             "ADMIN.TENANTS.MANAGE",
             "ADMIN.PLANS.MANAGE",
@@ -28,17 +32,20 @@ namespace finrecon360_backend.Authorization
         private readonly IPermissionService _permissionService;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
+        private readonly AppDbContext _dbContext;
 
         public PermissionHandler(
             IUserContext userContext,
             IPermissionService permissionService,
             ITenantContext tenantContext,
-            ITenantDbContextFactory tenantDbContextFactory)
+            ITenantDbContextFactory tenantDbContextFactory,
+            AppDbContext dbContext)
         {
             _userContext = userContext;
             _permissionService = permissionService;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
+            _dbContext = dbContext;
         }
 
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
@@ -55,6 +62,20 @@ namespace finrecon360_backend.Authorization
             }
 
             var isControlPlanePermission = IsControlPlanePermission(requirement.PermissionCode);
+
+            // System admins must not access tenant-scoped features (e.g. dashboard/matcher).
+            // We enforce this centrally so accidental role/permission leakage can't grant tenant access.
+            var isSystemAdmin = await _dbContext.Users
+                .AsNoTracking()
+                .Where(u => u.UserId == userId.Value)
+                .Select(u => u.IsSystemAdmin)
+                .FirstOrDefaultAsync();
+
+            if (isSystemAdmin && !isControlPlanePermission)
+            {
+                return;
+            }
+
             var tenant = await _tenantContext.ResolveAsync();
             IReadOnlyCollection<string> permissions;
 
@@ -78,6 +99,9 @@ namespace finrecon360_backend.Authorization
 
                 await using (tenantDb)
                 {
+                // WHY: We explicitly instantiate the tenant DB and check `IsActive` constraints 
+                // in real-time, because tenant administrators could have deactivated a user 
+                // mere seconds ago, and we cannot rely on a stale JWT claim or static snapshot.
                 var isActiveInTenant = await tenantDb.TenantUsers
                     .AsNoTracking()
                     .AnyAsync(tu => tu.UserId == userId.Value && tu.IsActive);
@@ -96,6 +120,11 @@ namespace finrecon360_backend.Authorization
             }
             else
             {
+                if (!isControlPlanePermission)
+                {
+                    // Tenant permissions require a resolved tenant context.
+                    return;
+                }
                 permissions = await _permissionService.GetPermissionsForUserAsync(userId.Value);
             }
 

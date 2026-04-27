@@ -12,6 +12,11 @@ using Microsoft.Data.SqlClient;
 
 namespace finrecon360_backend.Controllers.Admin
 {
+    /// <summary>
+    /// WHY: This represents the core control plane. Through this controller, 
+    /// System Admins mutate the physical state of tenants, including brute-force administrative 
+    /// role assignments, catastrophic deletion of tenant shards, and global bans.
+    /// </summary>
     [ApiController]
     [Route("api/system/tenants")]
     [Authorize]
@@ -137,6 +142,11 @@ namespace finrecon360_backend.Controllers.Admin
                 admins));
         }
 
+        /// <summary>
+        /// WHY: A tenant must always have at least one active administrator. This method 
+        /// enforces domain constraints by rejecting system-level operators from tenant-level controls, 
+        /// while safely migrating global users down into local operational scopes.
+        /// </summary>
         [HttpPut("{tenantId:guid}/admins")]
         public async Task<IActionResult> ReplaceAdmins(Guid tenantId, [FromBody] TenantAdminSetRequest request)
         {
@@ -335,6 +345,11 @@ namespace finrecon360_backend.Controllers.Admin
             return NoContent();
         }
 
+        /// <summary>
+        /// WHY: Destructive deletion. It orchestrates a cascade that not only purges 
+        /// structural control-plane tracking (users, requests) but physically connects to 
+        /// SQL Server to drop the `InitialCatalog` associated with the tenant shard.
+        /// </summary>
         [HttpDelete("{tenantId:guid}")]
         public async Task<IActionResult> DeleteTenant(Guid tenantId)
         {

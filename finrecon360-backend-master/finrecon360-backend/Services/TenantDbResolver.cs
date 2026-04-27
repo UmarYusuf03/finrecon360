@@ -11,6 +11,11 @@ namespace finrecon360_backend.Services
         Task<string?> ResolveConnectionStringAsync(Guid tenantId, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// WHY: Abstracting database resolution into this service allows us to securely look up 
+    /// a tenant's encrypted connection string from the central AppDbContext without 
+    /// exposing or transmitting sensitive credentials to the client.
+    /// </summary>
     public class TenantDbResolver : ITenantDbResolver
     {
         private readonly AppDbContext _dbContext;
@@ -44,6 +49,8 @@ namespace finrecon360_backend.Services
 
             try
             {
+                // WHY: The connection strings are never stored in plaintext to protect against 
+                // catastrophic leakage if the central AppDB gets compromised.
                 return _protector.Unprotect(record.EncryptedConnectionString);
             }
             catch (CryptographicException ex)
