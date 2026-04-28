@@ -138,6 +138,10 @@ _TeamCity*
 # DotCover is a Code Coverage Tool
 *.dotCover
 
+# Environment secrets
+.env
+.env.*
+
 # AxoCover is a Code Coverage Tool
 .axoCover/*
 !.axoCover/settings.json

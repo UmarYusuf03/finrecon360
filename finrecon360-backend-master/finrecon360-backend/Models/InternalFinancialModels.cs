@@ -105,4 +105,14 @@ namespace finrecon360_backend.Models
 
         public PaymentGatewayPayout? PaymentGatewayPayout { get; set; }
     }
+
+    public class BankAccount
+    {
+        public Guid Id { get; set; }
+        public Guid TenantId { get; set; }
+        public string AccountName { get; set; } = string.Empty;
+        public string AccountNumber { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
 }

@@ -77,6 +77,7 @@ namespace finrecon360_backend.Data
         public DbSet<Invoice> Invoices => Set<Invoice>();
         public DbSet<PaymentGatewayPayout> PaymentGatewayPayouts => Set<PaymentGatewayPayout>();
         public DbSet<Order> Orders => Set<Order>();
+        public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
         public DbSet<BankStatementImport> BankStatementImports => Set<BankStatementImport>();
         public DbSet<BankStatementLine> BankStatementLines => Set<BankStatementLine>();
         public DbSet<ReconciliationRun> ReconciliationRuns => Set<ReconciliationRun>();
@@ -167,6 +168,9 @@ namespace finrecon360_backend.Data
                 .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
 
             modelBuilder.Entity<Order>()
+                .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
+            modelBuilder.Entity<BankAccount>()
                 .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
 
             modelBuilder.Entity<BankStatementImport>()

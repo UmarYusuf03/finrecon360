@@ -26,13 +26,9 @@ namespace finrecon360_backend.Services
 
         public async Task<MatchingSummaryResponse> RunAutomatedMatchingAsync(Guid bankStatementImportId, Guid currentUserId)
         {
-            var tenantResolution = await _tenantContext.ResolveAsync();
-            if (tenantResolution == null)
-            {
-                throw new InvalidOperationException("Unable to resolve tenant context.");
-            }
-
+            // Fetch import first to get its TenantId for System Admin fallback
             var import = await _dbContext.BankStatementImports
+                .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(x => x.Id == bankStatementImportId);
 
             if (import == null)
@@ -40,14 +36,19 @@ namespace finrecon360_backend.Services
                 throw new InvalidOperationException("Bank statement import was not found.");
             }
 
+            // Resolve tenant context; fall back to import's TenantId for System Admins
+            var tenantResolution = await _tenantContext.ResolveAsync();
+            var effectiveTenantId = tenantResolution?.TenantId ?? import.TenantId;
+
             var unresolvedLines = await _dbContext.BankStatementLines
-                .Where(x => x.BankStatementImportId == bankStatementImportId && !x.IsReconciled)
+                .IgnoreQueryFilters()
+                .Where(x => x.BankStatementImportId == bankStatementImportId && !x.IsReconciled && x.TenantId == effectiveTenantId)
                 .ToListAsync();
 
             _logger.LogInformation(
                 "Starting automated matching for import {ImportId}. TenantId={TenantId}, Lines={LineCount}, UserId={UserId}",
                 bankStatementImportId,
-                tenantResolution.TenantId,
+                effectiveTenantId,
                 unresolvedLines.Count,
                 currentUserId);
 
@@ -61,7 +62,7 @@ namespace finrecon360_backend.Services
                 BankAccountId = import.BankAccountId,
                 Status = ReconciliationRunStatus.InProgress,
                 TotalMatchesProposed = 0,
-                TenantId = tenantResolution.TenantId,
+                TenantId = effectiveTenantId,
                 CreatedAt = now,
                 CreatedBy = currentUserId
             };
@@ -70,7 +71,8 @@ namespace finrecon360_backend.Services
             #region Strategy 1 - General Ledger
             // 1) Fetch Side B in bulk (single query)
             var unmatchedSystemTransactions = await _dbContext.SystemTransactions
-                .Where(x => !x.IsReconciled)
+                .IgnoreQueryFilters()
+                .Where(x => !x.IsReconciled && x.TenantId == effectiveTenantId)
                 .ToListAsync();
 
             // 2) Initialize tracking lists for batched inserts
@@ -122,7 +124,7 @@ namespace finrecon360_backend.Services
                     ReconciliationRunId = run.Id,
                     MatchConfidenceScore = 1.0000m,
                     Status = resolvedMatchGroupStatus,
-                    TenantId = tenantResolution.TenantId,
+                    TenantId = effectiveTenantId,
                     CreatedAt = now,
                     CreatedBy = currentUserId
                 };
@@ -135,7 +137,7 @@ namespace finrecon360_backend.Services
                     DecisionReason = "Auto-matched using General Ledger strategy (exact amount, +/-2 days).",
                     DecidedBy = currentUserId,
                     DecidedAt = now,
-                    TenantId = tenantResolution.TenantId,
+                    TenantId = effectiveTenantId,
                     CreatedAt = now,
                     CreatedBy = currentUserId
                 };
@@ -152,7 +154,8 @@ namespace finrecon360_backend.Services
 
             #region Strategy 2 - Accounts Receivable
             var unmatchedInvoices = await _dbContext.Invoices
-                .Where(x => !x.IsReconciled && (x.Status == InvoiceStatus.Sent || x.Status == InvoiceStatus.Overdue))
+                .IgnoreQueryFilters()
+                .Where(x => !x.IsReconciled && x.TenantId == effectiveTenantId && (x.Status == InvoiceStatus.Sent || x.Status == InvoiceStatus.Overdue))
                 .ToListAsync();
 
             var matchedInvoiceIds = new HashSet<Guid>();
@@ -185,7 +188,7 @@ namespace finrecon360_backend.Services
                     ReconciliationRunId = run.Id,
                     MatchConfidenceScore = 1.0000m,
                     Status = resolvedMatchGroupStatus,
-                    TenantId = tenantResolution.TenantId,
+                    TenantId = effectiveTenantId,
                     CreatedAt = now,
                     CreatedBy = currentUserId
                 };
@@ -198,7 +201,7 @@ namespace finrecon360_backend.Services
                     DecisionReason = "Auto-matched AR Invoice by exact amount",
                     DecidedBy = currentUserId,
                     DecidedAt = now,
-                    TenantId = tenantResolution.TenantId,
+                    TenantId = effectiveTenantId,
                     CreatedAt = now,
                     CreatedBy = currentUserId
                 };
@@ -213,7 +216,8 @@ namespace finrecon360_backend.Services
 
             #region Strategy 3 - E-Commerce Payouts
             var unmatchedPayouts = await _dbContext.PaymentGatewayPayouts
-                .Where(x => !x.IsReconciled && x.Status == PaymentGatewayPayoutStatus.Pending)
+                .IgnoreQueryFilters()
+                .Where(x => !x.IsReconciled && x.TenantId == effectiveTenantId && x.Status == PaymentGatewayPayoutStatus.Pending)
                 .ToListAsync();
 
             var matchedPayoutIds = new HashSet<Guid>();
@@ -246,7 +250,7 @@ namespace finrecon360_backend.Services
                     ReconciliationRunId = run.Id,
                     MatchConfidenceScore = 1.0000m,
                     Status = resolvedMatchGroupStatus,
-                    TenantId = tenantResolution.TenantId,
+                    TenantId = effectiveTenantId,
                     CreatedAt = now,
                     CreatedBy = currentUserId
                 };
@@ -259,7 +263,7 @@ namespace finrecon360_backend.Services
                     DecisionReason = "Auto-matched E-Commerce Payout by net amount",
                     DecidedBy = currentUserId,
                     DecidedAt = now,
-                    TenantId = tenantResolution.TenantId,
+                    TenantId = effectiveTenantId,
                     CreatedAt = now,
                     CreatedBy = currentUserId
                 };

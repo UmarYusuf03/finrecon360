@@ -172,6 +172,7 @@ namespace finrecon360_backend.Services
             pageSize = pageSize < 1 ? 20 : pageSize;
 
             var query = _dbContext.BankStatementImports
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Where(i => i.BankAccountId == bankAccountId);
 

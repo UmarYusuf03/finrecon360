@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Dtos.Reconciliation;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -12,6 +13,7 @@ namespace finrecon360_backend.Controllers.Admin
     [ApiController]
     [Route("api/tenant-admin/reconciliation/imports")]
     [Authorize]
+    [RequirePermission("ADMIN.IMPORT_WORKBENCH.VIEW")]
     public class BankStatementImportController : ControllerBase
     {
         private readonly IBankStatementImportService _bankStatementImportService;
