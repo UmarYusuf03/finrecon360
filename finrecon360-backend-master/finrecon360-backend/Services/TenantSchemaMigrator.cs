@@ -14,6 +14,7 @@ namespace finrecon360_backend.Services
         private const string MigrationRbacReconcile = "202603050001_TenantRbacReconcile";
         private const string MigrationImportArchitecture = "202604090001_TenantImportArchitectureFoundation";
         private const string MigrationImportBatchMappingLink = "202604100001_TenantImportBatchMappingLink";
+        private const string MigrationImportWorkbenchPermissions = "202604270001_TenantImportWorkbenchPermissions";
         private const string MigrationBankAccounts = "202604230001_TenantBankAccounts";
         private const string MigrationBankAccountsPermissions = "202604230002_TenantBankAccountsPermissions";
         private const string MigrationTransactions = "202604230003_TenantTransactions";
@@ -33,6 +34,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationRbacReconcile, BuildTenantRbacReconcileSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportArchitecture, BuildTenantImportArchitectureSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportBatchMappingLink, BuildTenantImportBatchMappingLinkSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportWorkbenchPermissions, BuildTenantImportWorkbenchPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationBankAccounts, BuildTenantBankAccountsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationBankAccountsPermissions, BuildTenantBankAccountsPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactions, BuildTenantTransactionsSql(), cancellationToken);
@@ -571,6 +573,30 @@ namespace finrecon360_backend.Services
                     REFERENCES dbo.ImportMappingTemplates(ImportMappingTemplateId)
                     ON DELETE SET NULL;
             END
+            """;
+
+        private static string BuildTenantImportWorkbenchPermissionsSql() =>
+            """
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.IMPORT_WORKBENCH.VIEW', N'Import Workbench View', N'View import workbench', N'Admin')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.AppComponents (ComponentId, Code, Name, RoutePath, Category, Description, IsActive)
+            SELECT NEWID(), N'IMPORT_WORKBENCH_MGMT', N'Import Workbench', N'/app/imports/workbench', N'Admin', N'Tenant imports processing workspace', 1
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = N'IMPORT_WORKBENCH_MGMT');
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (N'ADMIN.IMPORT_WORKBENCH.VIEW')
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
             """;
 
         private static string BuildTenantBankAccountsSql() =>

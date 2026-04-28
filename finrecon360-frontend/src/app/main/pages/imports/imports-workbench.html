@@ -127,6 +127,29 @@
         <button class="ghost-btn" type="button" (click)="useActiveTemplate()">Use template</button>
       </div>
 
+      <div class="template-picker" *ngIf="canManage">
+        <label>
+          Choose template
+          <select [(ngModel)]="selectedTemplateId">
+            <option [ngValue]="null">-- Select template --</option>
+            <option *ngFor="let template of templates" [ngValue]="template.id">
+              {{ template.name }} (v{{ template.version }})
+              <ng-container *ngIf="template.isActive"> - Active</ng-container>
+            </option>
+          </select>
+        </label>
+        <div class="template-actions">
+          <button
+            class="ghost-btn"
+            type="button"
+            [disabled]="!selectedTemplateId || templateLoading"
+            (click)="applySelectedTemplate()"
+          >
+            Apply selected template
+          </button>
+        </div>
+      </div>
+
       <div class="mapping-columns">
         <div class="mapping-fields">
           <h5>System fields</h5>

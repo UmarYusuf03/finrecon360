@@ -6,6 +6,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { AdminImportArchitectureService } from '../../../core/admin-rbac/admin-import-architecture.service';
+import { ImportMappingTemplate } from '../../../core/admin-rbac/models';
 import { ImportsService } from '../../../core/imports/imports.service';
 import {
   ImportActiveTemplateResponse,
@@ -70,6 +72,9 @@ export class ImportsWorkbenchComponent implements OnInit {
 
   mapping: Record<string, string> = {};
   activeTemplate: ImportActiveTemplateResponse | null = null;
+  templates: ImportMappingTemplate[] = [];
+  selectedTemplateId: string | null = null;
+  templateLoading = false;
 
   canManage = false;
   private authRetryInProgress = false;
@@ -78,6 +83,7 @@ export class ImportsWorkbenchComponent implements OnInit {
 
   constructor(
     private readonly importsService: ImportsService,
+    private readonly importArchitectureService: AdminImportArchitectureService,
     private readonly authService: AuthService,
     private readonly router: Router,
   ) {}
@@ -174,6 +180,8 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.validationTotals = null;
     this.mapping = {};
     this.activeTemplate = null;
+    this.templates = [];
+    this.selectedTemplateId = null;
     this.clearAlerts();
   }
 
@@ -193,6 +201,7 @@ export class ImportsWorkbenchComponent implements OnInit {
         });
         this.actionMessage = 'File parsed. Map source headers to canonical fields.';
         this.loadActiveTemplate();
+        this.loadTemplatesForSource();
         this.refreshHistory();
       },
       error: (error) => {
@@ -332,6 +341,29 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.applyActiveTemplate(true);
   }
 
+  applySelectedTemplate(): void {
+    if (!this.selectedTemplateId) {
+      return;
+    }
+
+    const template = this.templates.find((item) => item.id === this.selectedTemplateId);
+    if (!template) {
+      return;
+    }
+
+    const templateMappings = this.normalizeTemplateMappings(template.mappingJson);
+    if (!templateMappings) {
+      this.actionError = 'Selected mapping template has invalid JSON.';
+      return;
+    }
+
+    this.canonicalFields.forEach((field) => {
+      this.mapping[field] = templateMappings[field] ?? '';
+    });
+
+    this.actionMessage = `Applied mapping template "${template.name}".`;
+  }
+
   assignFieldToHeader(field: string, header: string | null): void {
     if (!header) {
       this.mapping[field] = '';
@@ -418,6 +450,9 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.importsService.getActiveTemplate(this.selectedBatch.sourceType).subscribe({
       next: (template) => {
         this.activeTemplate = template;
+        if (!this.selectedTemplateId) {
+          this.selectedTemplateId = template.id;
+        }
         const applied = this.applyActiveTemplate(false);
         if (applied) {
           this.actionMessage = `File parsed. Applied mapping template "${template.name}".`;
@@ -438,6 +473,27 @@ export class ImportsWorkbenchComponent implements OnInit {
     });
   }
 
+  private loadTemplatesForSource(): void {
+    if (!this.selectedBatch || !this.canManage) {
+      return;
+    }
+
+    this.templateLoading = true;
+    this.importArchitectureService.getMappingTemplates(this.selectedBatch.sourceType).subscribe({
+      next: (templates) => {
+        this.templateLoading = false;
+        this.templates = templates;
+        if (!this.selectedTemplateId && templates.length > 0) {
+          this.selectedTemplateId = templates[0].id;
+        }
+      },
+      error: (error: unknown) => {
+        this.templateLoading = false;
+        this.actionError = this.getErrorMessage(error, 'Unable to load mapping templates.');
+      },
+    });
+  }
+
   private applyActiveTemplate(force: boolean): boolean {
     if (!this.activeTemplate || !this.parseResult) {
       return false;
@@ -448,7 +504,7 @@ export class ImportsWorkbenchComponent implements OnInit {
       return false;
     }
 
-    const templateMappings = this.parseTemplateMappings(this.activeTemplate.mappingJson);
+    const templateMappings = this.normalizeTemplateMappings(this.activeTemplate.mappingJson);
     if (!templateMappings) {
       this.actionError = 'Active mapping template has invalid JSON.';
       return false;
@@ -461,13 +517,34 @@ export class ImportsWorkbenchComponent implements OnInit {
     return true;
   }
 
-  private parseTemplateMappings(payload: string): Record<string, string> | null {
+  private normalizeTemplateMappings(payload: string): Record<string, string> | null {
     try {
       const parsed = JSON.parse(payload) as Record<string, string>;
       if (!parsed || typeof parsed !== 'object') {
         return null;
       }
-      return parsed;
+      const canonicalSet = new Set(this.canonicalFields);
+      const keys = Object.keys(parsed);
+
+      if (keys.some((key) => canonicalSet.has(key))) {
+        const normalized: Record<string, string> = {};
+        this.canonicalFields.forEach((field) => {
+          if (parsed[field]) {
+            normalized[field] = parsed[field];
+          }
+        });
+        return Object.keys(normalized).length > 0 ? normalized : null;
+      }
+
+      const inverted: Record<string, string> = {};
+      keys.forEach((header) => {
+        const field = parsed[header];
+        if (field && canonicalSet.has(field)) {
+          inverted[field] = header;
+        }
+      });
+
+      return Object.keys(inverted).length > 0 ? inverted : null;
     } catch {
       return null;
     }
