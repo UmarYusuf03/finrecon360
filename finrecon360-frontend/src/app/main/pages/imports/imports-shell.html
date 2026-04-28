@@ -1,0 +1,45 @@
+<section class="imports-shell">
+  <header class="imports-shell__header">
+    <div>
+      <p class="imports-shell__eyebrow">Tenant Imports</p>
+      <h1>Import Workbench</h1>
+      <p class="imports-shell__description">
+        Manage uploads, mapping, validation, and history from one place.
+      </p>
+    </div>
+  </header>
+
+  <nav mat-tab-nav-bar>
+    <a
+      mat-tab-link
+      routerLink="/app/imports/workbench"
+      routerLinkActive
+      #workbenchActive="routerLinkActive"
+      [active]="workbenchActive.isActive"
+    >
+      Workbench
+    </a>
+    <a
+      mat-tab-link
+      routerLink="/app/imports/import-architecture"
+      routerLinkActive
+      #architectureActive="routerLinkActive"
+      [active]="architectureActive.isActive"
+    >
+      Import Architecture
+    </a>
+    <a
+      mat-tab-link
+      routerLink="/app/imports/import-history"
+      routerLinkActive
+      #historyActive="routerLinkActive"
+      [active]="historyActive.isActive"
+    >
+      Import History
+    </a>
+  </nav>
+
+  <div class="imports-shell__content">
+    <router-outlet></router-outlet>
+  </div>
+</section>

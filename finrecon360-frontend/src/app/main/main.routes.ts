@@ -11,6 +11,7 @@ import { AdminUsersComponent } from './pages/admin/admin-users';
 import { DashboardComponent } from './pages/dashboard/dashboard';
 import { ImportsShellComponent } from './pages/imports/imports-shell';
 import { MatcherPageComponent } from './pages/matcher/matcher-page';
+import { ReconciliationDashboardComponent } from './pages/reconciliation/dashboard/reconciliation-dashboard.component';
 import { NotAuthorizedComponent } from './pages/not-authorized/not-authorized';
 import { ProfileComponent } from './pages/profile/profile';
 
@@ -132,6 +133,13 @@ export const mainRoutes: Routes = [
         component: MatcherPageComponent,
         canActivate: [AccessGuard],
         data: { permissions: ['MATCHER.VIEW'] },
+      },
+      {
+        path: 'reconciliation',
+        component: ReconciliationDashboardComponent,
+        canActivate: [AccessGuard],
+        data: { permissions: ['MATCHER.VIEW'] },
+        title: 'Automated Reconciliation - FinRecon360',
       },
       {
         path: 'imports',

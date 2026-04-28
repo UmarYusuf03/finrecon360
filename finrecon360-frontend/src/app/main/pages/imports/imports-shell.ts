@@ -25,7 +25,6 @@ type ImportLink = {
   standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, MatTabsModule, TranslateModule],
   templateUrl: './imports-shell.html',
-  styleUrls: ['./imports-shell.scss'],
 })
 export class ImportsShellComponent implements OnInit {
   private readonly links: ImportLink[] = [

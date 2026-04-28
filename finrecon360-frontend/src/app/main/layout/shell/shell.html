@@ -21,6 +21,13 @@
         {{ 'NAV.MATCHER' | translate }}
       </a>
       <a
+        routerLink="/app/reconciliation"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        Reconciliation
+      </a>
+      <a
         routerLink="/app/imports"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"

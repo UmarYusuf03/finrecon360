@@ -28,10 +28,22 @@
     >
       <p class="drop-title">Drag & drop a CSV or XLSX file here</p>
       <p class="drop-subtitle">or click to browse</p>
-      <input type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)" />
+      <input
+        type="file"
+        accept=".csv,.xlsx"
+        title="Upload bank statement file"
+        aria-label="Upload bank statement file"
+        (change)="onFileSelected($event)"
+      />
     </div>
     <div class="upload-controls">
-      <input type="text" [(ngModel)]="sourceType" placeholder="Source type (CSV, BANK, ERP...)" />
+      <input
+        type="text"
+        [(ngModel)]="sourceType"
+        placeholder="Source type (CSV, BANK, ERP...)"
+        title="Source type"
+        aria-label="Source type"
+      />
       <button class="primary-btn" [disabled]="processing" (click)="upload()">Upload File</button>
     </div>
     <div class="file-meta" *ngIf="selectedFileName">
@@ -43,8 +55,20 @@
   <div class="panel history-panel">
     <h3>2. History</h3>
     <div class="history-filters">
-      <input type="text" [(ngModel)]="search" placeholder="Search by file/source" />
-      <input type="text" [(ngModel)]="statusFilter" placeholder="Status filter" />
+      <input
+        type="text"
+        [(ngModel)]="search"
+        placeholder="Search by file/source"
+        title="Search import history"
+        aria-label="Search import history"
+      />
+      <input
+        type="text"
+        [(ngModel)]="statusFilter"
+        placeholder="Status filter"
+        title="Filter by status"
+        aria-label="Filter by status"
+      />
       <button class="ghost-btn" (click)="refreshHistory()">Refresh</button>
     </div>
 
@@ -160,6 +184,8 @@
             </div>
             <div class="header-actions">
               <select
+                title="Map column {{ header }}"
+                aria-label="Map column {{ header }}"
                 [ngModel]="getAssignedFieldForHeader(header)"
                 (ngModelChange)="assignFieldToHeader($event, header)"
               >
@@ -255,7 +281,12 @@
             <td>{{ row.normalizationStatus }}</td>
             <td>{{ row.normalizationErrors || '—' }}</td>
             <td *ngFor="let header of parsed.headers">
-              <input type="text" [(ngModel)]="row.payload[header]" />
+              <input
+                type="text"
+                [(ngModel)]="row.payload[header]"
+                title="Edit {{ header }}"
+                aria-label="Edit value for {{ header }}"
+              />
             </td>
             <td>
               <button
