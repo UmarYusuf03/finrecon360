@@ -142,6 +142,18 @@ export const mainRoutes: Routes = [
         title: 'Automated Reconciliation - FinRecon360',
       },
       {
+        path: 'reconciliation/review',
+        loadComponent: () => import('./pages/reconciliation/review/reconciliation-review.component').then((m) => m.ReconciliationReviewComponent),
+        canActivate: [AccessGuard],
+        data: { permissions: ['MATCHER.VIEW'] },
+      },
+      {
+        path: 'reconciliation/exceptions',
+        loadComponent: () => import('./pages/reconciliation/exceptions/reconciliation-exceptions.component').then((m) => m.ReconciliationExceptionsComponent),
+        canActivate: [AccessGuard],
+        data: { permissions: ['MATCHER.VIEW'] },
+      },
+      {
         path: 'imports',
         component: ImportsShellComponent,
         canActivate: [AccessGuard],

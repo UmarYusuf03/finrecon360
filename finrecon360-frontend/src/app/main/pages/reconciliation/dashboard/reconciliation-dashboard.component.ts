@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { RouterLink } from '@angular/router';
 import { BehaviorSubject, finalize, Subject, takeUntil } from 'rxjs';
 
 import {
@@ -28,6 +29,7 @@ import { ReconciliationService } from '../../../../core/reconciliation/reconcili
     MatFormFieldModule,
     MatProgressSpinnerModule,
     MatSnackBarModule,
+    RouterLink,
   ],
   templateUrl: './reconciliation-dashboard.component.html',
   styleUrls: ['./reconciliation-dashboard.component.scss'],

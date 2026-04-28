@@ -57,6 +57,12 @@ namespace finrecon360_backend.Dtos.Reconciliation
         public string? DecisionReason { get; set; }
         public Guid DecidedBy { get; set; }
         public DateTime DecidedAt { get; set; }
+
+        // UI pairing fields
+        public string? BankLineDescription { get; set; }
+        public string? SystemEntityDescription { get; set; }
+        public decimal? Amount { get; set; }
+        public string? MatchType { get; set; }
     }
 
     public class ReconciliationExceptionDto

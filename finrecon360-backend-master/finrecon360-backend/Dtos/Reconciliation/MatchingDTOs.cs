@@ -19,4 +19,31 @@ namespace finrecon360_backend.Dtos.Reconciliation
         public int InvoiceMatches { get; set; }
         public int PayoutMatches { get; set; }
     }
+
+    /// <summary>
+    /// Request payload to confirm a set of proposed match groups.
+    /// </summary>
+    public class ConfirmMatchesRequest
+    {
+        /// <summary>
+        /// Collection of match group IDs to confirm.
+        /// </summary>
+        public List<Guid> MatchGroupIds { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Response from confirming matches.
+    /// </summary>
+    public class ConfirmMatchesResponse
+    {
+        /// <summary>
+        /// Number of match groups confirmed.
+        /// </summary>
+        public int TotalConfirmed { get; set; }
+
+        /// <summary>
+        /// Number of linked reconciliations marked as finalized.
+        /// </summary>
+        public int TotalReconciliationsFinalized { get; set; }
+    }
 }

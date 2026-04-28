@@ -64,6 +64,8 @@
           {{ (isLoadingImports$ | async) ? 'Loading Imports...' : ((isProcessing$ | async) ? 'Processing...' : 'Run Automated Engine') }}
         </span>
       </button>
+      <a mat-stroked-button class="recon-dashboard__button" [routerLink]="['/app/reconciliation/review']">Review Matches</a>
+      <a mat-stroked-button class="recon-dashboard__button" [routerLink]="['/app/reconciliation/exceptions']">Exceptions</a>
     </mat-card>
   </section>
 

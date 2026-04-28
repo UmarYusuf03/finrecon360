@@ -7,7 +7,10 @@ import { environment } from '../../../environments/environment';
 import {
   BankAccount,
   BankStatementImport,
+  BankStatementLine,
   MatchingSummaryResponse,
+  MatchGroup,
+  ConfirmMatchesResponse,
   PaginatedResponse,
   RunMatchingRequest,
 } from './reconciliation.models';
@@ -46,5 +49,20 @@ export class ReconciliationService {
       `${this.apiUrl}/api/tenant-admin/reconciliation/run-automated-matching`,
       payload,
     );
+  }
+
+  getProposedMatchGroups(): Observable<MatchGroup[]> {
+    return this.http.get<MatchGroup[]>(`${this.apiUrl}/api/tenant-admin/reconciliation/proposed-match-groups`);
+  }
+
+  confirmMatches(matchGroupIds: string[]): Observable<ConfirmMatchesResponse> {
+    return this.http.post<ConfirmMatchesResponse>(
+      `${this.apiUrl}/api/tenant-admin/reconciliation/confirm-matches`,
+      { matchGroupIds },
+    );
+  }
+
+  getExceptions(): Observable<BankStatementLine[]> {
+    return this.http.get<BankStatementLine[]>(`${this.apiUrl}/api/tenant-admin/reconciliation/exceptions`);
   }
 }

@@ -135,6 +135,10 @@ namespace finrecon360_backend.Services
                     MatchGroupId = matchGroupId,
                     Decision = resolvedMatchDecisionStatus,
                     DecisionReason = "Auto-matched using General Ledger strategy (exact amount, +/-2 days).",
+                    BankLineDescription = line.Description,
+                    SystemEntityDescription = matchedTransaction != null ? matchedTransaction.Description : null,
+                    Amount = line.Amount,
+                    MatchType = "GL",
                     DecidedBy = currentUserId,
                     DecidedAt = now,
                     TenantId = effectiveTenantId,
@@ -199,6 +203,10 @@ namespace finrecon360_backend.Services
                     MatchGroupId = matchGroupId,
                     Decision = resolvedMatchDecisionStatus,
                     DecisionReason = "Auto-matched AR Invoice by exact amount",
+                    BankLineDescription = line.Description,
+                    SystemEntityDescription = matchedInvoice != null ? $"Invoice {matchedInvoice.InvoiceNumber}" : null,
+                    Amount = line.Amount,
+                    MatchType = "Invoice",
                     DecidedBy = currentUserId,
                     DecidedAt = now,
                     TenantId = effectiveTenantId,
@@ -261,6 +269,10 @@ namespace finrecon360_backend.Services
                     MatchGroupId = matchGroupId,
                     Decision = resolvedMatchDecisionStatus,
                     DecisionReason = "Auto-matched E-Commerce Payout by net amount",
+                    BankLineDescription = line.Description,
+                    SystemEntityDescription = matchedPayout != null ? $"{matchedPayout.ProviderName} payout" : null,
+                    Amount = line.Amount,
+                    MatchType = "Payout",
                     DecidedBy = currentUserId,
                     DecidedAt = now,
                     TenantId = effectiveTenantId,
@@ -290,6 +302,109 @@ namespace finrecon360_backend.Services
             await _dbContext.SaveChangesAsync();
 
             return summary;
+        }
+
+        public async Task<ConfirmMatchesResponse> ConfirmMatchesAsync(List<Guid> matchGroupIds, Guid currentUserId)
+        {
+            // Validate input
+            if (matchGroupIds == null || matchGroupIds.Count == 0)
+            {
+                throw new ArgumentException("At least one match group ID must be provided.", nameof(matchGroupIds));
+            }
+
+            // Resolve tenant context; ensure we're validating within the correct tenant boundary
+            var tenantResolution = await _tenantContext.ResolveAsync();
+            if (tenantResolution == null)
+            {
+                throw new InvalidOperationException("Unable to resolve tenant context for confirmation operation.");
+            }
+
+            var effectiveTenantId = tenantResolution.TenantId;
+            var now = DateTime.UtcNow;
+
+            // Begin database transaction for all-or-nothing consistency
+            using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Fetch all requested match groups with their decisions, bypassing query filters but validating tenant
+                var matchGroups = await _dbContext.MatchGroups
+                    .IgnoreQueryFilters()
+                    .Where(x => matchGroupIds.Contains(x.Id) && x.TenantId == effectiveTenantId)
+                    .Include(x => x.MatchDecisions)
+                    .ToListAsync();
+
+                // Validate that all requested IDs were found (no tenant boundary bypass)
+                if (matchGroups.Count != matchGroupIds.Count)
+                {
+                    throw new InvalidOperationException(
+                        $"One or more match groups not found or do not belong to the current tenant. Requested: {matchGroupIds.Count}, Found: {matchGroups.Count}");
+                }
+
+                _logger.LogInformation(
+                    "Beginning confirmation of {MatchGroupCount} match groups. TenantId={TenantId}, UserId={UserId}",
+                    matchGroups.Count,
+                    effectiveTenantId,
+                    currentUserId);
+
+                int totalReconciliationsFinalized = 0;
+
+                // Process each match group
+                foreach (var matchGroup in matchGroups)
+                {
+                    // Only confirm if not already confirmed or rejected
+                    if (matchGroup.Status == MatchGroupStatus.Proposed)
+                    {
+                        // Update match group to Confirmed status
+                        matchGroup.Status = MatchGroupStatus.Confirmed;
+                        matchGroup.UpdatedAt = now;
+                        matchGroup.UpdatedBy = currentUserId;
+
+                        // Update each decision in the group
+                        foreach (var decision in matchGroup.MatchDecisions)
+                        {
+                            decision.UpdatedAt = now;
+                            decision.UpdatedBy = currentUserId;
+                        }
+
+                        totalReconciliationsFinalized++;
+
+                        _logger.LogDebug(
+                            "Match group {MatchGroupId} confirmed. DecisionCount={DecisionCount}",
+                            matchGroup.Id,
+                            matchGroup.MatchDecisions.Count);
+                    }
+                }
+
+                // Persist all changes
+                await _dbContext.SaveChangesAsync();
+
+                // Commit transaction
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "Successfully confirmed {ConfirmedCount} match groups. TenantId={TenantId}",
+                    totalReconciliationsFinalized,
+                    effectiveTenantId);
+
+                return new ConfirmMatchesResponse
+                {
+                    TotalConfirmed = matchGroups.Count,
+                    TotalReconciliationsFinalized = totalReconciliationsFinalized
+                };
+            }
+            catch (Exception ex)
+            {
+                // Transaction will be automatically rolled back on exception
+                _logger.LogError(
+                    ex,
+                    "Error confirming match groups. TenantId={TenantId}, UserId={UserId}, MatchGroupCount={MatchGroupCount}",
+                    effectiveTenantId,
+                    currentUserId,
+                    matchGroupIds.Count);
+
+                throw;
+            }
         }
     }
 }

@@ -160,6 +160,19 @@ namespace finrecon360_backend.Models
         public DateTime? UpdatedAt { get; set; }
         public Guid? UpdatedBy { get; set; }
 
+        // Denormalized descriptions to make review UI simpler
+        [MaxLength(1000)]
+        public string? BankLineDescription { get; set; }
+
+        [MaxLength(1000)]
+        public string? SystemEntityDescription { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? Amount { get; set; }
+
+        [MaxLength(50)]
+        public string? MatchType { get; set; }
+
         public MatchGroup MatchGroup { get; set; } = default!;
     }
 

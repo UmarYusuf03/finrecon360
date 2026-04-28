@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Dtos.Reconciliation;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Controllers.Admin
 {
@@ -17,6 +19,8 @@ namespace finrecon360_backend.Controllers.Admin
         private readonly IReconciliationService _reconciliationService;
         private readonly IMatchingEngineService _matchingEngineService;
         private readonly ILogger<ReconciliationController> _logger;
+        private readonly Data.AppDbContext _dbContext;
+        private readonly Services.ITenantContext _tenantContext;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReconciliationController"/> class.
@@ -27,11 +31,15 @@ namespace finrecon360_backend.Controllers.Admin
         public ReconciliationController(
             IReconciliationService reconciliationService,
             IMatchingEngineService matchingEngineService,
-            ILogger<ReconciliationController> logger)
+            ILogger<ReconciliationController> logger,
+            Data.AppDbContext dbContext,
+            Services.ITenantContext tenantContext)
         {
             _reconciliationService = reconciliationService;
             _matchingEngineService = matchingEngineService;
             _logger = logger;
+            _dbContext = dbContext;
+            _tenantContext = tenantContext;
         }
 
         /// <summary>
@@ -106,6 +114,111 @@ namespace finrecon360_backend.Controllers.Admin
 
             var summary = await _matchingEngineService.RunAutomatedMatchingAsync(request.BankStatementImportId, userId);
             return Ok(summary);
+        }
+
+        /// <summary>
+        /// Returns proposed match groups that require human review.
+        /// </summary>
+        [HttpGet("~/api/tenant-admin/reconciliation/proposed-match-groups")]
+        public async Task<ActionResult<IEnumerable<MatchGroupDto>>> GetProposedMatchGroups()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                _logger.LogWarning("GetProposedMatchGroups rejected because user identifier claim is missing or invalid.");
+                return Unauthorized();
+            }
+
+            // Resolve tenant context to enforce tenant boundary (System Admin fallback handled in service layer via ignore filters elsewhere)
+            // For listing proposed groups, we mirror that behavior: allow system-level resolution to fall back conservatively.
+            // Use the reconciliation service to fetch runs and groups if available; otherwise query DB directly.
+
+            // Resolve tenant context and fetch proposed match groups within tenant boundary
+            var tenantResolution = await _tenantContext.ResolveAsync();
+            var effectiveTenantId = tenantResolution?.TenantId ?? Guid.Empty;
+
+            var groups = await _dbContext.MatchGroups
+                .IgnoreQueryFilters()
+                .Where(x => x.Status == Models.MatchGroupStatus.Proposed && x.TenantId == effectiveTenantId)
+                .Include(x => x.MatchDecisions)
+                .Select(x => new MatchGroupDto
+                {
+                    Id = x.Id,
+                    ReconciliationRunId = x.ReconciliationRunId,
+                    MatchConfidenceScore = x.MatchConfidenceScore,
+                    Status = x.Status,
+                    MatchDecisions = x.MatchDecisions.Select(d => new MatchDecisionDto
+                    {
+                        Id = d.Id,
+                        MatchGroupId = d.MatchGroupId,
+                        Decision = d.Decision,
+                        DecisionReason = d.DecisionReason,
+                        DecidedBy = d.DecidedBy,
+                        DecidedAt = d.DecidedAt,
+                        BankLineDescription = d.BankLineDescription,
+                        SystemEntityDescription = d.SystemEntityDescription,
+                        Amount = d.Amount,
+                        MatchType = d.MatchType
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return Ok(groups);
+        }
+
+        /// <summary>
+        /// Returns bank statement lines that are not reconciled (exceptions) for the tenant.
+        /// </summary>
+        [HttpGet("~/api/tenant-admin/reconciliation/exceptions")]
+        public async Task<ActionResult<IEnumerable<BankStatementLineDto>>> GetExceptions()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                _logger.LogWarning("GetExceptions rejected because user identifier claim is missing or invalid.");
+                return Unauthorized();
+            }
+
+            var tenantResolution = await _tenantContext.ResolveAsync();
+            var effectiveTenantId = tenantResolution?.TenantId ?? Guid.Empty;
+
+            var lines = await _dbContext.BankStatementLines
+                .IgnoreQueryFilters()
+                .Where(x => !x.IsReconciled && x.TenantId == effectiveTenantId)
+                .Select(x => new BankStatementLineDto
+                {
+                    Id = x.Id,
+                    BankStatementImportId = x.BankStatementImportId,
+                    TransactionDate = x.TransactionDate,
+                    PostingDate = x.PostingDate,
+                    ReferenceNumber = x.ReferenceNumber,
+                    Description = x.Description,
+                    Amount = x.Amount,
+                    IsReconciled = x.IsReconciled
+                })
+                .ToListAsync();
+
+            return Ok(lines);
+        }
+
+        /// <summary>
+        /// Confirms a batch of proposed match groups, marking them as finalized.
+        /// </summary>
+        /// <param name="request">Confirmation request payload containing match group IDs.</param>
+        /// <returns>Confirmation summary.</returns>
+        [HttpPost("~/api/tenant-admin/reconciliation/confirm-matches")]
+        [RequirePermission("MATCHER.CONFIRM")]
+        public async Task<ActionResult<ConfirmMatchesResponse>> ConfirmMatches([FromBody] ConfirmMatchesRequest request)
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                _logger.LogWarning("ConfirmMatches rejected because user identifier claim is missing or invalid.");
+                return Unauthorized();
+            }
+
+            var result = await _matchingEngineService.ConfirmMatchesAsync(request.MatchGroupIds, userId);
+            return Ok(result);
         }
     }
 }

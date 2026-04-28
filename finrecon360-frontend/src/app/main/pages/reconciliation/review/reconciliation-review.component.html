@@ -1,0 +1,42 @@
+<div class="recon-review">
+  <header class="recon-review__header">
+    <h2>Match Review</h2>
+    <p>Review proposed matches and confirm those that are correct.</p>
+  </header>
+
+  <mat-card>
+    <div class="recon-review__actions">
+      <mat-checkbox (change)="toggleSelectAll($event.checked)">Select all</mat-checkbox>
+      <button mat-stroked-button color="primary" (click)="confirmSelected()">Confirm Selected Matches</button>
+      <a mat-button [routerLink]="['/app/reconciliation']">Back to Dashboard</a>
+    </div>
+
+    <mat-list *ngIf="(groups$ | async) as groups">
+      <mat-list-item *ngIf="groups.length === 0">No proposed matches available.</mat-list-item>
+
+      <mat-list-item *ngFor="let group of groups">
+        <mat-checkbox [checked]="selected.has(group.id)" (change)="toggleSelect(group.id, $event.checked)"></mat-checkbox>
+
+        <div class="recon-review__content">
+          <div class="recon-review__meta">
+            <div><strong>Group:</strong> {{ group.id }}</div>
+            <div><strong>Confidence:</strong> {{ group.matchConfidenceScore ?? '—' }}</div>
+            <div><strong>Status:</strong> {{ group.status }}</div>
+          </div>
+
+          <div class="recon-review__decisions">
+            <div *ngFor="let d of group.matchDecisions" class="recon-review__decision">
+              <div><strong>Decision:</strong> {{ d.decision }}</div>
+              <div><strong>Reason:</strong> {{ d.decisionReason }}</div>
+              <div><strong>Decided At:</strong> {{ d.decidedAt | date:'short' }}</div>
+                  <div *ngIf="d.bankLineDescription"><strong>Bank Line:</strong> {{ d.bankLineDescription }}</div>
+                  <div *ngIf="d.systemEntityDescription"><strong>System Entity:</strong> {{ d.systemEntityDescription }}</div>
+                  <div *ngIf="d.amount !== undefined"><strong>Amount:</strong> {{ d.amount | currency }}</div>
+                  <div *ngIf="d.matchType"><strong>Match Type:</strong> {{ d.matchType }}</div>
+            </div>
+          </div>
+        </div>
+      </mat-list-item>
+    </mat-list>
+  </mat-card>
+</div>
