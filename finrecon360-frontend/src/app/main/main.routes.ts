@@ -227,6 +227,42 @@ export const mainRoutes: Routes = [
         ],
       },
       {
+        path: 'reconciliation',
+        canActivate: [AccessGuard],
+        data: {
+          scope: 'tenant',
+          permissions: ['MATCHER.VIEW'],
+        },
+        children: [
+          {
+            path: 'dashboard',
+            loadComponent: () =>
+              import('./pages/reconciliation/dashboard/reconciliation-dashboard.component').then(
+                (m) => m.ReconciliationDashboardComponent,
+              ),
+          },
+          {
+            path: 'review',
+            loadComponent: () =>
+              import('./pages/reconciliation/review/reconciliation-review.component').then(
+                (m) => m.ReconciliationReviewComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['MATCHER.CONFIRM'] },
+          },
+          {
+            path: 'exceptions',
+            loadComponent: () =>
+              import('./pages/reconciliation/exceptions/reconciliation-exceptions.component').then(
+                (m) => m.ReconciliationExceptionsComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['MATCHER.VIEW'] },
+          },
+          { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+        ],
+      },
+      {
         path: 'profile',
         component: ProfileComponent,
       },

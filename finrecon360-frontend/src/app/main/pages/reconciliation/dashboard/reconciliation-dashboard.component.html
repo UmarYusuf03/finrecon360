@@ -1,0 +1,115 @@
+<div class="recon-dashboard">
+  <header class="recon-dashboard__hero">
+    <div>
+      <p class="recon-dashboard__eyebrow">FinRecon360</p>
+      <h1>Automated Reconciliation Engine</h1>
+      <p class="recon-dashboard__description">
+        Select a bank statement import and run the matching engine to reconcile GL entries, invoices,
+        and payout records.
+      </p>
+    </div>
+  </header>
+
+  <section class="recon-dashboard__controls">
+    <mat-card class="recon-dashboard__panel">
+      <mat-form-field appearance="outline" class="recon-dashboard__select">
+        <mat-label>Select Bank Account</mat-label>
+        <mat-select
+          [value]="selectedBankAccountId"
+          [disabled]="isLoadingAccounts"
+          (selectionChange)="onBankAccountChange($event.value)"
+        >
+          <ng-container *ngIf="bankAccounts">
+            <mat-option *ngIf="bankAccounts.length === 0" [value]="''" disabled>
+              No bank accounts available
+            </mat-option>
+            <mat-option *ngFor="let account of bankAccounts" [value]="account.id">
+              {{ account.accountName }} • {{ account.accountNumber }}
+            </mat-option>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="recon-dashboard__select">
+        <mat-label>Bank Statement Import</mat-label>
+        <mat-select
+          [(value)]="selectedImportId"
+          [disabled]="!selectedBankAccountId || isLoadingImports"
+        >
+          <ng-container *ngIf="imports">
+            <mat-option *ngIf="imports.length === 0" [value]="''" disabled>
+              No imports available
+            </mat-option>
+            <mat-option *ngFor="let item of imports; trackBy: trackById" [value]="item.importId">
+              {{ item.importId }} • {{ item.importDate | date: 'mediumDate' }}
+            </mat-option>
+          </ng-container>
+        </mat-select>
+      </mat-form-field>
+
+      <button
+        mat-raised-button
+        color="primary"
+        class="recon-dashboard__button"
+        (click)="runMatching()"
+        [disabled]="isProcessing || isLoadingImports || !selectedBankAccountId || !selectedImportId"
+      >
+        <mat-progress-spinner
+          *ngIf="isProcessing || isLoadingImports"
+          class="recon-dashboard__spinner"
+          diameter="18"
+          mode="indeterminate"
+        ></mat-progress-spinner>
+        <span>
+          {{
+            isLoadingImports
+              ? 'Loading Imports...'
+              : isProcessing
+                ? 'Processing...'
+                : 'Run Automated Engine'
+          }}
+        </span>
+      </button>
+      <a
+        mat-stroked-button
+        class="recon-dashboard__button"
+        [routerLink]="['/app/reconciliation/review']"
+      >
+        Review Matches
+      </a>
+      <a
+        mat-stroked-button
+        class="recon-dashboard__button"
+        [routerLink]="['/app/reconciliation/exceptions']"
+      >
+        Exceptions
+      </a>
+    </mat-card>
+  </section>
+
+  <section *ngIf="summary" class="recon-dashboard__summary">
+    <mat-card class="recon-card recon-card--neutral">
+      <div class="recon-card__label">Total Processed</div>
+      <div class="recon-card__value">{{ summary.totalLinesProcessed }}</div>
+      <div class="recon-card__meta">Bank statement lines evaluated</div>
+    </mat-card>
+
+    <mat-card class="recon-card recon-card--success">
+      <div class="recon-card__label">GL Matches</div>
+      <div class="recon-card__value">{{ summary.generalLedgerMatches }}</div>
+      <div class="recon-card__meta">Strategy 1</div>
+    </mat-card>
+
+    <mat-card class="recon-card recon-card--success">
+      <div class="recon-card__label">Invoice Matches</div>
+      <div class="recon-card__value">{{ summary.invoiceMatches }}</div>
+      <div class="recon-card__meta">Strategy 2</div>
+    </mat-card>
+
+    <mat-card class="recon-card recon-card--success">
+      <div class="recon-card__label">Payout Matches</div>
+      <div class="recon-card__value">{{ summary.payoutMatches }}</div>
+      <div class="recon-card__meta">Strategy 3</div>
+    </mat-card>
+  </section>
+</div>
