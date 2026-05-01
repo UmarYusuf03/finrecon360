@@ -259,10 +259,13 @@ namespace finrecon360_backend.Data
                 entity.ToTable("ImportedNormalizedRecords");
                 entity.HasKey(x => x.ImportedNormalizedRecordId);
                 entity.Property(x => x.ImportedNormalizedRecordId).ValueGeneratedNever();
+                entity.Property(x => x.TransactionType).HasMaxLength(30);
                 entity.Property(x => x.ReferenceNumber).HasMaxLength(120);
                 entity.Property(x => x.Description).HasMaxLength(500);
                 entity.Property(x => x.AccountCode).HasMaxLength(100);
                 entity.Property(x => x.AccountName).HasMaxLength(200);
+                entity.Property(x => x.GrossAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.ProcessingFee).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.DebitAmount).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.CreditAmount).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.NetAmount).HasColumnType("decimal(18,2)");

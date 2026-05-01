@@ -13,6 +13,7 @@ namespace finrecon360_backend.Services
         private const string MigrationRbac = "202603020001_TenantRbacSchema";
         private const string MigrationRbacReconcile = "202603050001_TenantRbacReconcile";
         private const string MigrationImportArchitecture = "202604090001_TenantImportArchitectureFoundation";
+        private const string MigrationImportArchitectureExtensions = "202605010001_TenantImportArchitectureExtensions";
         private const string MigrationImportBatchMappingLink = "202604100001_TenantImportBatchMappingLink";
         private const string MigrationImportWorkbenchPermissions = "202604270001_TenantImportWorkbenchPermissions";
         private const string MigrationBankAccounts = "202604230001_TenantBankAccounts";
@@ -33,6 +34,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationRbac, BuildTenantRbacSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationRbacReconcile, BuildTenantRbacReconcileSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportArchitecture, BuildTenantImportArchitectureSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportArchitectureExtensions, BuildTenantImportArchitectureExtensionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportBatchMappingLink, BuildTenantImportBatchMappingLinkSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportWorkbenchPermissions, BuildTenantImportWorkbenchPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationBankAccounts, BuildTenantBankAccountsSql(), cancellationToken);
@@ -470,11 +472,14 @@ namespace finrecon360_backend.Services
                     ImportBatchId uniqueidentifier NOT NULL,
                     SourceRawRecordId uniqueidentifier NULL,
                     TransactionDate date NOT NULL,
+                    TransactionType nvarchar(30) NULL,
                     PostingDate date NULL,
                     ReferenceNumber nvarchar(120) NULL,
                     Description nvarchar(500) NULL,
                     AccountCode nvarchar(100) NULL,
                     AccountName nvarchar(200) NULL,
+                    GrossAmount decimal(18,2) NULL,
+                    ProcessingFee decimal(18,2) NULL,
                     DebitAmount decimal(18,2) NOT NULL,
                     CreditAmount decimal(18,2) NOT NULL,
                     NetAmount decimal(18,2) NOT NULL,
@@ -486,6 +491,17 @@ namespace finrecon360_backend.Services
 
                 CREATE INDEX IX_ImportedNormalizedRecords_ImportBatchId ON dbo.ImportedNormalizedRecords(ImportBatchId);
                 CREATE INDEX IX_ImportedNormalizedRecords_TransactionDate ON dbo.ImportedNormalizedRecords(TransactionDate);
+            END
+            ELSE
+            BEGIN
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'TransactionType') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD TransactionType nvarchar(30) NULL;
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'GrossAmount') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD GrossAmount decimal(18,2) NULL;
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'ProcessingFee') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD ProcessingFee decimal(18,2) NULL;
             END
 
             IF OBJECT_ID(N'dbo.ImportMappingTemplates', N'U') IS NULL
@@ -538,6 +554,21 @@ namespace finrecon360_backend.Services
                   SELECT 1 FROM dbo.RolePermissions rp
                   WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
               );
+            """;
+
+        private static string BuildTenantImportArchitectureExtensionsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'TransactionType') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD TransactionType nvarchar(30) NULL;
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'GrossAmount') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD GrossAmount decimal(18,2) NULL;
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'ProcessingFee') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD ProcessingFee decimal(18,2) NULL;
+            END
             """;
 
         private static string BuildTenantImportBatchMappingLinkSql() =>
