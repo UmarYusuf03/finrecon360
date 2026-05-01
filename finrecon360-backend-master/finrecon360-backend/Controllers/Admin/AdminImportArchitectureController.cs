@@ -394,11 +394,14 @@ namespace finrecon360_backend.Controllers.Admin
                 ImportBatchId = batchId,
                 SourceRawRecordId = request.SourceRawRecordId,
                 TransactionDate = request.TransactionDate,
+                TransactionType = string.IsNullOrWhiteSpace(request.TransactionType) ? null : request.TransactionType.Trim(),
                 PostingDate = request.PostingDate,
                 ReferenceNumber = string.IsNullOrWhiteSpace(request.ReferenceNumber) ? null : request.ReferenceNumber.Trim(),
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 AccountCode = string.IsNullOrWhiteSpace(request.AccountCode) ? null : request.AccountCode.Trim(),
                 AccountName = string.IsNullOrWhiteSpace(request.AccountName) ? null : request.AccountName.Trim(),
+                GrossAmount = request.GrossAmount,
+                ProcessingFee = request.ProcessingFee,
                 DebitAmount = request.DebitAmount,
                 CreditAmount = request.CreditAmount,
                 NetAmount = request.NetAmount,
@@ -419,15 +422,18 @@ namespace finrecon360_backend.Controllers.Admin
                 new List<CanonicalFieldDto>
                 {
                     new("TransactionDate", "date", true, "Primary business transaction date."),
+                    new("TransactionType", "string", false, "Debit or credit indicator (e.g., DR/CR)."),
                     new("PostingDate", "date", false, "Ledger posting date when available."),
                     new("ReferenceNumber", "string", false, "External document or reference number."),
                     new("Description", "string", false, "Narration or description from source."),
                     new("AccountCode", "string", false, "Chart-of-accounts code."),
                     new("AccountName", "string", false, "Chart-of-accounts display name."),
-                    new("DebitAmount", "decimal(18,2)", true, "Debit amount in transaction currency."),
-                    new("CreditAmount", "decimal(18,2)", true, "Credit amount in transaction currency."),
+                    new("GrossAmount", "decimal(18,2)", false, "Gross amount before fees."),
+                    new("ProcessingFee", "decimal(18,2)", false, "Processing or service fee."),
+                    new("DebitAmount", "decimal(18,2)", false, "Debit amount in transaction currency."),
+                    new("CreditAmount", "decimal(18,2)", false, "Credit amount in transaction currency."),
                     new("NetAmount", "decimal(18,2)", true, "Net amount (Debit - Credit or source-provided net)."),
-                    new("Currency", "char(3)", true, "ISO 4217 currency code.")
+                    new("Currency", "char(3)", false, "ISO 4217 currency code.")
                 });
 
         private static ImportBatchDto ToDto(ImportBatch batch) =>

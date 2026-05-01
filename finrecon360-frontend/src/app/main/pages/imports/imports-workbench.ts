@@ -35,12 +35,15 @@ type ValidationSummary = {
 })
 export class ImportsWorkbenchComponent implements OnInit {
   readonly canonicalFields = [
+    'TransactionType',
     'TransactionDate',
     'PostingDate',
     'ReferenceNumber',
     'Description',
     'AccountCode',
     'AccountName',
+    'GrossAmount',
+    'ProcessingFee',
     'DebitAmount',
     'CreditAmount',
     'NetAmount',
