@@ -23,6 +23,11 @@ namespace finrecon360_backend.Data
         public DbSet<ImportedRawRecord> ImportedRawRecords => Set<ImportedRawRecord>();
         public DbSet<ImportedNormalizedRecord> ImportedNormalizedRecords => Set<ImportedNormalizedRecord>();
         public DbSet<ImportMappingTemplate> ImportMappingTemplates => Set<ImportMappingTemplate>();
+        public DbSet<ReconciliationRun> ReconciliationRuns => Set<ReconciliationRun>();
+        public DbSet<MatchGroup> MatchGroups => Set<MatchGroup>();
+        public DbSet<MatchDecision> MatchDecisions => Set<MatchDecision>();
+        public DbSet<ReconciliationException> ReconciliationExceptions => Set<ReconciliationException>();
+        public DbSet<ReportSnapshot> ReportSnapshots => Set<ReportSnapshot>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -301,6 +306,95 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
                 entity.HasIndex(x => x.Name).IsUnique();
                 entity.HasIndex(x => new { x.SourceType, x.IsActive });
+            });
+
+            modelBuilder.Entity<ReconciliationRun>(entity =>
+            {
+                entity.ToTable("ReconciliationRuns");
+                entity.HasKey(x => x.ReconciliationRunId);
+                entity.Property(x => x.ReconciliationRunId).ValueGeneratedNever();
+                entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.BankAccountId);
+                entity.HasIndex(x => x.RunDate);
+            });
+
+            modelBuilder.Entity<MatchGroup>(entity =>
+            {
+                entity.ToTable("MatchGroups");
+                entity.HasKey(x => x.MatchGroupId);
+                entity.Property(x => x.MatchGroupId).ValueGeneratedNever();
+                entity.Property(x => x.MatchConfidenceScore).HasColumnType("decimal(5,4)");
+                entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.ReconciliationRunId);
+
+                entity.HasOne(x => x.ReconciliationRun)
+                    .WithMany(x => x.MatchGroups)
+                    .HasForeignKey(x => x.ReconciliationRunId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<MatchDecision>(entity =>
+            {
+                entity.ToTable("MatchDecisions");
+                entity.HasKey(x => x.MatchDecisionId);
+                entity.Property(x => x.MatchDecisionId).ValueGeneratedNever();
+                entity.Property(x => x.Decision).HasConversion<string>().HasMaxLength(50).IsRequired();
+                entity.Property(x => x.DecisionReason).HasMaxLength(1000);
+                entity.Property(x => x.BankLineDescription).HasMaxLength(1000);
+                entity.Property(x => x.SystemEntityDescription).HasMaxLength(1000);
+                entity.Property(x => x.MatchType).HasMaxLength(50);
+                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.MatchGroupId);
+
+                entity.HasOne(x => x.MatchGroup)
+                    .WithMany(x => x.MatchDecisions)
+                    .HasForeignKey(x => x.MatchGroupId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ReconciliationException>(entity =>
+            {
+                entity.ToTable("ReconciliationExceptions");
+                entity.HasKey(x => x.ReconciliationExceptionId);
+                entity.Property(x => x.ReconciliationExceptionId).ValueGeneratedNever();
+                entity.Property(x => x.Reason).HasMaxLength(1000).IsRequired();
+                entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.ReconciliationRunId);
+                entity.HasIndex(x => x.BankStatementLineId);
+
+                entity.HasOne(x => x.ReconciliationRun)
+                    .WithMany(x => x.Exceptions)
+                    .HasForeignKey(x => x.ReconciliationRunId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ReportSnapshot>(entity =>
+            {
+                entity.ToTable("ReportSnapshots");
+                entity.HasKey(x => x.ReportSnapshotId);
+                entity.Property(x => x.ReportSnapshotId).ValueGeneratedNever();
+                entity.Property(x => x.ReconciliationCompletionPercentage).HasColumnType("decimal(5,2)");
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.HasIndex(x => x.SnapshotDate);
             });
 
             base.OnModelCreating(modelBuilder);

@@ -145,6 +145,19 @@ builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<TenantDbContext>(sp =>
+{
+    var tenantContext = sp.GetRequiredService<ITenantContext>();
+    var tenant = tenantContext.ResolveAsync().GetAwaiter().GetResult();
+    if (tenant == null || tenant.TenantId == Guid.Empty)
+    {
+        throw new InvalidOperationException("Unable to resolve tenant context for TenantDbContext.");
+    }
+
+    var factory = sp.GetRequiredService<ITenantDbContextFactory>();
+    return factory.CreateAsync(tenant.TenantId).GetAwaiter().GetResult();
+});
+builder.Services.AddScoped<IMatchingEngineService, MatchingEngineService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
