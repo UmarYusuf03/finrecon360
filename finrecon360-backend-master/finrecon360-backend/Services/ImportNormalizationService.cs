@@ -32,11 +32,7 @@ namespace finrecon360_backend.Services
             var errors = new List<string>();
 
             var transactionDate = ReadDate(row, mappings, "TransactionDate", errors, required: true);
-            var referenceNumber = ReadString(row, mappings, "ReferenceNumber");
-            if (string.IsNullOrWhiteSpace(referenceNumber))
-            {
-                errors.Add("Reference number is required.");
-            }
+            _ = ReadString(row, mappings, "ReferenceNumber");
 
             var (debit, debitError) = ReadDecimal(row, mappings, "DebitAmount");
             if (!string.IsNullOrWhiteSpace(debitError))
@@ -56,14 +52,21 @@ namespace finrecon360_backend.Services
                 errors.Add(netError);
             }
 
-            if (!debit.HasValue && !credit.HasValue && !net.HasValue)
+            var (gross, grossError) = ReadDecimal(row, mappings, "GrossAmount");
+            if (!string.IsNullOrWhiteSpace(grossError))
             {
-                errors.Add("At least one amount (debit, credit, or net) is required.");
+                errors.Add(grossError);
             }
 
-            if (debit.HasValue && credit.HasValue && debit.Value != 0m && credit.Value != 0m)
+            var (fee, feeError) = ReadDecimal(row, mappings, "ProcessingFee");
+            if (!string.IsNullOrWhiteSpace(feeError))
             {
-                errors.Add("Both debit and credit amounts are populated. Only one should be provided.");
+                errors.Add(feeError);
+            }
+
+            if (!net.HasValue)
+            {
+                errors.Add("Net amount is required.");
             }
 
             if (net.HasValue && debit.HasValue && credit.HasValue)
@@ -75,11 +78,8 @@ namespace finrecon360_backend.Services
                 }
             }
 
-            var currency = ReadString(row, mappings, "Currency");
-            if (string.IsNullOrWhiteSpace(currency))
-            {
-                errors.Add("Currency is required.");
-            }
+            _ = ReadString(row, mappings, "Currency");
+            _ = ReadString(row, mappings, "TransactionType");
 
             if (transactionDate == null)
             {
@@ -100,6 +100,9 @@ namespace finrecon360_backend.Services
             var debit = ReadDecimal(row, mappings, "DebitAmount").Value ?? 0m;
             var credit = ReadDecimal(row, mappings, "CreditAmount").Value ?? 0m;
             var netAmount = ReadDecimal(row, mappings, "NetAmount").Value;
+            var grossAmount = ReadDecimal(row, mappings, "GrossAmount").Value;
+            var processingFee = ReadDecimal(row, mappings, "ProcessingFee").Value;
+            var transactionType = NormalizeTransactionType(ReadString(row, mappings, "TransactionType"));
 
             if (!netAmount.HasValue)
             {
@@ -108,13 +111,24 @@ namespace finrecon360_backend.Services
 
             if (netAmount.HasValue && debit == 0m && credit == 0m)
             {
-                if (netAmount.Value >= 0m)
+                var netAbs = Math.Abs(netAmount.Value);
+                if (transactionType == "DEBIT")
                 {
-                    debit = netAmount.Value;
+                    debit = netAbs;
+                    credit = 0m;
+                }
+                else if (transactionType == "CREDIT")
+                {
+                    credit = netAbs;
+                    debit = 0m;
+                }
+                else if (netAmount.Value >= 0m)
+                {
+                    debit = netAbs;
                 }
                 else
                 {
-                    credit = Math.Abs(netAmount.Value);
+                    credit = netAbs;
                 }
             }
 
@@ -126,11 +140,14 @@ namespace finrecon360_backend.Services
                 ImportBatchId = batchId,
                 SourceRawRecordId = rawRecordId,
                 TransactionDate = ReadDate(row, mappings, "TransactionDate", errors, required: true) ?? DateTime.UtcNow,
+                TransactionType = transactionType,
                 PostingDate = ReadDate(row, mappings, "PostingDate", errors, required: false),
                 ReferenceNumber = NormalizeText(ReadString(row, mappings, "ReferenceNumber")),
                 Description = NormalizeText(ReadString(row, mappings, "Description")),
                 AccountCode = NormalizeAccountCode(ReadString(row, mappings, "AccountCode")),
                 AccountName = NormalizeText(ReadString(row, mappings, "AccountName")),
+                GrossAmount = grossAmount,
+                ProcessingFee = processingFee,
                 DebitAmount = debit,
                 CreditAmount = credit,
                 NetAmount = netAmount ?? 0m,
@@ -170,6 +187,24 @@ namespace finrecon360_backend.Services
             }
 
             return trimmed;
+        }
+
+        private static string? NormalizeTransactionType(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            var normalized = value.Trim().ToLowerInvariant();
+            return normalized switch
+            {
+                "dr" => "DEBIT",
+                "debit" => "DEBIT",
+                "cr" => "CREDIT",
+                "credit" => "CREDIT",
+                _ => null
+            };
         }
 
         private static string? ReadString(Dictionary<string, string?> row, Dictionary<string, string> mappings, string canonicalField)
