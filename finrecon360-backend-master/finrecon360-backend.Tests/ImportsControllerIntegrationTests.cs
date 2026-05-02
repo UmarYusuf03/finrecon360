@@ -121,6 +121,7 @@ public class ImportsControllerIntegrationTests
             new StubUserContext(userId),
             new ImportFileParser(),
             new StubImportNormalizationService(),
+            new ReconciliationOrchestrator(),
             new StubAuditLogger());
     }
 

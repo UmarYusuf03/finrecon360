@@ -28,6 +28,7 @@ namespace finrecon360_backend.Controllers
         private readonly IUserContext _userContext;
         private readonly IImportFileParser _importFileParser;
         private readonly IImportNormalizationService _normalizationService;
+        private readonly IReconciliationOrchestrator _reconciliationOrchestrator;
         private readonly IAuditLogger _auditLogger;
 
         public ImportsController(
@@ -37,6 +38,7 @@ namespace finrecon360_backend.Controllers
             IUserContext userContext,
             IImportFileParser importFileParser,
             IImportNormalizationService normalizationService,
+            IReconciliationOrchestrator reconciliationOrchestrator,
             IAuditLogger auditLogger)
         {
             _dbContext = dbContext;
@@ -45,6 +47,7 @@ namespace finrecon360_backend.Controllers
             _userContext = userContext;
             _importFileParser = importFileParser;
             _normalizationService = normalizationService;
+            _reconciliationOrchestrator = reconciliationOrchestrator;
             _auditLogger = auditLogger;
         }
 
@@ -636,7 +639,7 @@ namespace finrecon360_backend.Controllers
                 "ImportCommit",
                 "ImportBatch",
                 id.ToString(),
-                $"normalizedCount={normalizedRecords.Count};sourceType={batch.SourceType}");
+                $"normalizedCount={normalizedRecords.Count};sourceType={batch.SourceType};workflowRoute={_reconciliationOrchestrator.DescribeRouting(batch.SourceType)}");
 
             return Ok(new ImportCommitResponseDto(
                 id,

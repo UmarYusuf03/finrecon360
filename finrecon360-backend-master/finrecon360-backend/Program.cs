@@ -143,6 +143,7 @@ builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
 builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
+builder.Services.AddSingleton<IReconciliationOrchestrator, ReconciliationOrchestrator>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
 
