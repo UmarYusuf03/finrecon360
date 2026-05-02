@@ -13,6 +13,11 @@ using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Controllers.Admin
 {
+    /// <summary>
+    /// WHY: Separates the concept of "Requesting" a tenant from "Provisioning" one. 
+    /// By locking registrations behind an admin review queue, the platform prevents automated 
+    /// spam from exhausting SQL Server databases dynamically prior to human/payment validation.
+    /// </summary>
     [ApiController]
     [Route("api/system/tenant-registrations")]
     [Authorize]
@@ -134,6 +139,11 @@ namespace finrecon360_backend.Controllers.Admin
                 request.OnboardingMetadata));
         }
 
+        /// <summary>
+        /// WHY: A highly composite distributed transaction. It provisions the SQL shard, 
+        /// seeds the root user identity, logs the audit, and dispatches the Magic Link 
+        /// simultaneously to ensure the tenant isn't left fully provisioned but inaccessible.
+        /// </summary>
         [HttpPost("{requestId:guid}/approve")]
         public async Task<IActionResult> Approve(Guid requestId, [FromBody] TenantRegistrationReviewRequest request)
         {

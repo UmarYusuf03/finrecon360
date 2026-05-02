@@ -18,6 +18,11 @@ namespace finrecon360_backend.Services
         string GetProviderName();
     }
 
+    /// <summary>
+    /// WHY: This serves as an abstraction layer over concrete payment gateways (like PayHere).
+    /// By injecting `IPaymentCheckoutService` into controllers, we can swap out or A/B test 
+    /// different payment processors in the future without modifying core subscription logic.
+    /// </summary>
     public class PaymentCheckoutService : IPaymentCheckoutService
     {
         private readonly IPayHereCheckoutService _payHereCheckoutService;

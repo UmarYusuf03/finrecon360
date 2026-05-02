@@ -115,6 +115,20 @@ export class ShellComponent implements OnInit, OnDestroy {
     return permissions.some((permission) => user.permissions.includes(permission));
   }
 
+  hasPermission(grantedPermissions: string[], requiredPermission: string): boolean {
+    if (grantedPermissions.includes(requiredPermission)) {
+      return true;
+    }
+
+    const separatorIndex = requiredPermission.lastIndexOf('.');
+    if (separatorIndex <= 0) {
+      return false;
+    }
+
+    const manageCode = `${requiredPermission.slice(0, separatorIndex)}.MANAGE`;
+    return grantedPermissions.includes(manageCode);
+  }
+
   getAdminRoot(user: CurrentUser | null): string {
     return user?.isSystemAdmin ? '/app/system' : '/app/admin';
   }

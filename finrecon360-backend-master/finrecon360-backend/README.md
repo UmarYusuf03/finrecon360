@@ -521,6 +521,21 @@ Important values:
 - Brevo settings
 - PayHere settings
 
+### PayHere configuration
+
+The onboarding flow creates a PayHere checkout session and expects PayHere to call back the webhook.
+
+- **Required**:
+  - `PAYHERE_MERCHANT_ID`
+  - `PAYHERE_MERCHANT_SECRET`
+  - `PAYHERE_CHECKOUT_BASE_URL` (sandbox default is used if omitted)
+  - `PAYHERE_RETURN_URL` (frontend URL PayHere redirects to after payment)
+  - `PAYHERE_CANCEL_URL` (frontend URL PayHere redirects to on cancel)
+  - `PAYHERE_NOTIFY_URL` (backend webhook endpoint, typically `.../api/webhooks/payhere`)
+  - `PAYHERE_CURRENCY` (default `LKR`)
+- **Local/dev only**:
+  - `PAYMENT_ALLOW_LOCAL_BYPASS=true` allows onboarding to activate a subscription locally when the payment provider is not configured. This bypass is ignored in production.
+
 ## Local Development Notes
 
 - Startup runs control-plane EF migrations automatically outside testing and design-time environments.

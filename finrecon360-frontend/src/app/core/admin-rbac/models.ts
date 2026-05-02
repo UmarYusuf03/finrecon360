@@ -1,5 +1,16 @@
+/**
+ * WHY: These models define the structural contracts for the Role-Based Access Control (RBAC) 
+ * mechanism in the admin portal. They mirror the core domain entities used by the backend 
+ * to ensure that frontend components always operate on a strictly defined shape of data, 
+ * preventing runtime errors when evaluating and assigning user permissions.
+ */
 import { PermissionCode, RoleCode } from '../auth/models';
 
+/**
+ * WHY: Defines the shape of a Role within the system. Roles are the primary mechanism for grouping
+ * collections of permissions. `isSystem` is used to prevent the deletion or mutation of core roles
+ * (like Super Admin) that are required for the platform to function baseline.
+ */
 export interface Role {
   id: string;
   code: RoleCode;
@@ -9,6 +20,11 @@ export interface Role {
   isActive: boolean;
 }
 
+/**
+ * WHY: Represents a logical component or feature module within the application (e.g., 'Dashboard', 'Reports'). 
+ * Permissions are assigned against these components. The `routePath` is included to potentially automate 
+ * route-guarding based on component access.
+ */
 export interface AppComponentResource {
   id: string;
   code: string;
@@ -19,6 +35,10 @@ export interface AppComponentResource {
   isActive: boolean;
 }
 
+/**
+ * WHY: Granular actions that can be performed on an `AppComponentResource` (e.g., 'View', 'Edit', 'Delete').
+ * Keeping these as separate definitions allows actions to be reused across different components.
+ */
 export interface ActionDefinition {
   id: string;
   code: string;
@@ -26,6 +46,10 @@ export interface ActionDefinition {
   description?: string;
 }
 
+/**
+ * WHY: The intersection relationship mapping a Role to a specific Action on a specific Component. 
+ * This is the atomic unit of the permission matrix used to resolve `hasPermission` checks.
+ */
 export interface PermissionAssignment {
   id: string;
   roleId: string;
@@ -34,6 +58,10 @@ export interface PermissionAssignment {
   permissionCode: PermissionCode;
 }
 
+/**
+ * WHY: A read-optimized view of a user focused strictly on administration and identity mapping.
+ * Avoids pulling down the entire aggregate root of a user just for lists or simple summaries.
+ */
 export interface AdminUserSummary {
   id: string;
   email: string;
@@ -43,6 +71,10 @@ export interface AdminUserSummary {
   roles: RoleCode[];
 }
 
+/**
+ * WHY: Standardized wrapper for paginated endpoints to ensure uniform client-side handling 
+ * of infinite scrolling or standard pagination UI components across all admin tables.
+ */
 export interface BankAccount {
   bankAccountId: string;
   bankName: string;
@@ -108,7 +140,6 @@ export interface ApproveTransactionRequest {
 export interface RejectTransactionRequest {
   reason: string;
 }
-
 export interface PagedResult<T> {
   items: T[];
   totalCount: number;
@@ -116,6 +147,10 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
+/**
+ * WHY: Describes an individual field within the internal normalization target (Canonical).
+ * Essential for the data mapping engine to know data types and validation requirements.
+ */
 export interface CanonicalField {
   field: string;
   dataType: string;
@@ -123,11 +158,19 @@ export interface CanonicalField {
   description: string;
 }
 
+/**
+ * WHY: The root definition of the canonical format for a given version. Data imports must ultimately
+ * map to this schema version to be ingested successfully by downstream reconciliation logic.
+ */
 export interface CanonicalSchema {
   version: string;
   fields: CanonicalField[];
 }
 
+/**
+ * WHY: A high-level metric view used by the admin dashboard to give quick insights into 
+ * data processing health, throughput, and the current state of mappings.
+ */
 export interface ImportArchitectureOverview {
   totalImportBatches: number;
   totalRawRecords: number;
@@ -137,6 +180,10 @@ export interface ImportArchitectureOverview {
   canonicalSchema: CanonicalSchema;
 }
 
+/**
+ * WHY: Represents explicit rules for how raw ingestion sources map fields to the `CanonicalSchema`. 
+ * Versioning allows historical tracking and safe rollback of template changes.
+ */
 export interface ImportMappingTemplate {
   id: string;
   name: string;

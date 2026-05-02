@@ -21,6 +21,11 @@ import { AdminUserService } from '../../../core/admin-rbac/admin-user.service';
 import { AdminUserSummary, Role } from '../../../core/admin-rbac/models';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 
+/**
+ * WHY: This component tracks tenant-level users. Crucially, it manages the linkage between 
+ * Users and Roles. It includes explicit frontline domain logic to prevent a tenant from 
+ * deleting/demoting their last active administrator, preventing complete tenant lockouts.
+ */
 @Component({
   selector: 'app-admin-users',
   standalone: true,
@@ -110,6 +115,11 @@ export class AdminUsersComponent implements OnInit {
       const editingUser = this.users.find((user) => user.id === this.editingId);
       const wasAdmin = editingUser?.roles.some((role) => role.toUpperCase() === AdminUsersComponent.AdminRoleCode) ?? false;
       const willBeAdmin = selectedRoleCodes.includes(AdminUsersComponent.AdminRoleCode);
+      /**
+       * WHY: This is the lockout prevention block. Before committing an update that removes 
+       * the 'ADMIN' role from a user who previously had it, we must verify that at least one 
+       * other valid user in the tenant holds the 'ADMIN' role. Otherwise, the tenant is orphaned.
+       */
       if (wasAdmin && !willBeAdmin) {
         const hasAnotherAdmin = this.users.some(
           (user) =>

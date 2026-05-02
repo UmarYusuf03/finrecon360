@@ -1,10 +1,15 @@
-﻿using finrecon360_backend.Data.Configurations;
+using finrecon360_backend.Data.Configurations;
 using finrecon360_backend.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 
 namespace finrecon360_backend.Data
 {
+    /// <summary>
+    /// WHY: This represents the central "System" database context. It handles configuration, 
+    /// overarching user identities, subscriptions, and tenant directories. It is ALWAYS connected 
+    /// to the primary administrative database, distinct from isolated tenant shards.
+    /// </summary>
     public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options)
