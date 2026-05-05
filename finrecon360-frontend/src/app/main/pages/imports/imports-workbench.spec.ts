@@ -9,12 +9,18 @@ import { AuthService } from '../../../core/auth/auth.service';
 
 class AuthServiceStub {
   currentUser = {
-    permissions: ['ADMIN.IMPORT_ARCHITECTURE.MANAGE'],
+    permissions: [
+      'ADMIN.IMPORTS.CREATE',
+      'ADMIN.IMPORTS.EDIT',
+      'ADMIN.IMPORTS.COMMIT',
+      'ADMIN.IMPORTS.DELETE',
+      'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+    ],
   } as any;
 }
 
 describe('ImportsWorkbenchComponent', () => {
-  it('sets canManage when permission exists', () => {
+  it('exposes granular permission getters from currentUser permissions', () => {
     const importsService = jasmine.createSpyObj<ImportsService>('ImportsService', [
       'getImportHistory',
     ]);
@@ -36,7 +42,15 @@ describe('ImportsWorkbenchComponent', () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    expect(component.canManage).toBeTrue();
+    // Granular IMPORTS permissions
+    expect(component.canCreateImport).toBeTrue();
+    expect(component.canEditImport).toBeTrue();
+    expect(component.canCommit).toBeTrue();
+    expect(component.canDeleteImport).toBeTrue();
+    // Architecture view (implied by CREATE/EDIT/DELETE via AliasMap on backend, explicit here)
+    expect(component.canViewArchitecture).toBeTrue();
+    // VIEW is implicitly satisfied (any of the mutating codes above imply it on the backend)
+    expect(component.canViewImports).toBeFalse(); // not explicitly in stub — relies on backend implication
   });
 
   it('loads history on init', () => {

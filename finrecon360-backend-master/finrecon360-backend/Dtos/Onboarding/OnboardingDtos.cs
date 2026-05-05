@@ -10,7 +10,8 @@ namespace finrecon360_backend.Dtos.Onboarding
         string Email,
         Guid TenantId,
         string TenantName,
-        DateTime ExpiresAtUtc);
+        DateTime ExpiresAtUtc,
+        int? RequestedBankAccounts);
 
     public class OnboardingSetPasswordRequest
     {

@@ -90,6 +90,7 @@ export interface Transaction {
   transactionId: string;
   amount: number;
   transactionDate: string;
+  referenceNumber?: string | null;
   description: string;
   bankAccountId?: string | null;
   transactionType: string;
@@ -115,6 +116,42 @@ export interface TransactionStateHistory {
   note?: string | null;
 }
 
+/**
+ * WHY: Enriched NeedsBankMatch row — combines core transaction fields with matched
+ * GATEWAY import record context and any existing ReconciliationMatchGroup so the
+ * accountant can see the full payment chain (ERP → Gateway → Bank) in one place.
+ */
+export interface NeedsBankMatchRecord {
+  // Core transaction
+  transactionId: string;
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+  transactionState: string;
+  createdByUserId?: string | null;
+  approvedAt?: string | null;
+  createdAt: string;
+  // Linked import record context
+  importedNormalizedRecordId?: string | null;
+  importSourceType?: string | null;
+  referenceNumber?: string | null;
+  accountCode?: string | null;
+  grossAmount?: number | null;
+  processingFee?: number | null;
+  netImportAmount: number;
+  settlementId?: string | null;
+  matchStatus: string;
+  // Match group context
+  reconciliationMatchGroupId?: string | null;
+  matchLevel?: string | null;
+  isConfirmed: boolean;
+  isJournalPosted: boolean;
+  matchMetadataJson?: string | null;
+}
+
 export interface CreateTransactionRequest {
   amount: number;
   transactionDate: string;
@@ -127,6 +164,7 @@ export interface CreateTransactionRequest {
 export interface UpdateTransactionRequest {
   amount: number;
   transactionDate: string;
+  referenceNumber?: string | null;
   description: string;
   bankAccountId?: string | null;
   transactionType: string;
@@ -194,4 +232,88 @@ export interface ImportMappingTemplate {
   mappingJson: string;
   createdAt: string;
   updatedAt?: string | null;
+}
+
+// ─── Reconciliation Domain ───────────────────────────────────────────────────
+
+export type MatchStatus =
+  | 'PENDING'
+  | 'INTERNAL_VERIFIED'
+  | 'SALES_VERIFIED'
+  | 'EXCEPTION'
+  | 'WAITING'
+  | 'MATCHED';
+
+export interface ReconciliationMatchedRecord {
+  reconciliationMatchedRecordId: string;
+  importedNormalizedRecordId: string;
+  sourceType: string;
+  matchAmount: number;
+  transactionDate?: string | null;
+  referenceNumber?: string | null;
+  grossAmount?: number | null;
+  processingFee?: number | null;
+  netAmount: number;
+  currency: string;
+  matchStatus: MatchStatus;
+}
+
+export interface ReconciliationMatchGroup {
+  reconciliationMatchGroupId: string;
+  importBatchId: string;
+  matchLevel: string;
+  settlementKey?: string | null;
+  isConfirmed: boolean;
+  confirmedByUserId?: string | null;
+  confirmedAt?: string | null;
+  isJournalPosted: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+  matchedRecords: ReconciliationMatchedRecord[];
+}
+
+export interface ReconciliationEvent {
+  reconciliationEventId: string;
+  importBatchId: string;
+  importedNormalizedRecordId: string;
+  eventType: string;
+  stage: string;
+  sourceType: string;
+  status: string;
+  detailJson?: string | null;
+  createdAt: string;
+  resolvedAt?: string | null;
+}
+
+export interface WaitingRecord {
+  importedNormalizedRecordId: string;
+  importBatchId: string;
+  transactionDate: string;
+  referenceNumber?: string | null;
+  description?: string | null;
+  grossAmount?: number | null;
+  processingFee?: number | null;
+  netAmount: number;
+  currency: string;
+  matchStatus: MatchStatus;
+}
+
+export interface JournalEntry {
+  journalEntryId: string;
+  transactionId?: string | null;
+  reconciliationMatchGroupId?: string | null;
+  entryType: string;
+  amount: number;
+  currency: string;
+  postedAt: string;
+  postedByUserId?: string | null;
+  notes?: string | null;
+}
+
+export interface AttachSettlementIdRequest {
+  settlementId: string;
+}
+
+export interface PostJournalRequest {
+  notes?: string | null;
 }

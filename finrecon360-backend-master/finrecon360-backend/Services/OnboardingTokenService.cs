@@ -16,6 +16,11 @@ namespace finrecon360_backend.Services
         OnboardingTokenResult ValidateToken(string token);
     }
 
+    /// <summary>
+    /// WHY: Issues short-lived onboarding tokens (typically 20 minutes) that bind a user + tenant.
+    /// These tokens are used to carry onboarding state across multiple requests after magic-link consumption
+    /// and before final password/plan selection. By encoding tenantId as a claim, we can verify that the user
+    /// is onboarding into the intended tenant without DB lookup during token validation.\n    /// </summary>
     public class OnboardingTokenService : IOnboardingTokenService
     {
         private readonly JwtSettings _jwtSettings;

@@ -8,6 +8,12 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace finrecon360_backend.Controllers
 {
+    /// <summary>
+    /// WHY: Single-source endpoint for user session state.
+    /// Returns current user identity + scoped tenant context + resolved roles/permissions,
+    /// enabling the frontend to pre-fetch auth state on app bootstrap without separate cascading API calls.
+    /// Enforces tenant suspension/user ban checks early to prevent unauthorized access.
+    /// </summary>
     [ApiController]
     [Route("api/me")]
     [Authorize]

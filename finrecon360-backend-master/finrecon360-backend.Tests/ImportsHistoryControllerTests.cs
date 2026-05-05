@@ -66,12 +66,13 @@ public class ImportsHistoryControllerTests
         Guid userId)
     {
         return new ImportsController(
-            appDb,
             new StubTenantContext(tenantId),
             new InMemoryTenantDbContextFactory(tenantDbName),
             new StubUserContext(userId),
             new ImportFileParser(),
             new StubImportNormalizationService(),
+            new ReconciliationOrchestrator(),
+            new ReconciliationExecutionService(),
             new StubAuditLogger());
     }
 

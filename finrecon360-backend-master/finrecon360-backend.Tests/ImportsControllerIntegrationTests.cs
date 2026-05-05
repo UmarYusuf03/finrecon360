@@ -30,7 +30,7 @@ public class ImportsControllerIntegrationTests
             "TransactionDate,PostingDate,ReferenceNumber,Description,AccountCode,AccountName,DebitAmount,CreditAmount,NetAmount,Currency",
             "2026-04-10,2026-04-10,REF-001,Payment,ACC-100,Cash,100.00,0.00,100.00,LKR");
 
-        var uploadResult = await controller.Upload(CreateFormFile("sample.csv", Encoding.UTF8.GetBytes(csvContent)), "CSV");
+        var uploadResult = await controller.Upload(CreateFormFile("sample.csv", Encoding.UTF8.GetBytes(csvContent)), "BANK");
         var uploadOk = Assert.IsType<OkObjectResult>(uploadResult.Result);
         var uploadDto = Assert.IsType<ImportUploadResponseDto>(uploadOk.Value);
 
@@ -78,7 +78,7 @@ public class ImportsControllerIntegrationTests
 
         var xlsxBytes = BuildXlsxBytes();
 
-        var uploadResult = await controller.Upload(CreateFormFile("sample.xlsx", xlsxBytes), "XLSX");
+        var uploadResult = await controller.Upload(CreateFormFile("sample.xlsx", xlsxBytes), "BANK");
         var uploadOk = Assert.IsType<OkObjectResult>(uploadResult.Result);
         var uploadDto = Assert.IsType<ImportUploadResponseDto>(uploadOk.Value);
 
@@ -115,13 +115,13 @@ public class ImportsControllerIntegrationTests
     private static ImportsController CreateController(AppDbContext appDb, string tenantDbName, Guid tenantId, Guid userId)
     {
         return new ImportsController(
-            appDb,
             new StubTenantContext(tenantId),
             new InMemoryTenantDbContextFactory(tenantDbName),
             new StubUserContext(userId),
             new ImportFileParser(),
             new StubImportNormalizationService(),
             new ReconciliationOrchestrator(),
+            new ReconciliationExecutionService(),
             new StubAuditLogger());
     }
 
@@ -223,6 +223,35 @@ public class ImportsControllerIntegrationTests
             RoleId = role == TenantUserRole.TenantAdmin ? adminRoleId : userRoleId,
             AssignedAt = now
         });
+
+        var grantedRoleId = role == TenantUserRole.TenantAdmin ? adminRoleId : userRoleId;
+        var permissionCodes = new[]
+        {
+            "ADMIN.IMPORTS.CREATE",
+            "ADMIN.IMPORTS.EDIT",
+            "ADMIN.IMPORTS.COMMIT",
+            "ADMIN.IMPORTS.VIEW"
+        };
+
+        foreach (var code in permissionCodes)
+        {
+            var permissionId = Guid.NewGuid();
+            tenantDb.Permissions.Add(new TenantPermission
+            {
+                PermissionId = permissionId,
+                Code = code,
+                Name = code,
+                Module = "Admin",
+                CreatedAt = now
+            });
+
+            tenantDb.RolePermissions.Add(new TenantRolePermission
+            {
+                RoleId = grantedRoleId,
+                PermissionId = permissionId,
+                GrantedAt = now
+            });
+        }
 
         await tenantDb.SaveChangesAsync();
     }

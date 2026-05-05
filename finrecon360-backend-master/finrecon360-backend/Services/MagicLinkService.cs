@@ -8,6 +8,12 @@ using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Services
 {
+    /// <summary>
+    /// WHY: Centralized magic-link (token-based auth action) lifecycle.
+    /// Isolates token generation, hashing, storage, and consumption logic so password-reset/email-verification flows
+    /// never expose plaintext tokens in memory longer than necessary. Enforces resend cooldown and attempt limits,
+    /// preventing brute-force attacks on magic-link endpoints.
+    /// </summary>
     public class MagicLinkService : IMagicLinkService
     {
         private readonly AppDbContext _dbContext;

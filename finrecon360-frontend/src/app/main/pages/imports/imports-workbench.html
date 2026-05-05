@@ -19,6 +19,42 @@
 
   <div class="panel upload-panel">
     <h3>1. Upload</h3>
+
+    <!-- Source Type Scope Badge: shown when user's access is restricted to specific source types -->
+    <div class="scope-badge" *ngIf="scopedSourceTypes !== null">
+      <span class="material-icons scope-badge-icon">lock</span>
+      <span>
+        Your role limits imports to
+        <!-- WHY: Inline contextual message so CASHIER understands why they see fewer options. -->
+        <strong>{{ allowedSourceTypeLabel }}</strong>
+        only. Other source types are not accessible with your current permissions.
+      </span>
+    </div>
+
+    <!-- Source Type Selector -->
+    <div class="source-type-section">
+      <label class="source-type-label">Select Source Type <span class="required">*</span></label>
+      <div class="source-type-grid">
+        <button
+          *ngFor="let opt of scopedSourceTypeOptions"
+          type="button"
+          class="source-type-card"
+          [class.selected]="importSourceType === opt.value"
+          [class.locked]="scopedSourceTypes !== null && scopedSourceTypeOptions.length === 1"
+          (click)="importSourceType = opt.value"
+          [attr.id]="'source-type-' + opt.value.toLowerCase()"
+        >
+          <span class="source-type-icon material-icons">{{ opt.icon }}</span>
+          <span class="source-type-name">{{ opt.value }}</span>
+          <span class="source-type-hint">{{ opt.hint }}</span>
+        </button>
+      </div>
+      <p class="source-type-error" *ngIf="!importSourceType && actionError && actionError.includes('Source Type')">
+        Please select a source type above.
+      </p>
+    </div>
+
+    <!-- Drop zone -->
     <div
       class="upload-dropzone"
       [class.dragging]="isDragging"
@@ -26,17 +62,34 @@
       (dragleave)="onDragLeave($event)"
       (drop)="onDrop($event)"
     >
-      <p class="drop-title">Drag & drop a CSV or XLSX file here</p>
+      <span class="material-icons drop-icon">upload_file</span>
+      <p class="drop-title">Drag &amp; drop a CSV or XLSX file here</p>
       <p class="drop-subtitle">or click to browse</p>
       <input type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)" />
     </div>
+
     <div class="upload-controls">
-      <input type="text" [(ngModel)]="sourceType" placeholder="Source type (CSV, BANK, ERP...)" />
-      <button class="primary-btn" [disabled]="processing" (click)="upload()">Upload File</button>
-    </div>
-    <div class="file-meta" *ngIf="selectedFileName">
-      <strong>{{ selectedFileName }}</strong>
-      <span *ngIf="selectedFileSize">({{ selectedFileSize | number }} bytes)</span>
+      <div class="file-meta" *ngIf="selectedFileName">
+        <span class="material-icons">description</span>
+        <strong>{{ selectedFileName }}</strong>
+        <span class="file-size" *ngIf="selectedFileSize">{{ selectedFileSize | number }} bytes</span>
+      </div>
+      <button
+        class="primary-btn upload-btn"
+        [disabled]="processing || !canUploadForCurrentSourceType || !selectedFile"
+        (click)="upload()"
+        id="upload-file-btn"
+      >
+        <span class="material-icons">cloud_upload</span>
+        {{ processing ? 'Uploading...' : 'Upload File' }}
+      </button>
+      <!-- WHY: Shown when a CASHIER selects an unsupported source type via URL hack.
+           Backend will also reject it with 403, but this gives immediate inline feedback. -->
+      <p class="scope-warning" *ngIf="importSourceType && !canUploadForCurrentSourceType">
+        <span class="material-icons">block</span>
+        Your role does not allow importing <strong>{{ importSourceType }}</strong> files.
+        Allowed types: {{ allowedSourceTypeNames }}.
+      </p>
     </div>
   </div>
 
@@ -58,7 +111,8 @@
           <th>Raw</th>
           <th>Normalized</th>
           <th>Imported</th>
-          <th *ngIf="canManage">Actions</th>
+          <!-- Actions column only appears if user can delete imports -->
+          <th *ngIf="canDeleteImport">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -73,7 +127,8 @@
           <td>{{ item.rawRecordCount }}</td>
           <td>{{ item.normalizedRecordCount }}</td>
           <td>{{ item.importedAt | date: 'short' }}</td>
-          <td *ngIf="canManage">
+          <!-- Delete is the most destructive action — gated by its own permission -->
+          <td *ngIf="canDeleteImport">
             <button
               class="ghost-btn danger-ghost"
               type="button"
@@ -95,27 +150,32 @@
     </p>
 
     <div class="process-actions">
-      <button class="primary-btn" [disabled]="processing || !canManage" (click)="parseSelected()">
+      <!-- Parse, map, validate = EDIT permission; Commit = its own stricter COMMIT permission -->
+      <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="parseSelected()">
         Parse
       </button>
-      <button class="primary-btn" [disabled]="processing || !canManage" (click)="saveMapping()">
+      <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="saveMapping()">
         Save Mapping
       </button>
       <button
         class="warning-btn"
-        [disabled]="processing || !canManage"
+        [disabled]="processing || !canEditImport"
         (click)="validateSelected()"
       >
         Validate
       </button>
-      <button class="danger-btn" [disabled]="processing || !canManage" (click)="commitSelected()">
+      <!-- Commit is irreversible — ADMIN only in the default role matrix -->
+      <button class="danger-btn" [disabled]="processing || !canCommit" (click)="commitSelected()">
         Commit
       </button>
     </div>
 
-    <p class="hint" *ngIf="!canManage">
-      Parse/Mapping/Validate/Commit requires tenant admin access.
-    </p>
+    <ng-container *ngIf="!canEditImport && !canCommit">
+      <p class="hint">Parse / Mapping / Validate requires <strong>ADMIN.IMPORTS.EDIT</strong> and Commit requires <strong>ADMIN.IMPORTS.COMMIT</strong>.</p>
+    </ng-container>
+    <ng-container *ngIf="canEditImport && !canCommit">
+      <p class="hint">You can parse and validate but <strong>Commit</strong> requires ADMIN.IMPORTS.COMMIT permission.</p>
+    </ng-container>
 
     <div class="mapping-grid" *ngIf="parseResult as parsed">
       <h4>2. Column Mapping</h4>
@@ -127,7 +187,8 @@
         <button class="ghost-btn" type="button" (click)="useActiveTemplate()">Use template</button>
       </div>
 
-      <div class="template-picker" *ngIf="canManage">
+      <!-- Template picker visible to anyone who can VIEW the architecture -->
+      <div class="template-picker" *ngIf="canViewArchitecture">
         <label>
           Choose template
           <select [(ngModel)]="selectedTemplateId">
@@ -296,6 +357,93 @@
       <p class="hint" *ngIf="validationRows.length === 0">No rows to display.</p>
     </div>
   </div>
+
+  <!-- Reconciliation Summary Banner (task 2.8 + 3.7) -->
+  <div class="panel recon-result-panel" *ngIf="lastCommitSummary as r">
+    <div class="recon-result-header">
+      <span class="material-icons recon-result-icon">account_tree</span>
+      <div>
+        <h3>Reconciliation Complete</h3>
+        <p class="recon-route">{{ r.workflowRoute }}</p>
+      </div>
+      <span class="source-badge">{{ r.sourceType }}</span>
+    </div>
+
+    <div class="recon-stats-grid">
+      <!-- L1 / L3 Verified — label depends on source type -->
+      <div class="recon-stat verified">
+        <span class="stat-value">{{ r.level3VerifiedCount }}</span>
+        <span class="stat-label">
+          {{ r.sourceType === 'POS' ? 'Level 1 Verified (POS ↔ ERP)' : 'Level 3 Verified' }}
+        </span>
+      </div>
+      <div class="recon-stat exception">
+        <span class="stat-value">{{ r.level3ExceptionCount }}</span>
+        <span class="stat-label">
+          {{ r.sourceType === 'POS' ? 'Level 1 Exceptions' : 'Level 3 Exceptions' }}
+        </span>
+      </div>
+      <div class="recon-stat matched">
+        <span class="stat-value">{{ r.level4MatchedCount }}</span>
+        <span class="stat-label">Level 4 Matched</span>
+      </div>
+      <div class="recon-stat exception">
+        <span class="stat-value">{{ r.level4ExceptionCount }}</span>
+        <span class="stat-label">Level 4 Exceptions</span>
+      </div>
+      <div class="recon-stat waiting" [class.has-value]="r.waitingForSettlementCount > 0">
+        <span class="stat-value">{{ r.waitingForSettlementCount }}</span>
+        <span class="stat-label">Waiting for Settlement ID</span>
+      </div>
+      <div class="recon-stat fee">
+        <span class="stat-value">{{ r.feeAdjustmentTotal | number: '1.2-2' }}</span>
+        <span class="stat-label">Fee Adjustment Total</span>
+      </div>
+    </div>
+
+    <!-- 3.7: GATEWAY-specific Gross / Fee / Net breakdown notice -->
+    <div class="gateway-fee-notice" *ngIf="r.sourceType === 'GATEWAY' && r.feeAdjustmentTotal !== 0">
+      <span class="material-icons">info_outline</span>
+      <span>
+        Gateway records contain <strong>GrossAmount</strong>, <strong>ProcessingFee</strong>, and <strong>NetAmount</strong> fields.
+        A total fee deduction of <strong>{{ r.feeAdjustmentTotal | number:'1.2-2' }}</strong> was detected across matched records.
+        Review individual records in the <strong>Matcher → Sales Verification</strong> tab for the full Gross → Net breakdown.
+      </span>
+    </div>
+
+    <p class="recon-summary-text">{{ r.summary }}</p>
+
+    <div class="recon-result-actions">
+      <!-- Smart routing: navigate to the correct matcher sub-view -->
+      <a
+        [routerLink]="resolvePostCommitRoute(r.sourceType)"
+        class="primary-btn recon-nav-btn"
+        id="go-to-matcher-btn"
+      >
+        <span class="material-icons">compare_arrows</span>
+        {{ r.sourceType === 'POS' ? 'Review POS Exceptions' : r.sourceType === 'ERP' ? 'View Events Timeline' : 'View in Matcher' }}
+      </a>
+      <a
+        *ngIf="r.waitingForSettlementCount > 0"
+        routerLink="/app/matcher/waiting"
+        class="warning-btn recon-nav-btn"
+        id="go-to-waiting-btn"
+      >
+        <span class="material-icons">hourglass_empty</span>
+        Resolve {{ r.waitingForSettlementCount }} Waiting
+      </a>
+      <a
+        *ngIf="r.level3ExceptionCount > 0 && r.sourceType !== 'POS'"
+        routerLink="/app/matcher/sales-verification"
+        class="warning-btn recon-nav-btn"
+        id="go-to-sales-verify-btn"
+      >
+        <span class="material-icons">fact_check</span>
+        Review {{ r.level3ExceptionCount }} Sales Exceptions
+      </a>
+    </div>
+  </div>
+
 
   <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">

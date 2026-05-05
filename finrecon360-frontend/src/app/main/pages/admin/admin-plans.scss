@@ -4,6 +4,10 @@
   padding: 20px;
 }
 
+.header {
+  margin-bottom: 16px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -18,15 +22,68 @@ td {
 }
 
 .plan-form {
+  margin-top: 8px;
+  border: 1px solid #e2e6ef;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f9fbff;
+}
+
+.plan-form-header {
+  margin-bottom: 14px;
+}
+
+.plan-form-header h3 {
+  margin: 0;
+}
+
+.plan-form-header p {
+  margin: 6px 0 0;
+  color: #596075;
+  font-size: 0.92rem;
+}
+
+.form-grid {
   display: grid;
-  gap: 8px;
-  max-width: 420px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #172340;
 }
 
 .plan-form input {
   padding: 8px;
   border: 1px solid #d6d9e4;
   border-radius: 6px;
+  background: #fff;
+}
+
+.plan-form input:focus {
+  outline: none;
+  border-color: #1d2b64;
+  box-shadow: 0 0 0 2px rgba(29, 43, 100, 0.12);
+}
+
+.field-hint {
+  color: #596075;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.field-error {
+  color: #b83b3b;
+  font-size: 0.8rem;
+  line-height: 1.25;
 }
 
 .actions {
@@ -56,4 +113,15 @@ td {
 
 .ghost-btn {
   background: #e8eaf1;
+}
+
+.primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
 }

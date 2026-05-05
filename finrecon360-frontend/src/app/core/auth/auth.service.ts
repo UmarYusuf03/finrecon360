@@ -52,6 +52,13 @@ export interface ChangePasswordLinkResponse {
 @Injectable({
   providedIn: 'root',
 })
+/**
+ * WHY: Centralized auth state management for the entire SPA.
+ * Manages login/logout flows, JWT token persistence, current user state (@Injectable),
+ * and exposes observable streams (currentUser$) so components react to auth changes without direct polling.
+ * Handles both real backend auth and mock mode for local offline testing.
+ * All downstream permission checks and tenant resolution depend on this service's currentUser state.
+ */
 export class AuthService {
   private readonly storageKey = 'fr360_current_user';
 
@@ -88,6 +95,22 @@ export class AuthService {
       roles: ['ACCOUNTANT'],
       permissions: ['MATCHER.VIEW', 'BALANCER.VIEW', 'TASKS.VIEW'],
       token: 'mock-user-token',
+      isSystemAdmin: false,
+    },
+    {
+      // WHY: CASHIER mock account used for local RBAC smoke-testing of POS source-type scope.
+      // This user can only upload/process POS files and resolve POS reconciliation exceptions.
+      email: 'cashier@finrecon.local',
+      password: 'Cashier123!',
+      displayName: 'POS Cashier',
+      roles: ['CASHIER'],
+      permissions: [
+        'ADMIN.IMPORTS.POS.CREATE',
+        'ADMIN.IMPORTS.POS.EDIT',
+        'ADMIN.IMPORTS.POS.COMMIT',
+        'ADMIN.RECONCILIATION.POS.RESOLVE',
+      ],
+      token: 'mock-cashier-token',
       isSystemAdmin: false,
     },
   ];
@@ -132,6 +155,57 @@ export class AuthService {
     }
 
     return token;
+  }
+
+  /**
+   * WHY: Mirrors SourceTypeScope.AllowedSourceTypes() from the backend.
+   * Returns null  → user has full (unscoped) IMPORTS access, no UI restriction needed.
+   * Returns a Set → user may only upload/process files of those source types.
+   * The import workbench uses this to pre-select & lock the sourceType dropdown for CASHIER.
+   */
+  allowedImportSourceTypes(): Set<string> | null {
+    const perms = this.currentUser?.permissions ?? [];
+    const fullActions = ['CREATE', 'EDIT', 'COMMIT', 'DELETE', 'MANAGE'];
+    const hasFullAccess = fullActions.some(a =>
+      perms.includes(`ADMIN.IMPORTS.${a}` as PermissionCode)
+    );
+    if (hasFullAccess) return null;
+
+    const validSourceTypes = ['POS', 'ERP', 'GATEWAY', 'BANK'];
+    const allowed = new Set<string>();
+    for (const src of validSourceTypes) {
+      if (
+        perms.includes(`ADMIN.IMPORTS.${src}.CREATE` as PermissionCode) ||
+        perms.includes(`ADMIN.IMPORTS.${src}.EDIT` as PermissionCode) ||
+        perms.includes(`ADMIN.IMPORTS.${src}.COMMIT` as PermissionCode)
+      ) {
+        allowed.add(src);
+      }
+    }
+    return allowed.size > 0 ? allowed : null;
+  }
+
+  /**
+   * WHY: Mirrors SourceTypeScope.AllowedSourceTypes() for RECONCILIATION.
+   * Returns null  → user sees all reconciliation events.
+   * Returns a Set → user sees only the scoped source types (e.g. POS for CASHIER).
+   */
+  allowedReconciliationSourceTypes(): Set<string> | null {
+    const perms = this.currentUser?.permissions ?? [];
+    const hasFullAccess =
+      perms.includes('ADMIN.RECONCILIATION.RESOLVE' as PermissionCode) ||
+      perms.includes('ADMIN.RECONCILIATION.CONFIRM' as PermissionCode) ||
+      perms.includes('ADMIN.RECONCILIATION.MANAGE' as PermissionCode);
+    if (hasFullAccess) return null;
+
+    const validSourceTypes = ['POS', 'ERP', 'GATEWAY', 'BANK'];
+    const allowed = new Set<string>();
+    for (const src of validSourceTypes) {
+      if (perms.includes(`ADMIN.RECONCILIATION.${src}.RESOLVE` as PermissionCode)) {
+        allowed.add(src);
+      }
+    }
+    return allowed.size > 0 ? allowed : null;
   }
 
   updateCurrentUser(patch: Partial<CurrentUser>): void {
@@ -242,16 +316,17 @@ export class AuthService {
 
   verifyOnboardingMagicLink(
     token: string,
-  ): Observable<{ onboardingToken: string; email: string; tenantName: string }> {
+  ): Observable<{ onboardingToken: string; email: string; tenantName: string; requestedBankAccounts: number | null }> {
     if (USE_MOCK_API) {
       return of({
         onboardingToken: 'mock',
         email: 'mock@finrecon.local',
         tenantName: 'Mock Tenant',
+        requestedBankAccounts: null,
       }).pipe(delay(200));
     }
 
-    return this.http.post<{ onboardingToken: string; email: string; tenantName: string }>(
+    return this.http.post<{ onboardingToken: string; email: string; tenantName: string; requestedBankAccounts: number | null }>(
       `${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.VERIFY_MAGIC_LINK}`,
       { token },
     );
@@ -411,6 +486,7 @@ export class AuthService {
     localStorage.removeItem(this.storageKey);
     sessionStorage.removeItem('fr360_onboarding_token');
     sessionStorage.removeItem('fr360_onboarding_tenant');
+    sessionStorage.removeItem('fr360_onboarding_requested_bank_accounts');
   }
 
   private fetchMe(): Observable<MeResponse> {

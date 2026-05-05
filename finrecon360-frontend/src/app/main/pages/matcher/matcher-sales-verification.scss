@@ -1,0 +1,217 @@
+@use 'sass:color';
+
+/* ─── Shared token aliases ─────────────────────────────────────────────────── */
+$navy: #1d2b64;
+$navy-soft: #eef2ff;
+$green: #1d8c5e;
+$red: #c0392b;
+$amber: #c08b2c;
+$grey-text: #5d6781;
+$border: #e6ebf5;
+
+/* ─── Page Layout ──────────────────────────────────────────────────────────── */
+.sv-page {
+  display: grid;
+  gap: 18px;
+}
+
+.sv-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  h2 { margin: 0; color: $navy; }
+  p  { margin: 4px 0 0; color: $grey-text; font-size: 0.9rem; }
+}
+
+.sv-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ─── Summary Chips ────────────────────────────────────────────────────────── */
+.sv-chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 22px;
+  border-radius: 14px;
+  border: 1px solid $border;
+  background: #fff;
+  min-width: 90px;
+  box-shadow: 0 2px 8px rgba(17,28,55,.06);
+
+  .chip-value { font-size: 1.7rem; font-weight: 700; line-height: 1; }
+  .chip-label { font-size: 0.72rem; color: $grey-text; text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+}
+
+.chip-total    .chip-value { color: $navy; }
+.chip-exception .chip-value { color: $red; }
+.chip-resolved  .chip-value { color: $green; }
+
+/* ─── Filters ──────────────────────────────────────────────────────────────── */
+.sv-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+
+  select {
+    border: 1px solid #d6d9e4;
+    border-radius: 10px;
+    padding: 8px 12px;
+    min-width: 180px;
+    background: #fff;
+    color: #2f3d5c;
+  }
+}
+
+.filter-count {
+  font-size: 0.85rem;
+  color: $grey-text;
+  font-style: italic;
+}
+
+/* ─── Loading / Empty ──────────────────────────────────────────────────────── */
+.loading-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px;
+  color: $grey-text;
+
+  .spin { animation: spin 1s linear infinite; font-size: 36px; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: $grey-text;
+  background: #f9fbff;
+  border: 1px dashed $border;
+  border-radius: 14px;
+
+  .empty-icon { font-size: 48px; color: #b2bfd8; display: block; margin-bottom: 12px; }
+  p { margin: 0; font-size: 0.95rem; }
+}
+
+/* ─── Table ────────────────────────────────────────────────────────────────── */
+.sv-table-wrapper {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid $border;
+  box-shadow: 0 4px 16px rgba(17,28,55,.07);
+}
+
+.sv-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+
+  th {
+    background: #f4f7ff;
+    color: $navy;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 11px 14px;
+    text-align: left;
+    border-bottom: 1px solid $border;
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f3fb;
+    vertical-align: middle;
+    color: #2f3d5c;
+    font-size: 0.9rem;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8faff; }
+}
+
+.date-cell { color: $grey-text; font-size: 0.82rem; white-space: nowrap; }
+.detail-cell { font-size: 0.82rem; }
+
+/* ─── Shared Badges & Chips ────────────────────────────────────────────────── */
+.stage-badge, .source-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.stage-badge { background: #f0f3fb; color: $navy; }
+.source-badge { background: $navy; color: #fff; }
+
+.event-chip {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.chip-matched   { background: #e6f9ef; color: $green; }
+  &.chip-confirmed { background: #eef2ff; color: $navy; }
+  &.chip-exception { background: #fdeaea; color: $red; }
+  &.chip-warning   { background: #fff8e1; color: $amber; }
+  &.chip-default   { background: #f0f3fb; color: $grey-text; }
+}
+
+.status-dot {
+  font-size: 0.8rem;
+  font-weight: 600;
+  &.status-resolved { color: $green; }
+  &.status-pending  { color: $amber; }
+  &.status-default  { color: $grey-text; }
+}
+
+.detail-kv {
+  display: inline-block;
+  margin-right: 10px;
+  font-size: 0.78rem;
+  color: #48536f;
+}
+
+.muted { color: $grey-text; }
+
+/* ─── Shared Buttons ───────────────────────────────────────────────────────── */
+.primary-btn, .ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+
+  .material-icons { font-size: 18px; }
+}
+
+.primary-btn { background: $navy; color: #fff; }
+.ghost-btn   { background: #e9edf7; color: #2f3d5c; }
+button[disabled] { opacity: .65; cursor: not-allowed; }
+
+.back-btn { font-size: 0.85rem; }

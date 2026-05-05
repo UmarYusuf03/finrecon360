@@ -144,6 +144,7 @@ builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
 builder.Services.AddSingleton<IReconciliationOrchestrator, ReconciliationOrchestrator>();
+builder.Services.AddScoped<IReconciliationExecutionService, ReconciliationExecutionService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
 
@@ -296,6 +297,12 @@ if (string.IsNullOrWhiteSpace(jwtAudience))
     }
 }
 
+/// <summary>
+/// WHY: Configures the JWT authentication scheme with token validation parameters.
+/// During request processing, JwtBearerEvents.OnTokenValidated enforces that the token's subject (user ID) belongs
+/// to an active, non-suspended user. Tenant-specific access rules are enforced downstream in controllers/handlers
+/// using the PermissionHandler, allowing decoupling of global user status checks from tenant-scoped permissions.
+/// </summary>
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

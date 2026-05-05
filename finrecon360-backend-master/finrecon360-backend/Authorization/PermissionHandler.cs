@@ -20,12 +20,105 @@ namespace finrecon360_backend.Authorization
             "ADMIN.ENFORCEMENT.MANAGE"
         };
 
+        /// <summary>
+        /// WHY: The AliasMap implements the "MANAGE→VIEW implication" rule.
+        /// Any mutating permission (CREATE/EDIT/DELETE/COMMIT/CONFIRM/RESOLVE/POST/MANAGE) also satisfies
+        /// a VIEW check for the same module. This is enforced here, centrally, so every endpoint
+        /// that checks VIEW will also pass for users who only have a mutating grant — no per-controller
+        /// logic needed, and no duplicate VIEW grants needed in the role seed.
+        /// </summary>
         private static readonly Dictionary<string, string[]> AliasMap = new(StringComparer.OrdinalIgnoreCase)
         {
-            { "ROLE_MANAGEMENT", new[] { "ADMIN.ROLES.MANAGE" } },
+            // Legacy aliases (kept for backwards compatibility)
+            { "ROLE_MANAGEMENT",       new[] { "ADMIN.ROLES.MANAGE" } },
             { "PERMISSION_MANAGEMENT", new[] { "ADMIN.PERMISSIONS.MANAGE" } },
-            { "USER_MANAGEMENT", new[] { "ADMIN.USERS.MANAGE" } },
-            { "ADMIN_DASHBOARD", new[] { "ADMIN.DASHBOARD.VIEW" } }
+            { "USER_MANAGEMENT",       new[] { "ADMIN.USERS.MANAGE" } },
+            { "ADMIN_DASHBOARD",       new[] { "ADMIN.DASHBOARD.VIEW" } },
+
+            // ── VIEW satisfied by any mutating permission on the same module ──────────
+            // IMPORTS module
+            { "ADMIN.IMPORTS.VIEW", new[]
+            {
+                "ADMIN.IMPORTS.CREATE",
+                "ADMIN.IMPORTS.EDIT",
+                "ADMIN.IMPORTS.COMMIT",
+                "ADMIN.IMPORTS.DELETE",
+                "ADMIN.IMPORTS.MANAGE",
+                // Source-type scoped grants also imply VIEW of the import list
+                // (the API will filter the visible batches to the allowed source types)
+                "ADMIN.IMPORTS.POS.CREATE",
+                "ADMIN.IMPORTS.POS.EDIT",
+                "ADMIN.IMPORTS.POS.COMMIT",
+                "ADMIN.IMPORTS.ERP.CREATE",
+                "ADMIN.IMPORTS.ERP.EDIT",
+                "ADMIN.IMPORTS.ERP.COMMIT",
+                "ADMIN.IMPORTS.GATEWAY.CREATE",
+                "ADMIN.IMPORTS.GATEWAY.EDIT",
+                "ADMIN.IMPORTS.GATEWAY.COMMIT",
+                "ADMIN.IMPORTS.BANK.CREATE",
+                "ADMIN.IMPORTS.BANK.EDIT",
+                "ADMIN.IMPORTS.BANK.COMMIT",
+                // Legacy workbench code (kept for existing DB grants)
+                "ADMIN.IMPORT_WORKBENCH.VIEW",
+                "ADMIN.IMPORT_WORKBENCH.MANAGE",
+            }},
+
+            // POS-scoped IMPORTS: full IMPORTS.CREATE/EDIT/COMMIT/MANAGE also satisfy these
+            // WHY: An ADMIN who has ADMIN.IMPORTS.CREATE must never be blocked by an endpoint
+            // that checks the scoped ADMIN.IMPORTS.POS.CREATE code — higher wins.
+            { "ADMIN.IMPORTS.POS.CREATE", new[] { "ADMIN.IMPORTS.CREATE", "ADMIN.IMPORTS.MANAGE" } },
+            { "ADMIN.IMPORTS.POS.EDIT",   new[] { "ADMIN.IMPORTS.EDIT",   "ADMIN.IMPORTS.MANAGE" } },
+            { "ADMIN.IMPORTS.POS.COMMIT", new[] { "ADMIN.IMPORTS.COMMIT", "ADMIN.IMPORTS.MANAGE" } },
+
+            // IMPORT_ARCHITECTURE module
+            { "ADMIN.IMPORT_ARCHITECTURE.VIEW", new[]
+            {
+                "ADMIN.IMPORT_ARCHITECTURE.CREATE",
+                "ADMIN.IMPORT_ARCHITECTURE.EDIT",
+                "ADMIN.IMPORT_ARCHITECTURE.DELETE",
+                "ADMIN.IMPORT_ARCHITECTURE.MANAGE",
+            }},
+
+            // RECONCILIATION module
+            { "ADMIN.RECONCILIATION.VIEW", new[]
+            {
+                "ADMIN.RECONCILIATION.CONFIRM",
+                "ADMIN.RECONCILIATION.RESOLVE",
+                "ADMIN.RECONCILIATION.MANAGE",
+                // POS-scoped reconciliation grants also satisfy general VIEW
+                "ADMIN.RECONCILIATION.POS.RESOLVE",
+                "ADMIN.RECONCILIATION.ERP.RESOLVE",
+                "ADMIN.RECONCILIATION.GATEWAY.RESOLVE",
+                "ADMIN.RECONCILIATION.BANK.RESOLVE",
+            }},
+
+            // POS-scoped RECONCILIATION: full grants satisfy scoped equivalents
+            { "ADMIN.RECONCILIATION.POS.RESOLVE", new[] { "ADMIN.RECONCILIATION.RESOLVE", "ADMIN.RECONCILIATION.MANAGE" } },
+            { "ADMIN.RECONCILIATION.ERP.RESOLVE", new[] { "ADMIN.RECONCILIATION.RESOLVE", "ADMIN.RECONCILIATION.MANAGE" } },
+            { "ADMIN.RECONCILIATION.GATEWAY.RESOLVE", new[] { "ADMIN.RECONCILIATION.RESOLVE", "ADMIN.RECONCILIATION.MANAGE" } },
+            { "ADMIN.RECONCILIATION.BANK.RESOLVE", new[] { "ADMIN.RECONCILIATION.RESOLVE", "ADMIN.RECONCILIATION.MANAGE" } },
+
+            // JOURNAL module
+            { "ADMIN.JOURNAL.VIEW", new[]
+            {
+                "ADMIN.JOURNAL.POST",
+                "ADMIN.JOURNAL.MANAGE",
+            }},
+
+            // TRANSACTIONS module
+            { "ADMIN.TRANSACTIONS.VIEW", new[]
+            {
+                "ADMIN.TRANSACTIONS.CREATE",
+                "ADMIN.TRANSACTIONS.EDIT",
+                "ADMIN.TRANSACTIONS.APPROVE",
+                "ADMIN.TRANSACTIONS.MANAGE",
+            }},
+
+            // BANK_ACCOUNTS module
+            { "ADMIN.BANK_ACCOUNTS.VIEW", new[]
+            {
+                "ADMIN.BANK_ACCOUNTS.MANAGE",
+            }},
         };
 
         private readonly IUserContext _userContext;

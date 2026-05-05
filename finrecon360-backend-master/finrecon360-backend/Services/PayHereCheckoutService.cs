@@ -37,6 +37,8 @@ namespace finrecon360_backend.Services
     /// WHY: This implements the specific PayHere checkout flow. It securely generates 
     /// MD5 hashes required by the PayHere API to prevent tampering of amounts/currency 
     /// in transit. It also explicitly validates webhook callbacks using the merchant secret.
+    /// Isolating payment logic here allows swapping to a different gateway (Stripe, etc.) without
+    /// touching controllers or core subscription logic—just replace the service implementation.
     /// </summary>
     public class PayHereCheckoutService : IPayHereCheckoutService
     {

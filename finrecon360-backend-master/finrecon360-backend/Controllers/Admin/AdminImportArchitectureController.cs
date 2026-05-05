@@ -104,7 +104,8 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("mapping-templates")]
-        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        // WHY: Creating a new template is a CREATE action — distinctly grantable from EDIT or DELETE.
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.CREATE")]
         public async Task<ActionResult<ImportMappingTemplateDto>> CreateMappingTemplate([FromBody] ImportMappingTemplateCreateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -166,7 +167,8 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPut("mapping-templates/{templateId:guid}")]
-        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        // WHY: Editing/updating an existing template is an EDIT-level action.
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.EDIT")]
         public async Task<ActionResult<ImportMappingTemplateDto>> UpdateMappingTemplate(Guid templateId, [FromBody] ImportMappingTemplateUpdateRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -221,7 +223,8 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpDelete("mapping-templates/{templateId:guid}")]
-        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        // WHY: Soft-delete (deactivate) is a DELETE-level action, separately grantable.
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.DELETE")]
         public async Task<IActionResult> DeactivateMappingTemplate(Guid templateId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -253,7 +256,8 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpDelete("mapping-templates/{templateId:guid}/hard")]
-        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        // WHY: Hard-delete is equally destructive, gated by DELETE permission.
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.DELETE")]
         public async Task<IActionResult> DeleteMappingTemplate(Guid templateId)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -289,7 +293,8 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("batches")]
-        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        // WHY: Creating a batch via the architecture API is a CREATE-level action.
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.CREATE")]
         public async Task<ActionResult<ImportBatchDto>> CreateImportBatch([FromBody] CreateImportBatchRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -334,7 +339,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("batches/{batchId:guid}/raw-records")]
-        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.EDIT")]
         public async Task<IActionResult> AddRawRecord(Guid batchId, [FromBody] ImportRawRecordRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();
@@ -366,7 +371,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost("batches/{batchId:guid}/normalized-records")]
-        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.MANAGE")]
+        [RequirePermission("ADMIN.IMPORT_ARCHITECTURE.EDIT")]
         public async Task<IActionResult> AddNormalizedRecord(Guid batchId, [FromBody] ImportNormalizedRecordRequest request)
         {
             var auth = await AuthorizeTenantAdminAsync();

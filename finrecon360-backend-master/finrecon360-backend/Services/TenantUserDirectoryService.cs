@@ -9,6 +9,12 @@ namespace finrecon360_backend.Services
         Task ReplaceTenantAdminsAsync(Guid tenantId, IReadOnlyCollection<User> admins, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// WHY: Manages user directory operations within a tenant's isolated database schema.
+    /// When a global user is invited/assigned to a tenant, this service creates a denormalized TenantScopedUser + UserRoleAssignment
+    /// record in the tenant's DB so queries against tenant data don't need to cross database boundaries.
+    /// Keeps tenant schemas self-contained and enables efficient tenant-scoped permission lookups.
+    /// </summary>
     public class TenantUserDirectoryService : ITenantUserDirectoryService
     {
         private readonly ITenantDbContextFactory _tenantDbContextFactory;

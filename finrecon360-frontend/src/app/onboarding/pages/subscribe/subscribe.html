@@ -2,12 +2,15 @@
   <div class="onboarding-card">
     <h1>Choose a Subscription</h1>
     <p class="subtitle" *ngIf="tenantName">Tenant: {{ tenantName }}</p>
+    <p class="requirement" *ngIf="requestedBankAccounts">
+      Your registration requested <strong>{{ requestedBankAccounts }}</strong> bank accounts. Please select a plan with at least this limit.
+    </p>
 
     <div *ngIf="loading" class="loading">Loading plans...</div>
     <div *ngIf="error" class="error">{{ error }}</div>
 
     <div class="plans" *ngIf="!loading && !error">
-      <div class="plan" *ngFor="let plan of plans">
+      <div class="plan" *ngFor="let plan of plans" [class.plan--ineligible]="!isPlanEligible(plan)">
         <h3>{{ plan.name }}</h3>
         <div class="price">
           {{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}
@@ -21,7 +24,10 @@
         <div class="meta">
           Max accounts: {{ plan.maxAccounts }}
         </div>
-        <button class="primary-btn" (click)="selectPlan(plan)">Select</button>
+        <p class="plan-note" *ngIf="!isPlanEligible(plan)">
+          Not eligible for your requested account count.
+        </p>
+        <button class="primary-btn" (click)="selectPlan(plan)" [disabled]="!isPlanEligible(plan)">Select</button>
       </div>
     </div>
   </div>
