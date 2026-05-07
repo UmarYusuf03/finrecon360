@@ -46,6 +46,30 @@ namespace finrecon360_backend.Controllers.Onboarding
             _auditLogger = auditLogger;
         }
 
+        /// <summary>
+        /// DEBUG ENDPOINT: Returns PayHere configuration status and sample checkout URL
+        /// This helps diagnose payment integration issues
+        /// </summary>
+        [HttpGet("debug/payhere-config")]
+        public ActionResult<object> GetPayHereDebugInfo()
+        {
+            var isConfigured = _paymentCheckoutService.IsConfigured();
+            
+            return Ok(new
+            {
+                isConfigured,
+                merchantId = _configuration["PAYHERE_MERCHANT_ID"],
+                merchantSecretSet = !string.IsNullOrEmpty(_configuration["PAYHERE_MERCHANT_SECRET"]),
+                merchantSecretValue = _configuration["PAYHERE_MERCHANT_SECRET"],
+                checkoutBaseUrl = _configuration["PAYHERE_CHECKOUT_BASE_URL"],
+                returnUrl = _configuration["PAYHERE_RETURN_URL"],
+                cancelUrl = _configuration["PAYHERE_CANCEL_URL"],
+                notifyUrl = _configuration["PAYHERE_NOTIFY_URL"],
+                currency = _configuration["PAYHERE_CURRENCY"],
+                timestamp = DateTime.UtcNow
+            });
+        }
+
         [HttpPost("magic-link/verify")]
         public async Task<ActionResult<OnboardingMagicLinkVerifyResponse>> VerifyMagicLink([FromBody] OnboardingMagicLinkVerifyRequest request)
         {
@@ -166,7 +190,27 @@ namespace finrecon360_backend.Controllers.Onboarding
                 return BadRequest(new { message = "Tenant not found." });
             }
 
-            var requestedBankAccounts = await ResolveRequestedBankAccountsAsync(user.Email, tenant.Name);
+            var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+            var normalizedTenantName = tenant.Name.Trim();
+
+            var registration = await _dbContext.TenantRegistrationRequests
+                .AsNoTracking()
+                .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail && r.BusinessName == normalizedTenantName)
+                .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
+                .FirstOrDefaultAsync();
+
+            if (registration == null)
+            {
+                registration = await _dbContext.TenantRegistrationRequests
+                    .AsNoTracking()
+                    .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail)
+                    .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
+                    .FirstOrDefaultAsync();
+            }
+
+            var phoneNumber = registration?.PhoneNumber ?? "0000000000";
+            var requestedBankAccounts = ExtractRequestedBankAccounts(registration?.OnboardingMetadata);
+
             if (requestedBankAccounts.HasValue && plan.MaxAccounts < requestedBankAccounts.Value)
             {
                 return BadRequest(new
@@ -253,7 +297,10 @@ namespace finrecon360_backend.Controllers.Onboarding
                 plan.Currency,
                 tenant.TenantId,
                 subscription.SubscriptionId,
-                tokenResult.UserId.Value);
+                tokenResult.UserId.Value,
+                tenant.Name,
+                user.Email,
+                phoneNumber);
 
             var paymentSession = new PaymentSession
             {

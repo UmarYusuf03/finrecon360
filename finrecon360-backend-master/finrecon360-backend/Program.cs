@@ -1,8 +1,10 @@
 ﻿using finrecon360_backend.Authorization;
+using finrecon360_backend.BackgroundServices;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Auth;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Workers;
 using finrecon360_backend.Options;
 using finrecon360_backend.Services.BankAccounts;
 using finrecon360_backend.Services.Transactions;
@@ -147,6 +149,10 @@ builder.Services.AddSingleton<IReconciliationOrchestrator, ReconciliationOrchest
 builder.Services.AddScoped<IReconciliationExecutionService, ReconciliationExecutionService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<IBankStatementReconciliationWorker, BankStatementReconciliationWorker>();
+builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+builder.Services.AddHostedService<BankReconciliationHostedService>();
+builder.Services.AddHostedService<JournalPostingHostedService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");

@@ -175,6 +175,14 @@ Backend auth and authorization enforce active-tenant access for tenant-scoped ro
 - `GET /api/admin/transactions/journal-ready`
 - `GET /api/admin/transactions/needs-bank-match`
 
+### Implementation Notes From Today
+
+- Tenant admin RBAC pages are working again after hardening tenant schema preparation in `TenantSchemaMigrator`.
+- The schema migrator now drops and recreates `IX_ImportedNormalizedRecords_TransactionDate` around the `TransactionDate` alteration to avoid hidden dependency failures.
+- Import architecture already supports mapping templates, canonical schema versioning, validation, and row correction.
+- Invalid import rows are preserved in `ImportedRawRecords` with `NormalizationStatus` and `NormalizationErrors`, and they can be corrected through `PUT /api/imports/{id}/raw-records/{rawRecordId}`.
+- The frontend already has screens for import workbench, import architecture admin, journal-ready, and needs-bank-match, so the above flows are available in the UI.
+
 ## Member 3 Tenant Finance Modules
 
 ### Bank Accounts

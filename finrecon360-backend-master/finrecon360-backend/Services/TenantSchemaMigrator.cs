@@ -603,6 +603,14 @@ namespace finrecon360_backend.Services
 
                 IF @transactionDateType = N'date'
                 BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM sys.indexes
+                        WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                          AND name = N'IX_ImportedNormalizedRecords_TransactionDate')
+                    BEGIN
+                        DROP INDEX IX_ImportedNormalizedRecords_TransactionDate ON dbo.ImportedNormalizedRecords;
+                    END
+
                     ALTER TABLE dbo.ImportedNormalizedRecords ALTER COLUMN TransactionDate datetime2 NOT NULL;
                 END
 
@@ -616,6 +624,15 @@ namespace finrecon360_backend.Services
                 IF @postingDateType = N'date'
                 BEGIN
                     ALTER TABLE dbo.ImportedNormalizedRecords ALTER COLUMN PostingDate datetime2 NULL;
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                      AND name = N'IX_ImportedNormalizedRecords_TransactionDate')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_TransactionDate
+                        ON dbo.ImportedNormalizedRecords(TransactionDate);
                 END
 
                 IF NOT EXISTS (
@@ -1232,6 +1249,22 @@ namespace finrecon360_backend.Services
             ) v(Code, Name, Description, Module)
             WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
 
+            -- ── Grant POS-scoped permissions to ADMIN by default ───────────────────────────
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.POS.CREATE',
+                N'ADMIN.IMPORTS.POS.EDIT',
+                N'ADMIN.IMPORTS.POS.COMMIT',
+                N'ADMIN.RECONCILIATION.POS.RESOLVE'
+            )
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+
             -- ── Create CASHIER role if it does not exist ─────────────────────────────────────
             INSERT INTO dbo.Roles (RoleId, Name, Code, Description, IsActive, CreatedAt)
             SELECT NEWID(),
@@ -1285,6 +1318,30 @@ namespace finrecon360_backend.Services
                 (N'ADMIN.RECONCILIATION.BANK.RESOLVE', N'Bank Recon Resolve', N'Resolve Bank reconciliation exceptions', N'Reconciliation')
             ) v(Code, Name, Description, Module)
             WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            -- ── Grant remaining source-type-scoped permissions to ADMIN by default ──────────
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.ERP.CREATE',
+                N'ADMIN.IMPORTS.ERP.EDIT',
+                N'ADMIN.IMPORTS.ERP.COMMIT',
+                N'ADMIN.RECONCILIATION.ERP.RESOLVE',
+                N'ADMIN.IMPORTS.GATEWAY.CREATE',
+                N'ADMIN.IMPORTS.GATEWAY.EDIT',
+                N'ADMIN.IMPORTS.GATEWAY.COMMIT',
+                N'ADMIN.RECONCILIATION.GATEWAY.RESOLVE',
+                N'ADMIN.IMPORTS.BANK.CREATE',
+                N'ADMIN.IMPORTS.BANK.EDIT',
+                N'ADMIN.IMPORTS.BANK.COMMIT',
+                N'ADMIN.RECONCILIATION.BANK.RESOLVE'
+            )
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
             """;
     }
 }

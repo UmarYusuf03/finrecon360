@@ -64,6 +64,8 @@ export class OnboardingSubscribeComponent implements OnInit {
     });
   }
 
+  redirecting = false;
+
   selectPlan(plan: PublicPlan): void {
     if (!this.onboardingToken) {
       return;
@@ -74,7 +76,7 @@ export class OnboardingSubscribeComponent implements OnInit {
       return;
     }
 
-    this.loading = true;
+    this.redirecting = true;
     this.authService
       .createOnboardingCheckout({ onboardingToken: this.onboardingToken, planId: plan.id })
       .subscribe({
@@ -88,7 +90,7 @@ export class OnboardingSubscribeComponent implements OnInit {
           } else {
             this.error = 'Unable to start checkout. Please try again.';
           }
-          this.loading = false;
+          this.redirecting = false;
         },
       });
   }

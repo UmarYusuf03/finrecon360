@@ -209,6 +209,21 @@ namespace finrecon360_backend.Authorization
                     .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
                     .Distinct()
                     .ToListAsync();
+
+                if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))
+                {
+                    context.Succeed(requirement);
+                    return;
+                }
+
+                var isCanonicalTenantAdmin = await tenantDb.TenantUsers
+                    .AsNoTracking()
+                    .AnyAsync(tu => tu.UserId == userId.Value && tu.IsActive && tu.Role == Models.TenantUserRole.TenantAdmin.ToString());
+
+                if (isCanonicalTenantAdmin)
+                {
+                    context.Succeed(requirement);
+                }
                 }
             }
             else

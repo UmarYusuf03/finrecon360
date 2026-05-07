@@ -6,7 +6,8 @@
       Your registration requested <strong>{{ requestedBankAccounts }}</strong> bank accounts. Please select a plan with at least this limit.
     </p>
 
-    <div *ngIf="loading" class="loading">Loading plans...</div>
+    <div *ngIf="loading && !redirecting" class="loading">Loading plans...</div>
+    <div *ngIf="redirecting" class="loading">Redirecting to secure payment portal...</div>
     <div *ngIf="error" class="error">{{ error }}</div>
 
     <div class="plans" *ngIf="!loading && !error">

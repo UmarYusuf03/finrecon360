@@ -49,24 +49,26 @@ namespace finrecon360_backend.Services
 
             var roleCode = role == TenantUserRole.TenantAdmin ? "ADMIN" : "USER";
             var roleEntity = await tenantDb.Roles.FirstOrDefaultAsync(r => r.Code == roleCode && r.IsActive, cancellationToken);
-            if (roleEntity != null)
+            if (roleEntity == null)
             {
-                var existingAssignments = await tenantDb.UserRoles
-                    .Where(x => x.UserId == user.UserId)
-                    .ToListAsync(cancellationToken);
-
-                if (existingAssignments.Count > 0)
-                {
-                    tenantDb.UserRoles.RemoveRange(existingAssignments);
-                }
-
-                tenantDb.UserRoles.Add(new TenantUserRoleAssignment
-                {
-                    UserId = user.UserId,
-                    RoleId = roleEntity.RoleId,
-                    AssignedAt = DateTime.UtcNow
-                });
+                throw new InvalidOperationException($"Role '{roleCode}' not found or is inactive in tenant database. Tenant schema migrations may not have completed successfully.");
             }
+
+            var existingAssignments = await tenantDb.UserRoles
+                .Where(x => x.UserId == user.UserId)
+                .ToListAsync(cancellationToken);
+
+            if (existingAssignments.Count > 0)
+            {
+                tenantDb.UserRoles.RemoveRange(existingAssignments);
+            }
+
+            tenantDb.UserRoles.Add(new TenantUserRoleAssignment
+            {
+                UserId = user.UserId,
+                RoleId = roleEntity.RoleId,
+                AssignedAt = DateTime.UtcNow
+            });
 
             await tenantDb.SaveChangesAsync(cancellationToken);
         }

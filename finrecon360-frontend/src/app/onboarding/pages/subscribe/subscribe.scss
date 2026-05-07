@@ -85,7 +85,11 @@ h1 {
   font-size: 0.88rem;
 }
 
-.loading,
+.loading {
+  padding: 16px 0;
+  color: #4a4f61;
+}
+
 .error {
   padding: 16px 0;
   color: #a04b4b;
