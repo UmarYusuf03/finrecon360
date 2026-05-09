@@ -9,6 +9,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Controllers.Public
 {
+    /// <summary>
+    /// WHY: Entry point for tenant self-registration. Accepts business details and creates a TenantRegistrationRequest
+    /// in PENDING_REVIEW status. This flow intentionally does NOT provision a database or create a tenant immediately;
+    /// that happens only after system-admin approval. Prevents spam/resource exhaustion before human review.
+    /// Enforces allowed business types to maintain data quality during onboarding.
+    /// </summary>
     [ApiController]
     [Route("api/public/tenant-registrations")]
     [EnableRateLimiting("auth-link")]

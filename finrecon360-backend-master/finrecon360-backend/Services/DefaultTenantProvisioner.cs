@@ -6,6 +6,13 @@ using Microsoft.Extensions.Logging;
 
 namespace finrecon360_backend.Services
 {
+    /// <summary>
+    /// WHY: Encapsulates the SQL Server tenant database provisioning logic.
+    /// During onboarding approval, this creates a new isolated database using a connection string template
+    /// and runs schema migrations to initialize tables. By separating provisioning from business logic,
+    /// we can unit-test the flow in isolation and swap provisioners for different storage backends
+    /// (Azure SQL, PostgreSQL) without touching the approval workflow.
+    /// </summary>
     public class DefaultTenantProvisioner : ITenantProvisioner
     {
         private readonly TenantProvisioningOptions _options;

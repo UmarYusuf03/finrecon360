@@ -8,7 +8,7 @@
       </div>
     </div>
 
-    <h1 class="auth-title">Magic Link</h1>
+    <h1 class="auth-title">finRecon360</h1>
     <p class="auth-subtitle" *ngIf="purpose === 'EmailVerify'">Verifying your email...</p>
     <p class="auth-subtitle" *ngIf="purpose === 'PasswordReset'">Set a new password</p>
     <p class="auth-subtitle" *ngIf="purpose === 'ChangePassword'">Confirm your password change</p>
@@ -32,8 +32,16 @@
     <form *ngIf="state === 'ready' && purpose === 'PasswordReset'" [formGroup]="resetForm" class="auth-form aligned-form form-shell">
       <label class="field-label">New Password</label>
       <input type="password" class="auth-input" formControlName="newPassword" placeholder="New password">
+      <div class="field-error" *ngIf="resetForm.get('newPassword')?.invalid && resetForm.get('newPassword')?.touched">
+        <span *ngIf="resetForm.get('newPassword')?.hasError('required')">Password is required.</span>
+        <span *ngIf="resetForm.get('newPassword')?.hasError('minlength')">Password must be at least 8 characters.</span>
+      </div>
       <label class="field-label field-gap">Confirm Password</label>
       <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm new password">
+      <div class="field-error" *ngIf="resetForm.get('confirmPassword')?.invalid && resetForm.get('confirmPassword')?.touched">
+        <span *ngIf="resetForm.get('confirmPassword')?.hasError('required')">Please confirm your password.</span>
+        <span *ngIf="resetForm.get('confirmPassword')?.hasError('mismatch')">Passwords do not match.</span>
+      </div>
       <button class="primary-btn submit-btn" type="button" (click)="submitPasswordReset()">
         Update Password
       </button>
@@ -42,10 +50,21 @@
     <form *ngIf="state === 'ready' && purpose === 'ChangePassword'" [formGroup]="changeForm" class="auth-form aligned-form form-shell">
       <label class="field-label">Current Password</label>
       <input type="password" class="auth-input" formControlName="currentPassword" placeholder="Current password">
+      <div class="field-error" *ngIf="changeForm.get('currentPassword')?.invalid && changeForm.get('currentPassword')?.touched">
+        Current password is required.
+      </div>
       <label class="field-label field-gap">New Password</label>
       <input type="password" class="auth-input" formControlName="newPassword" placeholder="New password">
+      <div class="field-error" *ngIf="changeForm.get('newPassword')?.invalid && changeForm.get('newPassword')?.touched">
+        <span *ngIf="changeForm.get('newPassword')?.hasError('required')">New password is required.</span>
+        <span *ngIf="changeForm.get('newPassword')?.hasError('minlength')">Password must be at least 8 characters.</span>
+      </div>
       <label class="field-label field-gap">Confirm Password</label>
       <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm new password">
+      <div class="field-error" *ngIf="changeForm.get('confirmPassword')?.invalid && changeForm.get('confirmPassword')?.touched">
+        <span *ngIf="changeForm.get('confirmPassword')?.hasError('required')">Please confirm your new password.</span>
+        <span *ngIf="changeForm.get('confirmPassword')?.hasError('mismatch')">Passwords do not match.</span>
+      </div>
       <button class="primary-btn submit-btn" type="button" (click)="submitChangePassword()">
         Update Password
       </button>
@@ -53,7 +72,7 @@
 
     <form *ngIf="state === 'ready' && purpose === 'TenantOnboarding'" [formGroup]="onboardingForm" class="auth-form aligned-form form-shell form-shell--onboarding">
       <div class="tenant-pill" *ngIf="tenantName">
-        <span class="tenant-pill__label">Tenant</span>
+        <span class="tenant-pill__label">Tenant Admin</span>
         <span class="tenant-pill__value">{{ tenantName }}</span>
       </div>
       <p class="auth-helper-text onboarding-copy">
@@ -61,8 +80,16 @@
       </p>
       <label class="field-label">Password</label>
       <input type="password" class="auth-input" formControlName="password" placeholder="Set password">
+      <div class="field-error" *ngIf="onboardingForm.get('password')?.invalid && onboardingForm.get('password')?.touched">
+        <span *ngIf="onboardingForm.get('password')?.hasError('required')">Password is required.</span>
+        <span *ngIf="onboardingForm.get('password')?.hasError('minlength')">Password must be at least 8 characters.</span>
+      </div>
       <label class="field-label field-gap">Confirm Password</label>
       <input type="password" class="auth-input" formControlName="confirmPassword" placeholder="Confirm password">
+      <div class="field-error" *ngIf="onboardingForm.get('confirmPassword')?.invalid && onboardingForm.get('confirmPassword')?.touched">
+        <span *ngIf="onboardingForm.get('confirmPassword')?.hasError('required')">Please confirm your password.</span>
+        <span *ngIf="onboardingForm.get('confirmPassword')?.hasError('mismatch')">Passwords do not match.</span>
+      </div>
       <button class="primary-btn submit-btn" type="button" (click)="submitOnboardingPassword()">
         Continue to Subscription
       </button>

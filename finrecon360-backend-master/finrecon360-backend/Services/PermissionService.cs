@@ -3,6 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Services
 {
+    /// <summary>
+    /// WHY: Implements permission lookup with an in-memory cache for performance.
+    /// Permissions are queried once per user per application lifetime and held in dictionary lookups.
+    /// This avoids repeated DB queries when the same user makes multiple API calls in a session.
+    /// Cache is intentionally NOT tenant-scoped because permissions are defined at control-plane level
+    /// and only exposed/filtered at the tenant level during request processing.
+    /// </summary>
     public class PermissionService : IPermissionService
     {
         private readonly AppDbContext _dbContext;

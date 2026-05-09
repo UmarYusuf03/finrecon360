@@ -1,5 +1,5 @@
 <div class="admin-shell">
-  <nav mat-tab-nav-bar backgroundColor="primary" color="primary">
+  <nav mat-tab-nav-bar backgroundColor="primary" color="primary" [tabPanel]="tabPanel">
     <a
       mat-tab-link
       *ngFor="let link of visibleLinks$ | async"
@@ -14,7 +14,9 @@
     </a>
   </nav>
 
-  <div class="admin-shell__content">
-    <router-outlet></router-outlet>
-  </div>
+  <mat-tab-nav-panel #tabPanel>
+    <div class="admin-shell__content">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-tab-nav-panel>
 </div>

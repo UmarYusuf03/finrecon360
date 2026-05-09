@@ -9,6 +9,12 @@ namespace finrecon360_backend.Services
         Task ReplaceTenantAdminsAsync(Guid tenantId, IReadOnlyCollection<User> admins, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// WHY: Manages user directory operations within a tenant's isolated database schema.
+    /// When a global user is invited/assigned to a tenant, this service creates a denormalized TenantScopedUser + UserRoleAssignment
+    /// record in the tenant's DB so queries against tenant data don't need to cross database boundaries.
+    /// Keeps tenant schemas self-contained and enables efficient tenant-scoped permission lookups.
+    /// </summary>
     public class TenantUserDirectoryService : ITenantUserDirectoryService
     {
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
@@ -43,24 +49,26 @@ namespace finrecon360_backend.Services
 
             var roleCode = role == TenantUserRole.TenantAdmin ? "ADMIN" : "USER";
             var roleEntity = await tenantDb.Roles.FirstOrDefaultAsync(r => r.Code == roleCode && r.IsActive, cancellationToken);
-            if (roleEntity != null)
+            if (roleEntity == null)
             {
-                var existingAssignments = await tenantDb.UserRoles
-                    .Where(x => x.UserId == user.UserId)
-                    .ToListAsync(cancellationToken);
-
-                if (existingAssignments.Count > 0)
-                {
-                    tenantDb.UserRoles.RemoveRange(existingAssignments);
-                }
-
-                tenantDb.UserRoles.Add(new TenantUserRoleAssignment
-                {
-                    UserId = user.UserId,
-                    RoleId = roleEntity.RoleId,
-                    AssignedAt = DateTime.UtcNow
-                });
+                throw new InvalidOperationException($"Role '{roleCode}' not found or is inactive in tenant database. Tenant schema migrations may not have completed successfully.");
             }
+
+            var existingAssignments = await tenantDb.UserRoles
+                .Where(x => x.UserId == user.UserId)
+                .ToListAsync(cancellationToken);
+
+            if (existingAssignments.Count > 0)
+            {
+                tenantDb.UserRoles.RemoveRange(existingAssignments);
+            }
+
+            tenantDb.UserRoles.Add(new TenantUserRoleAssignment
+            {
+                UserId = user.UserId,
+                RoleId = roleEntity.RoleId,
+                AssignedAt = DateTime.UtcNow
+            });
 
             await tenantDb.SaveChangesAsync(cancellationToken);
         }

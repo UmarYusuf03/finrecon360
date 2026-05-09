@@ -14,14 +14,16 @@
         >
           {{ 'NAV.DASHBOARD' | translate }}
         </a>
-        <a
-          routerLink="/app/matcher"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          *ngIf="!user.isSystemAdmin && hasPermission(user.permissions, 'MATCHER.VIEW')"
-        >
-          {{ 'NAV.MATCHER' | translate }}
-        </a>
+        <ng-container *ngIf="!user.isSystemAdmin">
+          <a
+            routerLink="/app/matcher"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: false }"
+            *appHasPermission="'ADMIN.RECONCILIATION.VIEW'"
+          >
+            {{ 'NAV.MATCHER' | translate }}
+          </a>
+        </ng-container>
       </ng-container>
       <a
         routerLink="/app/transactions"

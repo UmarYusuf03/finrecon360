@@ -1,0 +1,302 @@
+/* ─── Shared token aliases ─────────────────────────────────────────────────── */
+$navy: #1d2b64;
+$navy-soft: #eef2ff;
+$green: #1d8c5e;
+$red: #c0392b;
+$amber: #c08b2c;
+$grey-text: #5d6781;
+$border: #e6ebf5;
+
+/* ─── Page Layout ──────────────────────────────────────────────────────────── */
+.events-page {
+  display: grid;
+  gap: 18px;
+}
+
+.events-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  h2 { margin: 0; color: $navy; }
+  p  { margin: 4px 0 0; color: $grey-text; font-size: 0.9rem; }
+}
+
+.events-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ─── Summary Chips ────────────────────────────────────────────────────────── */
+.events-chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 22px;
+  border-radius: 14px;
+  border: 1px solid $border;
+  background: #fff;
+  min-width: 90px;
+  box-shadow: 0 2px 8px rgba(17,28,55,.06);
+
+  .chip-value { font-size: 1.7rem; font-weight: 700; line-height: 1; }
+  .chip-label { font-size: 0.72rem; color: $grey-text; text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; }
+}
+
+.chip-level3   .chip-value { color: #7c5cbf; }
+.chip-level4   .chip-value { color: $navy; }
+.chip-matched  .chip-value { color: $green; }
+.chip-exception .chip-value { color: $red; }
+.chip-pending  .chip-value { color: $amber; }
+
+/* ─── Filters ──────────────────────────────────────────────────────────────── */
+.events-filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+
+  select {
+    border: 1px solid #d6d9e4;
+    border-radius: 10px;
+    padding: 8px 12px;
+    min-width: 160px;
+    background: #fff;
+    color: #2f3d5c;
+  }
+}
+
+.filter-count { font-size: 0.85rem; color: $grey-text; font-style: italic; }
+
+/* ─── Loading / Empty ──────────────────────────────────────────────────────── */
+.loading-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 40px;
+  color: $grey-text;
+
+  .spin { animation: spin 1s linear infinite; font-size: 36px; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: $grey-text;
+  background: #f9fbff;
+  border: 1px dashed $border;
+  border-radius: 14px;
+
+  .empty-icon { font-size: 48px; color: #b2bfd8; display: block; margin-bottom: 12px; }
+  p { margin: 0; font-size: 0.95rem; }
+}
+
+/* ─── Accordion / Batch Panels ─────────────────────────────────────────────── */
+.batches-timeline {
+  display: grid;
+  gap: 0;
+}
+
+.batch-panel {
+  border-radius: 12px !important;
+  margin-bottom: 10px !important;
+  border: 1px solid $border !important;
+  box-shadow: 0 2px 10px rgba(17,28,55,.06) !important;
+}
+
+.batch-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: $navy;
+
+  .batch-icon { font-size: 20px; color: #7a91c4; }
+}
+
+.batch-id { font-family: 'Roboto Mono', monospace; font-size: 0.85rem; }
+
+.batch-count {
+  background: #f0f3fb;
+  color: $navy;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.batch-panel-desc {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ─── Timeline within Accordion ────────────────────────────────────────────── */
+.events-timeline {
+  display: grid;
+  gap: 0;
+  padding: 0 8px;
+  position: relative;
+
+  // Vertical connector line
+  &::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: $border;
+  }
+}
+
+.timeline-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f5fb;
+  position: relative;
+
+  &:last-child { border-bottom: none; }
+
+  &.event-matched   .timeline-icon { color: $green; }
+  &.event-confirmed .timeline-icon { color: $navy; }
+  &.event-exception .timeline-icon { color: $red; }
+  &.event-warning   .timeline-icon { color: $amber; }
+  &.event-default   .timeline-icon { color: $grey-text; }
+}
+
+.timeline-dot {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid $border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.timeline-icon { font-size: 18px; }
+
+.timeline-content { flex: 1; }
+
+.timeline-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.event-type-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e2a44;
+  flex: 1;
+  min-width: 120px;
+}
+
+.timeline-time {
+  font-size: 0.78rem;
+  color: $grey-text;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.timeline-detail {
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ─── Shared Badges ────────────────────────────────────────────────────────── */
+.badge-level3, .badge-level4 {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.badge-level1 { background: #d1fae5; color: #065f46; }
+.badge-level3 { background: #f0eafa; color: #7c5cbf; }
+.badge-level4 { background: $navy-soft; color: $navy; }
+
+.stage-badge {
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-block;
+
+  &.badge-level1 { background: #d1fae5; color: #065f46; }
+  &.badge-level3 { background: #f0eafa; color: #7c5cbf; }
+  &.badge-level4 { background: $navy-soft; color: $navy; }
+}
+
+.source-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: $navy;
+  color: #fff;
+  letter-spacing: .04em;
+}
+
+.event-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $amber;
+  &.resolved { color: $green; }
+}
+
+.detail-kv {
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 0.78rem;
+  color: #48536f;
+}
+
+/* ─── Shared Buttons ───────────────────────────────────────────────────────── */
+.primary-btn, .ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+
+  .material-icons { font-size: 18px; }
+}
+
+.primary-btn { background: $navy; color: #fff; }
+.ghost-btn   { background: #e9edf7; color: #2f3d5c; }
+button[disabled] { opacity: .65; cursor: not-allowed; }
+.back-btn { font-size: 0.85rem; }

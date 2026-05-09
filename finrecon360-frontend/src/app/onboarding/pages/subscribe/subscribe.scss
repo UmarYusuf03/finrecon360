@@ -26,6 +26,15 @@ h1 {
   color: #4a4f61;
 }
 
+.requirement {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  background: #f2f6ff;
+  border: 1px solid #d6e0ff;
+  border-radius: 10px;
+  color: #24305a;
+}
+
 .plans {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -39,6 +48,11 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.plan--ineligible {
+  border-color: #e5c8c8;
+  background: #fff9f9;
 }
 
 .price {
@@ -60,7 +74,22 @@ h1 {
   cursor: pointer;
 }
 
-.loading,
+.primary-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.plan-note {
+  margin: 4px 0 0;
+  color: #9a3f3f;
+  font-size: 0.88rem;
+}
+
+.loading {
+  padding: 16px 0;
+  color: #4a4f61;
+}
+
 .error {
   padding: 16px 0;
   color: #a04b4b;

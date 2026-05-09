@@ -7,6 +7,9 @@ namespace finrecon360_backend.Dtos.Transactions
         public decimal Amount { get; set; }
         public DateTime TransactionDate { get; set; }
 
+        [MaxLength(100)]
+        public string? ReferenceNumber { get; set; }
+
         [Required]
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
@@ -24,6 +27,9 @@ namespace finrecon360_backend.Dtos.Transactions
     {
         public decimal Amount { get; set; }
         public DateTime TransactionDate { get; set; }
+
+        [MaxLength(100)]
+        public string? ReferenceNumber { get; set; }
 
         [Required]
         [MaxLength(500)]
@@ -55,6 +61,7 @@ namespace finrecon360_backend.Dtos.Transactions
         Guid TransactionId,
         decimal Amount,
         DateTime TransactionDate,
+        string? ReferenceNumber,
         string Description,
         Guid? BankAccountId,
         string TransactionType,
@@ -77,4 +84,40 @@ namespace finrecon360_backend.Dtos.Transactions
         Guid? ChangedByUserId,
         DateTime ChangedAt,
         string? Note);
+
+    /// <summary>
+    /// WHY: The NeedsBankMatch queue is the handoff point between the transaction approval workflow
+    /// and the reconciliation engine. Accountants need to see the gateway import evidence (gross, fee, net,
+    /// settlement ID) alongside the transaction so they can understand what the payment gateway
+    /// reported before the bank statement is imported and Level-4 matching runs.
+    /// </summary>
+    public record NeedsBankMatchResponse(
+        // ── Core transaction fields ───────────────────────────────────────────
+        Guid TransactionId,
+        decimal Amount,
+        DateTime TransactionDate,
+        string Description,
+        Guid? BankAccountId,
+        string TransactionType,
+        string PaymentMethod,
+        string TransactionState,
+        Guid? CreatedByUserId,
+        DateTime? ApprovedAt,
+        DateTime CreatedAt,
+        // ── Matched import record context (nullable — may not yet be imported) ─
+        Guid? ImportedNormalizedRecordId,
+        string? ImportSourceType,
+        string? ReferenceNumber,
+        string? AccountCode,
+        decimal? GrossAmount,
+        decimal? ProcessingFee,
+        decimal NetImportAmount,
+        string? SettlementId,
+        string MatchStatus,
+        // ── Reconciliation match group context (nullable — may not yet be matched) ─
+        Guid? ReconciliationMatchGroupId,
+        string? MatchLevel,
+        bool IsConfirmed,
+        bool IsJournalPosted,
+        string? MatchMetadataJson);
 }

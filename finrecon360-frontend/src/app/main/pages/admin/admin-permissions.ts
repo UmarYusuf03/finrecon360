@@ -5,15 +5,16 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { combineLatest } from 'rxjs';
+import { combineLatest, forkJoin } from 'rxjs';
 import { distinctUntilChanged } from 'rxjs/operators';
 
-import { AdminPermissionService } from '../../../core/admin-rbac/admin-permission.service';
+import { AdminPermissionService, ScopedPermissionRow } from '../../../core/admin-rbac/admin-permission.service';
 import { AdminComponentService } from '../../../core/admin-rbac/admin-component.service';
 import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
@@ -40,6 +41,7 @@ import {
     MatTableModule,
     MatCheckboxModule,
     MatButtonModule,
+    MatIconModule,
     MatFormFieldModule,
     MatInputModule,
     MatSnackBarModule,
@@ -64,6 +66,13 @@ export class AdminPermissionsComponent implements OnInit {
   availablePermissionCodes = new Set<string>();
   displayedColumns: string[] = ['component'];
   saving = false;
+
+  // WHY: The scoped permissions section is a separate grid (Source Type × Module Action)
+  // that lives outside the standard Component × Action matrix. scopedRows drives the UI
+  // and scopedGranted tracks which codes are toggled for the currently selected role.
+  scopedRows: ScopedPermissionRow[] = [];
+  scopedGranted = new Set<string>();
+  originalScopedGranted = new Set<string>();
 
   form!: FormGroup;
 
@@ -94,6 +103,11 @@ export class AdminPermissionsComponent implements OnInit {
       this.visibleActions = actions.filter((action) => !AdminPermissionsComponent.HiddenActionCodes.has(action.code));
       this.availablePermissionCodes = availableCodes;
       this.displayedColumns = ['component', ...this.visibleActions.map((a) => a.code)];
+
+      // WHY: Build the scoped permission rows once; they don't change per role —
+      // only which ones are checked (scopedGranted) changes per-role load.
+      this.scopedRows = this.permissionService.getScopedPermissionRows()
+        .filter(row => row.actions.some(a => availableCodes.has(a.permissionCode)));
 
       const currentRoleId = this.form.get('roleId')?.value;
       const currentRoleStillExists = roles.some((role) => role.id === currentRoleId);
@@ -198,9 +212,16 @@ export class AdminPermissionsComponent implements OnInit {
     if (!window.confirm(confirmMessage)) return;
 
     this.saving = true;
-    this.permissionService.saveRoleAssignments(roleId, this.assignments).subscribe({
+    this.permissionService.saveRoleAssignments(
+      roleId,
+      this.assignments,
+      // WHY: Pass the scoped codes alongside standard assignments so the backend
+      // PUT /roles/{id}/permissions replaces ALL permissions in a single atomic call.
+      [...this.scopedGranted],
+    ).subscribe({
       next: () => {
         this.originalAssignments = this.assignments.map((a) => ({ ...a }));
+        this.originalScopedGranted = new Set(this.scopedGranted);
         this.saving = false;
         this.snackBar.open('Permissions updated successfully.', 'Close', { duration: 2500 });
       },
@@ -216,6 +237,26 @@ export class AdminPermissionsComponent implements OnInit {
    * highlight the 'Save' button only when true logical changes exist, ignoring toggles 
    * that were flipped and then reverted.
    */
+  /** Whether a specific scoped permission code is granted for the current role. */
+  isScopedGranted(permissionCode: string): boolean {
+    return this.scopedGranted.has(permissionCode);
+  }
+
+  /**
+   * WHY: Toggling a scoped permission also auto-grants the implicit VIEW permission
+   * on the parent module so the user can actually reach the page.
+   * e.g. granting ADMIN.IMPORTS.POS.CREATE also ensures ADMIN.IMPORTS.VIEW is present.
+   */
+  toggleScoped(permissionCode: string): void {
+    if (this.scopedGranted.has(permissionCode)) {
+      this.scopedGranted.delete(permissionCode);
+    } else {
+      this.scopedGranted.add(permissionCode);
+    }
+    // Force change detection on the Set reference
+    this.scopedGranted = new Set(this.scopedGranted);
+  }
+
   get hasChanges(): boolean {
     const current = new Set(this.assignments.map((a) => a.permissionCode));
     const original = new Set(this.originalAssignments.map((a) => a.permissionCode));
@@ -223,13 +264,34 @@ export class AdminPermissionsComponent implements OnInit {
     for (const code of current) {
       if (!original.has(code)) return true;
     }
+    // Also compare scoped state
+    if (this.scopedGranted.size !== this.originalScopedGranted.size) return true;
+    for (const code of this.scopedGranted) {
+      if (!this.originalScopedGranted.has(code)) return true;
+    }
     return false;
   }
 
   private loadAssignments(roleId: string): void {
-    this.permissionService.getRoleAssignments(roleId).subscribe((assignments) => {
+    // WHY: forkJoin both calls so we get Component×Action assignments AND the raw
+    // permission code set in one go. The raw codes are needed to detect scoped permissions
+    // (ADMIN.IMPORTS.POS.CREATE) which are never emitted by buildAssignments.
+    forkJoin({
+      assignments: this.permissionService.getRoleAssignments(roleId),
+      rawCodes: this.permissionService.getRolePermissionCodes(roleId),
+    }).subscribe(({ assignments, rawCodes }) => {
       this.assignments = assignments;
       this.originalAssignments = assignments.map((a) => ({ ...a }));
+
+      const allScopedCodes = new Set(
+        this.scopedRows.flatMap((row) => row.actions.map((a) => a.permissionCode))
+      );
+      const granted = new Set<string>();
+      for (const code of allScopedCodes) {
+        if (rawCodes.has(code)) granted.add(code);
+      }
+      this.scopedGranted = granted;
+      this.originalScopedGranted = new Set(granted);
     });
   }
 

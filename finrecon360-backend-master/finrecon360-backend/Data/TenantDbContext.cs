@@ -28,6 +28,10 @@ namespace finrecon360_backend.Data
         public DbSet<ImportedRawRecord> ImportedRawRecords => Set<ImportedRawRecord>();
         public DbSet<ImportedNormalizedRecord> ImportedNormalizedRecords => Set<ImportedNormalizedRecord>();
         public DbSet<ImportMappingTemplate> ImportMappingTemplates => Set<ImportMappingTemplate>();
+        public DbSet<ReconciliationMatchGroup> ReconciliationMatchGroups => Set<ReconciliationMatchGroup>();
+        public DbSet<ReconciliationMatchedRecord> ReconciliationMatchedRecords => Set<ReconciliationMatchedRecord>();
+        public DbSet<ReconciliationEvent> ReconciliationEvents => Set<ReconciliationEvent>();
+        public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -264,6 +268,8 @@ namespace finrecon360_backend.Data
                 entity.ToTable("ImportedNormalizedRecords");
                 entity.HasKey(x => x.ImportedNormalizedRecordId);
                 entity.Property(x => x.ImportedNormalizedRecordId).ValueGeneratedNever();
+                entity.Property(x => x.TransactionDate).HasColumnType("datetime2");
+                entity.Property(x => x.PostingDate).HasColumnType("datetime2");
                 entity.Property(x => x.TransactionType).HasMaxLength(30);
                 entity.Property(x => x.ReferenceNumber).HasMaxLength(120);
                 entity.Property(x => x.Description).HasMaxLength(500);
@@ -275,11 +281,14 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.CreditAmount).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.NetAmount).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+                entity.Property(x => x.MatchStatus).HasMaxLength(30).IsRequired().HasDefaultValue("PENDING");
                 entity.Property(x => x.CreatedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasIndex(x => x.ImportBatchId);
                 entity.HasIndex(x => x.TransactionDate);
+                entity.HasIndex(x => new { x.ReferenceNumber, x.TransactionDate });
+                entity.HasIndex(x => x.MatchStatus);
 
                 entity.HasOne(x => x.ImportBatch)
                     .WithMany(x => x.NormalizedRecords)
@@ -309,6 +318,35 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
                 entity.HasIndex(x => x.Name).IsUnique();
                 entity.HasIndex(x => new { x.SourceType, x.IsActive });
+            });
+
+            // JournalEntry can be linked to a Transaction (cashout path) or a ReconciliationMatchGroup
+            // (gateway fee-adjustment path). Exactly one FK is expected to be non-null at runtime.
+            modelBuilder.Entity<JournalEntry>(entity =>
+            {
+                entity.ToTable("JournalEntries");
+                entity.HasKey(x => x.JournalEntryId);
+                entity.Property(x => x.JournalEntryId).ValueGeneratedNever();
+                entity.Property(x => x.EntryType).HasMaxLength(50).IsRequired();
+                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)").IsRequired();
+                entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+                entity.Property(x => x.Notes).HasMaxLength(1000);
+                entity.Property(x => x.PostedAt)
+                    .HasColumnType("datetime2")
+                    .IsRequired();
+                entity.HasIndex(x => x.PostedAt);
+                entity.HasIndex(x => x.TransactionId);
+                entity.HasIndex(x => x.ReconciliationMatchGroupId);
+
+                entity.HasOne(x => x.Transaction)
+                    .WithMany()
+                    .HasForeignKey(x => x.TransactionId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(x => x.ReconciliationMatchGroup)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReconciliationMatchGroupId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             base.OnModelCreating(modelBuilder);

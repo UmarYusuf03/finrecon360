@@ -190,9 +190,30 @@ export const mainRoutes: Routes = [
       },
       {
         path: 'matcher',
-        component: MatcherPageComponent,
         canActivate: [AccessGuard],
-        data: { scope: 'tenant', permissions: ['MATCHER.VIEW'] },
+        data: { scope: 'tenant', permissions: ['ADMIN.RECONCILIATION.VIEW'] },
+        children: [
+          {
+            path: '',
+            component: MatcherPageComponent,
+          },
+          {
+            path: 'waiting',
+            loadComponent: () =>
+              import('./pages/matcher/matcher-waiting').then((m) => m.MatcherWaitingComponent),
+          },
+          {
+            path: 'sales-verification',
+            loadComponent: () =>
+              import('./pages/matcher/matcher-sales-verification').then((m) => m.MatcherSalesVerificationComponent),
+          },
+          {
+            path: 'events',
+            loadComponent: () =>
+              import('./pages/matcher/matcher-events').then((m) => m.MatcherEventsComponent),
+          },
+          { path: '**', redirectTo: '' },
+        ],
       },
       {
         path: 'imports',

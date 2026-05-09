@@ -1,8 +1,235 @@
-<section class="matcher-card">
-  <h2>{{ 'MATCHER.TITLE' | translate }}</h2>
-  <p>{{ 'MATCHER.SUBTITLE' | translate }}</p>
+<mat-card class="matcher-card">
+  <!-- ── Navigation ─────────────────────────────────────────────────────── -->
+  <nav class="matcher-nav" aria-label="Reconciliation workflow">
+    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <mat-icon>account_balance</mat-icon> Match Groups
+    </a>
+    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
+      <mat-icon>pending</mat-icon> Waiting Queue
+    </a>
+    <a routerLink="/app/matcher/sales-verification" routerLinkActive="active" id="nav-sales-verification">
+      <mat-icon>find_in_page</mat-icon> Sales Verification
+    </a>
+    <a routerLink="/app/matcher/events" routerLinkActive="active" id="nav-recon-events">
+      <mat-icon>timeline</mat-icon> Events
+    </a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
+      <mat-icon>receipt_long</mat-icon> Journal Ready
+    </a>
+  </nav>
 
-  <div class="matcher-empty">
-    {{ 'MATCHER.EMPTY_STATE' | translate }}
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <div class="matcher-header">
+    <div class="matcher-header__info">
+      <h2>Reconciliation Matcher</h2>
+      <p>Review and confirm automatically matched record groups. Confirmation unlocks journal posting.</p>
+    </div>
+    <div class="matcher-header__actions">
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading" id="matcher-refresh-btn">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
   </div>
-</section>
+
+  <!-- ── Summary chips ──────────────────────────────────────────────────── -->
+  <div class="matcher-summary" *ngIf="!loading && allGroups.length > 0">
+    <mat-chip-set>
+      <mat-chip class="chip-total">{{ allGroups.length }} total</mat-chip>
+      <mat-chip class="chip-pending">{{ pendingCount }} pending</mat-chip>
+      <mat-chip class="chip-confirmed">{{ confirmedCount }} confirmed</mat-chip>
+      <mat-chip class="chip-posted">{{ postedCount }} posted</mat-chip>
+    </mat-chip-set>
+  </div>
+
+  <!-- ── Spinner ────────────────────────────────────────────────────────── -->
+  <div *ngIf="loading" class="matcher-loading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <span>Loading match groups...</span>
+  </div>
+
+  <!-- ── Tabs ───────────────────────────────────────────────────────────── -->
+  <mat-tab-group *ngIf="!loading" (selectedIndexChange)="onTabChange($event)" [selectedIndex]="selectedTab" animationDuration="150ms">
+
+    <mat-tab label="Needs Confirmation">
+      <ng-container *ngTemplateOutlet="groupList; context: { groups: displayedGroups, tab: 0 }"></ng-container>
+    </mat-tab>
+
+    <mat-tab label="All Groups">
+      <ng-container *ngTemplateOutlet="groupList; context: { groups: displayedGroups, tab: 1 }"></ng-container>
+    </mat-tab>
+
+    <mat-tab label="Confirmed & Posted">
+      <ng-container *ngTemplateOutlet="groupList; context: { groups: displayedGroups, tab: 2 }"></ng-container>
+    </mat-tab>
+
+  </mat-tab-group>
+</mat-card>
+
+<!-- ── Group list template ────────────────────────────────────────────────── -->
+<ng-template #groupList let-groups="groups" let-tab="tab">
+  <div class="group-list" *ngIf="groups.length > 0; else emptyState">
+    <mat-accordion multi>
+      <mat-expansion-panel
+        *ngFor="let group of groups; trackBy: trackById"
+        class="group-panel"
+        [class.group-panel--confirmed]="group.isConfirmed"
+        [class.group-panel--posted]="group.isJournalPosted">
+
+        <!-- ── Panel header ───────────────────────────────────────────── -->
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <div class="group-panel__title">
+              <span class="match-level-badge" [ngClass]="getMatchLevelClass(group.matchLevel)">
+                {{ getMatchLevelLabel(group.matchLevel) }}
+              </span>
+              <span class="group-panel__key" *ngIf="group.settlementKey">
+                <mat-icon>vpn_key</mat-icon>
+                {{ group.settlementKey }}
+              </span>
+            </div>
+          </mat-panel-title>
+          <mat-panel-description>
+            <div class="group-panel__description">
+              <span class="group-panel__totals">
+                Net: <strong>{{ getNetTotal(group) | number: '1.2-2' }}</strong>
+                <span *ngIf="getFeeTotal(group) > 0">&nbsp;· Fee: {{ getFeeTotal(group) | number: '1.2-2' }}</span>
+              </span>
+              <span class="status-badge" [ngClass]="group.isJournalPosted ? 'status-posted' : group.isConfirmed ? 'status-confirmed' : 'status-unconfirmed'">
+                {{ group.isJournalPosted ? 'Posted' : group.isConfirmed ? 'Confirmed' : 'Awaiting Confirmation' }}
+              </span>
+            </div>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <!-- ── Panel body ─────────────────────────────────────────────── -->
+        <div class="group-panel__body">
+
+          <!-- Financials summary row -->
+          <div class="group-financials">
+            <div class="fin-card">
+              <span class="fin-card__label">Gross Total</span>
+              <span class="fin-card__value">{{ getGrossTotal(group) | number: '1.2-2' }} LKR</span>
+            </div>
+            <div class="fin-card fin-card--fee">
+              <span class="fin-card__label">Total Fee</span>
+              <span class="fin-card__value">− {{ getFeeTotal(group) | number: '1.2-2' }} LKR</span>
+            </div>
+            <div class="fin-card fin-card--net">
+              <span class="fin-card__label">Net Total</span>
+              <span class="fin-card__value">{{ getNetTotal(group) | number: '1.2-2' }} LKR</span>
+            </div>
+            <div class="fin-card" *ngIf="group.matchedRecords.length > 0">
+              <span class="fin-card__label">Records</span>
+              <span class="fin-card__value">{{ group.matchedRecords.length }}</span>
+            </div>
+          </div>
+
+          <!-- Member records table -->
+          <table mat-table [dataSource]="group.matchedRecords" class="members-table">
+
+            <ng-container matColumnDef="sourceType">
+              <th mat-header-cell *matHeaderCellDef>Source</th>
+              <td mat-cell *matCellDef="let r">
+                <span class="source-badge">{{ r.sourceType }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="referenceNumber">
+              <th mat-header-cell *matHeaderCellDef>Reference</th>
+              <td mat-cell *matCellDef="let r">{{ r.referenceNumber ?? '—' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="transactionDate">
+              <th mat-header-cell *matHeaderCellDef>Date</th>
+              <td mat-cell *matCellDef="let r">{{ r.transactionDate | date: 'mediumDate' }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="grossAmount">
+              <th mat-header-cell *matHeaderCellDef>Gross</th>
+              <td mat-cell *matCellDef="let r" class="amount-cell">
+                {{ (r.grossAmount ?? 0) | number: '1.2-2' }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="processingFee">
+              <th mat-header-cell *matHeaderCellDef>Fee</th>
+              <td mat-cell *matCellDef="let r" class="amount-cell amount-cell--fee">
+                {{ (r.processingFee ?? 0) | number: '1.2-2' }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="netAmount">
+              <th mat-header-cell *matHeaderCellDef>Net</th>
+              <td mat-cell *matCellDef="let r" class="amount-cell amount-cell--net">
+                {{ r.netAmount | number: '1.2-2' }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="matchStatus">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let r">
+                <span class="status-badge" [ngClass]="getMatchStatusClass(r.matchStatus)">
+                  {{ getMatchStatusLabel(r.matchStatus) }}
+                </span>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="memberColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: memberColumns"></tr>
+          </table>
+
+          <!-- Metadata row -->
+          <div class="group-meta">
+            <span>Created: {{ group.createdAt | date: 'medium' }}</span>
+            <span *ngIf="group.confirmedAt">Confirmed: {{ group.confirmedAt | date: 'medium' }}</span>
+          </div>
+
+          <!-- Actions: Confirm button — requires ADMIN.RECONCILIATION.CONFIRM -->
+          <div class="group-actions" *ngIf="canConfirmMatch && !group.isConfirmed">
+            <button
+              mat-flat-button
+              color="primary"
+              id="confirm-group-{{ group.reconciliationMatchGroupId }}"
+              [disabled]="confirmingId === group.reconciliationMatchGroupId"
+              (click)="confirm(group)">
+              <mat-spinner *ngIf="confirmingId === group.reconciliationMatchGroupId" diameter="18" class="btn-spinner"></mat-spinner>
+              <mat-icon *ngIf="confirmingId !== group.reconciliationMatchGroupId">check_circle</mat-icon>
+              Confirm Match
+            </button>
+            <span class="group-actions__hint">
+              Once confirmed, this group will be eligible for journal posting.
+            </span>
+          </div>
+          <!-- REVIEWER: can VIEW but cannot CONFIRM — show informational badge -->
+          <div class="group-actions group-actions--readonly" *ngIf="canViewRecon && !canConfirmMatch && !group.isConfirmed">
+            <span class="group-actions__hint">
+              <mat-icon>visibility</mat-icon>
+              Read-only — you need <strong>RECONCILIATION.CONFIRM</strong> to confirm this group.
+            </span>
+          </div>
+
+          <div class="group-confirmed-banner" *ngIf="group.isConfirmed && !group.isJournalPosted">
+            <mat-icon>check_circle</mat-icon>
+            Confirmed — go to <a routerLink="/app/transactions/journal-ready">Journal Ready</a> to post the entry.
+          </div>
+
+          <div class="group-posted-banner" *ngIf="group.isJournalPosted">
+            <mat-icon>task_alt</mat-icon>
+            Journal entry posted.
+          </div>
+        </div>
+
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+
+  <ng-template #emptyState>
+    <div class="matcher-empty">
+      <mat-icon>find_in_page</mat-icon>
+      <h3>No match groups</h3>
+      <p *ngIf="tab === 0">All groups have been confirmed, or no imports have been processed yet.</p>
+      <p *ngIf="tab === 1">No reconciliation match groups have been created yet. Import a file to begin.</p>
+      <p *ngIf="tab === 2">No confirmed and posted groups yet.</p>
+    </div>
+  </ng-template>
+</ng-template>

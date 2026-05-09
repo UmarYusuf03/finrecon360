@@ -92,11 +92,23 @@ namespace finrecon360_backend.Dtos.Imports
         public Dictionary<string, string?> Payload { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
+    public record ReconciliationSummaryDto(
+        string SourceType,
+        string WorkflowRoute,
+        int Level3VerifiedCount,
+        int Level3ExceptionCount,
+        int Level4MatchedCount,
+        int Level4ExceptionCount,
+        int WaitingForSettlementCount,
+        decimal FeeAdjustmentTotal,
+        string Summary);
+
     public record ImportCommitResponseDto(
         Guid BatchId,
         string Status,
         int NormalizedCount,
-        DateTime CommittedAt);
+        DateTime CommittedAt,
+        ReconciliationSummaryDto ReconciliationSummary);
 
     public record ImportDeleteResponseDto(
         Guid BatchId,

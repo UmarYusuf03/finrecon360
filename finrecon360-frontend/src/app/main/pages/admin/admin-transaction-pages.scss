@@ -390,3 +390,275 @@
     grid-template-columns: 1fr;
   }
 }
+
+// ── Needs Bank Match — accordion queue styles ─────────────────────────────────
+
+.nbm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.nbm-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 110px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+
+  .chip-value {
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .chip-label {
+    margin-top: 3px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  &.nbm-chip--total    { .chip-value { color: #0f172a; } }
+  &.nbm-chip--import   { background: #eff6ff; .chip-value { color: #1d4ed8; } }
+  &.nbm-chip--group    { background: #f0fdf4; .chip-value { color: #047857; } }
+  &.nbm-chip--confirmed { background: #ecfdf5; .chip-value { color: #065f46; } }
+}
+
+.nbm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nbm-panel {
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transition: box-shadow 180ms ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+  }
+}
+
+.nbm-panel-header {
+  min-height: 58px !important;
+}
+
+.nbm-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+
+  .nbm-date {
+    flex-shrink: 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: rgba(15, 23, 42, 0.55);
+    white-space: nowrap;
+  }
+
+  .nbm-amount {
+    flex-shrink: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #0f172a;
+  }
+
+  .nbm-desc {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(15, 23, 42, 0.72);
+    font-size: 0.88rem;
+  }
+}
+
+.nbm-panel-desc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+
+  .nbm-bank {
+    font-size: 0.8rem;
+    color: rgba(15, 23, 42, 0.55);
+    white-space: nowrap;
+  }
+}
+
+// Expanded detail
+.nbm-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 4px 0 8px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nbm-section {
+  padding: 14px 16px;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.nbm-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.nbm-dl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.nbm-dl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.86rem;
+
+  dt {
+    color: rgba(15, 23, 42, 0.52);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+    color: #0f172a;
+    font-weight: 500;
+    min-width: 0;
+    overflow-wrap: anywhere;
+
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.83rem;
+      background: #e2e8f0;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+  }
+
+  .amount-val { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .fee-val    { color: #b91c1c; }
+  .net-val    { color: #047857; }
+}
+
+.nbm-empty-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.6);
+  line-height: 1.45;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    color: rgba(15, 23, 42, 0.38);
+  }
+}
+
+.goto-btn {
+  margin-top: 10px;
+
+  mat-icon { margin-right: 6px; }
+}
+
+.import-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #1d4ed8;
+
+  &.muted-icon { color: rgba(15, 23, 42, 0.3); }
+}
+
+.confirm-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  color: rgba(15, 23, 42, 0.35);
+
+  &.confirmed { color: #047857; }
+}
+
+// Source badge
+.source-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+// Level badge (match group)
+.level-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+// Match status badges (ms-*)
+.ms-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ms-matched   { background: #ecfdf5; color: #047857; }
+.ms-verified  { background: #d1fae5; color: #065f46; }
+.ms-exception { background: #fef2f2; color: #b91c1c; }
+.ms-waiting   { background: #fff7ed; color: #9a3412; }
+.ms-pending   { background: #f1f5f9; color: #475569; }

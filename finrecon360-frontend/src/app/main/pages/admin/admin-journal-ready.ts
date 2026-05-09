@@ -13,6 +13,8 @@ import { MatTableModule } from '@angular/material/table';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
+import { ReconciliationService } from '../../../core/admin-rbac/reconciliation.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { Transaction } from '../../../core/admin-rbac/models';
 
 @Component({
@@ -36,7 +38,7 @@ import { Transaction } from '../../../core/admin-rbac/models';
   styleUrls: ['./admin-transaction-pages.scss'],
 })
 export class AdminJournalReadyComponent implements OnInit {
-  displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'state', 'description', 'createdAt'];
+  displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'state', 'description', 'createdAt', 'actions'];
   allTransactions: Transaction[] = [];
   transactions: Transaction[] = [];
   years: number[] = [];
@@ -45,6 +47,7 @@ export class AdminJournalReadyComponent implements OnInit {
   selectedMonth: number | null = null;
   sortField: 'transactionDate' | 'amount' = 'transactionDate';
   sortDirection: 'asc' | 'desc' = 'asc';
+  postingId: string | null = null;
 
   readonly months = [
     { value: 1, label: 'January' },
@@ -63,8 +66,20 @@ export class AdminJournalReadyComponent implements OnInit {
 
   constructor(
     private transactionService: TransactionService,
+    private reconciliationService: ReconciliationService,
+    private authService: AuthService,
     private snackBar: MatSnackBar,
   ) {}
+
+  get canPostJournal(): boolean {
+    // WHY: ADMIN.JOURNAL.POST is the granular code from the rbac_granular_plan.
+    // ADMIN.JOURNAL.MANAGE is kept as a legacy alias for existing DB grants.
+    // The AliasMap in PermissionHandler means MANAGE→POST is implied on the backend,
+    // but the frontend must check both so that roles seeded with only JOURNAL.POST
+    // (not MANAGE) still get the button displayed.
+    const perms = this.authService.currentUser?.permissions ?? [];
+    return perms.includes('ADMIN.JOURNAL.POST') || perms.includes('ADMIN.JOURNAL.MANAGE');
+  }
 
   ngOnInit(): void {
     this.loadJournalReady();
@@ -134,17 +149,28 @@ export class AdminJournalReadyComponent implements OnInit {
 
   getStateClass(state: string): string {
     switch (state) {
-      case 'Pending':
-        return 'state-pending';
-      case 'JournalReady':
-        return 'state-journal-ready';
-      case 'NeedsBankMatch':
-        return 'state-needs-bank-match';
-      case 'Rejected':
-        return 'state-rejected';
-      default:
-        return 'state-default';
+      case 'Pending': return 'state-pending';
+      case 'JournalReady': return 'state-journal-ready';
+      case 'NeedsBankMatch': return 'state-needs-bank-match';
+      case 'Rejected': return 'state-rejected';
+      default: return 'state-default';
     }
+  }
+
+  postJournal(transaction: Transaction): void {
+    if (this.postingId || !this.canPostJournal) return;
+    this.postingId = transaction.transactionId;
+    this.reconciliationService.postJournalFromTransaction(transaction.transactionId, {}).subscribe({
+      next: () => {
+        this.postingId = null;
+        this.snackBar.open('Journal entry posted successfully.', 'Close', { duration: 4000 });
+        this.loadJournalReady();
+      },
+      error: (error: unknown) => {
+        this.postingId = null;
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
+    });
   }
 
   private loadJournalReady(): void {

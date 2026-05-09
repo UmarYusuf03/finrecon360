@@ -453,3 +453,252 @@ button[disabled] {
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Source Type Selector (task 3.1) ─────────────────────────────────────── */
+
+.source-type-section {
+  margin-bottom: 16px;
+}
+
+.source-type-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #2f3d5c;
+  margin-bottom: 10px;
+
+  .required {
+    color: #c0392b;
+    margin-left: 2px;
+  }
+}
+
+.source-type-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+
+  @media (max-width: 700px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.source-type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px;
+  border-radius: 14px;
+  border: 2px solid #dce4f7;
+  background: #f8faff;
+  color: #2f3d5c;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+
+  &:hover {
+    border-color: #1d2b64;
+    background: #eef2ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(29, 43, 100, 0.12);
+  }
+
+  &.selected {
+    border-color: #1d2b64;
+    background: #1d2b64;
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(29, 43, 100, 0.25);
+
+    .source-type-hint {
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+}
+
+.source-type-icon {
+  font-size: 24px;
+}
+
+.source-type-name {
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+.source-type-hint {
+  font-size: 0.73rem;
+  color: #6b7690;
+  line-height: 1.3;
+}
+
+.source-type-error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+}
+
+.drop-icon {
+  font-size: 36px;
+  color: #7a91c4;
+  display: block;
+  margin: 0 auto 4px;
+}
+
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.file-size {
+  color: #7a849a;
+  font-size: 0.85rem;
+}
+
+/* ─── Reconciliation Result Banner (task 2.8) ─────────────────────────────── */
+
+.recon-result-panel {
+  border-left: 4px solid #1d8c5e;
+  background: linear-gradient(135deg, #f0faf5 0%, #f8faff 100%);
+}
+
+.recon-result-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+
+  h3 {
+    margin: 0;
+    color: #1d2b64;
+    font-size: 1.1rem;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: #5d6781;
+    font-size: 0.85rem;
+  }
+}
+
+.recon-result-icon {
+  font-size: 32px;
+  color: #1d8c5e;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.source-badge {
+  margin-left: auto;
+  background: #1d2b64;
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+.recon-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 550px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.recon-stat {
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  background: #fff;
+  border: 1px solid #e6ebf5;
+
+  .stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+    color: #6b7690;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &.verified   { .stat-value { color: #1d8c5e; } }
+  &.matched    { .stat-value { color: #1d2b64; } }
+  &.exception  { .stat-value { color: #c0392b; } }
+  &.fee        { .stat-value { color: #7a5c0a; } }
+
+  &.waiting {
+    .stat-value { color: #7a849a; }
+    &.has-value {
+      border-color: #f0a500;
+      background: #fffbf0;
+      .stat-value { color: #c08b2c; }
+    }
+  }
+}
+
+.recon-summary-text {
+  color: #48536f;
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.gateway-fee-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.88rem;
+  line-height: 1.5;
+
+  .material-icons {
+    flex-shrink: 0;
+    font-size: 20px;
+    margin-top: 1px;
+  }
+
+  strong {
+    font-weight: 700;
+  }
+}
+
+.recon-result-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recon-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 0.9rem;
+}

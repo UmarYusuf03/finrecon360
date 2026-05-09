@@ -21,6 +21,15 @@ namespace finrecon360_backend.Services
         private const string MigrationTransactions = "202604230003_TenantTransactions";
         private const string MigrationTransactionPermissions = "202604230004_TenantTransactionPermissions";
         private const string MigrationTransactionApprovalFields = "202604230005_TenantTransactionApprovalFields";
+        private const string MigrationImportedNormalizedRecordTimestamps = "202605040001_ImportedNormalizedRecordTimestamps";
+        private const string MigrationSettlementIdColumn = "202605020001_AddSettlementIdToImportedNormalizedRecords";
+        private const string MigrationReconciliationEntities = "202605020002_CreateReconciliationMatchGroupsAndEvents";
+        private const string MigrationReconciliationCascadeSafety = "202605020002a_ReconciliationCascadeSafety";
+        private const string MigrationReconciliationConfirmation = "202605020003_ReconciliationConfirmationAndMatchStatus";
+        private const string MigrationJournalEntries = "202605020004_JournalEntriesAndReconciliationPermissions";
+        private const string MigrationGranularPermissions = "202605020005_GranularImportAndReconciliationPermissions";
+        private const string MigrationSourceScopedPermissions = "202605020006_SourceTypesScopedCashierPermissions";
+        private const string MigrationAllSourceScopedPermissions = "202605020007_AllSourceTypesScopedPermissions";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -42,6 +51,15 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactions, BuildTenantTransactionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionPermissions, BuildTenantTransactionPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionApprovalFields, BuildTenantTransactionApprovalFieldsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportedNormalizedRecordTimestamps, BuildImportedNormalizedRecordTimestampSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationSettlementIdColumn, BuildSettlementIdColumnSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEntities, BuildReconciliationEntitiesSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationCascadeSafety, BuildReconciliationCascadeSafetySql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationConfirmation, BuildReconciliationConfirmationSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationJournalEntries, BuildJournalEntriesSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationGranularPermissions, BuildGranularPermissionsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationSourceScopedPermissions, BuildSourceScopedPermissionsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationAllSourceScopedPermissions, BuildAllSourceScopedPermissionsSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -471,9 +489,9 @@ namespace finrecon360_backend.Services
                     ImportedNormalizedRecordId uniqueidentifier NOT NULL PRIMARY KEY,
                     ImportBatchId uniqueidentifier NOT NULL,
                     SourceRawRecordId uniqueidentifier NULL,
-                    TransactionDate date NOT NULL,
+                    TransactionDate datetime2 NOT NULL,
                     TransactionType nvarchar(30) NULL,
-                    PostingDate date NULL,
+                    PostingDate datetime2 NULL,
                     ReferenceNumber nvarchar(120) NULL,
                     Description nvarchar(500) NULL,
                     AccountCode nvarchar(100) NULL,
@@ -491,6 +509,7 @@ namespace finrecon360_backend.Services
 
                 CREATE INDEX IX_ImportedNormalizedRecords_ImportBatchId ON dbo.ImportedNormalizedRecords(ImportBatchId);
                 CREATE INDEX IX_ImportedNormalizedRecords_TransactionDate ON dbo.ImportedNormalizedRecords(TransactionDate);
+                CREATE INDEX IX_ImportedNormalizedRecords_ReferenceNumber_TransactionDate ON dbo.ImportedNormalizedRecords(ReferenceNumber, TransactionDate);
             END
             ELSE
             BEGIN
@@ -568,6 +587,62 @@ namespace finrecon360_backend.Services
 
                 IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'ProcessingFee') IS NULL
                     ALTER TABLE dbo.ImportedNormalizedRecords ADD ProcessingFee decimal(18,2) NULL;
+            END
+            """;
+
+        private static string BuildImportedNormalizedRecordTimestampSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NOT NULL
+            BEGIN
+                DECLARE @transactionDateType sysname = (
+                    SELECT TYPE_NAME(c.user_type_id)
+                    FROM sys.columns c
+                    WHERE c.object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                      AND c.name = N'TransactionDate'
+                );
+
+                IF @transactionDateType = N'date'
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM sys.indexes
+                        WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                          AND name = N'IX_ImportedNormalizedRecords_TransactionDate')
+                    BEGIN
+                        DROP INDEX IX_ImportedNormalizedRecords_TransactionDate ON dbo.ImportedNormalizedRecords;
+                    END
+
+                    ALTER TABLE dbo.ImportedNormalizedRecords ALTER COLUMN TransactionDate datetime2 NOT NULL;
+                END
+
+                DECLARE @postingDateType sysname = (
+                    SELECT TYPE_NAME(c.user_type_id)
+                    FROM sys.columns c
+                    WHERE c.object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                      AND c.name = N'PostingDate'
+                );
+
+                IF @postingDateType = N'date'
+                BEGIN
+                    ALTER TABLE dbo.ImportedNormalizedRecords ALTER COLUMN PostingDate datetime2 NULL;
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                      AND name = N'IX_ImportedNormalizedRecords_TransactionDate')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_TransactionDate
+                        ON dbo.ImportedNormalizedRecords(TransactionDate);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                      AND name = N'IX_ImportedNormalizedRecords_ReferenceNumber_TransactionDate')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_ReferenceNumber_TransactionDate
+                        ON dbo.ImportedNormalizedRecords(ReferenceNumber, TransactionDate);
+                END
             END
             """;
 
@@ -819,6 +894,130 @@ namespace finrecon360_backend.Services
             END
             """;
 
+        private static string BuildSettlementIdColumnSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'SettlementId') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD SettlementId nvarchar(120) NULL;
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                      AND name = N'IX_ImportedNormalizedRecords_SettlementId')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_SettlementId ON dbo.ImportedNormalizedRecords(SettlementId);
+                END
+            END
+            """;
+
+        private static string BuildReconciliationEntitiesSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationMatchGroups', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReconciliationMatchGroups (
+                    ReconciliationMatchGroupId uniqueidentifier NOT NULL PRIMARY KEY,
+                    ImportBatchId uniqueidentifier NOT NULL,
+                    MatchLevel nvarchar(20) NOT NULL,
+                    SettlementKey nvarchar(250) NULL,
+                    PrimaryEventId uniqueidentifier NULL,
+                    MatchMetadataJson nvarchar(max) NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    UpdatedAt datetime2 NULL,
+                    CONSTRAINT FK_ReconciliationMatchGroups_ImportBatches_ImportBatchId FOREIGN KEY (ImportBatchId) REFERENCES dbo.ImportBatches(ImportBatchId) ON DELETE CASCADE
+                );
+
+                CREATE INDEX IX_ReconciliationMatchGroups_ImportBatchId ON dbo.ReconciliationMatchGroups(ImportBatchId);
+                CREATE INDEX IX_ReconciliationMatchGroups_MatchLevel ON dbo.ReconciliationMatchGroups(MatchLevel);
+                CREATE INDEX IX_ReconciliationMatchGroups_SettlementKey ON dbo.ReconciliationMatchGroups(SettlementKey);
+            END
+
+            IF OBJECT_ID(N'dbo.ReconciliationMatchedRecords', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReconciliationMatchedRecords (
+                    ReconciliationMatchedRecordId uniqueidentifier NOT NULL PRIMARY KEY,
+                    ReconciliationMatchGroupId uniqueidentifier NOT NULL,
+                    ImportedNormalizedRecordId uniqueidentifier NOT NULL,
+                    SourceType nvarchar(20) NOT NULL,
+                    MatchAmount decimal(18,2) NOT NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationMatchedRecords_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT FK_ReconciliationMatchedRecords_ReconciliationMatchGroups_ReconciliationMatchGroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE CASCADE,
+                    CONSTRAINT FK_ReconciliationMatchedRecords_ImportedNormalizedRecords_ImportedNormalizedRecordId FOREIGN KEY (ImportedNormalizedRecordId) REFERENCES dbo.ImportedNormalizedRecords(ImportedNormalizedRecordId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_ReconciliationMatchedRecords_ReconciliationMatchGroupId ON dbo.ReconciliationMatchedRecords(ReconciliationMatchGroupId);
+                CREATE INDEX IX_ReconciliationMatchedRecords_ImportedNormalizedRecordId ON dbo.ReconciliationMatchedRecords(ImportedNormalizedRecordId);
+                CREATE INDEX IX_ReconciliationMatchedRecords_SourceType ON dbo.ReconciliationMatchedRecords(SourceType);
+            END
+
+            IF OBJECT_ID(N'dbo.ReconciliationEvents', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReconciliationEvents (
+                    ReconciliationEventId uniqueidentifier NOT NULL PRIMARY KEY,
+                    ImportBatchId uniqueidentifier NOT NULL,
+                    ImportedNormalizedRecordId uniqueidentifier NOT NULL,
+                    EventType nvarchar(50) NOT NULL,
+                    Stage nvarchar(20) NOT NULL,
+                    SourceType nvarchar(20) NOT NULL,
+                    Status nvarchar(50) NOT NULL CONSTRAINT DF_ReconciliationEvents_Status DEFAULT (N'Pending'),
+                    DetailJson nvarchar(max) NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationEvents_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    ResolvedAt datetime2 NULL,
+                    CONSTRAINT FK_ReconciliationEvents_ImportBatches_ImportBatchId FOREIGN KEY (ImportBatchId) REFERENCES dbo.ImportBatches(ImportBatchId) ON DELETE CASCADE,
+                    CONSTRAINT FK_ReconciliationEvents_ImportedNormalizedRecords_ImportedNormalizedRecordId FOREIGN KEY (ImportedNormalizedRecordId) REFERENCES dbo.ImportedNormalizedRecords(ImportedNormalizedRecordId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_ReconciliationEvents_ImportBatchId ON dbo.ReconciliationEvents(ImportBatchId);
+                CREATE INDEX IX_ReconciliationEvents_ImportedNormalizedRecordId ON dbo.ReconciliationEvents(ImportedNormalizedRecordId);
+                CREATE INDEX IX_ReconciliationEvents_EventType ON dbo.ReconciliationEvents(EventType);
+                CREATE INDEX IX_ReconciliationEvents_Stage ON dbo.ReconciliationEvents(Stage);
+                CREATE INDEX IX_ReconciliationEvents_SourceType ON dbo.ReconciliationEvents(SourceType);
+                CREATE INDEX IX_ReconciliationEvents_Status ON dbo.ReconciliationEvents(Status);
+            END
+            """;
+
+        private static string BuildReconciliationCascadeSafetySql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationMatchedRecords', N'U') IS NOT NULL
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM sys.foreign_keys
+                    WHERE name = N'FK_ReconciliationMatchedRecords_ImportedNormalizedRecords_ImportedNormalizedRecordId'
+                      AND delete_referential_action_desc = N'CASCADE')
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationMatchedRecords
+                        DROP CONSTRAINT FK_ReconciliationMatchedRecords_ImportedNormalizedRecords_ImportedNormalizedRecordId;
+
+                    ALTER TABLE dbo.ReconciliationMatchedRecords
+                        ADD CONSTRAINT FK_ReconciliationMatchedRecords_ImportedNormalizedRecords_ImportedNormalizedRecordId
+                            FOREIGN KEY (ImportedNormalizedRecordId)
+                            REFERENCES dbo.ImportedNormalizedRecords(ImportedNormalizedRecordId)
+                            ON DELETE NO ACTION;
+                END
+            END
+
+            IF OBJECT_ID(N'dbo.ReconciliationEvents', N'U') IS NOT NULL
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM sys.foreign_keys
+                    WHERE name = N'FK_ReconciliationEvents_ImportedNormalizedRecords_ImportedNormalizedRecordId'
+                      AND delete_referential_action_desc = N'CASCADE')
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationEvents
+                        DROP CONSTRAINT FK_ReconciliationEvents_ImportedNormalizedRecords_ImportedNormalizedRecordId;
+
+                    ALTER TABLE dbo.ReconciliationEvents
+                        ADD CONSTRAINT FK_ReconciliationEvents_ImportedNormalizedRecords_ImportedNormalizedRecordId
+                            FOREIGN KEY (ImportedNormalizedRecordId)
+                            REFERENCES dbo.ImportedNormalizedRecords(ImportedNormalizedRecordId)
+                            ON DELETE NO ACTION;
+                END
+            END
+            """;
+
         private static async Task ExecuteNonQueryAsync(
             SqlConnection connection,
             SqlTransaction transaction,
@@ -834,5 +1033,315 @@ namespace finrecon360_backend.Services
 
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
+
+        // Adds the human-confirmation gate columns and denormalized MatchStatus to existing tables.
+        // These are required before the Matcher UI and journal posting can function.
+        private static string BuildReconciliationConfirmationSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationMatchGroups', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ReconciliationMatchGroups', N'IsConfirmed') IS NULL
+                    ALTER TABLE dbo.ReconciliationMatchGroups ADD IsConfirmed bit NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_IsConfirmed DEFAULT (0);
+
+                IF COL_LENGTH(N'dbo.ReconciliationMatchGroups', N'ConfirmedByUserId') IS NULL
+                    ALTER TABLE dbo.ReconciliationMatchGroups ADD ConfirmedByUserId uniqueidentifier NULL;
+
+                IF COL_LENGTH(N'dbo.ReconciliationMatchGroups', N'ConfirmedAt') IS NULL
+                    ALTER TABLE dbo.ReconciliationMatchGroups ADD ConfirmedAt datetime2 NULL;
+
+                IF COL_LENGTH(N'dbo.ReconciliationMatchGroups', N'IsJournalPosted') IS NULL
+                    ALTER TABLE dbo.ReconciliationMatchGroups ADD IsJournalPosted bit NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_IsJournalPosted DEFAULT (0);
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ReconciliationMatchGroups')
+                      AND name = N'IX_ReconciliationMatchGroups_IsConfirmed')
+                BEGIN
+                    CREATE INDEX IX_ReconciliationMatchGroups_IsConfirmed ON dbo.ReconciliationMatchGroups(IsConfirmed);
+                END
+            END
+
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'MatchStatus') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ImportedNormalizedRecords
+                        ADD MatchStatus nvarchar(30) NOT NULL CONSTRAINT DF_ImportedNormalizedRecords_MatchStatus DEFAULT (N'PENDING');
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords')
+                      AND name = N'IX_ImportedNormalizedRecords_MatchStatus')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_MatchStatus ON dbo.ImportedNormalizedRecords(MatchStatus);
+                END
+            END
+            """;
+
+        // Creates the JournalEntries table and seeds reconciliation permissions + app components for RBAC.
+        private static string BuildJournalEntriesSql() =>
+            """
+            IF OBJECT_ID(N'dbo.JournalEntries', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.JournalEntries (
+                    JournalEntryId uniqueidentifier NOT NULL PRIMARY KEY,
+                    TransactionId uniqueidentifier NULL,
+                    ReconciliationMatchGroupId uniqueidentifier NULL,
+                    EntryType nvarchar(50) NOT NULL,
+                    Amount decimal(18,2) NOT NULL,
+                    Currency nvarchar(3) NOT NULL CONSTRAINT DF_JournalEntries_Currency DEFAULT (N'LKR'),
+                    PostedAt datetime2 NOT NULL CONSTRAINT DF_JournalEntries_PostedAt DEFAULT SYSUTCDATETIME(),
+                    PostedByUserId uniqueidentifier NULL,
+                    Notes nvarchar(1000) NULL,
+                    CONSTRAINT FK_JournalEntries_Transactions_TransactionId FOREIGN KEY (TransactionId) REFERENCES dbo.Transactions(TransactionId) ON DELETE NO ACTION,
+                    CONSTRAINT FK_JournalEntries_ReconciliationMatchGroups_ReconciliationMatchGroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_JournalEntries_PostedAt ON dbo.JournalEntries(PostedAt);
+                CREATE INDEX IX_JournalEntries_TransactionId ON dbo.JournalEntries(TransactionId);
+                CREATE INDEX IX_JournalEntries_ReconciliationMatchGroupId ON dbo.JournalEntries(ReconciliationMatchGroupId);
+            END
+
+            -- Seed reconciliation permissions if not present
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.RECONCILIATION.VIEW',   N'Reconciliation View',   N'View reconciliation queues and match groups',  N'Reconciliation'),
+                (N'ADMIN.RECONCILIATION.MANAGE', N'Reconciliation Manage', N'Confirm match groups and post journal entries', N'Reconciliation'),
+                (N'ADMIN.JOURNAL.VIEW',           N'Journal View',          N'View posted journal entries',                  N'Accounting'),
+                (N'ADMIN.JOURNAL.MANAGE',         N'Journal Manage',        N'Post and manage journal entries',              N'Accounting')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            -- Register the Matcher and Journal screens as navigable App Components
+            INSERT INTO dbo.AppComponents (ComponentId, Code, Name, RoutePath, Category, Description, IsActive)
+            SELECT NEWID(), v.Code, v.Name, v.RoutePath, v.Category, v.Description, 1
+            FROM (VALUES
+                (N'MATCHER_MGMT',        N'Matcher',        N'/app/matcher',          N'Reconciliation', N'Bank match confirmation queue'),
+                (N'JOURNAL_MGMT',        N'Journal',        N'/app/journal',           N'Accounting',     N'Posted journal entries'),
+                (N'WAITING_QUEUE_MGMT',  N'Waiting Queue',  N'/app/matcher/waiting',   N'Reconciliation', N'Records waiting for settlement ID'),
+                (N'SALES_VERIFY_MGMT',   N'Sales Verify',   N'/app/matcher/sales',     N'Reconciliation', N'Sales / ERP variance review queue')
+            ) v(Code, Name, RoutePath, Category, Description)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.AppComponents c WHERE c.Code = v.Code);
+
+            -- Grant new reconciliation + journal permissions to ADMIN role
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.RECONCILIATION.VIEW', N'ADMIN.RECONCILIATION.MANAGE',
+                N'ADMIN.JOURNAL.VIEW', N'ADMIN.JOURNAL.MANAGE'
+            )
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+
+            -- Grant read-only reconciliation + journal permissions to MANAGER and REVIEWER
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.RECONCILIATION.VIEW', N'ADMIN.JOURNAL.VIEW'
+            )
+            WHERE r.Code IN (N'MANAGER', N'REVIEWER')
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+        // Seeds granular IMPORTS, IMPORT_ARCHITECTURE, RECONCILIATION, and JOURNAL permissions.
+        // WHY: Replaces the blunt VIEW/MANAGE binary split with independently grantable atomic actions.
+        // The PermissionHandler AliasMap implements the MANAGE→VIEW implication so VIEW is only
+        // explicitly granted to roles that need read access but have no write permission.
+        private static string BuildGranularPermissionsSql() =>
+            """
+            -- ── Seed new granular permissions (idempotent) ───────────────────────────────────
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                -- IMPORTS module
+                (N'ADMIN.IMPORTS.VIEW',    N'Import View',    N'View import batches and history',           N'Imports'),
+                (N'ADMIN.IMPORTS.CREATE',  N'Import Upload',  N'Upload and start an import batch',          N'Imports'),
+                (N'ADMIN.IMPORTS.EDIT',    N'Import Edit',    N'Parse, map, validate and correct rows',     N'Imports'),
+                (N'ADMIN.IMPORTS.COMMIT',  N'Import Commit',  N'Commit a validated import batch',           N'Imports'),
+                (N'ADMIN.IMPORTS.DELETE',  N'Import Delete',  N'Delete an import batch permanently',        N'Imports'),
+                -- IMPORT_ARCHITECTURE module
+                (N'ADMIN.IMPORT_ARCHITECTURE.CREATE', N'Architecture Create', N'Create mapping templates', N'Imports'),
+                (N'ADMIN.IMPORT_ARCHITECTURE.EDIT',   N'Architecture Edit',   N'Update mapping templates', N'Imports'),
+                (N'ADMIN.IMPORT_ARCHITECTURE.DELETE', N'Architecture Delete', N'Deactivate or delete mapping templates', N'Imports'),
+                -- RECONCILIATION module
+                (N'ADMIN.RECONCILIATION.CONFIRM', N'Reconciliation Confirm', N'Confirm a reconciliation match group',  N'Reconciliation'),
+                (N'ADMIN.RECONCILIATION.RESOLVE', N'Reconciliation Resolve', N'Attach settlement IDs and resolve exceptions', N'Reconciliation'),
+                -- JOURNAL module
+                (N'ADMIN.JOURNAL.POST',    N'Journal Post',   N'Post journal entries from transactions or match groups', N'Accounting')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            -- ── ADMIN role: grant ALL new permissions ────────────────────────────────────────
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.VIEW',   N'ADMIN.IMPORTS.CREATE', N'ADMIN.IMPORTS.EDIT',
+                N'ADMIN.IMPORTS.COMMIT', N'ADMIN.IMPORTS.DELETE',
+                N'ADMIN.IMPORT_ARCHITECTURE.CREATE', N'ADMIN.IMPORT_ARCHITECTURE.EDIT', N'ADMIN.IMPORT_ARCHITECTURE.DELETE',
+                N'ADMIN.RECONCILIATION.CONFIRM', N'ADMIN.RECONCILIATION.RESOLVE',
+                N'ADMIN.JOURNAL.POST'
+            )
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+
+            -- ── MANAGER role: upload + parse/map/validate + confirm + resolve (no commit, no delete, no import-arch write) ──
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.VIEW',  N'ADMIN.IMPORTS.CREATE', N'ADMIN.IMPORTS.EDIT',
+                N'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+                N'ADMIN.RECONCILIATION.CONFIRM', N'ADMIN.RECONCILIATION.RESOLVE'
+            )
+            WHERE r.Code = N'MANAGER'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+
+            -- ── REVIEWER role: VIEW only across imports, reconciliation, journal ─────────────
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.VIEW',
+                N'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+                N'ADMIN.RECONCILIATION.VIEW',
+                N'ADMIN.JOURNAL.VIEW'
+            )
+            WHERE r.Code = N'REVIEWER'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
+        // Seeds source-type-scoped POS permissions and the CASHIER role.
+        // WHY: A CASHIER should be able to upload POS files, parse/validate/commit them,
+        // and resolve POS reconciliation exceptions — but must not touch ERP, GATEWAY, or BANK data.
+        // The SourceTypeScope helper enforces this at the API layer; this migration ensures the
+        // DB has the matching permission codes and role assignment.
+        private static string BuildSourceScopedPermissionsSql() =>
+            """
+            -- ── Seed source-type-scoped permission codes (idempotent) ───────────────────────
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                -- POS-scoped IMPORTS
+                (N'ADMIN.IMPORTS.POS.CREATE', N'POS Import Upload',    N'Upload POS import files only',                N'Imports'),
+                (N'ADMIN.IMPORTS.POS.EDIT',   N'POS Import Edit',      N'Parse, map and validate POS import batches',   N'Imports'),
+                (N'ADMIN.IMPORTS.POS.COMMIT', N'POS Import Commit',    N'Commit validated POS import batches',          N'Imports'),
+                -- POS-scoped RECONCILIATION
+                (N'ADMIN.RECONCILIATION.POS.RESOLVE', N'POS Recon Resolve', N'Resolve POS reconciliation exceptions', N'Reconciliation')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            -- ── Grant POS-scoped permissions to ADMIN by default ───────────────────────────
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.POS.CREATE',
+                N'ADMIN.IMPORTS.POS.EDIT',
+                N'ADMIN.IMPORTS.POS.COMMIT',
+                N'ADMIN.RECONCILIATION.POS.RESOLVE'
+            )
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+
+            -- ── Create CASHIER role if it does not exist ─────────────────────────────────────
+            INSERT INTO dbo.Roles (RoleId, Name, Code, Description, IsActive, CreatedAt)
+            SELECT NEWID(),
+                   N'Cashier',
+                   N'CASHIER',
+                   N'POS operations only — can import, process and verify POS data; no access to ERP, GATEWAY or BANK workflows.',
+                   1,
+                   GETUTCDATE()
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Roles WHERE Code = N'CASHIER');
+
+            -- ── Grant POS-scoped permissions to CASHIER ───────────────────────────────────────
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.POS.CREATE',
+                N'ADMIN.IMPORTS.POS.EDIT',
+                N'ADMIN.IMPORTS.POS.COMMIT',
+                N'ADMIN.RECONCILIATION.POS.RESOLVE'
+            )
+            WHERE r.Code = N'CASHIER'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
+        // Seeds remaining source-type-scoped permissions (ERP, GATEWAY, BANK)
+        private static string BuildAllSourceScopedPermissionsSql() =>
+            """
+            -- ── Seed source-type-scoped permission codes (idempotent) ───────────────────────
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                -- ERP-scoped IMPORTS
+                (N'ADMIN.IMPORTS.ERP.CREATE', N'ERP Import Upload',    N'Upload ERP import files only',                N'Imports'),
+                (N'ADMIN.IMPORTS.ERP.EDIT',   N'ERP Import Edit',      N'Parse, map and validate ERP import batches',   N'Imports'),
+                (N'ADMIN.IMPORTS.ERP.COMMIT', N'ERP Import Commit',    N'Commit validated ERP import batches',          N'Imports'),
+                (N'ADMIN.RECONCILIATION.ERP.RESOLVE', N'ERP Recon Resolve', N'Resolve ERP reconciliation exceptions', N'Reconciliation'),
+                
+                -- GATEWAY-scoped IMPORTS
+                (N'ADMIN.IMPORTS.GATEWAY.CREATE', N'Gateway Import Upload',    N'Upload Gateway import files only',                N'Imports'),
+                (N'ADMIN.IMPORTS.GATEWAY.EDIT',   N'Gateway Import Edit',      N'Parse, map and validate Gateway import batches',   N'Imports'),
+                (N'ADMIN.IMPORTS.GATEWAY.COMMIT', N'Gateway Import Commit',    N'Commit validated Gateway import batches',          N'Imports'),
+                (N'ADMIN.RECONCILIATION.GATEWAY.RESOLVE', N'Gateway Recon Resolve', N'Resolve Gateway reconciliation exceptions', N'Reconciliation'),
+
+                -- BANK-scoped IMPORTS
+                (N'ADMIN.IMPORTS.BANK.CREATE', N'Bank Import Upload',    N'Upload Bank import files only',                N'Imports'),
+                (N'ADMIN.IMPORTS.BANK.EDIT',   N'Bank Import Edit',      N'Parse, map and validate Bank import batches',   N'Imports'),
+                (N'ADMIN.IMPORTS.BANK.COMMIT', N'Bank Import Commit',    N'Commit validated Bank import batches',          N'Imports'),
+                (N'ADMIN.RECONCILIATION.BANK.RESOLVE', N'Bank Recon Resolve', N'Resolve Bank reconciliation exceptions', N'Reconciliation')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            -- ── Grant remaining source-type-scoped permissions to ADMIN by default ──────────
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.ERP.CREATE',
+                N'ADMIN.IMPORTS.ERP.EDIT',
+                N'ADMIN.IMPORTS.ERP.COMMIT',
+                N'ADMIN.RECONCILIATION.ERP.RESOLVE',
+                N'ADMIN.IMPORTS.GATEWAY.CREATE',
+                N'ADMIN.IMPORTS.GATEWAY.EDIT',
+                N'ADMIN.IMPORTS.GATEWAY.COMMIT',
+                N'ADMIN.RECONCILIATION.GATEWAY.RESOLVE',
+                N'ADMIN.IMPORTS.BANK.CREATE',
+                N'ADMIN.IMPORTS.BANK.EDIT',
+                N'ADMIN.IMPORTS.BANK.COMMIT',
+                N'ADMIN.RECONCILIATION.BANK.RESOLVE'
+            )
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
     }
 }

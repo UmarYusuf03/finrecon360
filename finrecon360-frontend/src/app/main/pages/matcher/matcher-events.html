@@ -1,0 +1,130 @@
+<section class="events-page">
+  <header class="events-header">
+    <div class="events-header-left">
+      <h2>Reconciliation Events</h2>
+      <p>Full timeline of Level-3 and Level-4 reconciliation events, grouped by import batch.</p>
+    </div>
+    <div class="events-header-actions">
+      <a routerLink="/app/matcher" class="ghost-btn back-btn">
+        <span class="material-icons">arrow_back</span>
+        Back to Matcher
+      </a>
+      <button class="primary-btn" (click)="refresh()" [disabled]="loading" id="events-refresh-btn">
+        <span class="material-icons">refresh</span>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <!-- Summary chips -->
+  <div class="events-chips">
+    <div class="chip chip-level3">
+      <span class="chip-value">{{ level3Count }}</span>
+      <span class="chip-label">Level 3</span>
+    </div>
+    <div class="chip chip-level4">
+      <span class="chip-value">{{ level4Count }}</span>
+      <span class="chip-label">Level 4</span>
+    </div>
+    <div class="chip chip-matched">
+      <span class="chip-value">{{ matchedCount }}</span>
+      <span class="chip-label">Matched</span>
+    </div>
+    <div class="chip chip-exception">
+      <span class="chip-value">{{ exceptionCount }}</span>
+      <span class="chip-label">Exceptions</span>
+    </div>
+    <div class="chip chip-pending">
+      <span class="chip-value">{{ pendingCount }}</span>
+      <span class="chip-label">Pending</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="events-filters">
+    <select [(ngModel)]="stageFilter" (ngModelChange)="applyFilters()" id="events-stage-filter">
+      <option value="">All Stages</option>
+      <option value="Level3">Level 3</option>
+      <option value="Level4">Level 4</option>
+    </select>
+    <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="events-source-filter">
+      <option value="">All Sources</option>
+      <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
+    </select>
+    <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" id="events-status-filter">
+      <option value="">All Statuses</option>
+      <option value="Pending">Pending</option>
+      <option value="Resolved">Resolved</option>
+    </select>
+    <span class="filter-count" *ngIf="filteredEvents.length !== allEvents.length">
+      Showing {{ filteredEvents.length }} of {{ allEvents.length }}
+    </span>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-wrapper" *ngIf="loading">
+    <span class="material-icons spin">hourglass_empty</span>
+    <p>Loading reconciliation timeline...</p>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" *ngIf="!loading && batches.length === 0">
+    <span class="material-icons empty-icon">timeline</span>
+    <p>No reconciliation events found. Import and commit a file to generate events.</p>
+  </div>
+
+  <!-- Timeline grouped by batch -->
+  <div class="batches-timeline" *ngIf="!loading && batches.length > 0">
+    <mat-accordion>
+      <mat-expansion-panel
+        *ngFor="let batch of batches"
+        class="batch-panel"
+      >
+        <mat-expansion-panel-header>
+          <mat-panel-title class="batch-panel-title">
+            <span class="material-icons batch-icon">folder_open</span>
+            <span class="batch-id" [title]="batch.batchId">Batch {{ truncateBatchId(batch.batchId) }}</span>
+            <span class="batch-count">{{ batch.events.length }} events</span>
+          </mat-panel-title>
+          <mat-panel-description class="batch-panel-desc">
+            <span class="badge-level3">
+              L3: {{ countStage(batch.events, 'Level3') }}
+            </span>
+            <span class="badge-level4">
+              L4: {{ countStage(batch.events, 'Level4') }}
+            </span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <!-- Events timeline inside accordion -->
+        <div class="events-timeline">
+          <div
+            class="timeline-item"
+            *ngFor="let event of batch.events"
+            [ngClass]="getEventClass(event.eventType)"
+          >
+            <div class="timeline-dot">
+              <span class="material-icons timeline-icon">{{ getEventIcon(event.eventType) }}</span>
+            </div>
+            <div class="timeline-content">
+              <div class="timeline-row">
+                <span class="event-type-label">{{ getEventTypeLabel(event.eventType) }}</span>
+                <span class="stage-badge" [ngClass]="getStageClass(event.stage)">{{ event.stage }}</span>
+                <span class="source-badge">{{ event.sourceType }}</span>
+                <span class="event-status" [class.resolved]="event.status === 'Resolved'">{{ event.status }}</span>
+                <span class="timeline-time">{{ event.createdAt | date: 'HH:mm · dd MMM' }}</span>
+              </div>
+              <div class="timeline-detail" *ngIf="parseDetail(event.detailJson) as detail">
+                <span *ngFor="let kv of $any(detail) | keyvalue" class="detail-kv">
+                  <strong>{{ kv.key }}:</strong> {{ kv.value }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </mat-expansion-panel>
+    </mat-accordion>
+  </div>
+
+</section>

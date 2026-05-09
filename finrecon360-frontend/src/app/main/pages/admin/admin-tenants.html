@@ -1,6 +1,9 @@
 <section class="admin-card">
   <div class="header">
     <h2>Tenants</h2>
+    <div class="filters">
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Search tenants..." class="search-input" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #d6d9e4; width: 250px;" />
+    </div>
   </div>
 
   <div class="success" *ngIf="actionMessage">{{ actionMessage }}</div>
@@ -10,7 +13,7 @@
     <div class="list">
       <div *ngIf="loading">Loading...</div>
       <ul *ngIf="!loading">
-        <li *ngFor="let tenant of tenants" (click)="selectTenant(tenant)" [class.active]="selected?.id === tenant.id">
+        <li *ngFor="let tenant of filteredTenants" (click)="selectTenant(tenant)" [class.active]="selected?.id === tenant.id">
           <div class="name">{{ tenant.name }}</div>
           <div class="meta">{{ tenant.status }}</div>
         </li>
