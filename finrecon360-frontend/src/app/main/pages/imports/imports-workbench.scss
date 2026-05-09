@@ -130,7 +130,7 @@ select {
 }
 
 .primary-btn {
-  background: #1d2b64;
+  background: #223580;
 }
 
 .warning-btn {
@@ -506,7 +506,7 @@ button[disabled] {
 
   &.selected {
     border-color: #1d2b64;
-    background: #1d2b64;
+    background: #1e1e84;
     color: #fff;
     box-shadow: 0 4px 18px rgba(29, 43, 100, 0.25);
 
@@ -642,17 +642,37 @@ button[disabled] {
     letter-spacing: 0.04em;
   }
 
-  &.verified   { .stat-value { color: #1d8c5e; } }
-  &.matched    { .stat-value { color: #1d2b64; } }
-  &.exception  { .stat-value { color: #c0392b; } }
-  &.fee        { .stat-value { color: #7a5c0a; } }
+  &.verified {
+    .stat-value {
+      color: #1d8c5e;
+    }
+  }
+  &.matched {
+    .stat-value {
+      color: #1d2b64;
+    }
+  }
+  &.exception {
+    .stat-value {
+      color: #c0392b;
+    }
+  }
+  &.fee {
+    .stat-value {
+      color: #7a5c0a;
+    }
+  }
 
   &.waiting {
-    .stat-value { color: #7a849a; }
+    .stat-value {
+      color: #7a849a;
+    }
     &.has-value {
       border-color: #f0a500;
       background: #fffbf0;
-      .stat-value { color: #c08b2c; }
+      .stat-value {
+        color: #c08b2c;
+      }
     }
   }
 }

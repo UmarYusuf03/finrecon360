@@ -21,6 +21,7 @@ namespace finrecon360_backend.Services
         private const string MigrationTransactions = "202604230003_TenantTransactions";
         private const string MigrationTransactionPermissions = "202604230004_TenantTransactionPermissions";
         private const string MigrationTransactionApprovalFields = "202604230005_TenantTransactionApprovalFields";
+        private const string MigrationTransactionReferenceNumber = "202605090001_TenantTransactionReferenceNumber";
         private const string MigrationImportedNormalizedRecordTimestamps = "202605040001_ImportedNormalizedRecordTimestamps";
         private const string MigrationSettlementIdColumn = "202605020001_AddSettlementIdToImportedNormalizedRecords";
         private const string MigrationReconciliationEntities = "202605020002_CreateReconciliationMatchGroupsAndEvents";
@@ -51,6 +52,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactions, BuildTenantTransactionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionPermissions, BuildTenantTransactionPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionApprovalFields, BuildTenantTransactionApprovalFieldsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactionReferenceNumber, BuildTenantTransactionReferenceNumberSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportedNormalizedRecordTimestamps, BuildImportedNormalizedRecordTimestampSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationSettlementIdColumn, BuildSettlementIdColumnSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEntities, BuildReconciliationEntitiesSql(), cancellationToken);
@@ -758,6 +760,7 @@ namespace finrecon360_backend.Services
                     TransactionId uniqueidentifier NOT NULL PRIMARY KEY,
                     Amount decimal(18,2) NOT NULL,
                     TransactionDate datetime2 NOT NULL,
+                    ReferenceNumber nvarchar(100) NULL,
                     Description nvarchar(500) NOT NULL,
                     BankAccountId uniqueidentifier NULL,
                     TransactionType nvarchar(20) NOT NULL,
@@ -776,6 +779,7 @@ namespace finrecon360_backend.Services
                 CREATE INDEX IX_Transactions_TransactionDate ON dbo.Transactions(TransactionDate);
                 CREATE INDEX IX_Transactions_BankAccountId ON dbo.Transactions(BankAccountId);
                 CREATE INDEX IX_Transactions_TransactionState ON dbo.Transactions(TransactionState);
+                CREATE INDEX IX_Transactions_ReferenceNumber ON dbo.Transactions(ReferenceNumber);
             END
 
             IF OBJECT_ID(N'dbo.TransactionStateHistories', N'U') IS NULL
@@ -794,6 +798,26 @@ namespace finrecon360_backend.Services
 
                 CREATE INDEX IX_TransactionStateHistories_TransactionId ON dbo.TransactionStateHistories(TransactionId);
                 CREATE INDEX IX_TransactionStateHistories_ChangedAt ON dbo.TransactionStateHistories(ChangedAt);
+            END
+            """;
+
+        private static string BuildTenantTransactionReferenceNumberSql() =>
+            """
+            IF OBJECT_ID(N'dbo.Transactions', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.Transactions', N'ReferenceNumber') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD ReferenceNumber nvarchar(100) NULL;
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.Transactions')
+                      AND name = N'IX_Transactions_ReferenceNumber')
+                BEGIN
+                    CREATE INDEX IX_Transactions_ReferenceNumber ON dbo.Transactions(ReferenceNumber);
+                END
             END
             """;
 

@@ -53,10 +53,30 @@ export class ImportsWorkbenchComponent implements OnInit {
   ];
 
   readonly sourceTypeOptions = [
-    { value: 'ERP',     label: 'ERP — Accounting System',          icon: 'account_balance',   hint: 'Internal journal / GL entries' },
-    { value: 'GATEWAY', label: 'GATEWAY — Payment Gateway',         icon: 'payment',            hint: 'PayHere, Stripe, etc. settlement files' },
-    { value: 'BANK',    label: 'BANK — Bank Statement',             icon: 'account_balance_wallet', hint: 'Bank CSV / MT940 / CAMT' },
-    { value: 'POS',     label: 'POS — Point of Sale',               icon: 'point_of_sale',     hint: 'EOD sales reports' },
+    {
+      value: 'ERP',
+      label: 'ERP — Accounting System',
+      icon: 'account_balance',
+      hint: 'Internal journal / GL entries',
+    },
+    {
+      value: 'GATEWAY',
+      label: 'GATEWAY — Payment Gateway',
+      icon: 'payment',
+      hint: 'Stripe, etc. settlement files',
+    },
+    {
+      value: 'BANK',
+      label: 'BANK — Bank Statement',
+      icon: 'account_balance_wallet',
+      hint: 'Bank CSV / MT940 / CAMT',
+    },
+    {
+      value: 'POS',
+      label: 'POS — Point of Sale',
+      icon: 'point_of_sale',
+      hint: 'EOD sales reports',
+    },
   ];
 
   loading = false;
@@ -97,7 +117,9 @@ export class ImportsWorkbenchComponent implements OnInit {
   private get perms(): string[] {
     return this.authService.currentUser?.permissions ?? [];
   }
-  private has(code: string): boolean { return this.perms.includes(code); }
+  private has(code: string): boolean {
+    return this.perms.includes(code);
+  }
 
   /**
    * WHY: Returns the set of source types this user may upload/process, or null for unrestricted.
@@ -114,37 +136,49 @@ export class ImportsWorkbenchComponent implements OnInit {
   get scopedSourceTypeOptions() {
     const allowed = this.scopedSourceTypes;
     if (allowed === null) return this.sourceTypeOptions;
-    return this.sourceTypeOptions.filter(o => allowed.has(o.value));
+    return this.sourceTypeOptions.filter((o) => allowed.has(o.value));
   }
 
-  get canViewImports():   boolean { return this.has('ADMIN.IMPORTS.VIEW') || (this.scopedSourceTypes?.size ?? 0) > 0; }
+  get canViewImports(): boolean {
+    return this.has('ADMIN.IMPORTS.VIEW') || (this.scopedSourceTypes?.size ?? 0) > 0;
+  }
 
   // WHY: For scoped users (CASHIER), CREATE is satisfied by having any source-type-scoped CREATE permission.
-  get canCreateImport():  boolean {
+  get canCreateImport(): boolean {
     if (this.has('ADMIN.IMPORTS.CREATE')) return true;
     const perms = this.perms;
-    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some(src => perms.includes(`ADMIN.IMPORTS.${src}.CREATE`));
+    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+      perms.includes(`ADMIN.IMPORTS.${src}.CREATE`),
+    );
   }
 
   // WHY: Similarly, EDIT is satisfied by any source-type-scoped EDIT permission.
-  get canEditImport():    boolean {
+  get canEditImport(): boolean {
     if (this.has('ADMIN.IMPORTS.EDIT')) return true;
     const perms = this.perms;
-    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some(src => perms.includes(`ADMIN.IMPORTS.${src}.EDIT`));
+    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+      perms.includes(`ADMIN.IMPORTS.${src}.EDIT`),
+    );
   }
 
   // COMMIT is the irreversible publish step — ADMIN only in the default seed.
   // CASHIER can commit if they have the POS.COMMIT scoped permission.
-  get canCommit():        boolean {
+  get canCommit(): boolean {
     if (this.has('ADMIN.IMPORTS.COMMIT')) return true;
     const perms = this.perms;
-    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some(src => perms.includes(`ADMIN.IMPORTS.${src}.COMMIT`));
+    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+      perms.includes(`ADMIN.IMPORTS.${src}.COMMIT`),
+    );
   }
 
-  get canDeleteImport():  boolean { return this.has('ADMIN.IMPORTS.DELETE'); }
+  get canDeleteImport(): boolean {
+    return this.has('ADMIN.IMPORTS.DELETE');
+  }
 
   // VIEW of architecture templates (needed to load existing templates into workbench).
-  get canViewArchitecture(): boolean { return this.has('ADMIN.IMPORT_ARCHITECTURE.VIEW'); }
+  get canViewArchitecture(): boolean {
+    return this.has('ADMIN.IMPORT_ARCHITECTURE.VIEW');
+  }
 
   /**
    * WHY: True when the current importSourceType selection is within the user's allowed scope.
@@ -161,12 +195,12 @@ export class ImportsWorkbenchComponent implements OnInit {
   get allowedSourceTypeLabel(): string {
     const opts = this.scopedSourceTypeOptions;
     if (opts.length === 1) return opts[0].label;
-    return opts.map(o => o.value).join(', ');
+    return opts.map((o) => o.value).join(', ');
   }
 
   /** Comma-separated list of allowed source type values for the scope warning message. */
   get allowedSourceTypeNames(): string {
-    return this.scopedSourceTypeOptions.map(o => o.value).join(', ');
+    return this.scopedSourceTypeOptions.map((o) => o.value).join(', ');
   }
 
   private authRetryInProgress = false;
@@ -406,11 +440,16 @@ export class ImportsWorkbenchComponent implements OnInit {
   /** WHY: Centralises the source-type to route mapping so it is easy to extend. */
   resolvePostCommitRoute(sourceType: string): string {
     switch (sourceType) {
-      case 'POS':     return '/app/matcher/sales-verification';
-      case 'ERP':     return '/app/matcher/events';
-      case 'GATEWAY': return '/app/matcher';
-      case 'BANK':    return '/app/matcher';
-      default:        return '/app/matcher';
+      case 'POS':
+        return '/app/matcher/sales-verification';
+      case 'ERP':
+        return '/app/matcher/events';
+      case 'GATEWAY':
+        return '/app/matcher';
+      case 'BANK':
+        return '/app/matcher';
+      default:
+        return '/app/matcher';
     }
   }
 
