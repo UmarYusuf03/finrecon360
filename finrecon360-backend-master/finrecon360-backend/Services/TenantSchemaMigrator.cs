@@ -31,6 +31,7 @@ namespace finrecon360_backend.Services
         private const string MigrationGranularPermissions = "202605020005_GranularImportAndReconciliationPermissions";
         private const string MigrationSourceScopedPermissions = "202605020006_SourceTypesScopedCashierPermissions";
         private const string MigrationAllSourceScopedPermissions = "202605020007_AllSourceTypesScopedPermissions";
+        private const string MigrationReportSnapshots = "202605090002_ReportSnapshots";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -62,6 +63,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationGranularPermissions, BuildGranularPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationSourceScopedPermissions, BuildSourceScopedPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationAllSourceScopedPermissions, BuildAllSourceScopedPermissionsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReportSnapshots, BuildReportSnapshotsSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -1366,6 +1368,46 @@ namespace finrecon360_backend.Services
                   SELECT 1 FROM dbo.RolePermissions rp
                   WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
               );
+            """;
+
+        private static string BuildReportSnapshotsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReportSnapshots', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReportSnapshots (
+                    ReportSnapshotId uniqueidentifier NOT NULL,
+                    SnapshotDate date NOT NULL,
+                    TotalUnmatchedCardCashouts int NOT NULL,
+                    PendingExceptions int NOT NULL,
+                    TotalJournalReady int NOT NULL,
+                    ReconciliationCompletionPercentage decimal(5,2) NOT NULL,
+                    TotalMatchGroupsConfirmed int NOT NULL,
+                    TotalFeeAdjustments decimal(18,2) NOT NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReportSnapshots_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT PK_ReportSnapshots PRIMARY KEY (ReportSnapshotId)
+                );
+                CREATE UNIQUE INDEX IX_ReportSnapshots_SnapshotDate ON dbo.ReportSnapshots (SnapshotDate);
+            END
+            ELSE
+            BEGIN
+                IF COL_LENGTH(N'dbo.ReportSnapshots', N'TotalUnmatchedCardCashouts') IS NULL
+                    ALTER TABLE dbo.ReportSnapshots ADD TotalUnmatchedCardCashouts int NOT NULL CONSTRAINT DF_ReportSnapshots_TotalUnmatchedCardCashouts DEFAULT 0;
+
+                IF COL_LENGTH(N'dbo.ReportSnapshots', N'PendingExceptions') IS NULL
+                    ALTER TABLE dbo.ReportSnapshots ADD PendingExceptions int NOT NULL CONSTRAINT DF_ReportSnapshots_PendingExceptions DEFAULT 0;
+
+                IF COL_LENGTH(N'dbo.ReportSnapshots', N'TotalJournalReady') IS NULL
+                    ALTER TABLE dbo.ReportSnapshots ADD TotalJournalReady int NOT NULL CONSTRAINT DF_ReportSnapshots_TotalJournalReady DEFAULT 0;
+
+                IF COL_LENGTH(N'dbo.ReportSnapshots', N'ReconciliationCompletionPercentage') IS NULL
+                    ALTER TABLE dbo.ReportSnapshots ADD ReconciliationCompletionPercentage decimal(5,2) NOT NULL CONSTRAINT DF_ReportSnapshots_ReconciliationCompletionPercentage DEFAULT 0;
+
+                IF COL_LENGTH(N'dbo.ReportSnapshots', N'TotalMatchGroupsConfirmed') IS NULL
+                    ALTER TABLE dbo.ReportSnapshots ADD TotalMatchGroupsConfirmed int NOT NULL CONSTRAINT DF_ReportSnapshots_TotalMatchGroupsConfirmed DEFAULT 0;
+
+                IF COL_LENGTH(N'dbo.ReportSnapshots', N'TotalFeeAdjustments') IS NULL
+                    ALTER TABLE dbo.ReportSnapshots ADD TotalFeeAdjustments decimal(18,2) NOT NULL CONSTRAINT DF_ReportSnapshots_TotalFeeAdjustments DEFAULT 0;
+            END
             """;
     }
 }

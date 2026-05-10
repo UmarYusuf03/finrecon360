@@ -212,6 +212,13 @@ export const mainRoutes: Routes = [
             loadComponent: () =>
               import('./pages/matcher/matcher-events').then((m) => m.MatcherEventsComponent),
           },
+          {
+            path: 'kpi-dashboard',
+            loadComponent: () =>
+              import('./pages/dashboard/reconciliation-kpi-dashboard/reconciliation-kpi-dashboard').then(
+                (m) => m.ReconciliationKpiDashboardComponent,
+              ),
+          },
           { path: '**', redirectTo: '' },
         ],
       },

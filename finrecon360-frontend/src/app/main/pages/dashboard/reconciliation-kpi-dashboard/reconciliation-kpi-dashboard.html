@@ -1,0 +1,61 @@
+<section class="recon-kpi-dashboard">
+  <div class="recon-kpi-dashboard__header">
+    <div class="recon-kpi-dashboard__header-left">
+      <h2 class="recon-kpi-dashboard__title">Reconciliation KPIs</h2>
+      <p class="recon-kpi-dashboard__subtitle">
+        Real-time snapshot of your reconciliation health — powered by the nightly aggregation engine.
+      </p>
+    </div>
+    <div class="recon-kpi-dashboard__header-actions">
+      <a routerLink="/app/matcher" class="ghost-btn back-btn">
+        <span class="material-icons">arrow_back</span>
+        Back to Matcher
+      </a>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="recon-kpi-dashboard__loading" *ngIf="isLoading">
+    <mat-spinner diameter="40"></mat-spinner>
+  </div>
+
+  <!-- Day Zero Empty State -->
+  <mat-card class="recon-kpi-dashboard__day-zero" *ngIf="!isLoading && isDayZero">
+    <div class="day-zero__icon">
+      <mat-icon>hourglass_empty</mat-icon>
+    </div>
+    <h3 class="day-zero__title">No reconciliation data gathered yet</h3>
+    <p class="day-zero__message">
+      The background aggregation engine will generate your first snapshot tonight.
+      Once available, this dashboard will display KPI summary cards and historical trends.
+    </p>
+    <div class="day-zero__actions">
+      <button mat-stroked-button (click)="refresh()">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+      <a mat-flat-button color="primary" routerLink="/app/matcher">
+        <mat-icon>arrow_back</mat-icon> Back to Matcher
+      </a>
+    </div>
+  </mat-card>
+
+  <!-- Error State (genuine failures only) -->
+  <div class="recon-kpi-dashboard__error" *ngIf="!isLoading && !isDayZero && errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-stroked-button (click)="refresh()">
+      <mat-icon>refresh</mat-icon> Retry
+    </button>
+  </div>
+
+  <!-- KPI Content -->
+  <ng-container *ngIf="!isLoading && !isDayZero && !errorMessage">
+    <!-- Top Row: Summary KPI Cards -->
+    <app-kpi-summary-cards [snapshot]="latestSnapshot"></app-kpi-summary-cards>
+
+    <!-- Middle Row: Trend Chart -->
+    <div class="recon-kpi-dashboard__trend">
+      <app-reconciliation-trend-chart [history]="snapshotHistory"></app-reconciliation-trend-chart>
+    </div>
+  </ng-container>
+</section>

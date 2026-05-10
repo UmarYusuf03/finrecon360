@@ -1,4 +1,4 @@
-﻿using finrecon360_backend.Authorization;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.BackgroundServices;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Auth;
@@ -151,8 +151,10 @@ builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<IBankStatementReconciliationWorker, BankStatementReconciliationWorker>();
 builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+builder.Services.AddScoped<IReportingSnapshotWorker, ReportingSnapshotWorker>();
 builder.Services.AddHostedService<BankReconciliationHostedService>();
 builder.Services.AddHostedService<JournalPostingHostedService>();
+builder.Services.AddHostedService<ReportingSnapshotHostedService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
@@ -538,6 +540,7 @@ app.MapGet("/api/dashboard/summary", () =>
 .RequireAuthorization($"{finrecon360_backend.Authorization.PermissionPolicyProvider.PolicyPrefix}ADMIN.DASHBOARD.VIEW");   // 🔒 tenant permission required
 
 #endregion
+
 
 app.Run();
 

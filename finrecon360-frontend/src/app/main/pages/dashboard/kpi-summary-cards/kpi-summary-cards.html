@@ -1,0 +1,51 @@
+<div class="kpi-cards" *ngIf="snapshot">
+  <!-- Unmatched Card Cashouts — CRITICAL: Red warning when > 0 -->
+  <mat-card class="kpi-card" [class.kpi-card--warning]="snapshot.totalUnmatchedCardCashouts > 0">
+    <div class="kpi-card__icon-wrap" [class.kpi-card__icon-wrap--warning]="snapshot.totalUnmatchedCardCashouts > 0">
+      <mat-icon>credit_card_off</mat-icon>
+    </div>
+    <div class="kpi-card__body">
+      <span class="kpi-card__label">Unmatched Card Cashouts</span>
+      <span class="kpi-card__value">{{ snapshot.totalUnmatchedCardCashouts }}</span>
+      <span class="kpi-card__hint" *ngIf="snapshot.totalUnmatchedCardCashouts > 0">
+        Awaiting bank statement match
+      </span>
+    </div>
+  </mat-card>
+
+  <!-- Pending Exceptions -->
+  <mat-card class="kpi-card">
+    <div class="kpi-card__icon-wrap kpi-card__icon-wrap--amber">
+      <mat-icon>warning_amber</mat-icon>
+    </div>
+    <div class="kpi-card__body">
+      <span class="kpi-card__label">Pending Exceptions</span>
+      <span class="kpi-card__value">{{ snapshot.pendingExceptions }}</span>
+      <span class="kpi-card__hint">Requires human review</span>
+    </div>
+  </mat-card>
+
+  <!-- Journal Ready -->
+  <mat-card class="kpi-card">
+    <div class="kpi-card__icon-wrap kpi-card__icon-wrap--green">
+      <mat-icon>task_alt</mat-icon>
+    </div>
+    <div class="kpi-card__body">
+      <span class="kpi-card__label">Journal Ready</span>
+      <span class="kpi-card__value">{{ snapshot.totalJournalReady }}</span>
+      <span class="kpi-card__hint">Ready for posting</span>
+    </div>
+  </mat-card>
+
+  <!-- Reconciliation Completion -->
+  <mat-card class="kpi-card">
+    <div class="kpi-card__icon-wrap kpi-card__icon-wrap--blue">
+      <mat-icon>pie_chart</mat-icon>
+    </div>
+    <div class="kpi-card__body">
+      <span class="kpi-card__label">Reconciliation Rate</span>
+      <span class="kpi-card__value">{{ snapshot.reconciliationCompletionPercentage }}%</span>
+      <span class="kpi-card__hint">Last 30 days</span>
+    </div>
+  </mat-card>
+</div>

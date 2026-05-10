@@ -1,0 +1,98 @@
+.kpi-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.kpi-card {
+  border-radius: 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border: 2px solid transparent;
+}
+
+// ─── Warning State (Card Cashout Rule) ──────────────────────────────────────
+.kpi-card--warning {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15);
+
+  .kpi-card__value {
+    color: #dc2626;
+  }
+
+  .kpi-card__hint {
+    color: #dc2626;
+    font-weight: 600;
+  }
+}
+
+// ─── Icon Wrap ──────────────────────────────────────────────────────────────
+.kpi-card__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: #fee2e2;
+  color: #dc2626;
+
+  mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+}
+
+.kpi-card__icon-wrap--warning {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.kpi-card__icon-wrap--amber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.kpi-card__icon-wrap--green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.kpi-card__icon-wrap--blue {
+  background: #e0f2fe;
+  color: #0ea5e9;
+}
+
+// ─── Body ───────────────────────────────────────────────────────────────────
+.kpi-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kpi-card__label {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpi-card__value {
+  font-weight: 800;
+  font-size: 26px;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.kpi-card__hint {
+  color: #9ca3af;
+  font-size: 12px;
+  margin-top: 2px;
+}

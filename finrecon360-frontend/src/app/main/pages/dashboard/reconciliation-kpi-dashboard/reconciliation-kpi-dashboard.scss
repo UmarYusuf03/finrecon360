@@ -1,0 +1,141 @@
+.recon-kpi-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.recon-kpi-dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.recon-kpi-dashboard__header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ─── Shared Buttons (from SV pattern) ─────────────────────────────────────── */
+.ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: 9px;
+  padding: 9px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+  background: #e9edf7;
+  color: #2f3d5c;
+
+  .material-icons { font-size: 18px; }
+}
+
+.back-btn { font-size: 0.85rem; }
+
+.recon-kpi-dashboard__title {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.recon-kpi-dashboard__subtitle {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.recon-kpi-dashboard__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 0;
+}
+
+// ─── Day Zero Empty State ───────────────────────────────────────────────────
+.recon-kpi-dashboard__day-zero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 32px;
+  border-radius: 12px;
+}
+
+.day-zero__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  margin-bottom: 16px;
+
+  mat-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+    color: #94a3b8;
+  }
+}
+
+.day-zero__title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.day-zero__message {
+  margin: 0 0 24px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+.day-zero__actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+// ─── Error State ────────────────────────────────────────────────────────────
+.recon-kpi-dashboard__error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 20px 24px;
+
+  mat-icon {
+    color: #ef4444;
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  p {
+    margin: 0;
+    color: #991b1b;
+    font-size: 14px;
+    line-height: 1.5;
+    flex: 1;
+  }
+}
+
+.recon-kpi-dashboard__trend {
+  margin-top: 4px;
+}
+

@@ -1,0 +1,27 @@
+<mat-card class="trend-card" *ngIf="history.length > 0">
+  <h3 class="trend-card__title">Reconciliation Completion Trend</h3>
+  <p class="trend-card__subtitle">Last {{ history.length }} snapshots — completion percentage over time</p>
+
+  <div class="trend-chart">
+    <div class="trend-chart__bars">
+      <div
+        class="trend-chart__bar-group"
+        *ngFor="let snap of history"
+      >
+        <span class="trend-chart__bar-value">{{ snap.reconciliationCompletionPercentage }}%</span>
+        <div
+          class="trend-chart__bar"
+          [style.height]="getBarHeight(snap.reconciliationCompletionPercentage)"
+          [class.trend-chart__bar--high]="snap.reconciliationCompletionPercentage >= 80"
+          [class.trend-chart__bar--mid]="snap.reconciliationCompletionPercentage >= 50 && snap.reconciliationCompletionPercentage < 80"
+          [class.trend-chart__bar--low]="snap.reconciliationCompletionPercentage < 50"
+        ></div>
+        <span class="trend-chart__bar-label">{{ formatDate(snap.snapshotDate) }}</span>
+      </div>
+    </div>
+  </div>
+</mat-card>
+
+<mat-card class="trend-card trend-card--empty" *ngIf="history.length === 0">
+  <p class="trend-card__empty">No historical data available yet. Snapshots are generated nightly.</p>
+</mat-card>

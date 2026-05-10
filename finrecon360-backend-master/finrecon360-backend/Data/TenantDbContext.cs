@@ -32,6 +32,7 @@ namespace finrecon360_backend.Data
         public DbSet<ReconciliationMatchedRecord> ReconciliationMatchedRecords => Set<ReconciliationMatchedRecord>();
         public DbSet<ReconciliationEvent> ReconciliationEvents => Set<ReconciliationEvent>();
         public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+        public DbSet<ReportSnapshot> ReportSnapshots => Set<ReportSnapshot>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -347,6 +348,27 @@ namespace finrecon360_backend.Data
                     .WithMany()
                     .HasForeignKey(x => x.ReconciliationMatchGroupId)
                     .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<ReportSnapshot>(entity =>
+            {
+                entity.ToTable("ReportSnapshots");
+                entity.HasKey(x => x.ReportSnapshotId);
+                entity.Property(x => x.ReportSnapshotId).ValueGeneratedNever();
+                
+                entity.Property(x => x.SnapshotDate).HasColumnType("date").IsRequired();
+                entity.Property(x => x.TotalUnmatchedCardCashouts).IsRequired();
+                entity.Property(x => x.PendingExceptions).IsRequired();
+                entity.Property(x => x.TotalJournalReady).IsRequired();
+                entity.Property(x => x.ReconciliationCompletionPercentage).HasColumnType("decimal(5,2)").IsRequired();
+                entity.Property(x => x.TotalMatchGroupsConfirmed).IsRequired();
+                entity.Property(x => x.TotalFeeAdjustments).HasColumnType("decimal(18,2)").IsRequired();
+                
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                    
+                entity.HasIndex(x => x.SnapshotDate).IsUnique();
             });
 
             base.OnModelCreating(modelBuilder);
