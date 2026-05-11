@@ -52,6 +52,7 @@ namespace finrecon360_backend.Controllers
             IReconciliationExecutionService reconciliationExecutionService,
             IAuditLogger auditLogger)
         {
+            // Wire required services for import lifecycle operations.
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
@@ -123,6 +124,7 @@ namespace finrecon360_backend.Controllers
             tenantDb.ImportBatches.Add(batch);
             await tenantDb.SaveChangesAsync();
 
+            // Store the raw file under a tenant-specific import directory.
             var tenantImportDir = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "App_Data",
@@ -154,6 +156,7 @@ namespace finrecon360_backend.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
+            // List import batches with optional filters and paging.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -221,6 +224,7 @@ namespace finrecon360_backend.Controllers
             Guid id,
             [FromQuery] string? status = null)
         {
+            // Return validation status and raw payloads for a batch.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -298,6 +302,7 @@ namespace finrecon360_backend.Controllers
             Guid rawRecordId,
             [FromBody] ImportUpdateRawRecordRequest request)
         {
+            // Apply a correction to a single row and recompute validation.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -372,6 +377,7 @@ namespace finrecon360_backend.Controllers
         [RequirePermission("ADMIN.IMPORTS.VIEW")]
         public async Task<ActionResult<ImportMappingTemplateSummaryDto>> GetActiveTemplate([FromQuery] string? sourceType)
         {
+            // Fetch the most recent active template for the source type.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -410,6 +416,7 @@ namespace finrecon360_backend.Controllers
         [RequirePermission("ADMIN.IMPORTS.EDIT")]
         public async Task<ActionResult<ImportParseResponseDto>> Parse(Guid id)
         {
+            // Parse the stored file and create raw records.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -443,9 +450,15 @@ namespace finrecon360_backend.Controllers
 
             var existingRaw = tenantDb.ImportedRawRecords.Where(x => x.ImportBatchId == id);
             tenantDb.ImportedRawRecords.RemoveRange(existingRaw);
+            // Clear reconciliation artifacts tied to this batch before deleting normalized records.
+            var existingEvents = tenantDb.ReconciliationEvents.Where(x => x.ImportBatchId == id);
+            tenantDb.ReconciliationEvents.RemoveRange(existingEvents);
+            var existingMatchGroups = tenantDb.ReconciliationMatchGroups.Where(x => x.ImportBatchId == id);
+            tenantDb.ReconciliationMatchGroups.RemoveRange(existingMatchGroups);
             var existingNormalized = tenantDb.ImportedNormalizedRecords.Where(x => x.ImportBatchId == id);
             tenantDb.ImportedNormalizedRecords.RemoveRange(existingNormalized);
 
+            // Persist parsed rows as raw records with pending validation status.
             var now = DateTime.UtcNow;
             for (var i = 0; i < parsed.Rows.Count; i++)
             {
@@ -480,6 +493,7 @@ namespace finrecon360_backend.Controllers
         [RequirePermission("ADMIN.IMPORTS.EDIT")]
         public async Task<ActionResult<ImportMappingSavedResponseDto>> SaveMapping(Guid id, [FromBody] SaveImportMappingRequest request)
         {
+            // Save field mappings and attach them to the batch.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -558,6 +572,7 @@ namespace finrecon360_backend.Controllers
         [RequirePermission("ADMIN.IMPORTS.EDIT")]
         public async Task<ActionResult<ImportValidateResponseDto>> Validate(Guid id)
         {
+            // Validate all raw records for the batch.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -635,6 +650,7 @@ namespace finrecon360_backend.Controllers
         [RequirePermission("ADMIN.IMPORTS.COMMIT")]
         public async Task<ActionResult<ImportCommitResponseDto>> Commit(Guid id)
         {
+            // Commit normalized records and trigger reconciliation.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -684,6 +700,7 @@ namespace finrecon360_backend.Controllers
             foreach (var raw in rawRecords)
             {
                 var row = DeserializeRowPayload(raw.SourcePayloadJson);
+                // Normalize raw payload into canonical fields using the saved mappings.
                 var result = _normalizationService.Normalize(id, raw.ImportedRawRecordId, row, mappings);
                 if (result.Errors.Count > 0)
                 {
@@ -741,6 +758,7 @@ namespace finrecon360_backend.Controllers
         [RequirePermission("ADMIN.IMPORTS.DELETE")]
         public async Task<ActionResult<ImportDeleteResponseDto>> Delete(Guid id)
         {
+            // Delete batch data and remove stored file if present.
             var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
@@ -807,6 +825,7 @@ namespace finrecon360_backend.Controllers
             }
 
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
+            // Validate active tenant membership before allowing import operations.
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking().AnyAsync(tu => tu.UserId == userId && tu.IsActive);
             if (!isActiveInTenant)
             {
@@ -824,6 +843,7 @@ namespace finrecon360_backend.Controllers
         /// </summary>
         private async Task<IReadOnlyList<string>> GetUserPermissionsAsync(TenantDbContext tenantDb)
         {
+            // Load permission codes for the current user from tenant roles.
             if (_userContext.UserId is not { } userId)
                 return Array.Empty<string>();
 
@@ -837,6 +857,7 @@ namespace finrecon360_backend.Controllers
 
         private static Dictionary<string, string> DeserializeMappings(string json)
         {
+            // Normalize mappings to a case-insensitive lookup.
             var map = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             return new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase);
@@ -844,6 +865,7 @@ namespace finrecon360_backend.Controllers
 
         private static Dictionary<string, string?> DeserializeRowPayload(string json)
         {
+            // Deserialize a raw row payload into a case-insensitive dictionary.
             var row = JsonSerializer.Deserialize<Dictionary<string, string?>>(json)
                 ?? new Dictionary<string, string?>();
             return new Dictionary<string, string?>(row, StringComparer.OrdinalIgnoreCase);
@@ -851,6 +873,7 @@ namespace finrecon360_backend.Controllers
 
         private static async Task UpdateBatchValidationStatusAsync(TenantDbContext tenantDb, ImportBatch batch)
         {
+            // Update the batch status based on current validation results.
             var total = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId);
             var valid = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId && x.NormalizationStatus == "VALID");
             var invalid = total - valid;
@@ -862,6 +885,7 @@ namespace finrecon360_backend.Controllers
 
         private static string? ResolveStoredFilePath(Guid tenantId, Guid batchId)
         {
+            // Locate the stored import file for the tenant and batch.
             var dir = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "imports", tenantId.ToString("N"));
             if (!Directory.Exists(dir))
             {

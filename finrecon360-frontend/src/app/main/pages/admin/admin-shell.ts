@@ -10,7 +10,7 @@ import {
 } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
-import { map, take } from 'rxjs/operators';
+import { filter, map, switchMap, take } from 'rxjs/operators';
 
 import { AuthService } from '../../../core/auth/auth.service';
 
@@ -145,20 +145,26 @@ export class AdminShellComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.visibleLinks$.pipe(take(1)).subscribe((links) => {
-      const onScopeRoot =
-        this.router.url === `/app/${this.scope}` || this.router.url === `/app/${this.scope}/`;
-      if (!onScopeRoot) {
-        return;
-      }
+    this.authService.currentUser$
+      .pipe(
+        filter((user) => !!user),
+        take(1),
+        switchMap(() => this.visibleLinks$.pipe(take(1))),
+      )
+      .subscribe((links) => {
+        const onScopeRoot =
+          this.router.url === `/app/${this.scope}` || this.router.url === `/app/${this.scope}/`;
+        if (!onScopeRoot) {
+          return;
+        }
 
-      if (links.length > 0) {
-        this.router.navigateByUrl(links[0].path);
-        return;
-      }
+        if (links.length > 0) {
+          this.router.navigateByUrl(links[0].path);
+          return;
+        }
 
-      this.router.navigate(['/app/not-authorized'], { relativeTo: this.route.root });
-    });
+        this.router.navigate(['/app/not-authorized'], { relativeTo: this.route.root });
+      });
   }
 
   private hasPermission(grantedPermissions: string[], requiredPermission: string): boolean {
