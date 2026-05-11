@@ -1,6 +1,10 @@
+mat-card {
+  padding: 24px;
+}
+
 table {
   width: 100%;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 h2 {
@@ -17,19 +21,20 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
 .perm__filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .perm__matrix {
   overflow: auto;
+  padding-bottom: 4px;
 }
 
 .perm__component {
@@ -49,9 +54,9 @@ p {
 
 // ── Source-type scoped permissions section ──────────────────────────────────
 .perm__scoped {
-  margin-top: 32px;
+  margin-top: 36px;
   border-top: 2px solid #e5e7eb;
-  padding-top: 20px;
+  padding-top: 24px;
 }
 
 .perm__scoped-title {
@@ -81,7 +86,8 @@ p {
   border-radius: 8px;
   overflow: hidden;
 
-  th, td {
+  th,
+  td {
     padding: 10px 14px;
     text-align: left;
     font-size: 13px;
@@ -101,9 +107,17 @@ p {
     background: #f9fafb;
   }
 
-  .perm__scoped-source { width: 120px; }
-  .perm__scoped-module { width: 160px; color: #6b7280; font-size: 12px; }
-  .perm__scoped-action { width: 140px; }
+  .perm__scoped-source {
+    width: 120px;
+  }
+  .perm__scoped-module {
+    width: 160px;
+    color: #6b7280;
+    font-size: 12px;
+  }
+  .perm__scoped-action {
+    width: 140px;
+  }
 }
 
 .perm__source-badge {
@@ -115,8 +129,20 @@ p {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 
-  &--pos     { background: #dbeafe; color: #1d4ed8; }
-  &--erp     { background: #ede9fe; color: #6d28d9; }
-  &--gateway { background: #d1fae5; color: #065f46; }
-  &--bank    { background: #fef3c7; color: #92400e; }
+  &--pos {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+  &--erp {
+    background: #ede9fe;
+    color: #6d28d9;
+  }
+  &--gateway {
+    background: #d1fae5;
+    color: #065f46;
+  }
+  &--bank {
+    background: #fef3c7;
+    color: #92400e;
+  }
 }

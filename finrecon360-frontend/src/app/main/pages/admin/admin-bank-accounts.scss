@@ -2,22 +2,7 @@ mat-card {
   padding: 24px;
 }
 
-table {
-  width: 100%;
-  margin-top: 16px;
-}
-
-h2 {
-  margin: 0 0 4px;
-  font-weight: 800;
-}
-
-p {
-  margin: 0 0 12px;
-  color: #6b7280;
-}
-
-.components__header {
+.roles__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -25,12 +10,17 @@ p {
   margin-bottom: 12px;
 }
 
-.components__actions {
+.roles__actions {
   display: flex;
   gap: 8px;
 }
 
-.components__form {
+table {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.roles__form {
   display: flex;
   flex-direction: column;
   gap: 16px;

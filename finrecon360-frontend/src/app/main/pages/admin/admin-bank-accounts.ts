@@ -33,6 +33,7 @@ import { BankAccount } from '../../../core/admin-rbac/models';
     MatProgressSpinnerModule,
   ],
   templateUrl: './admin-bank-accounts.html',
+  styleUrls: ['./admin-bank-accounts.scss'],
 })
 export class AdminBankAccountsComponent implements OnInit {
   displayedColumns = ['bankName', 'accountName', 'accountNumber', 'currency', 'status', 'actions'];
@@ -118,7 +119,9 @@ export class AdminBankAccountsComponent implements OnInit {
         this.dialog.closeAll();
         this.loadBankAccounts();
         this.snackBar.open(
-          this.editingId ? 'Bank account updated successfully.' : 'Bank account created successfully.',
+          this.editingId
+            ? 'Bank account updated successfully.'
+            : 'Bank account created successfully.',
           'Close',
           { duration: 2500 },
         );
