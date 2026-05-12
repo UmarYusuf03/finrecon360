@@ -1,0 +1,145 @@
+<div class="profile-subscription">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <p class="loading-text">Loading subscription details...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="alert alert-error">
+    <mat-icon class="alert-icon">error</mat-icon>
+    <div class="alert-content">
+      <p>{{ error }}</p>
+      <button mat-button color="primary" (click)="refresh()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- Success Message -->
+  <div *ngIf="successMessage && !loading" class="alert alert-success">
+    <mat-icon class="alert-icon">check_circle</mat-icon>
+    <p>{{ successMessage }}</p>
+  </div>
+
+  <!-- Subscription Content -->
+  <div *ngIf="!loading && !error" class="subscription-content">
+    <!-- Current Subscription Card -->
+    <mat-card class="current-subscription-card" *ngIf="currentSubscription">
+      <div class="subscription-header">
+        <div class="subscription-title">
+          <h3>Current Subscription</h3>
+          <span class="status-badge" [class]="subscriptionStatusClass">
+            {{ currentSubscription.status }}
+          </span>
+        </div>
+      </div>
+
+      <div class="subscription-details">
+        <div class="plan-name">
+          <mat-icon>workspace_premium</mat-icon>
+          <span class="plan-text">{{ currentSubscription.planName }}</span>
+        </div>
+
+        <div class="subscription-period" *ngIf="currentSubscription.periodEnd">
+          <div class="period-header">
+            <span class="days-remaining" [class.low-days]="daysRemaining <= 7">
+              <strong>{{ daysRemaining }}</strong> days remaining
+            </span>
+            <span class="period-dates" *ngIf="currentSubscription.periodStart">
+              {{ currentSubscription.periodStart | date:'MMM d, yyyy' }} - 
+              {{ currentSubscription.periodEnd | date:'MMM d, yyyy' }}
+            </span>
+          </div>
+
+          <div class="progress-container">
+            <mat-progress-bar
+              mode="determinate"
+              [value]="progressPercentage"
+              [class.low-progress]="daysRemaining <= 7"
+            ></mat-progress-bar>
+          </div>
+        </div>
+      </div>
+    </mat-card>
+
+    <!-- No Active Subscription -->
+    <mat-card class="no-subscription-card" *ngIf="!currentSubscription">
+      <div class="no-subscription-content">
+        <mat-icon class="no-sub-icon">card_membership</mat-icon>
+        <h3>No Active Subscription</h3>
+        <p>Select a plan below to get started.</p>
+      </div>
+    </mat-card>
+
+    <!-- Plan Selection -->
+    <div class="plan-selection">
+      <h4 class="section-title">
+        <mat-icon>compare_arrows</mat-icon>
+        {{ currentSubscription ? 'Change Plan' : 'Select a Plan' }}
+      </h4>
+
+      <div class="plans-grid">
+        <mat-card
+          *ngFor="let plan of plans"
+          class="plan-card"
+          [class.selected]="selectedPlanId === plan.id"
+          [class.current]="plan.isCurrent"
+          [class.upgrade]="plan.isUpgrade && !plan.isCurrent"
+          [class.downgrade]="plan.isDowngrade && !plan.isCurrent"
+          (click)="selectPlan(plan.id)"
+        >
+          <div class="plan-badge current-badge" *ngIf="plan.isCurrent">CURRENT</div>
+          <div class="plan-badge upgrade-badge" *ngIf="plan.isUpgrade && !plan.isCurrent">UPGRADE</div>
+          <div class="plan-badge downgrade-badge" *ngIf="plan.isDowngrade && !plan.isCurrent">DOWNGRADE</div>
+
+          <div class="plan-header">
+            <h5 class="plan-name">{{ plan.name }}</h5>
+            <div class="plan-price">
+              <span class="price">{{ formatPrice(plan.priceCents, plan.currency) }}</span>
+              <span class="period">/ {{ plan.durationDays }} days</span>
+            </div>
+          </div>
+
+          <div class="plan-features">
+            <div class="feature">
+              <mat-icon>people</mat-icon>
+              <span>Up to <strong>{{ plan.maxUsers }}</strong> users</span>
+            </div>
+            <div class="feature">
+              <mat-icon>account_balance</mat-icon>
+              <span>Up to <strong>{{ plan.maxAccounts }}</strong> bank accounts</span>
+            </div>
+          </div>
+
+          <div class="plan-action">
+            <mat-icon class="selection-icon" *ngIf="selectedPlanId === plan.id">check_circle</mat-icon>
+            <span class="select-text" *ngIf="selectedPlanId !== plan.id">Click to select</span>
+            <span class="selected-text" *ngIf="selectedPlanId === plan.id">Selected</span>
+          </div>
+        </mat-card>
+      </div>
+
+      <!-- Change Plan Action -->
+      <div class="plan-action-section" *ngIf="selectedPlanId && !changing">
+        <button
+          mat-raised-button
+          color="primary"
+          class="change-plan-btn"
+          [disabled]="changing"
+          (click)="changePlan()"
+        >
+          <mat-icon>payment</mat-icon>
+          Proceed to Payment
+        </button>
+        <p class="action-help" *ngIf="selectedPlanId && currentSubscription">
+          You will be redirected to PayHere to complete the payment.
+        </p>
+      </div>
+
+      <!-- Loading State for Change -->
+      <div *ngIf="changing" class="changing-state">
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <p>Redirecting to secure payment portal...</p>
+      </div>
+    </div>
+  </div>
+</div>

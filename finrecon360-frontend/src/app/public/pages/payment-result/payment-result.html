@@ -1,0 +1,61 @@
+<div class="auth-page">
+  <div class="auth-logo">finRecon360</div>
+
+  <div class="auth-card">
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading-state">
+      <mat-spinner diameter="48"></mat-spinner>
+      <p>Processing payment result...</p>
+    </div>
+
+    <!-- Success State -->
+    <div *ngIf="!loading && status === 'success'" class="result-state success">
+      <div class="result-icon success-icon">
+        <mat-icon>check_circle</mat-icon>
+      </div>
+      <h1>Payment Successful!</h1>
+      <p class="result-message">{{ message }}</p>
+      <p *ngIf="orderId" class="order-id">Order ID: {{ orderId }}</p>
+
+      <div class="result-actions">
+        <button mat-raised-button color="primary" (click)="goToDashboard()">
+          <mat-icon>dashboard</mat-icon>
+          Go to Dashboard
+        </button>
+        <button mat-stroked-button (click)="goToProfile()">
+          <mat-icon>person</mat-icon>
+          View Profile
+        </button>
+      </div>
+
+      <p class="help-text">
+        Your subscription has been activated. It may take a few moments to reflect in your account.
+      </p>
+    </div>
+
+    <!-- Cancel State -->
+    <div *ngIf="!loading && status === 'cancel'" class="result-state cancelled">
+      <div class="result-icon cancel-icon">
+        <mat-icon>cancel</mat-icon>
+      </div>
+      <h1>Payment Cancelled</h1>
+      <p class="result-message">{{ message }}</p>
+      <p *ngIf="orderId" class="order-id">Order ID: {{ orderId }}</p>
+
+      <div class="result-actions">
+        <button mat-raised-button color="primary" (click)="retryPayment()">
+          <mat-icon>payment</mat-icon>
+          Try Again
+        </button>
+        <button mat-stroked-button (click)="goToLogin()">
+          <mat-icon>login</mat-icon>
+          Back to Login
+        </button>
+      </div>
+
+      <p class="help-text">
+        No charges were made. You can restart the payment process at any time from your profile.
+      </p>
+    </div>
+  </div>
+</div>
