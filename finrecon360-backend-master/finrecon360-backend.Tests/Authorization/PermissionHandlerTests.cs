@@ -1,3 +1,4 @@
+using System.Linq;
 using finrecon360_backend.Authorization;
 using Xunit;
 
@@ -30,7 +31,7 @@ namespace finrecon360_backend.Tests.Authorization
             var expanded = PermissionHandler.ExpandPermissions(permissions);
 
             // Assert
-            var workbenchCount = expanded.Count(p => p.Equals("ADMIN.IMPORT_WORKBENCH.VIEW", StringComparison.OrdinalIgnoreCase));
+            var workbenchCount = Enumerable.Count(expanded, p => p.Equals("ADMIN.IMPORT_WORKBENCH.VIEW", StringComparison.OrdinalIgnoreCase));
             Assert.Equal(1, workbenchCount);
             Assert.Equal(4, expanded.Count); // 3 original + 1 added
         }
@@ -59,7 +60,7 @@ namespace finrecon360_backend.Tests.Authorization
             var expanded = PermissionHandler.ExpandPermissions(permissions);
 
             // Assert
-            var workbenchCount = expanded.Count(p => p.Equals("ADMIN.IMPORT_WORKBENCH.VIEW", StringComparison.OrdinalIgnoreCase));
+            var workbenchCount = Enumerable.Count(expanded, p => p.Equals("ADMIN.IMPORT_WORKBENCH.VIEW", StringComparison.OrdinalIgnoreCase));
             Assert.Equal(1, workbenchCount);
             Assert.Equal(2, expanded.Count);
         }

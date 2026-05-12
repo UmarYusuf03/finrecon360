@@ -28,9 +28,9 @@ namespace finrecon360_backend.Services
             Guid tenantId,
             Guid subscriptionId,
             Guid userId,
-            string companyName,
-            string email,
-            string phone,
+            string companyName = "FinRecon360",
+            string email = "billing@finrecon.local",
+            string phone = "0771234567",
             CancellationToken cancellationToken = default);
 
         PayHereCallbackResult ParseCallback(IFormCollection form);
@@ -72,9 +72,9 @@ namespace finrecon360_backend.Services
             Guid tenantId,
             Guid subscriptionId,
             Guid userId,
-            string companyName,
-            string email,
-            string phone,
+            string companyName = "FinRecon360",
+            string email = "billing@finrecon.local",
+            string phone = "0771234567",
             CancellationToken cancellationToken = default)
         {
             if (!IsConfigured())

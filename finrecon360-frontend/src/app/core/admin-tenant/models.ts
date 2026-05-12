@@ -68,3 +68,24 @@ export interface PlanSummary {
   maxAccounts: number;
   isActive: boolean;
 }
+
+export interface SubscriptionPlan extends PlanSummary {}
+
+export interface TenantSubscription {
+  subscriptionId: string;
+  planCode: string;
+  planName: string;
+  status: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+}
+
+export interface SubscriptionOverview {
+  currentSubscription: TenantSubscription | null;
+  availablePlans: SubscriptionPlan[];
+}
+
+export interface SubscriptionCheckoutResponse {
+  subscriptionId: string;
+  checkoutUrl: string;
+}

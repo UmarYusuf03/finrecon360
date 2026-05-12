@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace finrecon360_backend.Models
 {
     public class ImportBatch
@@ -12,6 +14,20 @@ namespace finrecon360_backend.Models
         public int RawRecordCount { get; set; }
         public int NormalizedRecordCount { get; set; }
         public string? ErrorMessage { get; set; }
+
+        [NotMapped]
+        public string? FileName
+        {
+            get => OriginalFileName;
+            set => OriginalFileName = value;
+        }
+
+        [NotMapped]
+        public DateTime CreatedAt
+        {
+            get => ImportedAt;
+            set => ImportedAt = value;
+        }
 
         public ImportMappingTemplate? MappingTemplate { get; set; }
         public ICollection<ImportedRawRecord> RawRecords { get; set; } = new List<ImportedRawRecord>();

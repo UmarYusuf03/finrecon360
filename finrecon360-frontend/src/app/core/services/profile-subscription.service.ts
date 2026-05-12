@@ -45,6 +45,7 @@ export class ProfileSubscriptionService {
               durationDays: 30,
               maxUsers: 5,
               maxAccounts: 3,
+                isActive: true,
             },
             {
               id: 'plan-pro',
@@ -55,6 +56,7 @@ export class ProfileSubscriptionService {
               durationDays: 30,
               maxUsers: 15,
               maxAccounts: 10,
+                isActive: true,
             },
             {
               id: 'plan-enterprise',
@@ -65,6 +67,7 @@ export class ProfileSubscriptionService {
               durationDays: 30,
               maxUsers: 50,
               maxAccounts: 25,
+                isActive: true,
             },
           ],
         };

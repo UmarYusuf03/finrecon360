@@ -70,7 +70,6 @@ namespace finrecon360_backend.Services.Workers
             // 1. Find all NeedsBankMatch transactions created within the lookback window
             var cutoffDate = DateTime.UtcNow.Subtract(LookbackWindow);
             var needsBankMatchTxns = await tenantDb.Transactions
-                .AsNoTracking()
                 .Where(x => x.TransactionState == TransactionState.NeedsBankMatch 
                     && x.CreatedAt >= cutoffDate)
                 .OrderBy(x => x.TransactionDate)

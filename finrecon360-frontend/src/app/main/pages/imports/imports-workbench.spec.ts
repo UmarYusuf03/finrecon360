@@ -17,6 +17,10 @@ class AuthServiceStub {
       'ADMIN.IMPORT_ARCHITECTURE.VIEW',
     ],
   } as any;
+
+  allowedImportSourceTypes(): Set<string> | null {
+    return null;
+  }
 }
 
 describe('ImportsWorkbenchComponent', () => {

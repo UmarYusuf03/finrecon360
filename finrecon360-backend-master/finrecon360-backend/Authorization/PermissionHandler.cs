@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using finrecon360_backend.Data;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -141,6 +142,25 @@ namespace finrecon360_backend.Authorization
             _dbContext = dbContext;
         }
 
+        public static IReadOnlyList<string> ExpandPermissions(IEnumerable<string>? permissions)
+        {
+            if (permissions == null)
+            {
+                return Array.Empty<string>();
+            }
+
+            var expanded = new HashSet<string>(permissions.Where(permission => !string.IsNullOrWhiteSpace(permission)), StringComparer.OrdinalIgnoreCase);
+            var hasScopedImportPermission = expanded.Any(permission =>
+                Regex.IsMatch(permission, @"^ADMIN\.IMPORTS(\.[A-Z]+)?\.(CREATE|EDIT|COMMIT|DELETE|MANAGE)$", RegexOptions.IgnoreCase));
+
+            if (hasScopedImportPermission)
+            {
+                expanded.Add("ADMIN.IMPORT_WORKBENCH.VIEW");
+            }
+
+            return expanded.ToList();
+        }
+
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
         {
             var userId = _userContext.UserId;
@@ -203,12 +223,12 @@ namespace finrecon360_backend.Authorization
                     return;
                 }
 
-                permissions = await tenantDb.UserRoles
+                permissions = ExpandPermissions(await tenantDb.UserRoles
                     .AsNoTracking()
                     .Where(ur => ur.UserId == userId.Value && ur.Role.IsActive)
                     .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
                     .Distinct()
-                    .ToListAsync();
+                    .ToListAsync());
 
                 if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))
                 {
@@ -233,7 +253,7 @@ namespace finrecon360_backend.Authorization
                     // Tenant permissions require a resolved tenant context.
                     return;
                 }
-                permissions = await _permissionService.GetPermissionsForUserAsync(userId.Value);
+                permissions = ExpandPermissions(await _permissionService.GetPermissionsForUserAsync(userId.Value));
             }
 
             if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))
