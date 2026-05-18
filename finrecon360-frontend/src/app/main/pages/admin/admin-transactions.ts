@@ -58,8 +58,8 @@ import { AuthService } from '../../../core/auth/auth.service';
 })
 export class AdminTransactionsComponent implements OnInit {
   displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
-  historyColumns = ['changedAt', 'transition', 'changedBy', 'note'];
   transactions: Transaction[] = [];
+  filteredTransactions: Transaction[] = [];
   bankAccounts: BankAccount[] = [];
   history: TransactionStateHistory[] = [];
   form!: FormGroup;
@@ -73,9 +73,12 @@ export class AdminTransactionsComponent implements OnInit {
   saving = false;
   actionId: string | null = null;
   saveError: string | null = null;
+  searchTerm = '';
+  selectedStateFilter = 'All';
 
   readonly transactionTypes = ['CashIn', 'CashOut'];
   readonly paymentMethods = ['Cash', 'Card'];
+  readonly stateFilters = ['All', 'Pending', 'JournalReady', 'NeedsBankMatch', 'Rejected'] as const;
   readonly minTransactionDate = '2000-01-01';
   readonly maxTransactionDate = new Date().toISOString().slice(0, 10);
 
@@ -117,6 +120,62 @@ export class AdminTransactionsComponent implements OnInit {
     }
 
     this.loadTransactions();
+  }
+
+  applyListFilters(): void {
+    const term = this.searchTerm.trim().toLowerCase();
+    this.filteredTransactions = this.transactions.filter((transaction) => {
+      if (this.selectedStateFilter !== 'All' && transaction.transactionState !== this.selectedStateFilter) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      const searchable = [
+        transaction.description,
+        transaction.transactionType,
+        transaction.paymentMethod,
+        this.getBankAccountLabel(transaction.bankAccountId),
+        this.getStateLabel(transaction.transactionState),
+        transaction.transactionDate,
+        transaction.amount.toFixed(2),
+      ].join(' ').toLowerCase();
+
+      return searchable.includes(term);
+    });
+  }
+
+  setStateFilter(state: string): void {
+    this.selectedStateFilter = state;
+    this.applyListFilters();
+  }
+
+  clearListFilters(): void {
+    this.searchTerm = '';
+    this.selectedStateFilter = 'All';
+    this.applyListFilters();
+  }
+
+  hasListFilters(): boolean {
+    return this.searchTerm.trim().length > 0 || this.selectedStateFilter !== 'All';
+  }
+
+  getStateCount(state: string): number {
+    return this.transactions.filter((transaction) => transaction.transactionState === state).length;
+  }
+
+  getEmptyTitle(): string {
+    return this.transactions.length === 0
+      ? 'No transactions yet'
+      : 'No transactions match the current filters';
+  }
+
+  getEmptyMessage(): string {
+    return this.transactions.length === 0
+      ? 'Create a cash-in or cash-out transaction to start the approval workflow.'
+      : 'Broaden the search or clear the state filter to see more transactions.';
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
@@ -356,6 +415,7 @@ export class AdminTransactionsComponent implements OnInit {
     this.transactionService.getAll().subscribe({
       next: (transactions) => {
         this.transactions = transactions;
+        this.applyListFilters();
         this.loading = false;
       },
       error: (error: unknown) => {
@@ -369,6 +429,7 @@ export class AdminTransactionsComponent implements OnInit {
     this.bankAccountService.getAll().subscribe({
       next: (accounts) => {
         this.bankAccounts = accounts.filter((account) => account.isActive);
+        this.applyListFilters();
       },
       error: (error: unknown) => {
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });

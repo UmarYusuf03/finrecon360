@@ -18,55 +18,64 @@
     </div>
   </div>
 
+  <div class="transaction-page-stats" *ngIf="!loading || transactions.length > 0">
+    <article class="transaction-stat">
+      <span>Total Waiting</span>
+      <strong>{{ transactions.length }}</strong>
+      <p>Transactions queued for reconciliation handoff.</p>
+    </article>
+    <article class="transaction-stat transaction-stat--muted">
+      <span>Gateway Evidence Found</span>
+      <strong>--</strong>
+      <p>Not exposed by the current queue API.</p>
+    </article>
+    <article class="transaction-stat transaction-stat--muted">
+      <span>Match Group Linked</span>
+      <strong>--</strong>
+      <p>Not exposed by the current queue API.</p>
+    </article>
+    <article class="transaction-stat transaction-stat--muted">
+      <span>Confirmed Count</span>
+      <strong>--</strong>
+      <p>Final match confirmation lives outside this module.</p>
+    </article>
+  </div>
+
   <div *ngIf="loading" class="transaction-page-loading">
     <mat-spinner diameter="36"></mat-spinner>
   </div>
 
-  <table mat-table [dataSource]="transactions" class="transaction-table" *ngIf="!loading && transactions.length > 0">
-    <ng-container matColumnDef="transactionDate">
-      <th mat-header-cell *matHeaderCellDef>Date</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
-    </ng-container>
+  <div class="match-queue" *ngIf="!loading && transactions.length > 0">
+    <article class="match-card fr-glass-panel" *ngFor="let transaction of transactions">
+      <div class="match-card__header">
+        <div>
+          <p class="transaction-dialog__eyebrow">Awaiting reconciliation handoff</p>
+          <h3>{{ transaction.description }}</h3>
+          <p>{{ transaction.transactionDate | date: 'mediumDate' }} · {{ transaction.transactionType }} · {{ transaction.paymentMethod }}</p>
+        </div>
+        <div class="match-card__amount">{{ transaction.amount | number: '1.2-2' }}</div>
+      </div>
 
-    <ng-container matColumnDef="amount">
-      <th mat-header-cell *matHeaderCellDef>Amount</th>
-      <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="type">
-      <th mat-header-cell *matHeaderCellDef>Type</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="method">
-      <th mat-header-cell *matHeaderCellDef>Method</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="bankAccount">
-      <th mat-header-cell *matHeaderCellDef>Bank Account</th>
-      <td mat-cell *matCellDef="let transaction">
-        <span class="transaction-table__bank-account">{{ getBankAccountLabel(transaction.bankAccountId) }}</span>
-      </td>
-    </ng-container>
-
-    <ng-container matColumnDef="description">
-      <th mat-header-cell *matHeaderCellDef>Description</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.description }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="state">
-      <th mat-header-cell *matHeaderCellDef>State</th>
-      <td mat-cell *matCellDef="let transaction">
-        <span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">
-          {{ getStateLabel(transaction.transactionState) }}
-        </span>
-      </td>
-    </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-  </table>
+      <div class="match-card__meta">
+        <div>
+          <span>Bank account</span>
+          <strong>{{ getBankAccountLabel(transaction.bankAccountId) }}</strong>
+        </div>
+        <div>
+          <span>Queue state</span>
+          <strong><span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">{{ getStateLabel(transaction.transactionState) }}</span></strong>
+        </div>
+        <div>
+          <span>Gateway / import evidence</span>
+          <strong>Not exposed in the current transaction API.</strong>
+        </div>
+        <div>
+          <span>Next owner</span>
+          <strong>Matcher / reconciliation workflow</strong>
+        </div>
+      </div>
+    </article>
+  </div>
 
   <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
     <mat-icon>compare_arrows</mat-icon>

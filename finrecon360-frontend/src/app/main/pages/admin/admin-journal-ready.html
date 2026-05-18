@@ -18,7 +18,20 @@
     </div>
   </div>
 
-  <div class="transaction-page-controls" *ngIf="!loading || allTransactions.length > 0">
+  <div class="transaction-page-stats" *ngIf="!loading || allTransactions.length > 0">
+    <article class="transaction-stat">
+      <span>In Queue</span>
+      <strong>{{ allTransactions.length }}</strong>
+      <p>Transactions currently ready for finance review.</p>
+    </article>
+    <article class="transaction-stat">
+      <span>Visible</span>
+      <strong>{{ transactions.length }}</strong>
+      <p>{{ hasFilterState() ? 'After year, month, and sort filters.' : 'Current unfiltered review queue.' }}</p>
+    </article>
+  </div>
+
+  <div class="transaction-page-controls transaction-page-controls--filters" *ngIf="!loading || allTransactions.length > 0">
     <mat-form-field appearance="outline">
       <mat-label>Sort by</mat-label>
       <mat-select [(ngModel)]="sortField" (selectionChange)="applyFilters()">
@@ -60,49 +73,51 @@
     <mat-spinner diameter="36"></mat-spinner>
   </div>
 
-  <table mat-table [dataSource]="transactions" class="transaction-table" *ngIf="!loading && transactions.length > 0">
-    <ng-container matColumnDef="transactionDate">
-      <th mat-header-cell *matHeaderCellDef>Date</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
-    </ng-container>
+  <div class="transaction-table-shell fr-glass-panel" *ngIf="!loading && transactions.length > 0">
+    <table mat-table [dataSource]="transactions" class="transaction-table">
+      <ng-container matColumnDef="transactionDate">
+        <th mat-header-cell *matHeaderCellDef>Date</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="amount">
-      <th mat-header-cell *matHeaderCellDef>Amount</th>
-      <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
-    </ng-container>
+      <ng-container matColumnDef="amount">
+        <th mat-header-cell *matHeaderCellDef>Amount</th>
+        <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="type">
-      <th mat-header-cell *matHeaderCellDef>Type</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
-    </ng-container>
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="method">
-      <th mat-header-cell *matHeaderCellDef>Method</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
-    </ng-container>
+      <ng-container matColumnDef="method">
+        <th mat-header-cell *matHeaderCellDef>Method</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="state">
-      <th mat-header-cell *matHeaderCellDef>State</th>
-      <td mat-cell *matCellDef="let transaction">
-        <span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">
-          {{ getStateLabel(transaction.transactionState) }}
-        </span>
-      </td>
-    </ng-container>
+      <ng-container matColumnDef="state">
+        <th mat-header-cell *matHeaderCellDef>State</th>
+        <td mat-cell *matCellDef="let transaction">
+          <span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">
+            {{ getStateLabel(transaction.transactionState) }}
+          </span>
+        </td>
+      </ng-container>
 
-    <ng-container matColumnDef="description">
-      <th mat-header-cell *matHeaderCellDef>Description</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.description }}</td>
-    </ng-container>
+      <ng-container matColumnDef="description">
+        <th mat-header-cell *matHeaderCellDef>Description</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.description }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="createdAt">
-      <th mat-header-cell *matHeaderCellDef>Created</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.createdAt | date: 'short' }}</td>
-    </ng-container>
+      <ng-container matColumnDef="createdAt">
+        <th mat-header-cell *matHeaderCellDef>Created</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.createdAt | date: 'short' }}</td>
+      </ng-container>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-  </table>
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  </div>
 
   <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
     <mat-icon>post_add</mat-icon>

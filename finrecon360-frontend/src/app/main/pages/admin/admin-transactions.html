@@ -28,134 +28,200 @@
     </div>
   </div>
 
+  <div class="transaction-page-stats" *ngIf="!loading">
+    <article class="transaction-stat">
+      <span>Total</span>
+      <strong>{{ transactions.length }}</strong>
+      <p>All tenant cash transactions currently in workflow.</p>
+    </article>
+    <article class="transaction-stat">
+      <span>Pending</span>
+      <strong>{{ getStateCount('Pending') }}</strong>
+      <p>Transactions waiting for approval or rejection.</p>
+    </article>
+    <article class="transaction-stat">
+      <span>Journal Ready</span>
+      <strong>{{ getStateCount('JournalReady') }}</strong>
+      <p>Approved items ready for journal review.</p>
+    </article>
+    <article class="transaction-stat">
+      <span>Needs Bank Match</span>
+      <strong>{{ getStateCount('NeedsBankMatch') }}</strong>
+      <p>Card cash-outs waiting for reconciliation handoff.</p>
+    </article>
+  </div>
+
+  <div class="transaction-page-controls transaction-page-controls--search" *ngIf="!loading && transactions.length > 0">
+    <label class="transaction-search" aria-label="Search transactions">
+      <mat-icon>search</mat-icon>
+      <input
+        type="search"
+        [value]="searchTerm"
+        (input)="searchTerm = $any($event.target).value; applyListFilters()"
+        placeholder="Search amount, description, method, bank account, or state"
+      />
+    </label>
+
+    <div class="transaction-filter-group" role="group" aria-label="Filter transactions by state">
+      <button
+        *ngFor="let option of stateFilters"
+        mat-stroked-button
+        type="button"
+        class="transaction-filter-chip"
+        [class.active]="selectedStateFilter === option"
+        (click)="setStateFilter(option)"
+      >
+        {{ option === 'All' ? 'All states' : getStateLabel(option) }}
+      </button>
+      <button mat-button type="button" *ngIf="hasListFilters()" (click)="clearListFilters()">Clear</button>
+    </div>
+  </div>
+
   <div *ngIf="loading" class="transaction-page-loading">
     <mat-spinner diameter="36"></mat-spinner>
   </div>
 
-  <table mat-table [dataSource]="transactions" class="transaction-table" *ngIf="!loading && transactions.length > 0">
-    <ng-container matColumnDef="transactionDate">
-      <th mat-header-cell *matHeaderCellDef>Date</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
-    </ng-container>
+  <div class="transaction-table-shell fr-glass-panel" *ngIf="!loading && filteredTransactions.length > 0">
+    <table mat-table [dataSource]="filteredTransactions" class="transaction-table">
+      <ng-container matColumnDef="transactionDate">
+        <th mat-header-cell *matHeaderCellDef>Date</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="amount">
-      <th mat-header-cell *matHeaderCellDef>Amount</th>
-      <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
-    </ng-container>
+      <ng-container matColumnDef="amount">
+        <th mat-header-cell *matHeaderCellDef>Amount</th>
+        <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="type">
-      <th mat-header-cell *matHeaderCellDef>Type</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
-    </ng-container>
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="method">
-      <th mat-header-cell *matHeaderCellDef>Method</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
-    </ng-container>
+      <ng-container matColumnDef="method">
+        <th mat-header-cell *matHeaderCellDef>Method</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="bankAccount">
-      <th mat-header-cell *matHeaderCellDef>Bank Account</th>
-      <td mat-cell *matCellDef="let transaction">
-        <span class="transaction-table__bank-account">{{ getBankAccountLabel(transaction.bankAccountId) }}</span>
-      </td>
-    </ng-container>
+      <ng-container matColumnDef="bankAccount">
+        <th mat-header-cell *matHeaderCellDef>Bank Account</th>
+        <td mat-cell *matCellDef="let transaction">
+          <span class="transaction-table__bank-account">{{ getBankAccountLabel(transaction.bankAccountId) }}</span>
+        </td>
+      </ng-container>
 
-    <ng-container matColumnDef="state">
-      <th mat-header-cell *matHeaderCellDef>State</th>
-      <td mat-cell *matCellDef="let transaction">
-        <a
-          *ngIf="transaction.transactionState === 'JournalReady'"
-          routerLink="/app/transactions/journal-ready"
-          class="state-badge state-badge--link"
-          [ngClass]="getStateClass(transaction.transactionState)"
-        >
-          {{ getStateLabel(transaction.transactionState) }}
-        </a>
-        <a
-          *ngIf="transaction.transactionState === 'NeedsBankMatch'"
-          routerLink="/app/transactions/needs-bank-match"
-          class="state-badge state-badge--link"
-          [ngClass]="getStateClass(transaction.transactionState)"
-        >
-          {{ getStateLabel(transaction.transactionState) }}
-        </a>
-        <span
-          *ngIf="transaction.transactionState !== 'JournalReady' && transaction.transactionState !== 'NeedsBankMatch'"
-          class="state-badge"
-          [ngClass]="getStateClass(transaction.transactionState)"
-        >
-          {{ getStateLabel(transaction.transactionState) }}
-        </span>
-      </td>
-    </ng-container>
-
-    <ng-container matColumnDef="actions">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let transaction" class="transaction-table__actions-cell">
-        <div class="transaction-table__actions">
-          <button
-            mat-icon-button
-            class="action-button action-history"
-            type="button"
-            (click)="openHistory(transaction, historyDialog)"
-            aria-label="View transaction history"
-            title="History"
+      <ng-container matColumnDef="state">
+        <th mat-header-cell *matHeaderCellDef>State</th>
+        <td mat-cell *matCellDef="let transaction">
+          <a
+            *ngIf="transaction.transactionState === 'JournalReady'"
+            routerLink="/app/transactions/journal-ready"
+            class="state-badge state-badge--link"
+            [ngClass]="getStateClass(transaction.transactionState)"
           >
-            <mat-icon>history</mat-icon>
-          </button>
-          <button
-            *ngIf="canManageTransactions && isPending(transaction)"
-            mat-icon-button
-            class="action-button action-edit"
-            type="button"
-            (click)="openEdit(transaction, transactionDialog)"
-            [disabled]="isActionBusy(transaction)"
-            aria-label="Edit transaction"
-            title="Edit"
+            {{ getStateLabel(transaction.transactionState) }}
+          </a>
+          <a
+            *ngIf="transaction.transactionState === 'NeedsBankMatch'"
+            routerLink="/app/transactions/needs-bank-match"
+            class="state-badge state-badge--link"
+            [ngClass]="getStateClass(transaction.transactionState)"
           >
-            <mat-icon>edit</mat-icon>
-          </button>
-          <button
-            mat-icon-button
-            class="action-button action-approve"
-            type="button"
-            (click)="approve(transaction)"
-            [disabled]="!canManageTransactions || !isPending(transaction) || isActionBusy(transaction)"
-            aria-label="Approve transaction"
-            title="Approve"
+            {{ getStateLabel(transaction.transactionState) }}
+          </a>
+          <span
+            *ngIf="transaction.transactionState !== 'JournalReady' && transaction.transactionState !== 'NeedsBankMatch'"
+            class="state-badge"
+            [ngClass]="getStateClass(transaction.transactionState)"
           >
-            <mat-icon>check_circle</mat-icon>
-          </button>
-          <button
-            mat-icon-button
-            class="action-button action-reject"
-            type="button"
-            (click)="openReject(transaction, rejectDialog)"
-            [disabled]="!canManageTransactions || !isPending(transaction) || isActionBusy(transaction)"
-            aria-label="Reject transaction"
-            title="Reject"
-          >
-            <mat-icon>cancel</mat-icon>
-          </button>
-        </div>
-      </td>
-    </ng-container>
+            {{ getStateLabel(transaction.transactionState) }}
+          </span>
+        </td>
+      </ng-container>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-  </table>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let transaction" class="transaction-table__actions-cell">
+          <div class="transaction-table__actions">
+            <button
+              mat-icon-button
+              class="action-button action-history"
+              type="button"
+              (click)="openHistory(transaction, historyDialog)"
+              aria-label="View transaction history"
+              title="History"
+            >
+              <mat-icon>history</mat-icon>
+            </button>
+            <button
+              *ngIf="canManageTransactions && isPending(transaction)"
+              mat-icon-button
+              class="action-button action-edit"
+              type="button"
+              (click)="openEdit(transaction, transactionDialog)"
+              [disabled]="isActionBusy(transaction)"
+              aria-label="Edit transaction"
+              title="Edit"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              class="action-button action-approve"
+              type="button"
+              (click)="approve(transaction)"
+              [disabled]="!canManageTransactions || !isPending(transaction) || isActionBusy(transaction)"
+              aria-label="Approve transaction"
+              title="Approve"
+            >
+              <mat-icon>check_circle</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              class="action-button action-reject"
+              type="button"
+              (click)="openReject(transaction, rejectDialog)"
+              [disabled]="!canManageTransactions || !isPending(transaction) || isActionBusy(transaction)"
+              aria-label="Reject transaction"
+              title="Reject"
+            >
+              <mat-icon>cancel</mat-icon>
+            </button>
+          </div>
+        </td>
+      </ng-container>
 
-  <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  </div>
+
+  <div *ngIf="!loading && filteredTransactions.length === 0" class="transaction-page-empty">
     <mat-icon>receipt_long</mat-icon>
-    <h3>No transactions yet</h3>
-    <p>Create a cash-in or cash-out transaction to start the approval workflow.</p>
+    <h3>{{ getEmptyTitle() }}</h3>
+    <p>{{ getEmptyMessage() }}</p>
   </div>
 </mat-card>
 
 <ng-template #transactionDialog>
   <h2 mat-dialog-title>{{ getDialogTitle() }}</h2>
   <div mat-dialog-content class="transaction-dialog">
-    <p class="transaction-dialog__helper">{{ getDialogHelperText() }}</p>
+    <div class="transaction-dialog__intro">
+      <div>
+        <p class="transaction-dialog__eyebrow">Transaction workflow</p>
+        <p class="transaction-dialog__helper">{{ getDialogHelperText() }}</p>
+      </div>
+      <div class="transaction-dialog__notes">
+        <div class="transaction-dialog__note">
+          <span>Card payments</span>
+          <strong>Require a bank account</strong>
+        </div>
+        <div class="transaction-dialog__note">
+          <span>Date rules</span>
+          <strong>{{ minTransactionDate }} to {{ maxTransactionDate }}</strong>
+        </div>
+      </div>
+    </div>
     <form [formGroup]="form" class="transaction-form">
       <div class="transaction-form__grid">
         <mat-form-field appearance="outline">
@@ -231,7 +297,7 @@
     </form>
     <p *ngIf="saveError" class="transaction-dialog__error" role="alert">{{ saveError }}</p>
   </div>
-  <div mat-dialog-actions align="end">
+  <div mat-dialog-actions align="end" class="transaction-dialog__actions">
     <button mat-button mat-dialog-close [disabled]="saving">Cancel</button>
     <button
       mat-flat-button
@@ -249,6 +315,19 @@
 <ng-template #historyDialog>
   <h2 mat-dialog-title>Transaction History</h2>
   <div mat-dialog-content class="transaction-history-dialog">
+    <div *ngIf="historyTransaction" class="transaction-history-hero">
+      <div>
+        <p class="transaction-dialog__eyebrow">Audit trail</p>
+        <h3>{{ historyTransaction.description || 'Transaction audit trail' }}</h3>
+        <p class="transaction-dialog__subtext">
+          {{ historyTransaction.transactionDate | date: 'fullDate' }} ·
+          {{ historyTransaction.transactionType }} ·
+          {{ historyTransaction.paymentMethod }}
+        </p>
+      </div>
+      <div class="transaction-history-hero__amount">{{ historyTransaction.amount | number: '1.2-2' }}</div>
+    </div>
+
     <div *ngIf="historyTransaction" class="transaction-history-summary">
       <div class="transaction-history-summary__item">
         <span>Amount</span>
@@ -280,37 +359,37 @@
       {{ historyError }}
     </p>
 
-    <table
-      mat-table
-      [dataSource]="history"
-      class="transaction-table transaction-table--history"
-      *ngIf="!historyLoading && !historyError && history.length > 0"
-    >
-      <ng-container matColumnDef="changedAt">
-        <th mat-header-cell *matHeaderCellDef>Changed</th>
-        <td mat-cell *matCellDef="let item">{{ item.changedAt | date: 'short' }}</td>
-      </ng-container>
+    <div class="transaction-history-timeline" *ngIf="!historyLoading && !historyError && history.length > 0">
+      <article class="transaction-history-event" *ngFor="let item of history">
+        <span class="transaction-history-event__dot"></span>
+        <div class="transaction-history-event__card fr-glass-panel">
+          <div class="transaction-history-event__header">
+            <div>
+              <p class="transaction-dialog__eyebrow">State transition</p>
+              <h3>{{ getStateLabel(item.fromState) }} to {{ getStateLabel(item.toState) }}</h3>
+            </div>
+            <time>{{ item.changedAt | date: 'medium' }}</time>
+          </div>
 
-      <ng-container matColumnDef="transition">
-        <th mat-header-cell *matHeaderCellDef>Transition</th>
-        <td mat-cell *matCellDef="let item">
-          <span class="transaction-history-transition">{{ item.fromState }} -> {{ item.toState }}</span>
-        </td>
-      </ng-container>
+          <div class="transaction-history-event__flow">
+            <span class="state-badge" [ngClass]="getStateClass(item.fromState)">{{ getStateLabel(item.fromState) }}</span>
+            <mat-icon>arrow_forward</mat-icon>
+            <span class="state-badge" [ngClass]="getStateClass(item.toState)">{{ getStateLabel(item.toState) }}</span>
+          </div>
 
-      <ng-container matColumnDef="changedBy">
-        <th mat-header-cell *matHeaderCellDef>Changed By</th>
-        <td mat-cell *matCellDef="let item">{{ item.changedByUserId || '-' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="note">
-        <th mat-header-cell *matHeaderCellDef>Note</th>
-        <td mat-cell *matCellDef="let item">{{ item.note || '-' }}</td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="historyColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: historyColumns"></tr>
-    </table>
+          <dl class="transaction-history-event__meta">
+            <div>
+              <dt>Changed by</dt>
+              <dd>{{ item.changedByUserId || 'System' }}</dd>
+            </div>
+            <div>
+              <dt>Note</dt>
+              <dd>{{ item.note || 'No note recorded.' }}</dd>
+            </div>
+          </dl>
+        </div>
+      </article>
+    </div>
 
     <div *ngIf="!historyLoading && !historyError && history.length === 0" class="transaction-page-empty transaction-page-empty--compact">
       <mat-icon>history</mat-icon>
@@ -325,7 +404,15 @@
 
 <ng-template #rejectDialog>
   <h2 mat-dialog-title>Reject Transaction</h2>
-  <div mat-dialog-content>
+  <div mat-dialog-content class="transaction-reject-dialog">
+    <div class="transaction-reject-dialog__warning">
+      <mat-icon>warning_amber</mat-icon>
+      <div>
+        <p class="transaction-dialog__eyebrow">Warning</p>
+        <p class="transaction-dialog__helper">Provide a reason for the rejection. This remains part of the transaction audit trail.</p>
+      </div>
+    </div>
+
     <form [formGroup]="rejectForm" class="roles__form">
       <mat-form-field appearance="outline">
         <mat-label>Reason</mat-label>
@@ -335,7 +422,7 @@
       </mat-form-field>
     </form>
   </div>
-  <div mat-dialog-actions align="end">
+  <div mat-dialog-actions align="end" class="transaction-dialog__actions">
     <button mat-button mat-dialog-close [disabled]="!!actionId">Cancel</button>
     <button mat-flat-button color="primary" type="button" (click)="reject()" [disabled]="!!actionId">
       Reject
