@@ -1,22 +1,31 @@
 <div class="shell">
   <ng-template #primaryLinks let-linkClass="linkClass">
-    <a
-      [class]="linkClass"
-      routerLink="/app/dashboard"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-    >
-      {{ 'NAV.DASHBOARD' | translate }}
-    </a>
-    <a
-      [class]="linkClass"
-      routerLink="/app/matcher"
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      *appHasPermission="'MATCHER.VIEW'"
-    >
-      {{ 'NAV.MATCHER' | translate }}
-    </a>
+    <ng-container *ngIf="user$ | async as user">
+      <a
+        [class]="linkClass"
+        routerLink="/app/dashboard"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        *ngIf="
+          !user.isSystemAdmin &&
+          (user.permissions.includes('ADMIN.DASHBOARD.VIEW') ||
+            user.permissions.includes('ADMIN.DASHBOARD.MANAGE'))
+        "
+      >
+        {{ 'NAV.DASHBOARD' | translate }}
+      </a>
+      <ng-container *ngIf="!user.isSystemAdmin">
+        <a
+          [class]="linkClass"
+          routerLink="/app/matcher"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: false }"
+          *appHasPermission="'ADMIN.RECONCILIATION.VIEW'"
+        >
+          {{ 'NAV.MATCHER' | translate }}
+        </a>
+      </ng-container>
+    </ng-container>
     <a
       [class]="linkClass"
       routerLink="/app/transactions"
