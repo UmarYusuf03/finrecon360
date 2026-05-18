@@ -16,11 +16,93 @@ html {
   ));
 }
 
-// Base body styling (you can keep tuning this)
+:root {
+  --fr-app-background: #f3f7ff;
+  --fr-app-background-strong: #eef4ff;
+  --fr-sidebar-background: rgba(240, 246, 255, 0.76);
+  --fr-glass-surface: rgba(255, 255, 255, 0.72);
+  --fr-glass-surface-strong: rgba(255, 255, 255, 0.88);
+  --fr-glass-border: rgba(255, 255, 255, 0.62);
+  --fr-border: rgba(148, 163, 184, 0.22);
+  --fr-border-strong: rgba(148, 163, 184, 0.38);
+  --fr-text-primary: #0f1b33;
+  --fr-text-muted: #6a7a96;
+  --fr-primary: #0b84d8;
+  --fr-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.05);
+  --fr-radius-md: 12px;
+  --fr-radius-lg: 16px;
+  --fr-radius-xl: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font-family: Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  background:
+    radial-gradient(circle at top left, rgba(125, 211, 252, 0.18), transparent 26%),
+    radial-gradient(circle at top right, rgba(191, 219, 254, 0.22), transparent 30%),
+    linear-gradient(180deg, var(--fr-app-background-strong), var(--fr-app-background));
+  color: var(--fr-text-primary);
+  font-family: Inter, Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     sans-serif;
   margin: 0;
+  min-height: 100vh;
+}
+
+.fr-glass-panel {
+  background: var(--fr-glass-surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--fr-glass-border);
+  box-shadow: var(--fr-shadow-soft);
+}
+
+.mat-mdc-card {
+  background: var(--fr-glass-surface-strong) !important;
+  border: 1px solid var(--fr-border);
+  box-shadow: var(--fr-shadow-soft) !important;
+  border-radius: var(--fr-radius-lg) !important;
+}
+
+.mat-mdc-table {
+  background: transparent !important;
+}
+
+.mat-mdc-header-cell {
+  color: var(--fr-text-muted) !important;
+  font-weight: 700 !important;
+}
+
+.mat-mdc-form-field .mat-mdc-text-field-wrapper {
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: var(--fr-radius-md) !important;
+}
+
+.mat-mdc-form-field .mdc-notched-outline__leading,
+.mat-mdc-form-field .mdc-notched-outline__notch,
+.mat-mdc-form-field .mdc-notched-outline__trailing {
+  border-color: var(--fr-border-strong) !important;
+}
+
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing {
+  border-color: rgba(11, 132, 216, 0.55) !important;
+}
+
+.mat-mdc-form-field-focus-overlay {
+  background: transparent !important;
+}
+
+.mat-mdc-dialog-surface {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(28px);
+  border: 1px solid var(--fr-glass-border);
+  border-radius: var(--fr-radius-xl) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16) !important;
+}
+
+.cdk-overlay-dark-backdrop {
+  background: rgba(15, 23, 42, 0.12) !important;
+  backdrop-filter: blur(4px);
 }

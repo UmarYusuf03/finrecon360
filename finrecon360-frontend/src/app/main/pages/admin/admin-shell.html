@@ -1,7 +1,9 @@
-<div class="admin-shell">
-  <nav mat-tab-nav-bar backgroundColor="primary" color="primary">
+<section class="admin-shell">
+  <div class="admin-shell__nav-shell fr-glass-panel">
+    <nav mat-tab-nav-bar class="admin-shell__nav">
     <a
       mat-tab-link
+      class="admin-shell__link"
       *ngFor="let link of visibleLinks$ | async"
       [routerLink]="link.path"
       routerLinkActive="active-link"
@@ -12,9 +14,10 @@
     >
       {{ link.label | translate }}
     </a>
-  </nav>
+    </nav>
+  </div>
 
   <div class="admin-shell__content">
     <router-outlet></router-outlet>
   </div>
-</div>
+</section>

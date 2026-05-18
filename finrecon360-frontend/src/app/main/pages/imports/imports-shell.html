@@ -1,7 +1,9 @@
-<div class="imports-shell">
-  <nav mat-tab-nav-bar backgroundColor="primary" color="primary">
+<section class="imports-shell">
+  <div class="imports-shell__nav-shell fr-glass-panel">
+    <nav mat-tab-nav-bar class="imports-shell__nav">
     <a
       mat-tab-link
+      class="imports-shell__link"
       *ngFor="let link of visibleLinks$ | async"
       [routerLink]="link.path"
       routerLinkActive="active-link"
@@ -15,9 +17,10 @@
       </ng-container>
       <ng-template #staticLabel>{{ link.label }}</ng-template>
     </a>
-  </nav>
+    </nav>
+  </div>
 
   <div class="imports-shell__content">
     <router-outlet></router-outlet>
   </div>
-</div>
+</section>
