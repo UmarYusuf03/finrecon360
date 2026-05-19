@@ -1,45 +1,73 @@
 <section class="import-history">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>{{ 'ADMIN.IMPORT_HISTORY.TITLE' | translate }}</mat-card-title>
-      <mat-card-subtitle>{{ 'ADMIN.IMPORT_HISTORY.COPY' | translate }}</mat-card-subtitle>
-    </mat-card-header>
+  <header class="history-hero fr-glass-panel">
+    <div>
+      <span class="history-hero__eyebrow">Import History</span>
+      <h1>{{ 'ADMIN.IMPORT_HISTORY.TITLE' | translate }}</h1>
+      <p>{{ 'ADMIN.IMPORT_HISTORY.COPY' | translate }}</p>
+    </div>
+    <span class="history-hero__badge" *ngIf="!loading">{{ history.length }} batches</span>
+  </header>
 
+  <mat-card class="history-card">
     <mat-card-content>
       <div class="filters">
-        <input type="text" [(ngModel)]="search" placeholder="Search by file/source" />
-        <input type="text" [(ngModel)]="statusFilter" placeholder="Status filter" />
+        <input type="text" [(ngModel)]="search" placeholder="Search by file or source" />
+        <input type="text" [(ngModel)]="statusFilter" placeholder="Filter by status" />
         <button class="ghost-btn" type="button" (click)="loadHistory()">Refresh</button>
         <button class="ghost-btn" type="button" (click)="clearFilters()">Reset</button>
       </div>
 
-      <div *ngIf="loading" class="loading">Loading history...</div>
-      <table *ngIf="!loading" class="history-table">
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Source</th>
-            <th>Status</th>
-            <th>Uploaded By</th>
-            <th>Email</th>
-            <th>Imported</th>
-            <th>Raw</th>
-            <th>Normalized</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let item of history">
-            <td>{{ item.originalFileName || 'n/a' }}</td>
-            <td>{{ item.sourceType }}</td>
-            <td>{{ item.status }}</td>
-            <td>{{ item.uploadedByName || 'n/a' }}</td>
-            <td>{{ item.uploadedByEmail || 'n/a' }}</td>
-            <td>{{ item.importedAt | date: 'short' }}</td>
-            <td>{{ item.rawRecordCount }}</td>
-            <td>{{ item.normalizedRecordCount }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-shell table-shell--state" *ngIf="loading">
+        <div class="loading">Loading history...</div>
+      </div>
+
+      <ng-container *ngIf="!loading">
+        <div class="table-shell" *ngIf="history.length > 0; else emptyState">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Uploaded By</th>
+                <th>Email</th>
+                <th>Imported</th>
+                <th>Raw</th>
+                <th>Normalized</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of history">
+                <td>{{ item.originalFileName || 'n/a' }}</td>
+                <td>
+                  <span class="source-pill" [attr.data-source]="(item.sourceType || '').toLowerCase()">
+                    {{ item.sourceType }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status-pill" [attr.data-status]="(item.status || '').toLowerCase()">
+                    {{ item.status }}
+                  </span>
+                </td>
+                <td>{{ item.uploadedByName || 'n/a' }}</td>
+                <td>{{ item.uploadedByEmail || 'n/a' }}</td>
+                <td>{{ item.importedAt | date: 'short' }}</td>
+                <td>{{ item.rawRecordCount }}</td>
+                <td>{{ item.normalizedRecordCount }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ng-template #emptyState>
+          <div class="table-shell table-shell--state">
+            <div class="empty-state">
+              <h2>No import history found</h2>
+              <p>Try clearing the filters or upload a new batch from the workbench.</p>
+            </div>
+          </div>
+        </ng-template>
+      </ng-container>
     </mat-card-content>
   </mat-card>
 </section>
