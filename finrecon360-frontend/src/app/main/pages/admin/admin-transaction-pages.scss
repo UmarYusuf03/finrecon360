@@ -17,22 +17,12 @@
 }
 
 .transaction-workflow-nav a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0 16px;
-  border-radius: 999px;
-  color: var(--fr-text-muted);
   font-weight: 700;
-  text-decoration: none;
 }
 
 .transaction-page-header h2 {
   margin-bottom: 6px;
-  font-size: clamp(1.7rem, 1.56rem + 0.45vw, 2rem);
   font-weight: 800;
-  letter-spacing: -0.03em;
 }
 
 .transaction-page-header,
@@ -72,7 +62,6 @@
 .transaction-page-header p {
   margin: 0;
   max-width: 760px;
-  line-height: 1.5;
 }
 
 .transaction-page-header__actions,
@@ -254,48 +243,6 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.state-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.state-badge--link {
-  text-decoration: none;
-}
-
-.state-pending {
-  background: rgba(245, 158, 11, 0.14);
-  color: #a16207;
-}
-
-.state-journal-ready {
-  background: rgba(16, 185, 129, 0.14);
-  color: #047857;
-}
-
-.state-needs-bank-match {
-  background: rgba(14, 165, 233, 0.14);
-  color: #0369a1;
-}
-
-.state-rejected {
-  background: rgba(239, 68, 68, 0.14);
-  color: #b91c1c;
-}
-
-.state-default {
-  background: rgba(148, 163, 184, 0.16);
-  color: #475569;
 }
 
 .action-button { color: rgba(15, 27, 51, 0.62); }

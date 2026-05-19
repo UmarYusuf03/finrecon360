@@ -27,28 +27,8 @@
 }
 
 .imports-hero__eyebrow,
-.panel__eyebrow,
-.batch-pill,
-.status-pill,
-.source-pill,
-.summary-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.imports-hero__eyebrow,
 .panel__eyebrow {
   width: fit-content;
-  background: rgba(255, 255, 255, 0.64);
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  color: var(--fr-primary);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 :is(.imports-hero__copy h1, .panel__header h2, .stage-surface__header h3, .recon-result-header h3) {
@@ -56,10 +36,6 @@
   color: var(--fr-text-primary);
   font-weight: 800;
   letter-spacing: -0.03em;
-}
-
-.imports-hero__copy h1 {
-  font-size: clamp(1.95rem, 1.7rem + 0.7vw, 2.5rem);
 }
 
 :is(.imports-hero__copy p, .panel__header p, .stage-surface__header p, .recon-result-header p, .empty-copy) {
@@ -263,8 +239,7 @@
 }
 
 .source-type-card.selected,
-.assigned-chip,
-.primary-btn {
+.assigned-chip {
   color: #fff;
   background: linear-gradient(135deg, var(--fr-primary), #35b7ff);
 }
@@ -371,43 +346,6 @@
   justify-content: space-between;
 }
 
-.status-pill,
-.source-pill {
-  text-transform: uppercase;
-}
-
-.batch-pill,
-.summary-pill {
-  background: rgba(226, 232, 240, 0.72);
-  color: var(--fr-text-primary);
-}
-
-.status-pill {
-  background: rgba(226, 232, 240, 0.68);
-  color: #334155;
-}
-
-.status-pill[data-status*='commit'],
-.status-pill[data-status*='valid'],
-.status-pill[data-status*='active'],
-.status-pill[data-status*='success'] {
-  background: rgba(16, 185, 129, 0.12);
-  color: #047857;
-}
-
-.status-pill[data-status*='invalid'],
-.status-pill[data-status*='error'],
-.status-pill[data-status*='fail'],
-.status-pill[data-status*='exception'] {
-  background: rgba(244, 63, 94, 0.12);
-  color: #be123c;
-}
-
-.source-pill {
-  background: rgba(14, 165, 233, 0.12);
-  color: var(--fr-primary);
-}
-
 input,
 select {
   min-height: 44px;
@@ -420,62 +358,6 @@ select {
 
 .validation-table input {
   min-width: 140px;
-}
-
-.primary-btn,
-.warning-btn,
-.danger-btn,
-.ghost-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.primary-btn {
-  background: var(--fr-primary);
-  color: #fff;
-}
-
-.warning-btn {
-  background: #d97706;
-  color: #fff;
-}
-
-.danger-btn {
-  background: #be123c;
-  color: #fff;
-}
-
-.ghost-btn {
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--fr-text-primary);
-  border: 1px solid var(--fr-border);
-}
-
-.ghost-btn.danger-ghost {
-  color: #be123c;
-  background: rgba(255, 241, 242, 0.9);
-}
-
-.ghost-btn.small {
-  min-height: 36px;
-}
-
-button[disabled],
-a[disabled] {
-  opacity: 0.66;
-  cursor: not-allowed;
-}
-
-.table-shell {
-  overflow: hidden;
 }
 
 .history-table,

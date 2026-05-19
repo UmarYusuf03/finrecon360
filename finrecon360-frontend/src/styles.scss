@@ -139,13 +139,19 @@ body {
   .matcher .nav a,
   .matcher-nav a
 ) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   padding-inline: 16px;
   border-radius: 999px;
   border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--fr-text-muted);
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-decoration: none;
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
@@ -315,6 +321,139 @@ body {
   .validation-table
 ) tbody tr:hover td {
   background: rgba(240, 246, 255, 0.54);
+}
+
+:where(.table-shell) {
+  overflow: hidden;
+}
+
+:where(.primary-btn, .warning-btn, .danger-btn, .ghost-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+:where(.primary-btn) {
+  background: var(--fr-primary);
+  color: #fff;
+}
+
+:where(.warning-btn) {
+  background: #d97706;
+  color: #fff;
+}
+
+:where(.danger-btn) {
+  background: #be123c;
+  color: #fff;
+}
+
+:where(.ghost-btn) {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--fr-text-primary);
+  border: 1px solid var(--fr-border);
+}
+
+:where(.ghost-btn.danger-ghost) {
+  color: #be123c;
+  background: rgba(255, 241, 242, 0.9);
+}
+
+:where(.ghost-btn.small) {
+  min-height: 36px;
+}
+
+:where(button[disabled], a[disabled]) {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+
+:where(.batch-pill, .status-pill, .source-pill, .summary-pill, .state-badge) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:where(.batch-pill, .summary-pill) {
+  background: rgba(226, 232, 240, 0.72);
+  color: var(--fr-text-primary);
+}
+
+:where(.status-pill, .source-pill) {
+  text-transform: uppercase;
+}
+
+:where(.status-pill) {
+  background: rgba(226, 232, 240, 0.68);
+  color: #334155;
+}
+
+:where(
+  .status-pill[data-status*='commit'],
+  .status-pill[data-status*='valid'],
+  .status-pill[data-status*='active'],
+  .status-pill[data-status*='success']
+) {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+:where(
+  .status-pill[data-status*='invalid'],
+  .status-pill[data-status*='error'],
+  .status-pill[data-status*='fail'],
+  .status-pill[data-status*='exception']
+) {
+  background: rgba(244, 63, 94, 0.12);
+  color: #be123c;
+}
+
+:where(.source-pill) {
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--fr-primary);
+}
+
+:where(.state-badge--link) {
+  text-decoration: none;
+}
+
+:where(.state-pending) {
+  background: rgba(245, 158, 11, 0.14);
+  color: #a16207;
+}
+
+:where(.state-journal-ready) {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+
+:where(.state-needs-bank-match) {
+  background: rgba(14, 165, 233, 0.14);
+  color: #0369a1;
+}
+
+:where(.state-rejected) {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
+:where(.state-default) {
+  background: rgba(148, 163, 184, 0.16);
+  color: #475569;
 }
 
 :where(
