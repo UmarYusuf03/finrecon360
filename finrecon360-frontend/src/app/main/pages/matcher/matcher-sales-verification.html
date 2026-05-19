@@ -1,73 +1,112 @@
 <section class="sv-page">
-  <header class="sv-header">
-    <div class="sv-header-left">
-      <h2>Sales Verification Queue</h2>
-      <p>Level-3 ERP ↔ Gateway reconciliation exceptions requiring manual review.</p>
+  <nav class="matcher-nav" aria-label="Reconciliation workflow">
+    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <mat-icon>account_balance</mat-icon>
+      <span>Match Groups</span>
+    </a>
+    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
+      <mat-icon>pending</mat-icon>
+      <span>Waiting Queue</span>
+    </a>
+    <a routerLink="/app/matcher/sales-verification" routerLinkActive="active">
+      <mat-icon>find_in_page</mat-icon>
+      <span>Sales Verification</span>
+    </a>
+    <a routerLink="/app/matcher/events" routerLinkActive="active">
+      <mat-icon>timeline</mat-icon>
+      <span>Events</span>
+    </a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
+      <mat-icon>receipt_long</mat-icon>
+      <span>Journal Ready</span>
+    </a>
+  </nav>
+
+  <header class="sv-hero">
+    <div class="sv-hero__copy">
+      <span class="sv-hero__eyebrow">Manual review</span>
+      <h1>Sales Verification Queue</h1>
+      <p>Review Level 3 reconciliation exceptions before records continue into bank-side settlement matching.</p>
     </div>
-    <div class="sv-header-actions">
+
+    <div class="sv-hero__actions">
       <a routerLink="/app/matcher" class="ghost-btn back-btn">
-        <span class="material-icons">arrow_back</span>
+        <mat-icon>arrow_back</mat-icon>
         Back to Matcher
       </a>
+
       <button class="primary-btn" (click)="refresh()" [disabled]="loading" id="sv-refresh-btn">
-        <span class="material-icons">refresh</span>
+        <mat-icon>refresh</mat-icon>
         Refresh
       </button>
     </div>
   </header>
 
-  <!-- Summary chips -->
-  <div class="sv-chips">
-    <div class="chip chip-total">
-      <span class="chip-value">{{ totalCount }}</span>
-      <span class="chip-label">Total Events</span>
+  <section class="sv-summary" *ngIf="!loading && canViewRecon">
+    <article class="summary-card">
+      <span class="summary-card__label">Total events</span>
+      <strong class="summary-card__value">{{ totalCount }}</strong>
+      <span class="summary-card__meta">Open Level 1 and Level 3 items in this queue</span>
+    </article>
+
+    <article class="summary-card summary-card--exception">
+      <span class="summary-card__label">Exceptions</span>
+      <strong class="summary-card__value">{{ exceptionCount }}</strong>
+      <span class="summary-card__meta">Require accountant review or enrichment</span>
+    </article>
+
+    <article class="summary-card summary-card--success">
+      <span class="summary-card__label">Resolved</span>
+      <strong class="summary-card__value">{{ verifiedCount }}</strong>
+      <span class="summary-card__meta">Already cleared from exception handling</span>
+    </article>
+  </section>
+
+  <section class="sv-filters-card" *ngIf="canViewRecon">
+    <div class="sv-filters">
+      <label class="filter-field">
+        <span>Source</span>
+        <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="sv-source-filter">
+          <option value="">All Source Types</option>
+          <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>Event</span>
+        <select [(ngModel)]="eventTypeFilter" (ngModelChange)="applyFilters()" id="sv-event-filter">
+          <option value="">All Event Types</option>
+          <option *ngFor="let et of getUniqueEventTypes()" [value]="et">{{ getEventTypeLabel(et) }}</option>
+        </select>
+      </label>
+
+      <span class="filter-count" *ngIf="filteredEvents.length !== totalCount">
+        Showing {{ filteredEvents.length }} of {{ totalCount }}
+      </span>
     </div>
-    <div class="chip chip-exception">
-      <span class="chip-value">{{ exceptionCount }}</span>
-      <span class="chip-label">Exceptions</span>
+  </section>
+
+  <div class="sv-state sv-state--loading" *ngIf="loading">
+    <mat-icon>hourglass_empty</mat-icon>
+    <div>
+      <h3>Loading sales verification events</h3>
+      <p>Refreshing unresolved reconciliation exceptions.</p>
     </div>
-    <div class="chip chip-resolved">
-      <span class="chip-value">{{ verifiedCount }}</span>
-      <span class="chip-label">Resolved</span>
-    </div>
   </div>
 
-  <!-- Filters -->
-  <div class="sv-filters">
-    <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="sv-source-filter">
-      <option value="">All Source Types</option>
-      <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
-    </select>
-    <select [(ngModel)]="eventTypeFilter" (ngModelChange)="applyFilters()" id="sv-event-filter">
-      <option value="">All Event Types</option>
-      <option *ngFor="let et of getUniqueEventTypes()" [value]="et">{{ getEventTypeLabel(et) }}</option>
-    </select>
-    <span class="filter-count" *ngIf="filteredEvents.length !== totalCount">
-      Showing {{ filteredEvents.length }} of {{ totalCount }}
-    </span>
+  <div class="sv-state sv-state--empty" *ngIf="!canViewRecon">
+    <mat-icon>lock</mat-icon>
+    <h3>Access required</h3>
+    <p>You need <strong>ADMIN.RECONCILIATION.VIEW</strong> or an equivalent scoped permission to view this queue.</p>
   </div>
 
-  <!-- Loading spinner -->
-  <div class="loading-wrapper" *ngIf="loading">
-    <span class="material-icons spin">hourglass_empty</span>
-    <p>Loading Level-3 events...</p>
+  <div class="sv-state sv-state--empty" *ngIf="canViewRecon && !loading && filteredEvents.length === 0">
+    <mat-icon>check_circle_outline</mat-icon>
+    <h3>No items in the review queue</h3>
+    <p>No Level 3 exceptions match the current filters. All records are resolved or currently in a different stage.</p>
   </div>
 
-  <!-- No-permission state — shown when user lacks ADMIN.RECONCILIATION.VIEW -->
-  <div class="empty-state" *ngIf="!canViewRecon">
-    <span class="material-icons empty-icon">lock</span>
-    <p>You do not have permission to view reconciliation exceptions.</p>
-    <p class="muted">Requires <strong>ADMIN.RECONCILIATION.VIEW</strong> or a scoped equivalent.</p>
-  </div>
-
-  <!-- Empty state (has access, but no records) -->
-  <div class="empty-state" *ngIf="canViewRecon && !loading && filteredEvents.length === 0">
-    <span class="material-icons empty-icon">check_circle_outline</span>
-    <p>No Level-3 exceptions found. All records are resolved or pending different stages.</p>
-  </div>
-
-  <!-- Events table -->
-  <div class="sv-table-wrapper" *ngIf="canViewRecon && !loading && filteredEvents.length > 0">
+  <div class="sv-table-shell" *ngIf="canViewRecon && !loading && filteredEvents.length > 0">
     <table class="sv-table">
       <thead>
         <tr>
@@ -80,44 +119,50 @@
           <th *ngIf="canResolveException">Action</th>
         </tr>
       </thead>
+
       <tbody>
         <tr *ngFor="let event of filteredEvents">
           <td>
             <span class="stage-badge">{{ event.stage }}</span>
           </td>
+
           <td>
             <span class="source-badge">{{ event.sourceType }}</span>
           </td>
+
           <td>
             <span class="event-chip" [ngClass]="getEventTypeClass(event.eventType)">
               {{ getEventTypeLabel(event.eventType) }}
             </span>
           </td>
+
           <td>
             <span class="status-dot" [ngClass]="getStatusClass(event.status)">
               {{ event.status }}
             </span>
           </td>
+
           <td class="date-cell">{{ event.createdAt | date: 'dd MMM yy, HH:mm' }}</td>
+
           <td class="detail-cell">
             <ng-container *ngIf="parseDetail(event.detailJson) as detail">
               <span *ngFor="let key of $any(detail) | keyvalue" class="detail-kv">
                 <strong>{{ key.key }}:</strong> {{ key.value }}
               </span>
             </ng-container>
-            <span class="muted" *ngIf="!event.detailJson">—</span>
+            <span class="muted" *ngIf="!event.detailJson">-</span>
           </td>
-          <!-- WHY: Show resolve action column only for users with RECONCILIATION.RESOLVE.
-               The backend will reject the call anyway, but we avoid showing a useless button. -->
-          <td *ngIf="canResolveException">
+
+          <td *ngIf="canResolveException" class="action-cell">
             <span
               *ngIf="event.status === 'Pending'"
               class="resolve-hint"
-              [title]="'Requires ADMIN.RECONCILIATION.RESOLVE to act on this record via the settlement ID panel'"
-            >
-              <span class="material-icons resolve-icon">manage_search</span>
+              [title]="'Requires ADMIN.RECONCILIATION.RESOLVE to act on this record via the settlement ID panel'">
+              <mat-icon>manage_search</mat-icon>
+              Review in queue
             </span>
-            <span *ngIf="event.status !== 'Pending'" class="muted">—</span>
+
+            <span *ngIf="event.status !== 'Pending'" class="muted">-</span>
           </td>
         </tr>
       </tbody>

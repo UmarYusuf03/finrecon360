@@ -1,119 +1,163 @@
 <section class="events-page">
-  <header class="events-header">
-    <div class="events-header-left">
-      <h2>Reconciliation Events</h2>
-      <p>Full timeline of Level-3 and Level-4 reconciliation events, grouped by import batch.</p>
+  <nav class="matcher-nav" aria-label="Reconciliation workflow">
+    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <mat-icon>account_balance</mat-icon>
+      <span>Match Groups</span>
+    </a>
+    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
+      <mat-icon>pending</mat-icon>
+      <span>Waiting Queue</span>
+    </a>
+    <a routerLink="/app/matcher/sales-verification" routerLinkActive="active">
+      <mat-icon>find_in_page</mat-icon>
+      <span>Sales Verification</span>
+    </a>
+    <a routerLink="/app/matcher/events" routerLinkActive="active">
+      <mat-icon>timeline</mat-icon>
+      <span>Events</span>
+    </a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
+      <mat-icon>receipt_long</mat-icon>
+      <span>Journal Ready</span>
+    </a>
+  </nav>
+
+  <header class="events-hero">
+    <div class="events-hero__copy">
+      <span class="events-hero__eyebrow">Audit timeline</span>
+      <h1>Reconciliation Events</h1>
+      <p>Trace Level 3 and Level 4 activity by import batch, stage, source, and current resolution status.</p>
     </div>
-    <div class="events-header-actions">
+
+    <div class="events-hero__actions">
       <a routerLink="/app/matcher" class="ghost-btn back-btn">
-        <span class="material-icons">arrow_back</span>
+        <mat-icon>arrow_back</mat-icon>
         Back to Matcher
       </a>
+
       <button class="primary-btn" (click)="refresh()" [disabled]="loading" id="events-refresh-btn">
-        <span class="material-icons">refresh</span>
+        <mat-icon>refresh</mat-icon>
         Refresh
       </button>
     </div>
   </header>
 
-  <!-- Summary chips -->
-  <div class="events-chips">
-    <div class="chip chip-level3">
-      <span class="chip-value">{{ level3Count }}</span>
-      <span class="chip-label">Level 3</span>
+  <section class="events-summary" *ngIf="!loading && allEvents.length > 0">
+    <article class="summary-card summary-card--violet">
+      <span class="summary-card__label">Level 3</span>
+      <strong class="summary-card__value">{{ level3Count }}</strong>
+      <span class="summary-card__meta">Sales verification and source matching events</span>
+    </article>
+
+    <article class="summary-card">
+      <span class="summary-card__label">Level 4</span>
+      <strong class="summary-card__value">{{ level4Count }}</strong>
+      <span class="summary-card__meta">Bank settlement reconciliation activity</span>
+    </article>
+
+    <article class="summary-card summary-card--success">
+      <span class="summary-card__label">Matched</span>
+      <strong class="summary-card__value">{{ matchedCount }}</strong>
+      <span class="summary-card__meta">Successful automated or confirmed outcomes</span>
+    </article>
+
+    <article class="summary-card summary-card--warning">
+      <span class="summary-card__label">Exceptions</span>
+      <strong class="summary-card__value">{{ exceptionCount }}</strong>
+      <span class="summary-card__meta">Require follow-up or manual resolution</span>
+    </article>
+
+    <article class="summary-card summary-card--pending">
+      <span class="summary-card__label">Pending</span>
+      <strong class="summary-card__value">{{ pendingCount }}</strong>
+      <span class="summary-card__meta">Still open in the current workflow</span>
+    </article>
+  </section>
+
+  <section class="events-filters-card">
+    <div class="events-filters">
+      <label class="filter-field">
+        <span>Stage</span>
+        <select [(ngModel)]="stageFilter" (ngModelChange)="applyFilters()" id="events-stage-filter">
+          <option value="">All Stages</option>
+          <option value="Level3">Level 3</option>
+          <option value="Level4">Level 4</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>Source</span>
+        <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="events-source-filter">
+          <option value="">All Sources</option>
+          <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>Status</span>
+        <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" id="events-status-filter">
+          <option value="">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+      </label>
+
+      <span class="filter-count" *ngIf="filteredEvents.length !== allEvents.length">
+        Showing {{ filteredEvents.length }} of {{ allEvents.length }}
+      </span>
     </div>
-    <div class="chip chip-level4">
-      <span class="chip-value">{{ level4Count }}</span>
-      <span class="chip-label">Level 4</span>
-    </div>
-    <div class="chip chip-matched">
-      <span class="chip-value">{{ matchedCount }}</span>
-      <span class="chip-label">Matched</span>
-    </div>
-    <div class="chip chip-exception">
-      <span class="chip-value">{{ exceptionCount }}</span>
-      <span class="chip-label">Exceptions</span>
-    </div>
-    <div class="chip chip-pending">
-      <span class="chip-value">{{ pendingCount }}</span>
-      <span class="chip-label">Pending</span>
+  </section>
+
+  <div class="events-state events-state--loading" *ngIf="loading">
+    <mat-icon>hourglass_empty</mat-icon>
+    <div>
+      <h3>Loading reconciliation timeline</h3>
+      <p>Refreshing grouped events across imported batches.</p>
     </div>
   </div>
 
-  <!-- Filters -->
-  <div class="events-filters">
-    <select [(ngModel)]="stageFilter" (ngModelChange)="applyFilters()" id="events-stage-filter">
-      <option value="">All Stages</option>
-      <option value="Level3">Level 3</option>
-      <option value="Level4">Level 4</option>
-    </select>
-    <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="events-source-filter">
-      <option value="">All Sources</option>
-      <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
-    </select>
-    <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" id="events-status-filter">
-      <option value="">All Statuses</option>
-      <option value="Pending">Pending</option>
-      <option value="Resolved">Resolved</option>
-    </select>
-    <span class="filter-count" *ngIf="filteredEvents.length !== allEvents.length">
-      Showing {{ filteredEvents.length }} of {{ allEvents.length }}
-    </span>
+  <div class="events-state events-state--empty" *ngIf="!loading && batches.length === 0">
+    <mat-icon>timeline</mat-icon>
+    <h3>{{ allEvents.length === 0 ? 'No reconciliation events yet' : 'No events match the current filters' }}</h3>
+    <p *ngIf="allEvents.length === 0">Import and commit a file to generate reconciliation events.</p>
+    <p *ngIf="allEvents.length > 0">Adjust the stage, source, or status filters to widen the timeline.</p>
   </div>
 
-  <!-- Loading -->
-  <div class="loading-wrapper" *ngIf="loading">
-    <span class="material-icons spin">hourglass_empty</span>
-    <p>Loading reconciliation timeline...</p>
-  </div>
-
-  <!-- Empty state -->
-  <div class="empty-state" *ngIf="!loading && batches.length === 0">
-    <span class="material-icons empty-icon">timeline</span>
-    <p>No reconciliation events found. Import and commit a file to generate events.</p>
-  </div>
-
-  <!-- Timeline grouped by batch -->
   <div class="batches-timeline" *ngIf="!loading && batches.length > 0">
-    <mat-accordion>
-      <mat-expansion-panel
-        *ngFor="let batch of batches"
-        class="batch-panel"
-      >
+    <mat-accordion class="events-accordion">
+      <mat-expansion-panel *ngFor="let batch of batches" class="batch-panel">
         <mat-expansion-panel-header>
           <mat-panel-title class="batch-panel-title">
-            <span class="material-icons batch-icon">folder_open</span>
+            <mat-icon>folder_open</mat-icon>
             <span class="batch-id" [title]="batch.batchId">Batch {{ truncateBatchId(batch.batchId) }}</span>
-            <span class="batch-count">{{ batch.events.length }} events</span>
+            <span class="batch-count">{{ batch.events.length }} {{ batch.events.length === 1 ? 'event' : 'events' }}</span>
           </mat-panel-title>
+
           <mat-panel-description class="batch-panel-desc">
-            <span class="badge-level3">
-              L3: {{ countStage(batch.events, 'Level3') }}
-            </span>
-            <span class="badge-level4">
-              L4: {{ countStage(batch.events, 'Level4') }}
-            </span>
+            <span class="stage-pill stage-pill--violet">L3 {{ countStage(batch.events, 'Level3') }}</span>
+            <span class="stage-pill">L4 {{ countStage(batch.events, 'Level4') }}</span>
           </mat-panel-description>
         </mat-expansion-panel-header>
 
-        <!-- Events timeline inside accordion -->
         <div class="events-timeline">
           <div
             class="timeline-item"
             *ngFor="let event of batch.events"
-            [ngClass]="getEventClass(event.eventType)"
-          >
+            [ngClass]="getEventClass(event.eventType)">
+
             <div class="timeline-dot">
-              <span class="material-icons timeline-icon">{{ getEventIcon(event.eventType) }}</span>
+              <mat-icon>{{ getEventIcon(event.eventType) }}</mat-icon>
             </div>
+
             <div class="timeline-content">
               <div class="timeline-row">
                 <span class="event-type-label">{{ getEventTypeLabel(event.eventType) }}</span>
                 <span class="stage-badge" [ngClass]="getStageClass(event.stage)">{{ event.stage }}</span>
                 <span class="source-badge">{{ event.sourceType }}</span>
                 <span class="event-status" [class.resolved]="event.status === 'Resolved'">{{ event.status }}</span>
-                <span class="timeline-time">{{ event.createdAt | date: 'HH:mm · dd MMM' }}</span>
+                <span class="timeline-time">{{ event.createdAt | date: 'HH:mm, dd MMM' }}</span>
               </div>
+
               <div class="timeline-detail" *ngIf="parseDetail(event.detailJson) as detail">
                 <span *ngFor="let kv of $any(detail) | keyvalue" class="detail-kv">
                   <strong>{{ kv.key }}:</strong> {{ kv.value }}
@@ -122,9 +166,7 @@
             </div>
           </div>
         </div>
-
       </mat-expansion-panel>
     </mat-accordion>
   </div>
-
 </section>
