@@ -12,6 +12,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  padding: 20px 24px 0;
 
   a {
     display: inline-flex;
@@ -64,8 +65,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 20px;
-  padding: 24px;
+  gap: 18px;
+  padding: 22px 24px;
 }
 
 .events-hero__copy {

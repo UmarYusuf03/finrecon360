@@ -9,11 +9,11 @@
 .transaction-workflow-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 20px;
-  padding: 8px;
-  border: 1px solid var(--fr-border);
-  border-radius: var(--fr-radius-lg);
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 10px;
+  border: 1px solid var(--fr-glass-border);
+  border-radius: var(--fr-radius-xl);
 }
 
 .transaction-workflow-nav a {
@@ -26,19 +26,13 @@
   color: var(--fr-text-muted);
   font-weight: 700;
   text-decoration: none;
-  transition: background-color 140ms ease, color 140ms ease;
-}
-
-.transaction-workflow-nav a:hover,
-.transaction-workflow-nav a.active {
-  color: var(--fr-primary);
-  background: rgba(14, 165, 233, 0.12);
 }
 
 .transaction-page-header h2 {
   margin-bottom: 6px;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: clamp(1.7rem, 1.56rem + 0.45vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .transaction-page-header,
@@ -63,7 +57,7 @@
 
 .transaction-page-header {
   align-items: flex-start;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .transaction-page-header p,

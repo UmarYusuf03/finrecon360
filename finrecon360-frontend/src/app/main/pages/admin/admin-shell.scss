@@ -1,7 +1,7 @@
 .admin-shell {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .admin-shell__nav-shell {
@@ -17,10 +17,10 @@
 }
 
 .admin-shell__link {
-  min-height: 42px;
-  padding: 0 18px;
+  min-height: 40px;
+  padding: 0 16px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(255, 255, 255, 0.5);
   color: var(--fr-text-muted);
   font-size: 0.82rem;
@@ -41,7 +41,7 @@
 }
 
 .admin-shell__content {
-  padding: 2px 0 0;
+  padding: 0;
 }
 
 .active-link {
