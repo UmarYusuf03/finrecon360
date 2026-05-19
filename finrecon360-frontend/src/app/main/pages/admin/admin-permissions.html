@@ -1,7 +1,7 @@
 <mat-card class="perm-page">
   <section class="perm-page__hero">
     <div class="perm-page__copy">
-      <span class="perm-page__eyebrow">Permission matrix</span>
+      <span class="perm-page__eyebrow">{{ 'ADMIN.PERMISSIONS.EYEBROW' | translate }}</span>
       <h2>{{ 'ADMIN.PERMISSIONS.TITLE' | translate }}</h2>
       <p>{{ 'ADMIN.PERMISSIONS.COPY' | translate }}</p>
     </div>
@@ -77,27 +77,26 @@
   <ng-template #permEmpty>
     <div class="perm__empty">
       <mat-icon>shield</mat-icon>
-      <h3>No components match this view</h3>
-      <p>Select a role or widen the search to review the matrix.</p>
+      <h3>{{ 'ADMIN.PERMISSIONS.EMPTY_TITLE' | translate }}</h3>
+      <p>{{ 'ADMIN.PERMISSIONS.EMPTY_COPY' | translate }}</p>
     </div>
   </ng-template>
 
   <div class="perm__scoped" *ngIf="form.get('roleId')?.value && scopedRows.length > 0">
     <h3 class="perm__scoped-title">
       <mat-icon>lock_person</mat-icon>
-      Source-Type Scoped Permissions
+      {{ 'ADMIN.PERMISSIONS.SCOPED_TITLE' | translate }}
     </h3>
     <p class="perm__scoped-subtitle">
-      Grant access to specific data source types only. These permissions are additive, so a role can hold both full
-      module access above and scoped access for individual sources.
+      {{ 'ADMIN.PERMISSIONS.SCOPED_COPY' | translate }}
     </p>
 
     <div class="perm__scoped-shell">
       <table class="perm__scoped-table">
         <thead>
           <tr>
-            <th class="perm__scoped-source">Source Type</th>
-            <th class="perm__scoped-module">Module</th>
+            <th class="perm__scoped-source">{{ 'ADMIN.PERMISSIONS.SOURCE_TYPE' | translate }}</th>
+            <th class="perm__scoped-module">{{ 'ADMIN.PERMISSIONS.MODULE' | translate }}</th>
             <ng-container *ngFor="let action of scopedRows[0]?.actions">
               <th class="perm__scoped-action">{{ action.label }}</th>
             </ng-container>

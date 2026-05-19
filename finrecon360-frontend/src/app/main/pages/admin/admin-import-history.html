@@ -1,24 +1,38 @@
 <section class="import-history">
   <header class="history-hero fr-glass-panel">
     <div>
-      <span class="history-hero__eyebrow">Import History</span>
+      <span class="history-hero__eyebrow">{{ 'IMPORTS.HISTORY.EYEBROW' | translate }}</span>
       <h1>{{ 'ADMIN.IMPORT_HISTORY.TITLE' | translate }}</h1>
       <p>{{ 'ADMIN.IMPORT_HISTORY.COPY' | translate }}</p>
     </div>
-    <span class="history-hero__badge" *ngIf="!loading">{{ history.length }} batches</span>
+    <span class="history-hero__badge" *ngIf="!loading">{{
+      'IMPORTS.HISTORY.BATCH_COUNT' | translate: { count: history.length }
+    }}</span>
   </header>
 
   <mat-card class="history-card">
     <mat-card-content>
       <div class="filters">
-        <input type="text" [(ngModel)]="search" placeholder="Search by file or source" />
-        <input type="text" [(ngModel)]="statusFilter" placeholder="Filter by status" />
-        <button class="ghost-btn" type="button" (click)="loadHistory()">Refresh</button>
-        <button class="ghost-btn" type="button" (click)="clearFilters()">Reset</button>
+        <input
+          type="text"
+          [(ngModel)]="search"
+          [placeholder]="'IMPORTS.HISTORY.SEARCH_PLACEHOLDER' | translate"
+        />
+        <input
+          type="text"
+          [(ngModel)]="statusFilter"
+          [placeholder]="'IMPORTS.HISTORY.STATUS_PLACEHOLDER' | translate"
+        />
+        <button class="ghost-btn" type="button" (click)="loadHistory()">
+          {{ 'COMMON.REFRESH' | translate }}
+        </button>
+        <button class="ghost-btn" type="button" (click)="clearFilters()">
+          {{ 'COMMON.RESET' | translate }}
+        </button>
       </div>
 
       <div class="table-shell table-shell--state" *ngIf="loading">
-        <div class="loading">Loading history...</div>
+        <div class="loading">{{ 'IMPORTS.HISTORY.LOADING' | translate }}</div>
       </div>
 
       <ng-container *ngIf="!loading">
@@ -26,19 +40,19 @@
           <table class="history-table">
             <thead>
               <tr>
-                <th>File</th>
-                <th>Source</th>
-                <th>Status</th>
-                <th>Uploaded By</th>
-                <th>Email</th>
-                <th>Imported</th>
-                <th>Raw</th>
-                <th>Normalized</th>
+                <th>{{ 'IMPORTS.HISTORY.FILE' | translate }}</th>
+                <th>{{ 'COMMON.SOURCE' | translate }}</th>
+                <th>{{ 'COMMON.STATUS' | translate }}</th>
+                <th>{{ 'IMPORTS.HISTORY.UPLOADED_BY' | translate }}</th>
+                <th>{{ 'COMMON.EMAIL' | translate }}</th>
+                <th>{{ 'IMPORTS.HISTORY.IMPORTED' | translate }}</th>
+                <th>{{ 'IMPORTS.HISTORY.RAW' | translate }}</th>
+                <th>{{ 'IMPORTS.HISTORY.NORMALIZED' | translate }}</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let item of history">
-                <td>{{ item.originalFileName || 'n/a' }}</td>
+                <td>{{ item.originalFileName || ('COMMON.NOT_AVAILABLE' | translate) }}</td>
                 <td>
                   <span class="source-pill" [attr.data-source]="(item.sourceType || '').toLowerCase()">
                     {{ item.sourceType }}
@@ -49,8 +63,8 @@
                     {{ item.status }}
                   </span>
                 </td>
-                <td>{{ item.uploadedByName || 'n/a' }}</td>
-                <td>{{ item.uploadedByEmail || 'n/a' }}</td>
+                <td>{{ item.uploadedByName || ('COMMON.NOT_AVAILABLE' | translate) }}</td>
+                <td>{{ item.uploadedByEmail || ('COMMON.NOT_AVAILABLE' | translate) }}</td>
                 <td>{{ item.importedAt | date: 'short' }}</td>
                 <td>{{ item.rawRecordCount }}</td>
                 <td>{{ item.normalizedRecordCount }}</td>
@@ -62,8 +76,8 @@
         <ng-template #emptyState>
           <div class="table-shell table-shell--state">
             <div class="empty-state">
-              <h2>No import history found</h2>
-              <p>Try clearing the filters or upload a new batch from the workbench.</p>
+              <h2>{{ 'IMPORTS.HISTORY.EMPTY_TITLE' | translate }}</h2>
+              <p>{{ 'IMPORTS.HISTORY.EMPTY_COPY' | translate }}</p>
             </div>
           </div>
         </ng-template>

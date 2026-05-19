@@ -46,7 +46,7 @@
               type="button"
               class="toggle-btn"
               (click)="hide = !hide"
-              aria-label="Toggle password visibility"
+              [attr.aria-label]="'AUTH.LOGIN.TOGGLE_PASSWORD_VISIBILITY' | translate"
             >
               <mat-icon>{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
@@ -106,8 +106,10 @@
           }}</a>
         </p>
         <p class="auth-helper-text">
-          Need a tenant account?
-          <a routerLink="/public/tenant-register" class="auth-link">Register your business</a>
+          {{ 'AUTH.LOGIN.NEED_TENANT_ACCOUNT' | translate }}
+          <a routerLink="/public/tenant-register" class="auth-link">{{
+            'AUTH.LOGIN.REGISTER_BUSINESS' | translate
+          }}</a>
         </p>
       </div>
     </div>

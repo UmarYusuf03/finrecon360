@@ -1,13 +1,15 @@
 <mat-card class="roles-page">
   <section class="roles-page__hero">
     <div class="roles-page__copy">
-      <span class="roles-page__eyebrow">Access design</span>
+      <span class="roles-page__eyebrow">{{ 'ADMIN.ROLES.EYEBROW' | translate }}</span>
       <h2>{{ 'ADMIN.ROLES.TITLE' | translate }}</h2>
       <p>{{ 'ADMIN.ROLES.COPY' | translate }}</p>
     </div>
 
     <div class="roles-page__actions">
-      <span class="roles-page__count">{{ roles.length }} {{ roles.length === 1 ? 'role' : 'roles' }}</span>
+      <span class="roles-page__count">{{
+        'ADMIN.ROLES.COUNT' | translate: { count: roles.length }
+      }}</span>
       <button
         mat-flat-button
         color="primary"
@@ -63,7 +65,7 @@
       </ng-container>
 
       <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.ACTIONS' | translate }}</th>
         <td mat-cell *matCellDef="let role" class="roles__actions">
           <button
             mat-icon-button
@@ -92,8 +94,8 @@
   <ng-template #rolesEmpty>
     <div class="roles-empty">
       <mat-icon>admin_panel_settings</mat-icon>
-      <h3>No roles available</h3>
-      <p>Create a custom role to shape tenant access.</p>
+      <h3>{{ 'ADMIN.ROLES.EMPTY_TITLE' | translate }}</h3>
+      <p>{{ 'ADMIN.ROLES.EMPTY_COPY' | translate }}</p>
     </div>
   </ng-template>
 </mat-card>

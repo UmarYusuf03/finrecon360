@@ -1,12 +1,14 @@
 <section class="import-architecture">
   <header class="architecture-hero fr-glass-panel">
     <div>
-      <span class="architecture-hero__eyebrow">Import Configuration</span>
+      <span class="architecture-hero__eyebrow">{{
+        'ADMIN.IMPORT_ARCHITECTURE.EYEBROW' | translate
+      }}</span>
       <h1>{{ 'ADMIN.IMPORT_ARCHITECTURE.TITLE' | translate }}</h1>
       <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.COPY' | translate }}</p>
     </div>
     <span class="architecture-hero__badge" *ngIf="overview as data">
-      Schema {{ data.canonicalSchema.version }}
+      {{ 'ADMIN.IMPORT_ARCHITECTURE.SCHEMA_BADGE' | translate: { version: data.canonicalSchema.version } }}
     </span>
   </header>
 
@@ -48,7 +50,10 @@
       <div class="card-heading">
         <div>
           <h2>{{ 'ADMIN.IMPORT_ARCHITECTURE.CANONICAL_TITLE' | translate }}</h2>
-          <p>Canonical schema version {{ data.canonicalSchema.version }}</p>
+          <p>{{
+            'ADMIN.IMPORT_ARCHITECTURE.CANONICAL_COPY'
+              | translate: { version: data.canonicalSchema.version }
+          }}</p>
         </div>
       </div>
 
@@ -74,7 +79,7 @@
             </th>
             <td mat-cell *matCellDef="let element">
               <span class="status-pill" [attr.data-status]="element.required ? 'active' : 'inactive'">
-                {{ element.required ? 'Yes' : 'No' }}
+                {{ element.required ? ('COMMON.YES' | translate) : ('COMMON.NO' | translate) }}
               </span>
             </td>
           </ng-container>
@@ -99,7 +104,7 @@
         <div class="card-heading">
           <div>
             <h2>{{ 'ADMIN.IMPORT_ARCHITECTURE.TEMPLATE_TITLE' | translate }}</h2>
-            <p>Create, update, or reuse mapping templates without changing import behavior.</p>
+            <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.TEMPLATE_COPY' | translate }}</p>
           </div>
         </div>
 
@@ -148,8 +153,8 @@
       <mat-card-content>
         <div class="card-heading">
           <div>
-            <h2>Template Inventory</h2>
-            <p>Review status, version, and source coverage for all reusable mappings.</p>
+            <h2>{{ 'ADMIN.IMPORT_ARCHITECTURE.INVENTORY_TITLE' | translate }}</h2>
+            <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.INVENTORY_COPY' | translate }}</p>
           </div>
         </div>
 
@@ -189,7 +194,11 @@
                   class="status-pill"
                   [attr.data-status]="template.isActive ? 'active' : 'inactive'"
                 >
-                  {{ template.isActive ? 'Active' : 'Inactive' }}
+                  {{
+                    template.isActive
+                      ? ('ADMIN.IMPORT_ARCHITECTURE.ACTIVE' | translate)
+                      : ('ADMIN.IMPORT_ARCHITECTURE.INACTIVE' | translate)
+                  }}
                 </span>
               </td>
             </ng-container>
@@ -212,8 +221,12 @@
                   <button mat-button type="button" (click)="startEdit(template)">
                     {{ 'ADMIN.IMPORT_ARCHITECTURE.EDIT' | translate }}
                   </button>
-                  <button mat-button type="button" (click)="startRename(template)">Rename</button>
-                  <button mat-button type="button" (click)="reuseTemplate(template)">Reuse</button>
+                  <button mat-button type="button" (click)="startRename(template)">
+                    {{ 'COMMON.RENAME' | translate }}
+                  </button>
+                  <button mat-button type="button" (click)="reuseTemplate(template)">
+                    {{ 'COMMON.REUSE' | translate }}
+                  </button>
                   <button
                     mat-button
                     type="button"
@@ -224,7 +237,7 @@
                     {{ 'ADMIN.IMPORT_ARCHITECTURE.DEACTIVATE' | translate }}
                   </button>
                   <button mat-button type="button" color="warn" (click)="deleteTemplate(template)">
-                    Delete
+                    {{ 'COMMON.DELETE' | translate }}
                   </button>
                 </div>
               </td>
@@ -248,16 +261,23 @@
       aria-modal="true"
       aria-labelledby="delete-template-title"
     >
-      <h3 id="delete-template-title">Delete Mapping Template</h3>
+      <h3 id="delete-template-title">
+        {{ 'ADMIN.IMPORT_ARCHITECTURE.DELETE_TITLE' | translate }}
+      </h3>
       <p>
-        This will permanently remove <strong>{{ deleteTarget?.name }}</strong>.
+        {{
+          'ADMIN.IMPORT_ARCHITECTURE.DELETE_COPY'
+            | translate: { name: deleteTarget?.name || '' }
+        }}
       </p>
-      <p>Any existing imports will keep their stored mappings.</p>
+      <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.DELETE_NOTE' | translate }}</p>
 
       <div class="dialog-actions">
-        <button mat-stroked-button type="button" (click)="closeDeleteDialog()">Cancel</button>
+        <button mat-stroked-button type="button" (click)="closeDeleteDialog()">
+          {{ 'COMMON.CANCEL' | translate }}
+        </button>
         <button mat-flat-button color="warn" type="button" (click)="confirmDeleteTemplate()">
-          Delete
+          {{ 'COMMON.DELETE' | translate }}
         </button>
       </div>
     </div>

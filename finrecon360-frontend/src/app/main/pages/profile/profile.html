@@ -34,7 +34,7 @@
       <div class="profile__identity">
         <div class="profile__avatar">
           <div class="profile__avatar-frame" [class.has-image]="profileImageUrl">
-            <img *ngIf="profileImageUrl" [src]="profileImageUrl" alt="Profile" />
+            <img *ngIf="profileImageUrl" [src]="profileImageUrl" [alt]="'PROFILE.AVATAR_ALT' | translate" />
             <div *ngIf="!profileImageUrl" class="profile__avatar-placeholder">
               <span class="profile__avatar-initials">{{ getInitials(form.get('displayName')?.value) }}</span>
             </div>
@@ -52,7 +52,9 @@
             >
               <mat-icon>delete</mat-icon>
             </button>
-            <div *ngIf="profileImageUploading" class="profile__avatar-overlay">Uploading...</div>
+            <div *ngIf="profileImageUploading" class="profile__avatar-overlay">
+              {{ 'PROFILE.UPLOADING' | translate }}
+            </div>
           </div>
           <div *ngIf="profileImageStatus" class="profile__status profile__status--inline">
             {{ profileImageStatus }}
@@ -84,7 +86,9 @@
               [disabled]="deleteSubmitting"
             >
               <mat-icon>delete</mat-icon>
-              <span>{{ deleteSubmitting ? 'Deactivating...' : 'Delete account' }}</span>
+              <span>{{
+                deleteSubmitting ? ('PROFILE.DEACTIVATING' | translate) : ('PROFILE.DELETE_ACCOUNT' | translate)
+              }}</span>
             </button>
             <div *ngIf="deleteStatus" class="profile__status profile__status--danger">
               {{ deleteStatus }}
@@ -98,15 +102,19 @@
       <form [formGroup]="form" (ngSubmit)="save()" class="profile-form">
         <div class="profile-form__grid">
           <mat-form-field appearance="outline">
-            <mat-label>First Name</mat-label>
+            <mat-label>{{ 'PROFILE.FIRST_NAME' | translate }}</mat-label>
             <input matInput formControlName="firstName" />
-            <mat-error *ngIf="form.get('firstName')?.hasError('required')">Required</mat-error>
+            <mat-error *ngIf="form.get('firstName')?.hasError('required')">
+              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
+            </mat-error>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>Last Name</mat-label>
+            <mat-label>{{ 'PROFILE.LAST_NAME' | translate }}</mat-label>
             <input matInput formControlName="lastName" />
-            <mat-error *ngIf="form.get('lastName')?.hasError('required')">Required</mat-error>
+            <mat-error *ngIf="form.get('lastName')?.hasError('required')">
+              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
+            </mat-error>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
@@ -123,7 +131,7 @@
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>Phone Number</mat-label>
+            <mat-label>{{ 'PROFILE.PHONE_NUMBER' | translate }}</mat-label>
             <input matInput formControlName="phoneNumber" />
           </mat-form-field>
 
@@ -173,16 +181,20 @@
               (click)="openChangePasswordDialog()"
               [disabled]="changePasswordSubmitting"
             >
-              {{ changePasswordSubmitting ? 'Sending link...' : 'Change password' }}
+              {{
+                changePasswordSubmitting
+                  ? ('PROFILE.SENDING_LINK' | translate)
+                  : ('PROFILE.CHANGE_PASSWORD' | translate)
+              }}
             </button>
 
             <div *ngIf="changePasswordStatus" class="profile__status">
               {{ changePasswordStatus }}
             </div>
             <div *ngIf="changePasswordFallbackLink" class="profile__status profile__status--link">
-              <span>Email delivery failed. Use secure link:</span>
+              <span>{{ 'PROFILE.EMAIL_DELIVERY_FAILED' | translate }}</span>
               <a [href]="changePasswordFallbackLink" target="_blank" rel="noopener noreferrer">
-                Open change password link
+                {{ 'PROFILE.OPEN_CHANGE_PASSWORD_LINK' | translate }}
               </a>
             </div>
           </div>
@@ -199,14 +211,16 @@
 
   <div class="dialog-backdrop" *ngIf="changePasswordDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
-      <h3 id="change-password-title">Send Password Change Link</h3>
-      <p>We will send a secure password change link to <strong>{{ changePasswordMaskedEmail }}</strong>.</p>
-      <p>You can use the link while logged in to confirm your current password and set a new one.</p>
+      <h3 id="change-password-title">{{ 'PROFILE.CHANGE_PASSWORD_DIALOG_TITLE' | translate }}</h3>
+      <p>{{ 'PROFILE.CHANGE_PASSWORD_DIALOG_COPY' | translate: { email: changePasswordMaskedEmail } }}</p>
+      <p>{{ 'PROFILE.CHANGE_PASSWORD_DIALOG_NOTE' | translate }}</p>
 
       <div class="dialog-actions">
-        <button type="button" class="ghost-btn" [disabled]="changePasswordSubmitting" (click)="closeChangePasswordDialog()">Cancel</button>
+        <button type="button" class="ghost-btn" [disabled]="changePasswordSubmitting" (click)="closeChangePasswordDialog()">
+          {{ 'COMMON.CANCEL' | translate }}
+        </button>
         <button type="button" class="primary-btn" [disabled]="changePasswordSubmitting" (click)="confirmChangePasswordLink()">
-          {{ changePasswordSubmitting ? 'Sending...' : 'Send Link' }}
+          {{ changePasswordSubmitting ? ('PROFILE.SENDING' | translate) : ('PROFILE.SEND_LINK' | translate) }}
         </button>
       </div>
     </div>
