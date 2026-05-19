@@ -12,6 +12,10 @@ namespace finrecon360_backend.Services
         Task<TenantResolution?> ResolveAsync(CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// WHY: Facilitates the active routing of the user to the correct Tenant DB. It prefers 
+    /// explicit client intent via the `X-Tenant-Id` header but falls back securely.
+    /// </summary>
     public class TenantContext : ITenantContext
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
@@ -82,7 +86,7 @@ namespace finrecon360_backend.Services
                 return _cached;
             }
 
-            // Deterministic fallback for multi-tenant users when the client has not supplied X-Tenant-Id.
+            // WHY: Deterministic fallback for multi-tenant users when the client has not supplied X-Tenant-Id.
             // Prefer active tenants and admin memberships so UI/auth state remains stable after refresh/login.
             _cached = tenants
                 .OrderByDescending(t => t.Resolution.Status == TenantStatus.Active)

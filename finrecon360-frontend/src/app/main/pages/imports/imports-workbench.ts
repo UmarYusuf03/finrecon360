@@ -3,17 +3,21 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { AdminImportArchitectureService } from '../../../core/admin-rbac/admin-import-architecture.service';
+import { ImportMappingTemplate } from '../../../core/admin-rbac/models';
 import { ImportsService } from '../../../core/imports/imports.service';
 import {
   ImportActiveTemplateResponse,
+  ImportCommitResponse,
   ImportHistoryItem,
   ImportParseResponse,
   ImportValidationRow,
   ImportValidationRowsResponse,
   ImportValidateResponse,
+  ReconciliationSummary,
 } from '../../../core/imports/imports.models';
 
 type ValidationSummary = {
@@ -27,22 +31,52 @@ type ValidationSummary = {
 @Component({
   selector: 'app-imports-workbench',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule],
+  imports: [CommonModule, FormsModule, DragDropModule, RouterLink],
   templateUrl: './imports-workbench.html',
   styleUrls: ['./imports-workbench.scss'],
 })
 export class ImportsWorkbenchComponent implements OnInit {
   readonly canonicalFields = [
+    'TransactionType',
     'TransactionDate',
     'PostingDate',
     'ReferenceNumber',
     'Description',
     'AccountCode',
     'AccountName',
+    'GrossAmount',
+    'ProcessingFee',
     'DebitAmount',
     'CreditAmount',
     'NetAmount',
     'Currency',
+  ];
+
+  readonly sourceTypeOptions = [
+    {
+      value: 'ERP',
+      label: 'ERP — Accounting System',
+      icon: 'account_balance',
+      hint: 'Internal journal / GL entries',
+    },
+    {
+      value: 'GATEWAY',
+      label: 'GATEWAY — Payment Gateway',
+      icon: 'payment',
+      hint: 'Stripe, etc. settlement files',
+    },
+    {
+      value: 'BANK',
+      label: 'BANK — Bank Statement',
+      icon: 'account_balance_wallet',
+      hint: 'Bank CSV / MT940 / CAMT',
+    },
+    {
+      value: 'POS',
+      label: 'POS — Point of Sale',
+      icon: 'point_of_sale',
+      hint: 'EOD sales reports',
+    },
   ];
 
   loading = false;
@@ -50,11 +84,14 @@ export class ImportsWorkbenchComponent implements OnInit {
   actionMessage: string | null = null;
   actionError: string | null = null;
 
-  sourceType = 'CSV';
+  importSourceType: string | null = null;
   selectedFile: File | null = null;
   selectedFileName: string | null = null;
   selectedFileSize: number | null = null;
   isDragging = false;
+
+  commitResult: ImportCommitResponse | null = null;
+  lastCommitSummary: ReconciliationSummary | null = null;
 
   history: ImportHistoryItem[] = [];
   selectedBatch: ImportHistoryItem | null = null;
@@ -70,22 +107,120 @@ export class ImportsWorkbenchComponent implements OnInit {
 
   mapping: Record<string, string> = {};
   activeTemplate: ImportActiveTemplateResponse | null = null;
+  templates: ImportMappingTemplate[] = [];
+  selectedTemplateId: string | null = null;
+  templateLoading = false;
 
-  canManage = false;
+  // WHY: Typed getters expose each atomic permission independently so the template
+  // can show/hide the Upload button, the Commit button, and the Delete button separately
+  // without conflating unrelated capabilities into a single boolean.
+  private get perms(): string[] {
+    return this.authService.currentUser?.permissions ?? [];
+  }
+  private has(code: string): boolean {
+    return this.perms.includes(code);
+  }
+
+  /**
+   * WHY: Returns the set of source types this user may upload/process, or null for unrestricted.
+   * CASHIER gets {POS}; MANAGER/ADMIN gets null (all types allowed).
+   */
+  get scopedSourceTypes(): Set<string> | null {
+    return this.authService.allowedImportSourceTypes();
+  }
+
+  /**
+   * WHY: Filters the sourceType dropdown to only the types the user can access.
+   * For a CASHIER this means only POS appears; for MANAGER all four are shown.
+   */
+  get scopedSourceTypeOptions() {
+    const allowed = this.scopedSourceTypes;
+    if (allowed === null) return this.sourceTypeOptions;
+    return this.sourceTypeOptions.filter((o) => allowed.has(o.value));
+  }
+
+  get canViewImports(): boolean {
+    return this.has('ADMIN.IMPORTS.VIEW') || (this.scopedSourceTypes?.size ?? 0) > 0;
+  }
+
+  // WHY: For scoped users (CASHIER), CREATE is satisfied by having any source-type-scoped CREATE permission.
+  get canCreateImport(): boolean {
+    if (this.has('ADMIN.IMPORTS.CREATE')) return true;
+    const perms = this.perms;
+    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+      perms.includes(`ADMIN.IMPORTS.${src}.CREATE`),
+    );
+  }
+
+  // WHY: Similarly, EDIT is satisfied by any source-type-scoped EDIT permission.
+  get canEditImport(): boolean {
+    if (this.has('ADMIN.IMPORTS.EDIT')) return true;
+    const perms = this.perms;
+    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+      perms.includes(`ADMIN.IMPORTS.${src}.EDIT`),
+    );
+  }
+
+  // COMMIT is the irreversible publish step — ADMIN only in the default seed.
+  // CASHIER can commit if they have the POS.COMMIT scoped permission.
+  get canCommit(): boolean {
+    if (this.has('ADMIN.IMPORTS.COMMIT')) return true;
+    const perms = this.perms;
+    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+      perms.includes(`ADMIN.IMPORTS.${src}.COMMIT`),
+    );
+  }
+
+  get canDeleteImport(): boolean {
+    return this.has('ADMIN.IMPORTS.DELETE');
+  }
+
+  // VIEW of architecture templates (needed to load existing templates into workbench).
+  get canViewArchitecture(): boolean {
+    return this.has('ADMIN.IMPORT_ARCHITECTURE.VIEW');
+  }
+
+  /**
+   * WHY: True when the current importSourceType selection is within the user's allowed scope.
+   * Used to disable the Upload button when a CASHIER somehow has a non-POS type selected
+   * (e.g. via a manual URL manipulation).
+   */
+  get canUploadForCurrentSourceType(): boolean {
+    const allowed = this.scopedSourceTypes;
+    if (allowed === null) return this.canCreateImport; // unrestricted
+    return !!this.importSourceType && allowed.has(this.importSourceType);
+  }
+
+  /** Human-readable label for the single allowed source type (e.g. 'POS — Point of Sale'). */
+  get allowedSourceTypeLabel(): string {
+    const opts = this.scopedSourceTypeOptions;
+    if (opts.length === 1) return opts[0].label;
+    return opts.map((o) => o.value).join(', ');
+  }
+
+  /** Comma-separated list of allowed source type values for the scope warning message. */
+  get allowedSourceTypeNames(): string {
+    return this.scopedSourceTypeOptions.map((o) => o.value).join(', ');
+  }
+
   private authRetryInProgress = false;
   deleteDialogOpen = false;
   deleteTarget: ImportHistoryItem | null = null;
 
   constructor(
     private readonly importsService: ImportsService,
+    private readonly importArchitectureService: AdminImportArchitectureService,
     private readonly authService: AuthService,
     private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
-    const user = this.authService.currentUser;
-    const permissions = user?.permissions ?? [];
-    this.canManage = permissions.includes('ADMIN.IMPORT_ARCHITECTURE.MANAGE');
+    // WHY: If this user is scope-restricted (CASHIER), auto-select their only allowed
+    // source type so they never need to interact with the dropdown at all.
+    const allowed = this.scopedSourceTypes;
+    if (allowed && allowed.size === 1) {
+      this.importSourceType = [...allowed][0];
+    }
     this.refreshHistory();
   }
 
@@ -118,12 +253,17 @@ export class ImportsWorkbenchComponent implements OnInit {
       return;
     }
 
+    if (!this.importSourceType) {
+      this.actionError = 'Select a Source Type before uploading.';
+      return;
+    }
+
     this.processing = true;
     this.clearAlerts();
-    this.importsService.uploadImport(this.selectedFile, this.sourceType).subscribe({
+    this.importsService.uploadImport(this.selectedFile, this.importSourceType).subscribe({
       next: (result) => {
         this.processing = false;
-        this.actionMessage = `Upload created: ${result.id}`;
+        this.actionMessage = `Upload created (${result.sourceType}): ${result.id}`;
         this.setSelectedFile(null);
         this.refreshHistory();
       },
@@ -174,6 +314,8 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.validationTotals = null;
     this.mapping = {};
     this.activeTemplate = null;
+    this.templates = [];
+    this.selectedTemplateId = null;
     this.clearAlerts();
   }
 
@@ -193,6 +335,7 @@ export class ImportsWorkbenchComponent implements OnInit {
         });
         this.actionMessage = 'File parsed. Map source headers to canonical fields.';
         this.loadActiveTemplate();
+        this.loadTemplatesForSource();
         this.refreshHistory();
       },
       error: (error) => {
@@ -260,11 +403,29 @@ export class ImportsWorkbenchComponent implements OnInit {
 
     this.processing = true;
     this.clearAlerts();
+    this.commitResult = null;
+    this.lastCommitSummary = null;
+
+    // Capture sourceType before the async call so routing logic is stable.
+    const sourceType = this.selectedBatch.sourceType?.toUpperCase() ?? '';
+
     this.importsService.commitImport(this.selectedBatch.id).subscribe({
       next: (res) => {
         this.processing = false;
-        this.actionMessage = `Commit complete. ${res.normalizedCount} normalized rows created.`;
+        this.commitResult = res;
+        this.lastCommitSummary = res.reconciliationSummary ?? null;
+        this.actionMessage = `Commit complete. ${res.normalizedCount} rows normalised. Routing to reconciliation view…`;
         this.refreshHistory();
+
+        // WHY: After a successful commit the reconciliation engine has already run.
+        // Route the accountant directly to the most relevant view for their next action:
+        //   GATEWAY → Matcher         (Level-3 Sales Verification may have produced exceptions)
+        //   POS     → Sales Verification queue (Level-1 POS exceptions need review)
+        //   ERP     → Events timeline  (Level-3 ERP match results are visible there)
+        //   BANK    → Matcher          (Level-4 Bank settlement confirmation may be pending)
+        // A short delay lets the accountant read the commit banner before navigating.
+        const targetRoute = this.resolvePostCommitRoute(sourceType);
+        setTimeout(() => this.router.navigate([targetRoute]), 2500);
       },
       error: (error) => {
         this.processing = false;
@@ -276,10 +437,26 @@ export class ImportsWorkbenchComponent implements OnInit {
     });
   }
 
+  /** WHY: Centralises the source-type to route mapping so it is easy to extend. */
+  resolvePostCommitRoute(sourceType: string): string {
+    switch (sourceType) {
+      case 'POS':
+        return '/app/matcher/sales-verification';
+      case 'ERP':
+        return '/app/matcher/events';
+      case 'GATEWAY':
+        return '/app/matcher';
+      case 'BANK':
+        return '/app/matcher';
+      default:
+        return '/app/matcher';
+    }
+  }
+
   deleteBatch(item: ImportHistoryItem, event?: Event): void {
     event?.stopPropagation();
-    if (!this.canManage) {
-      this.actionError = 'Only tenant admins can delete imports.';
+    if (!this.canDeleteImport) {
+      this.actionError = 'You need ADMIN.IMPORTS.DELETE permission to delete imports.';
       return;
     }
 
@@ -330,6 +507,29 @@ export class ImportsWorkbenchComponent implements OnInit {
 
   useActiveTemplate(): void {
     this.applyActiveTemplate(true);
+  }
+
+  applySelectedTemplate(): void {
+    if (!this.selectedTemplateId) {
+      return;
+    }
+
+    const template = this.templates.find((item) => item.id === this.selectedTemplateId);
+    if (!template) {
+      return;
+    }
+
+    const templateMappings = this.normalizeTemplateMappings(template.mappingJson);
+    if (!templateMappings) {
+      this.actionError = 'Selected mapping template has invalid JSON.';
+      return;
+    }
+
+    this.canonicalFields.forEach((field) => {
+      this.mapping[field] = templateMappings[field] ?? '';
+    });
+
+    this.actionMessage = `Applied mapping template "${template.name}".`;
   }
 
   assignFieldToHeader(field: string, header: string | null): void {
@@ -411,13 +611,16 @@ export class ImportsWorkbenchComponent implements OnInit {
   }
 
   private loadActiveTemplate(): void {
-    if (!this.selectedBatch || !this.canManage) {
+    if (!this.selectedBatch || !this.canViewArchitecture) {
       return;
     }
 
     this.importsService.getActiveTemplate(this.selectedBatch.sourceType).subscribe({
       next: (template) => {
         this.activeTemplate = template;
+        if (!this.selectedTemplateId) {
+          this.selectedTemplateId = template.id;
+        }
         const applied = this.applyActiveTemplate(false);
         if (applied) {
           this.actionMessage = `File parsed. Applied mapping template "${template.name}".`;
@@ -438,6 +641,27 @@ export class ImportsWorkbenchComponent implements OnInit {
     });
   }
 
+  private loadTemplatesForSource(): void {
+    if (!this.selectedBatch || !this.canViewArchitecture) {
+      return;
+    }
+
+    this.templateLoading = true;
+    this.importArchitectureService.getMappingTemplates(this.selectedBatch.sourceType).subscribe({
+      next: (templates) => {
+        this.templateLoading = false;
+        this.templates = templates;
+        if (!this.selectedTemplateId && templates.length > 0) {
+          this.selectedTemplateId = templates[0].id;
+        }
+      },
+      error: (error: unknown) => {
+        this.templateLoading = false;
+        this.actionError = this.getErrorMessage(error, 'Unable to load mapping templates.');
+      },
+    });
+  }
+
   private applyActiveTemplate(force: boolean): boolean {
     if (!this.activeTemplate || !this.parseResult) {
       return false;
@@ -448,7 +672,7 @@ export class ImportsWorkbenchComponent implements OnInit {
       return false;
     }
 
-    const templateMappings = this.parseTemplateMappings(this.activeTemplate.mappingJson);
+    const templateMappings = this.normalizeTemplateMappings(this.activeTemplate.mappingJson);
     if (!templateMappings) {
       this.actionError = 'Active mapping template has invalid JSON.';
       return false;
@@ -461,13 +685,34 @@ export class ImportsWorkbenchComponent implements OnInit {
     return true;
   }
 
-  private parseTemplateMappings(payload: string): Record<string, string> | null {
+  private normalizeTemplateMappings(payload: string): Record<string, string> | null {
     try {
       const parsed = JSON.parse(payload) as Record<string, string>;
       if (!parsed || typeof parsed !== 'object') {
         return null;
       }
-      return parsed;
+      const canonicalSet = new Set(this.canonicalFields);
+      const keys = Object.keys(parsed);
+
+      if (keys.some((key) => canonicalSet.has(key))) {
+        const normalized: Record<string, string> = {};
+        this.canonicalFields.forEach((field) => {
+          if (parsed[field]) {
+            normalized[field] = parsed[field];
+          }
+        });
+        return Object.keys(normalized).length > 0 ? normalized : null;
+      }
+
+      const inverted: Record<string, string> = {};
+      keys.forEach((header) => {
+        const field = parsed[header];
+        if (field && canonicalSet.has(field)) {
+          inverted[field] = header;
+        }
+      });
+
+      return Object.keys(inverted).length > 0 ? inverted : null;
     } catch {
       return null;
     }

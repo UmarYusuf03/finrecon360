@@ -9,6 +9,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Controllers.Admin
 {
+    /// <summary>
+    /// WHY: Exposes a pristine CRUD interface specifically for System Administrators to construct 
+    /// global Subscription Plans. These plans dictate structural limits (users, accounts) that 
+    /// subsequently restrict isolated tenant usage across the entire platform.
+    /// </summary>
     [ApiController]
     [Route("api/system/plans")]
     [Authorize]

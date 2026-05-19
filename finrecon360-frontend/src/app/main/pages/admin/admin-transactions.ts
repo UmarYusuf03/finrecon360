@@ -95,6 +95,7 @@ export class AdminTransactionsComponent implements OnInit {
     this.form = this.fb.group({
       amount: [null, [Validators.required, Validators.min(0.01)]],
       transactionDate: ['', [Validators.required, this.transactionDateValidator()]],
+      referenceNumber: ['', [Validators.maxLength(100)]],
       description: ['', [Validators.required, Validators.maxLength(500)]],
       transactionType: ['CashIn', Validators.required],
       paymentMethod: ['Cash', Validators.required],
@@ -185,6 +186,7 @@ export class AdminTransactionsComponent implements OnInit {
     this.form.reset({
       amount: null,
       transactionDate: '',
+      referenceNumber: '',
       description: '',
       transactionType: 'CashIn',
       paymentMethod: 'Cash',
@@ -207,6 +209,7 @@ export class AdminTransactionsComponent implements OnInit {
     this.form.reset({
       amount: transaction.amount,
       transactionDate: transaction.transactionDate.slice(0, 10),
+      referenceNumber: transaction.referenceNumber ?? '',
       description: transaction.description,
       transactionType: transaction.transactionType,
       paymentMethod: transaction.paymentMethod,
@@ -236,6 +239,7 @@ export class AdminTransactionsComponent implements OnInit {
     const payload: UpdateTransactionRequest = {
       amount: Number(raw.amount),
       transactionDate: `${raw.transactionDate}T00:00:00`,
+      referenceNumber: raw.referenceNumber || null,
       description: raw.description,
       transactionType: raw.transactionType,
       paymentMethod: raw.paymentMethod,

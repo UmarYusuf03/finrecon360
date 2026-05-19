@@ -8,36 +8,40 @@
   <div class="transaction-page-header">
     <div>
       <h2>Needs Bank Match</h2>
-      <p>Approved card cash-outs waiting for matcher/reconciliation handoff. No matching actions are available in this module.</p>
+      <p>Card cash-outs waiting for Level-4 bank reconciliation. Gateway import evidence is surfaced below each row.</p>
     </div>
     <div class="transaction-page-header__actions">
-      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading">
+      <a mat-stroked-button routerLink="/app/matcher" id="goto-matcher-btn">
+        <mat-icon>account_balance</mat-icon>
+        Open Matcher
+      </a>
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading" id="nbm-refresh-btn">
         <mat-icon>refresh</mat-icon>
         Refresh
       </button>
     </div>
   </div>
 
-  <div class="transaction-page-stats" *ngIf="!loading || transactions.length > 0">
+  <div class="transaction-page-stats" *ngIf="!loading || records.length > 0">
     <article class="transaction-stat">
-      <span>Total Waiting</span>
-      <strong>{{ transactions.length }}</strong>
+      <span>Awaiting Match</span>
+      <strong>{{ records.length }}</strong>
       <p>Transactions queued for reconciliation handoff.</p>
     </article>
-    <article class="transaction-stat transaction-stat--muted">
-      <span>Gateway Evidence Found</span>
-      <strong>--</strong>
-      <p>Not exposed by the current queue API.</p>
+    <article class="transaction-stat">
+      <span>Gateway Record Found</span>
+      <strong>{{ withImportContext }}</strong>
+      <p>Rows already linked to a committed gateway import record.</p>
     </article>
-    <article class="transaction-stat transaction-stat--muted">
-      <span>Match Group Linked</span>
-      <strong>--</strong>
-      <p>Not exposed by the current queue API.</p>
+    <article class="transaction-stat">
+      <span>Match Group Exists</span>
+      <strong>{{ withMatchGroup }}</strong>
+      <p>Transactions already attached to a reconciliation match group.</p>
     </article>
-    <article class="transaction-stat transaction-stat--muted">
-      <span>Confirmed Count</span>
-      <strong>--</strong>
-      <p>Final match confirmation lives outside this module.</p>
+    <article class="transaction-stat">
+      <span>Confirmed</span>
+      <strong>{{ confirmedCount }}</strong>
+      <p>Records whose linked reconciliation match is already confirmed.</p>
     </article>
   </div>
 
@@ -45,39 +49,120 @@
     <mat-spinner diameter="36"></mat-spinner>
   </div>
 
-  <div class="match-queue" *ngIf="!loading && transactions.length > 0">
-    <article class="match-card fr-glass-panel" *ngFor="let transaction of transactions">
-      <div class="match-card__header">
-        <div>
-          <p class="transaction-dialog__eyebrow">Awaiting reconciliation handoff</p>
-          <h3>{{ transaction.description }}</h3>
-          <p>{{ transaction.transactionDate | date: 'mediumDate' }} · {{ transaction.transactionType }} · {{ transaction.paymentMethod }}</p>
-        </div>
-        <div class="match-card__amount">{{ transaction.amount | number: '1.2-2' }}</div>
-      </div>
+  <mat-accordion *ngIf="!loading && records.length > 0" class="nbm-list">
+    <mat-expansion-panel *ngFor="let record of records" class="nbm-panel">
+      <mat-expansion-panel-header class="nbm-panel-header">
+        <mat-panel-title class="nbm-panel-title">
+          <span class="nbm-date">{{ record.transactionDate | date: 'dd MMM yyyy' }}</span>
+          <span class="nbm-amount">{{ record.amount | number: '1.2-2' }}</span>
+          <span class="nbm-desc" [title]="record.description">{{ record.description }}</span>
+        </mat-panel-title>
+        <mat-panel-description class="nbm-panel-desc">
+          <span class="nbm-bank">{{ getBankAccountLabel(record.bankAccountId) }}</span>
+          <span class="ms-badge" [ngClass]="getMatchStatusClass(record.matchStatus)">{{ record.matchStatus }}</span>
+          <mat-icon class="import-icon" *ngIf="hasImportContext(record)" matTooltip="Gateway import record linked">link</mat-icon>
+          <mat-icon class="import-icon muted-icon" *ngIf="!hasImportContext(record)" matTooltip="No gateway import record matched yet">link_off</mat-icon>
+        </mat-panel-description>
+      </mat-expansion-panel-header>
 
-      <div class="match-card__meta">
-        <div>
-          <span>Bank account</span>
-          <strong>{{ getBankAccountLabel(transaction.bankAccountId) }}</strong>
+      <div class="nbm-detail">
+        <div class="nbm-section">
+          <h4 class="nbm-section-title">
+            <mat-icon>receipt_long</mat-icon>
+            Gateway Import Record
+          </h4>
+          <ng-container *ngIf="hasImportContext(record); else noImport">
+            <dl class="nbm-dl">
+              <div class="nbm-dl-row">
+                <dt>Source</dt>
+                <dd><span class="source-badge">{{ record.importSourceType }}</span></dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.referenceNumber">
+                <dt>Reference</dt>
+                <dd><code>{{ record.referenceNumber }}</code></dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.accountCode">
+                <dt>Account Code</dt>
+                <dd><code>{{ record.accountCode }}</code></dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.grossAmount != null">
+                <dt>Gross Amount</dt>
+                <dd class="amount-val">{{ record.grossAmount | number: '1.2-2' }}</dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.processingFee != null">
+                <dt>Processing Fee</dt>
+                <dd class="amount-val fee-val">- {{ record.processingFee | number: '1.2-2' }}</dd>
+              </div>
+              <div class="nbm-dl-row">
+                <dt>Net Amount</dt>
+                <dd class="amount-val net-val">{{ record.netImportAmount | number: '1.2-2' }}</dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.settlementId">
+                <dt>Settlement ID</dt>
+                <dd><code>{{ record.settlementId }}</code></dd>
+              </div>
+            </dl>
+          </ng-container>
+          <ng-template #noImport>
+            <p class="nbm-empty-hint">
+              <mat-icon>info_outline</mat-icon>
+              No committed gateway import record matched this transaction's amount and date.
+              Import a payment gateway file to link gateway evidence.
+            </p>
+          </ng-template>
         </div>
-        <div>
-          <span>Queue state</span>
-          <strong><span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">{{ getStateLabel(transaction.transactionState) }}</span></strong>
-        </div>
-        <div>
-          <span>Gateway / import evidence</span>
-          <strong>Not exposed in the current transaction API.</strong>
-        </div>
-        <div>
-          <span>Next owner</span>
-          <strong>Matcher / reconciliation workflow</strong>
+
+        <div class="nbm-section">
+          <h4 class="nbm-section-title">
+            <mat-icon>account_balance</mat-icon>
+            Reconciliation Match Group
+          </h4>
+          <ng-container *ngIf="record.reconciliationMatchGroupId; else noGroup">
+            <dl class="nbm-dl">
+              <div class="nbm-dl-row">
+                <dt>Match Level</dt>
+                <dd><span class="level-badge">{{ getMatchLevelLabel(record.matchLevel) }}</span></dd>
+              </div>
+              <div class="nbm-dl-row">
+                <dt>Confirmed</dt>
+                <dd>
+                  <mat-icon class="confirm-icon" [class.confirmed]="record.isConfirmed">
+                    {{ record.isConfirmed ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                  {{ record.isConfirmed ? 'Yes' : 'Awaiting confirmation' }}
+                </dd>
+              </div>
+              <div class="nbm-dl-row">
+                <dt>Journal Posted</dt>
+                <dd>
+                  <mat-icon class="confirm-icon" [class.confirmed]="record.isJournalPosted">
+                    {{ record.isJournalPosted ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                  {{ record.isJournalPosted ? 'Yes' : 'Not yet posted' }}
+                </dd>
+              </div>
+            </dl>
+            <a mat-stroked-button routerLink="/app/matcher" class="goto-btn">
+              <mat-icon>open_in_new</mat-icon>
+              Confirm in Matcher
+            </a>
+          </ng-container>
+          <ng-template #noGroup>
+            <p class="nbm-empty-hint">
+              <mat-icon>info_outline</mat-icon>
+              No match group yet. Import a bank statement to trigger Level-4 matching, or go to the Matcher to review existing groups.
+            </p>
+            <a mat-stroked-button routerLink="/app/matcher/waiting" class="goto-btn">
+              <mat-icon>pending</mat-icon>
+              View Waiting Queue
+            </a>
+          </ng-template>
         </div>
       </div>
-    </article>
-  </div>
+    </mat-expansion-panel>
+  </mat-accordion>
 
-  <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
+  <div *ngIf="!loading && records.length === 0" class="transaction-page-empty">
     <mat-icon>compare_arrows</mat-icon>
     <h3>No transactions waiting for bank match</h3>
     <p>Approved card cash-outs will appear here when they are ready for matcher handoff.</p>

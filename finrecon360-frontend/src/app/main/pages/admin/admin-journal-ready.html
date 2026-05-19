@@ -1,4 +1,4 @@
-<mat-card class="transaction-page-card">
+<mat-card class="transaction-page-card transaction-page-card--actions">
   <nav class="transaction-workflow-nav" aria-label="Transaction workflow">
     <a routerLink="/app/transactions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Transactions</a>
     <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">Journal Ready</a>
@@ -112,6 +112,26 @@
       <ng-container matColumnDef="createdAt">
         <th mat-header-cell *matHeaderCellDef>Created</th>
         <td mat-cell *matCellDef="let transaction">{{ transaction.createdAt | date: 'short' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <td mat-cell *matCellDef="let transaction" class="transaction-table__actions-cell">
+          <div class="transaction-table__actions">
+            <button
+              *ngIf="canPostJournal"
+              mat-flat-button
+              color="primary"
+              type="button"
+              [attr.id]="'post-journal-' + transaction.transactionId"
+              [disabled]="postingId === transaction.transactionId"
+              (click)="postJournal(transaction)">
+              <mat-spinner *ngIf="postingId === transaction.transactionId" diameter="16"></mat-spinner>
+              <mat-icon *ngIf="postingId !== transaction.transactionId">receipt_long</mat-icon>
+              <span>Post to Journal</span>
+            </button>
+          </div>
+        </td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>

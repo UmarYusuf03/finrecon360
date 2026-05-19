@@ -1,0 +1,95 @@
+.waiting-card {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.07);
+}
+
+.matcher-nav {
+  display: flex;
+  gap: 4px;
+  padding: 12px 24px 0;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 8px 8px 0 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+    border-bottom: 2px solid transparent;
+    mat-icon { font-size: 16px; height: 16px; width: 16px; }
+    &:hover { background: #f1f5f9; color: #111827; }
+    &.active { color: #4f46e5; border-bottom-color: #4f46e5; background: white; }
+  }
+}
+
+.waiting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px;
+  h2 { margin: 0 0 4px; font-size: 20px; font-weight: 700; color: #0f172a; }
+  p { margin: 0; font-size: 13px; color: #6b7280; }
+}
+
+.waiting-loading {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
+
+.waiting-table {
+  width: 100%;
+
+  th.mat-mdc-header-cell {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    background: #f8fafc;
+  }
+
+  td.mat-mdc-cell { font-size: 13px; color: #374151; }
+
+  .amount-col {
+    font-variant-numeric: tabular-nums;
+    font-family: monospace;
+    &--fee { color: #dc2626; }
+    &--net { color: #059669; font-weight: 600; }
+  }
+}
+
+.attach-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .attach-input {
+    font-size: 13px;
+    width: 220px;
+    ::ng-deep .mat-mdc-form-field-wrapper { padding-bottom: 0; }
+  }
+}
+
+.waiting-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 60px 24px;
+  text-align: center;
+
+  mat-icon { font-size: 40px; height: 40px; width: 40px; color: #6ee7b7; }
+  h3 { margin: 0; font-size: 16px; font-weight: 600; color: #374151; }
+  p { margin: 0; font-size: 13px; color: #9ca3af; max-width: 360px; }
+}
+
+.no-permission { color: #d1d5db; font-size: 13px; }

@@ -128,7 +128,9 @@ export class AdminBankAccountsComponent implements OnInit {
         this.dialog.closeAll();
         this.loadBankAccounts();
         this.snackBar.open(
-          this.editingId ? 'Bank account updated successfully.' : 'Bank account created successfully.',
+          this.editingId
+            ? 'Bank account updated successfully.'
+            : 'Bank account created successfully.',
           'Close',
           { duration: 2500 },
         );

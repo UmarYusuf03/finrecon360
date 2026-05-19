@@ -4,11 +4,17 @@ using finrecon360_backend.Models;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace finrecon360_backend.Controllers.Onboarding
 {
     [ApiController]
     [Route("api/onboarding")]
+    /// <summary>
+    /// WHY: Orchestrates the complete tenant onboarding flow: magic-link verification → password set → plan selection → PayHere checkout.
+    /// Each step validates prior state transitions (e.g., can't set password unless magic-link was verified).
+    /// This ensures no account becomes partially activated or locked in an invalid state.
+    /// </summary>
     public class OnboardingController : ControllerBase
     {
         private readonly AppDbContext _dbContext;
@@ -38,6 +44,30 @@ namespace finrecon360_backend.Controllers.Onboarding
             _environment = environment;
             _configuration = configuration;
             _auditLogger = auditLogger;
+        }
+
+        /// <summary>
+        /// DEBUG ENDPOINT: Returns PayHere configuration status and sample checkout URL
+        /// This helps diagnose payment integration issues
+        /// </summary>
+        [HttpGet("debug/payhere-config")]
+        public ActionResult<object> GetPayHereDebugInfo()
+        {
+            var isConfigured = _paymentCheckoutService.IsConfigured();
+            
+            return Ok(new
+            {
+                isConfigured,
+                merchantId = _configuration["PAYHERE_MERCHANT_ID"],
+                merchantSecretSet = !string.IsNullOrEmpty(_configuration["PAYHERE_MERCHANT_SECRET"]),
+                merchantSecretValue = _configuration["PAYHERE_MERCHANT_SECRET"],
+                checkoutBaseUrl = _configuration["PAYHERE_CHECKOUT_BASE_URL"],
+                returnUrl = _configuration["PAYHERE_RETURN_URL"],
+                cancelUrl = _configuration["PAYHERE_CANCEL_URL"],
+                notifyUrl = _configuration["PAYHERE_NOTIFY_URL"],
+                currency = _configuration["PAYHERE_CURRENCY"],
+                timestamp = DateTime.UtcNow
+            });
         }
 
         [HttpPost("magic-link/verify")]
@@ -75,13 +105,15 @@ namespace finrecon360_backend.Controllers.Onboarding
 
             var onboardingToken = _tokenService.CreateToken(user.UserId, tenant.TenantId, user.Email);
             var expires = DateTime.UtcNow.AddMinutes(20);
+            var requestedBankAccounts = await ResolveRequestedBankAccountsAsync(user.Email, tenant.Name);
 
             return Ok(new OnboardingMagicLinkVerifyResponse(
                 onboardingToken,
                 user.Email,
                 tenant.TenantId,
                 tenant.Name,
-                expires));
+                expires,
+                requestedBankAccounts));
         }
 
         [HttpPost("set-password")]
@@ -158,6 +190,35 @@ namespace finrecon360_backend.Controllers.Onboarding
                 return BadRequest(new { message = "Tenant not found." });
             }
 
+            var normalizedEmail = user.Email.Trim().ToLowerInvariant();
+            var normalizedTenantName = tenant.Name.Trim();
+
+            var registration = await _dbContext.TenantRegistrationRequests
+                .AsNoTracking()
+                .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail && r.BusinessName == normalizedTenantName)
+                .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
+                .FirstOrDefaultAsync();
+
+            if (registration == null)
+            {
+                registration = await _dbContext.TenantRegistrationRequests
+                    .AsNoTracking()
+                    .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail)
+                    .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
+                    .FirstOrDefaultAsync();
+            }
+
+            var phoneNumber = registration?.PhoneNumber ?? "0000000000";
+            var requestedBankAccounts = ExtractRequestedBankAccounts(registration?.OnboardingMetadata);
+
+            if (requestedBankAccounts.HasValue && plan.MaxAccounts < requestedBankAccounts.Value)
+            {
+                return BadRequest(new
+                {
+                    message = $"Selected plan allows {plan.MaxAccounts} bank accounts, but registration requested {requestedBankAccounts.Value}. Please choose a plan that supports at least {requestedBankAccounts.Value} bank accounts."
+                });
+            }
+
             var subscription = new Subscription
             {
                 SubscriptionId = Guid.NewGuid(),
@@ -170,9 +231,31 @@ namespace finrecon360_backend.Controllers.Onboarding
             _dbContext.Subscriptions.Add(subscription);
             await _dbContext.SaveChangesAsync();
 
+            var allowLocalBypass = _configuration.GetValue<bool>("PAYMENT_ALLOW_LOCAL_BYPASS", false);
+            if (allowLocalBypass && !_environment.IsProduction())
+            {
+                var now = DateTime.UtcNow;
+                subscription.Status = SubscriptionStatus.Active;
+                subscription.CurrentPeriodStart = now;
+                subscription.CurrentPeriodEnd = now.AddDays(plan.DurationDays);
+
+                tenant.Status = TenantStatus.Active;
+                tenant.ActivatedAt = now;
+                tenant.CurrentSubscriptionId = subscription.SubscriptionId;
+
+                await _dbContext.SaveChangesAsync();
+                await _auditLogger.LogAsync(
+                    tokenResult.UserId.Value,
+                    "OnboardingCheckoutBypassed",
+                    "Subscription",
+                    subscription.SubscriptionId.ToString(),
+                    "PAYMENT_ALLOW_LOCAL_BYPASS enabled; local activation applied.");
+
+                return Ok(new OnboardingCheckoutResponse(_paymentCheckoutService.GetFallbackCheckoutUrl()));
+            }
+
             if (!_paymentCheckoutService.IsConfigured())
             {
-                var allowLocalBypass = _configuration.GetValue<bool>("PAYMENT_ALLOW_LOCAL_BYPASS", false);
                 if (_environment.IsProduction() || !allowLocalBypass)
                 {
                     await _auditLogger.LogAsync(
@@ -214,7 +297,10 @@ namespace finrecon360_backend.Controllers.Onboarding
                 plan.Currency,
                 tenant.TenantId,
                 subscription.SubscriptionId,
-                tokenResult.UserId.Value);
+                tokenResult.UserId.Value,
+                tenant.Name,
+                user.Email,
+                phoneNumber);
 
             var paymentSession = new PaymentSession
             {
@@ -238,6 +324,64 @@ namespace finrecon360_backend.Controllers.Onboarding
                 $"provider={session.Provider};sessionId={session.SessionId}");
 
             return Ok(new OnboardingCheckoutResponse(session.CheckoutUrl));
+        }
+
+        private async Task<int?> ResolveRequestedBankAccountsAsync(string adminEmail, string tenantName)
+        {
+            var normalizedEmail = adminEmail.Trim().ToLowerInvariant();
+            var normalizedTenantName = tenantName.Trim();
+
+            var metadata = await _dbContext.TenantRegistrationRequests
+                .AsNoTracking()
+                .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail && r.BusinessName == normalizedTenantName)
+                .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
+                .Select(r => r.OnboardingMetadata)
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrWhiteSpace(metadata))
+            {
+                metadata = await _dbContext.TenantRegistrationRequests
+                    .AsNoTracking()
+                    .Where(r => r.Status == "APPROVED" && r.AdminEmail == normalizedEmail)
+                    .OrderByDescending(r => r.ReviewedAt ?? r.SubmittedAt)
+                    .Select(r => r.OnboardingMetadata)
+                    .FirstOrDefaultAsync();
+            }
+
+            return ExtractRequestedBankAccounts(metadata);
+        }
+
+        private static int? ExtractRequestedBankAccounts(string? onboardingMetadata)
+        {
+            if (string.IsNullOrWhiteSpace(onboardingMetadata))
+            {
+                return null;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(onboardingMetadata);
+                if (!document.RootElement.TryGetProperty("bankAccounts", out var bankAccountsElement))
+                {
+                    return null;
+                }
+
+                if (bankAccountsElement.ValueKind == JsonValueKind.Number && bankAccountsElement.TryGetInt32(out var parsedNumber) && parsedNumber > 0)
+                {
+                    return parsedNumber;
+                }
+
+                if (bankAccountsElement.ValueKind == JsonValueKind.String && int.TryParse(bankAccountsElement.GetString(), out var parsedString) && parsedString > 0)
+                {
+                    return parsedString;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return null;
         }
     }
 }

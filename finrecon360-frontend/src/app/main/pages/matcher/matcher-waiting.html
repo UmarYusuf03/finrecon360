@@ -1,0 +1,107 @@
+<mat-card class="waiting-card">
+  <!-- Navigation -->
+  <nav class="matcher-nav" aria-label="Reconciliation workflow">
+    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <mat-icon>account_balance</mat-icon> Match Groups
+    </a>
+    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
+      <mat-icon>pending</mat-icon> Waiting Queue
+    </a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
+      <mat-icon>receipt_long</mat-icon> Journal Ready
+    </a>
+  </nav>
+
+  <div class="waiting-header">
+    <div>
+      <h2>Waiting Queue</h2>
+      <p>Gateway records missing a Settlement ID. Attach the correct ID to requeue them for Level-4 matching.</p>
+    </div>
+    <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading" id="waiting-refresh-btn">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </div>
+
+  <!-- Spinner -->
+  <div *ngIf="loading" class="waiting-loading">
+    <mat-spinner diameter="36"></mat-spinner>
+  </div>
+
+  <!-- Table -->
+  <table mat-table [dataSource]="records" class="waiting-table" *ngIf="!loading && records.length > 0">
+
+    <ng-container matColumnDef="transactionDate">
+      <th mat-header-cell *matHeaderCellDef>Date</th>
+      <td mat-cell *matCellDef="let r">{{ r.transactionDate | date: 'mediumDate' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="referenceNumber">
+      <th mat-header-cell *matHeaderCellDef>Reference</th>
+      <td mat-cell *matCellDef="let r">{{ r.referenceNumber ?? '—' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="description">
+      <th mat-header-cell *matHeaderCellDef>Description</th>
+      <td mat-cell *matCellDef="let r">{{ r.description ?? '—' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="grossAmount">
+      <th mat-header-cell *matHeaderCellDef>Gross</th>
+      <td mat-cell *matCellDef="let r" class="amount-col">{{ (r.grossAmount ?? 0) | number: '1.2-2' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="processingFee">
+      <th mat-header-cell *matHeaderCellDef>Fee</th>
+      <td mat-cell *matCellDef="let r" class="amount-col amount-col--fee">{{ (r.processingFee ?? 0) | number: '1.2-2' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="netAmount">
+      <th mat-header-cell *matHeaderCellDef>Net</th>
+      <td mat-cell *matCellDef="let r" class="amount-col amount-col--net">{{ r.netAmount | number: '1.2-2' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="actions">
+      <th mat-header-cell *matHeaderCellDef>Actions</th>
+      <td mat-cell *matCellDef="let r">
+        <!-- Inline attach form -->
+        <div *ngIf="attachingId === r.importedNormalizedRecordId; else attachBtn" class="attach-form">
+          <mat-form-field appearance="outline" class="attach-input">
+            <mat-label>Settlement ID</mat-label>
+            <input matInput [(ngModel)]="settlementIdInput" placeholder="e.g. STLMNT-2024-00123" id="settlement-id-input-{{ r.importedNormalizedRecordId }}" />
+          </mat-form-field>
+          <button mat-flat-button color="primary" (click)="submitAttach(r)" [disabled]="attachingInProgress" id="submit-settlement-{{ r.importedNormalizedRecordId }}">
+            <mat-spinner *ngIf="attachingInProgress" diameter="16"></mat-spinner>
+            Attach
+          </button>
+          <button mat-button (click)="cancelAttach()">Cancel</button>
+        </div>
+        <ng-template #attachBtn>
+          <!-- Attach button: requires ADMIN.RECONCILIATION.RESOLVE -->
+          <button
+            *ngIf="canResolve"
+            mat-stroked-button
+            color="primary"
+            (click)="startAttach(r)"
+            id="attach-btn-{{ r.importedNormalizedRecordId }}">
+            <mat-icon>link</mat-icon> Attach Settlement ID
+          </button>
+          <!-- REVIEWER or read-only: show view-only indicator -->
+          <span *ngIf="!canResolve && canViewRecon" class="no-permission" matTooltip="Requires RECONCILIATION.RESOLVE permission">
+            <mat-icon style="font-size: 16px; opacity: 0.5">visibility</mat-icon>
+          </span>
+          <span *ngIf="!canResolve && !canViewRecon" class="no-permission">—</span>
+        </ng-template>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+
+  <!-- Empty state -->
+  <div *ngIf="!loading && records.length === 0" class="waiting-empty">
+    <mat-icon>check_circle_outline</mat-icon>
+    <h3>No records waiting</h3>
+    <p>All gateway records have Settlement IDs and are progressing through Level-4 matching.</p>
+  </div>
+</mat-card>

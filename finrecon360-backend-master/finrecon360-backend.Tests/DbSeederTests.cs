@@ -48,6 +48,37 @@ public class DbSeederTests
 
             var hasAdminRole = await db.UserRoles.AnyAsync(ur => ur.UserId == user.UserId && ur.RoleId == adminRoleId);
             Assert.True(hasAdminRole);
+
+            var expectedScopedPermissions = new[]
+            {
+                "ADMIN.IMPORTS.POS.CREATE",
+                "ADMIN.IMPORTS.POS.EDIT",
+                "ADMIN.IMPORTS.POS.COMMIT",
+                "ADMIN.RECONCILIATION.POS.RESOLVE",
+                "ADMIN.IMPORTS.ERP.CREATE",
+                "ADMIN.IMPORTS.ERP.EDIT",
+                "ADMIN.IMPORTS.ERP.COMMIT",
+                "ADMIN.RECONCILIATION.ERP.RESOLVE",
+                "ADMIN.IMPORTS.GATEWAY.CREATE",
+                "ADMIN.IMPORTS.GATEWAY.EDIT",
+                "ADMIN.IMPORTS.GATEWAY.COMMIT",
+                "ADMIN.RECONCILIATION.GATEWAY.RESOLVE",
+                "ADMIN.IMPORTS.BANK.CREATE",
+                "ADMIN.IMPORTS.BANK.EDIT",
+                "ADMIN.IMPORTS.BANK.COMMIT",
+                "ADMIN.RECONCILIATION.BANK.RESOLVE"
+            };
+
+            foreach (var permissionCode in expectedScopedPermissions)
+            {
+                var permissionId = await db.Permissions
+                    .Where(p => p.Code == permissionCode)
+                    .Select(p => p.PermissionId)
+                    .SingleAsync();
+
+                var isGranted = await db.RolePermissions.AnyAsync(rp => rp.RoleId == adminRoleId && rp.PermissionId == permissionId);
+                Assert.True(isGranted);
+            }
         }
         finally
         {

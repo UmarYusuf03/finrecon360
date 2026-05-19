@@ -15,6 +15,12 @@ interface RoleDto {
   isActive: boolean;
 }
 
+/**
+ * WHY: This service manages the state and API interactions for Roles. 
+ * It purposely utilizes a `BehaviorSubject` to act as a singleton cache across the admin portal.
+ * This prevents redundant API calls as users navigate between the Roles list, user assignment dropdowns, 
+ * and the permission matrix, all of which rely heavily on the same foundational Roles data.
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -30,6 +36,10 @@ export class AdminRoleService {
 
   constructor(private http: HttpClient) {}
 
+  /**
+   * WHY: Utilizes lazy initialization. We only hit the backend on explicitly the first request. 
+   * Subsequent requests across components immediately get the cached BehaviorSubject value.
+   */
   getRoles(): Observable<Role[]> {
     if (USE_MOCK_API) {
       return this.rolesSubject.asObservable();
@@ -42,6 +52,10 @@ export class AdminRoleService {
     return this.rolesSubject.asObservable();
   }
 
+  /**
+   * WHY: Upon successfully creating a role, the service manually splices it into the local cache 
+   * rather than triggering a full re-fetch of the roles list, saving bandwidth and keeping UI snappy.
+   */
   createRole(payload: Partial<Role>): Observable<Role> {
     if (USE_MOCK_API) {
       const newRole: Role = {
@@ -64,6 +78,10 @@ export class AdminRoleService {
       );
   }
 
+  /**
+   * WHY: Similar to creation, updates are manually mapped into the stream state on success 
+   * to immediately reflect changes on any component subscribing to `getRoles()`.
+   */
   updateRole(id: string, payload: Partial<Role>): Observable<Role> {
     if (USE_MOCK_API) {
       const updatedList = this.rolesSubject.value.map((role) =>

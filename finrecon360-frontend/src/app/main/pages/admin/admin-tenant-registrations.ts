@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { TenantRegistrationService } from '../../../core/admin-tenant/tenant-registration.service';
-import { TenantRegistrationApprovalResult, TenantRegistrationSummary } from '../../../core/admin-tenant/models';
+import { TenantRegistrationApprovalResult, TenantRegistrationSummary, TenantRegistrationDetail } from '../../../core/admin-tenant/models';
 
 @Component({
   selector: 'app-admin-tenant-registrations',
@@ -17,6 +17,19 @@ import { TenantRegistrationApprovalResult, TenantRegistrationSummary } from '../
 })
 export class AdminTenantRegistrationsComponent implements OnInit {
   registrations: TenantRegistrationSummary[] = [];
+  searchTerm = '';
+
+  get filteredRegistrations(): TenantRegistrationSummary[] {
+    if (!this.searchTerm) {
+      return this.registrations;
+    }
+    const lowerTerm = this.searchTerm.toLowerCase();
+    return this.registrations.filter(
+      (r) => r.businessName.toLowerCase().includes(lowerTerm) || r.adminEmail.toLowerCase().includes(lowerTerm)
+    );
+  }
+
+  selectedDetail: TenantRegistrationDetail | null = null;
   loading = true;
   processing = false;
   statusFilter = 'PENDING_REVIEW';
@@ -36,6 +49,7 @@ export class AdminTenantRegistrationsComponent implements OnInit {
 
   load(): void {
     this.loading = true;
+    this.selectedDetail = null;
     this.service.getRegistrations(this.statusFilter).subscribe({
       next: (items) => {
         this.registrations = items;
@@ -43,6 +57,20 @@ export class AdminTenantRegistrationsComponent implements OnInit {
       },
       error: (error: unknown) => {
         this.loading = false;
+        this.actionMessage = {
+          type: 'error',
+          text: this.extractErrorMessage(error),
+        };
+      },
+    });
+  }
+
+  selectRegistration(reg: TenantRegistrationSummary): void {
+    this.service.getRegistration(reg.id).subscribe({
+      next: (detail) => {
+        this.selectedDetail = detail;
+      },
+      error: (error: unknown) => {
         this.actionMessage = {
           type: 'error',
           text: this.extractErrorMessage(error),

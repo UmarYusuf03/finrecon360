@@ -5,6 +5,11 @@ using System.Security.Claims;
 
 namespace finrecon360_backend.Services
 {
+    /// <summary>
+    /// WHY: By extracting user claims directly from the cryptographically verified HttpContext/JWT,
+    /// we prevent clients from spoofing their `UserId` in request payloads, ensuring a secure 
+    /// foundation for all downstream data filtering and authorization logic.
+    /// </summary>
     public class UserContext : IUserContext
     {
         private readonly IHttpContextAccessor _httpContextAccessor;

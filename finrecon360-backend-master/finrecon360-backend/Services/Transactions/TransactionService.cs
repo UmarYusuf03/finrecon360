@@ -31,6 +31,7 @@ namespace finrecon360_backend.Services.Transactions
                 TransactionId = Guid.NewGuid(),
                 Amount = validated.Amount,
                 TransactionDate = validated.TransactionDate,
+                ReferenceNumber = request.ReferenceNumber,
                 Description = validated.Description,
                 BankAccountId = validated.BankAccountId,
                 TransactionType = validated.TransactionType,
@@ -96,6 +97,7 @@ namespace finrecon360_backend.Services.Transactions
 
             entity.Amount = validated.Amount;
             entity.TransactionDate = validated.TransactionDate;
+            entity.ReferenceNumber = request.ReferenceNumber;
             entity.Description = validated.Description;
             entity.BankAccountId = validated.BankAccountId;
             entity.TransactionType = validated.TransactionType;
@@ -130,17 +132,105 @@ namespace finrecon360_backend.Services.Transactions
             return items.Select(Map).ToList();
         }
 
-        public async Task<List<TransactionResponse>> GetNeedsBankMatchAsync(TenantDbContext db, CancellationToken ct)
+        /// <summary>
+        /// WHY: Returns NeedsBankMatch transactions enriched with their linked GATEWAY import record
+        /// and any existing ReconciliationMatchGroup, so accountants can see what the payment
+        /// gateway reported vs. what is in the bank statement queue before running Level-4 matching.
+        /// Join strategy: match on Amount + TransactionDate (same calendar day) from COMMITTED GATEWAY batches.
+        /// No hard FK exists between Transaction and ImportedNormalizedRecord — the link is via
+        /// business-key correlation (amount + date) as this is how the manual approval flow works.
+        /// </summary>
+        public async Task<List<NeedsBankMatchResponse>> GetNeedsBankMatchAsync(
+            TenantDbContext db, CancellationToken ct)
         {
-            // This queue is the handoff point for the future matcher/reconciliation workflow.
-            var items = await db.Transactions
+            // Pull all NeedsBankMatch transactions first
+            var transactions = await db.Transactions
                 .AsNoTracking()
                 .Where(x => x.TransactionState == TransactionState.NeedsBankMatch)
                 .OrderBy(x => x.TransactionDate)
                 .ThenBy(x => x.CreatedAt)
                 .ToListAsync(ct);
 
-            return items.Select(Map).ToList();
+            if (transactions.Count == 0)
+                return [];
+
+            // Load all committed GATEWAY normalized records for correlation
+            // (only GATEWAY records can be the counterpart for card cash-outs awaiting bank match)
+            var gatewayRecords = await db.ImportedNormalizedRecords
+                .AsNoTracking()
+                .Include(r => r.ImportBatch)
+                .Where(r => r.ImportBatch != null
+                    && r.ImportBatch.SourceType.ToUpper() == "GATEWAY"
+                    && r.ImportBatch.Status == "COMMITTED")
+                .ToListAsync(ct);
+
+            // Load match groups that cover Level3/Level4 gateway records
+            var matchGroups = await db.ReconciliationMatchGroups
+                .AsNoTracking()
+                .Where(mg => mg.MatchLevel == "Level3" || mg.MatchLevel == "Level4")
+                .ToListAsync(ct);
+
+            // Load matched record links so we can find which group covers a given import record
+            var matchedLinks = await db.ReconciliationMatchedRecords
+                .AsNoTracking()
+                .Where(mr => mr.SourceType == "GATEWAY")
+                .ToListAsync(ct);
+
+            // Build lookup: ImportedNormalizedRecordId -> MatchGroup
+            var importRecordToGroup = matchedLinks
+                .Join(
+                    matchGroups,
+                    link => link.ReconciliationMatchGroupId,
+                    group => group.ReconciliationMatchGroupId,
+                    (link, group) => new { link.ImportedNormalizedRecordId, Group = group })
+                .ToDictionary(x => x.ImportedNormalizedRecordId, x => x.Group);
+
+            var result = new List<NeedsBankMatchResponse>();
+
+            foreach (var txn in transactions)
+            {
+                // Correlate transaction to a GATEWAY import record by Amount + TransactionDate (same day)
+                // This is the best available join key without a hard FK in the schema.
+                var txnDate = txn.TransactionDate.Date;
+                var linked = gatewayRecords.FirstOrDefault(r =>
+                    r.TransactionDate.Date == txnDate &&
+                    Math.Abs((r.GrossAmount ?? r.NetAmount) - txn.Amount) <= 0.01m);
+
+                // Find any existing match group for the linked import record
+                var matchGroup = linked != null && importRecordToGroup.TryGetValue(
+                    linked.ImportedNormalizedRecordId, out var mg) ? mg : null;
+
+                result.Add(new NeedsBankMatchResponse(
+                    txn.TransactionId,
+                    txn.Amount,
+                    txn.TransactionDate,
+                    txn.Description,
+                    txn.BankAccountId,
+                    txn.TransactionType.ToString(),
+                    txn.PaymentMethod.ToString(),
+                    txn.TransactionState.ToString(),
+                    txn.CreatedByUserId,
+                    txn.ApprovedAt,
+                    txn.CreatedAt,
+                    // Import context
+                    linked?.ImportedNormalizedRecordId,
+                    linked?.ImportBatch?.SourceType,
+                    linked?.ReferenceNumber,
+                    linked?.AccountCode,
+                    linked?.GrossAmount,
+                    linked?.ProcessingFee,
+                    linked?.NetAmount ?? 0m,
+                    linked?.SettlementId,
+                    linked?.MatchStatus ?? "PENDING",
+                    // Match group context
+                    matchGroup?.ReconciliationMatchGroupId,
+                    matchGroup?.MatchLevel,
+                    matchGroup?.IsConfirmed ?? false,
+                    matchGroup?.IsJournalPosted ?? false,
+                    matchGroup?.MatchMetadataJson));
+            }
+
+            return result;
         }
 
         public async Task<TransactionResponse?> GetByIdAsync(TenantDbContext db, Guid id, CancellationToken ct)
@@ -384,6 +474,7 @@ namespace finrecon360_backend.Services.Transactions
                 entity.TransactionId,
                 entity.Amount,
                 entity.TransactionDate,
+                entity.ReferenceNumber,
                 entity.Description,
                 entity.BankAccountId,
                 entity.TransactionType.ToString(),

@@ -16,6 +16,11 @@ import { AdminComponentService } from '../../../core/admin-rbac/admin-component.
 import { AppComponentResource } from '../../../core/admin-rbac/models';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 
+/**
+ * WHY: This component serves as the CRUD interface for tracking logical 'Components' 
+ * or 'Feature Modules' within the tenant. Form state is managed locally and API actions 
+ * are delegated to `AdminComponentService` to keep UI components strictly presentational.
+ */
 @Component({
   selector: 'app-admin-components',
   standalone: true,

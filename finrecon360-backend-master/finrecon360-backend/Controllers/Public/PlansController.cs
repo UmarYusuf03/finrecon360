@@ -5,6 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Controllers.Public
 {
+    /// <summary>
+    /// WHY: Exposes subscription plan catalog to unauthenticated users during onboarding.
+    /// Returns only active plans with pricing, max users, and max bank accounts so prospective tenants
+    /// can see plan options before registering. Kept public (no auth required) to allow window-shopping.
+    /// </summary>
     [ApiController]
     [Route("api/public/plans")]
     public class PlansController : ControllerBase

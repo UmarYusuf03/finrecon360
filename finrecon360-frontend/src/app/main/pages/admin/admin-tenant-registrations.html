@@ -2,6 +2,7 @@
   <div class="header">
     <h2>Tenant Registrations</h2>
     <div class="filters">
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Search applications..." class="search-input" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #d6d9e4; width: 250px; margin-right: 12px;" />
       <label>Status:</label>
       <select [(ngModel)]="statusFilter" (change)="load()">
         <option value="PENDING_REVIEW">Pending</option>
@@ -24,31 +25,36 @@
     <button type="button" (click)="dismissMessage()">Dismiss</button>
   </div>
 
-  <div *ngIf="loading">Loading...</div>
+  <div class="layout">
+    <div class="list">
+      <div *ngIf="loading">Loading...</div>
+      <ul *ngIf="!loading">
+        <li *ngFor="let reg of filteredRegistrations" (click)="selectRegistration(reg)" [class.active]="selectedDetail?.id === reg.id">
+          <div class="name">{{ reg.businessName }}</div>
+          <div class="meta">{{ reg.adminEmail }}</div>
+          <div class="meta">{{ reg.status }} - {{ reg.submittedAt | date: 'shortDate' }}</div>
+        </li>
+      </ul>
+    </div>
 
-  <table *ngIf="!loading">
-    <thead>
-      <tr>
-        <th>Business</th>
-        <th>Admin Email</th>
-        <th>Status</th>
-        <th>Submitted</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let reg of registrations">
-        <td>{{ reg.businessName }}</td>
-        <td>{{ reg.adminEmail }}</td>
-        <td>{{ reg.status }}</td>
-        <td>{{ reg.submittedAt | date: 'short' }}</td>
-        <td class="actions" *ngIf="reg.status === 'PENDING_REVIEW'">
-          <button class="primary-btn" [disabled]="processing" (click)="openApproveDialog(reg)">Approve</button>
-          <button class="danger-btn" [disabled]="processing" (click)="openRejectDialog(reg)">Reject</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+    <div class="detail" *ngIf="selectedDetail">
+      <h3>{{ selectedDetail.businessName }}</h3>
+      <p><strong>Admin Email:</strong> {{ selectedDetail.adminEmail }}</p>
+      <p *ngIf="selectedDetail.phoneNumber"><strong>Phone Number:</strong> {{ selectedDetail.phoneNumber }}</p>
+      <p *ngIf="selectedDetail.businessRegistrationNumber"><strong>Registration No:</strong> {{ selectedDetail.businessRegistrationNumber }}</p>
+      <p *ngIf="selectedDetail.businessType"><strong>Business Type:</strong> {{ selectedDetail.businessType }}</p>
+      <p><strong>Status:</strong> {{ selectedDetail.status }}</p>
+      <p><strong>Submitted At:</strong> {{ selectedDetail.submittedAt | date: 'short' }}</p>
+      <p *ngIf="selectedDetail.reviewedAt"><strong>Reviewed At:</strong> {{ selectedDetail.reviewedAt | date: 'short' }}</p>
+      <p *ngIf="selectedDetail.reviewedByEmail"><strong>Reviewed By:</strong> {{ selectedDetail.reviewedByEmail }}</p>
+      <p *ngIf="selectedDetail.reviewNote"><strong>Review Note:</strong> {{ selectedDetail.reviewNote }}</p>
+
+      <div class="actions" *ngIf="selectedDetail.status === 'PENDING_REVIEW'">
+        <button class="primary-btn" [disabled]="processing" (click)="openApproveDialog(selectedDetail)">Approve</button>
+        <button class="danger-btn" [disabled]="processing" (click)="openRejectDialog(selectedDetail)">Reject</button>
+      </div>
+    </div>
+  </div>
 
   <div class="dialog-backdrop" *ngIf="confirmDialogOpen">
     <div class="dialog-panel">

@@ -67,4 +67,51 @@
       <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
     </table>
   </div>
+
+  <!-- ── Source-Type Scoped Permissions ───────────────────────────────────── -->
+  <!-- WHY: Scoped permission codes (ADMIN.IMPORTS.POS.CREATE) don't map to a single
+       Component×Action cell because they embed both a module AND a source type.
+       This dedicated section makes them first-class toggleable items for any role,
+       so admins can grant POS-only access to any role — not just CASHIER. -->
+  <div class="perm__scoped" *ngIf="form.get('roleId')?.value && scopedRows.length > 0">
+    <h3 class="perm__scoped-title">
+      <mat-icon>lock_person</mat-icon>
+      Source-Type Scoped Permissions
+    </h3>
+    <p class="perm__scoped-subtitle">
+      Grant access to specific data source types only. These permissions are additive —
+      a role can hold both full module access (above) and scoped access for individual sources.
+    </p>
+
+    <table class="perm__scoped-table mat-elevation-z1">
+      <thead>
+        <tr>
+          <th class="perm__scoped-source">Source Type</th>
+          <th class="perm__scoped-module">Module</th>
+          <!-- WHY: Render action columns from the first row's action list (they're identical for all rows) -->
+          <ng-container *ngFor="let action of scopedRows[0]?.actions">
+            <th class="perm__scoped-action">{{ action.label }}</th>
+          </ng-container>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of scopedRows">
+          <td class="perm__scoped-source">
+            <span class="perm__source-badge perm__source-badge--{{ row.sourceType | lowercase }}">
+              {{ row.sourceType }}
+            </span>
+          </td>
+          <td class="perm__scoped-module">{{ row.module }}</td>
+          <td *ngFor="let action of row.actions" class="perm__scoped-action">
+            <mat-checkbox
+              [id]="'scoped-' + row.sourceType + '-' + row.module + '-' + action.code"
+              [checked]="isScopedGranted(action.permissionCode)"
+              (change)="toggleScoped(action.permissionCode)"
+              [title]="action.permissionCode"
+            ></mat-checkbox>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </mat-card>
