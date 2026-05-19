@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
@@ -31,6 +32,7 @@ import { BankAccount } from '../../../core/admin-rbac/models';
     MatInputModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    TranslateModule,
   ],
   templateUrl: './admin-bank-accounts.html',
   styleUrls: ['./admin-bank-accounts.scss'],

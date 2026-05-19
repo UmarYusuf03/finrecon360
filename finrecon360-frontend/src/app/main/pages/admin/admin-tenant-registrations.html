@@ -1,41 +1,52 @@
 <section class="registrations-page">
   <header class="registrations-page__hero">
     <div class="registrations-page__copy">
-      <span class="registrations-page__eyebrow">Onboarding queue</span>
-      <h2>Tenant Registrations</h2>
-      <p>Review applications, move them through approval, and track fallback onboarding links.</p>
+      <span class="registrations-page__eyebrow">{{
+        'ADMIN.TENANT_REGISTRATIONS.EYEBROW' | translate
+      }}</span>
+      <h2>{{ 'ADMIN.TENANT_REGISTRATIONS.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.TENANT_REGISTRATIONS.COPY' | translate }}</p>
     </div>
     <div class="filters">
-      <input type="text" [(ngModel)]="searchTerm" placeholder="Search applications..." class="search-input" />
-      <label>Status:</label>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        [placeholder]="'ADMIN.TENANT_REGISTRATIONS.SEARCH_PLACEHOLDER' | translate"
+        class="search-input"
+      />
+      <label>{{ 'COMMON.STATUS' | translate }}:</label>
       <select [(ngModel)]="statusFilter" (change)="load()">
-        <option value="PENDING_REVIEW">Pending</option>
-        <option value="APPROVED">Approved</option>
-        <option value="REJECTED">Rejected</option>
+        <option value="PENDING_REVIEW">{{ 'COMMON.PENDING' | translate }}</option>
+        <option value="APPROVED">{{ 'COMMON.APPROVED' | translate }}</option>
+        <option value="REJECTED">{{ 'COMMON.REJECTED' | translate }}</option>
       </select>
     </div>
   </header>
 
   <div *ngIf="actionMessage" class="action-message" [class.error]="actionMessage.type === 'error'">
     <span>{{ actionMessage.text }}</span>
-    <button type="button" (click)="dismissMessage()">Dismiss</button>
+    <button type="button" (click)="dismissMessage()">{{ 'COMMON.DISMISS' | translate }}</button>
   </div>
 
   <div *ngIf="onboardingFallbackLink" class="action-message">
     <span>
-      Onboarding link:
-      <a [href]="onboardingFallbackLink" target="_blank" rel="noopener noreferrer">Open link</a>
+      {{ 'ADMIN.TENANT_REGISTRATIONS.ONBOARDING_LINK' | translate }}:
+      <a [href]="onboardingFallbackLink" target="_blank" rel="noopener noreferrer">{{
+        'ADMIN.TENANT_REGISTRATIONS.OPEN_LINK' | translate
+      }}</a>
     </span>
-    <button type="button" (click)="dismissMessage()">Dismiss</button>
+    <button type="button" (click)="dismissMessage()">{{ 'COMMON.DISMISS' | translate }}</button>
   </div>
 
   <div class="layout">
     <div class="list panel">
       <div class="panel__header">
-        <h3>Applications</h3>
+        <h3>{{ 'ADMIN.TENANT_REGISTRATIONS.APPLICATIONS' | translate }}</h3>
         <span class="panel__count">{{ filteredRegistrations.length }}</span>
       </div>
-      <div class="panel__state" *ngIf="loading">Loading applications...</div>
+      <div class="panel__state" *ngIf="loading">
+        {{ 'ADMIN.TENANT_REGISTRATIONS.LOADING' | translate }}
+      </div>
       <ul *ngIf="!loading">
         <li *ngFor="let reg of filteredRegistrations" (click)="selectRegistration(reg)" [class.active]="selectedDetail?.id === reg.id">
           <div class="name">{{ reg.businessName }}</div>
@@ -49,59 +60,75 @@
       <div class="panel__header panel__header--detail">
         <div>
           <h3>{{ selectedDetail.businessName }}</h3>
-          <p>Selected registration profile and review controls.</p>
+          <p>{{ 'ADMIN.TENANT_REGISTRATIONS.SELECTED_COPY' | translate }}</p>
         </div>
         <span class="status-pill" [class.status-pill--warning]="selectedDetail.status === 'PENDING_REVIEW'" [class.status-pill--danger]="selectedDetail.status === 'REJECTED'">{{ selectedDetail.status }}</span>
       </div>
-      <p><strong>Admin Email:</strong> {{ selectedDetail.adminEmail }}</p>
-      <p *ngIf="selectedDetail.phoneNumber"><strong>Phone Number:</strong> {{ selectedDetail.phoneNumber }}</p>
-      <p *ngIf="selectedDetail.businessRegistrationNumber"><strong>Registration No:</strong> {{ selectedDetail.businessRegistrationNumber }}</p>
-      <p *ngIf="selectedDetail.businessType"><strong>Business Type:</strong> {{ selectedDetail.businessType }}</p>
-      <p><strong>Submitted At:</strong> {{ selectedDetail.submittedAt | date: 'short' }}</p>
-      <p *ngIf="selectedDetail.reviewedAt"><strong>Reviewed At:</strong> {{ selectedDetail.reviewedAt | date: 'short' }}</p>
-      <p *ngIf="selectedDetail.reviewedByEmail"><strong>Reviewed By:</strong> {{ selectedDetail.reviewedByEmail }}</p>
-      <p *ngIf="selectedDetail.reviewNote"><strong>Review Note:</strong> {{ selectedDetail.reviewNote }}</p>
+      <p><strong>{{ 'COMMON.EMAIL' | translate }}:</strong> {{ selectedDetail.adminEmail }}</p>
+      <p *ngIf="selectedDetail.phoneNumber"><strong>{{ 'PROFILE.PHONE_NUMBER' | translate }}:</strong> {{ selectedDetail.phoneNumber }}</p>
+      <p *ngIf="selectedDetail.businessRegistrationNumber"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.REGISTRATION_NUMBER' | translate }}:</strong> {{ selectedDetail.businessRegistrationNumber }}</p>
+      <p *ngIf="selectedDetail.businessType"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.BUSINESS_TYPE' | translate }}:</strong> {{ selectedDetail.businessType }}</p>
+      <p><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.SUBMITTED_AT' | translate }}:</strong> {{ selectedDetail.submittedAt | date: 'short' }}</p>
+      <p *ngIf="selectedDetail.reviewedAt"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.REVIEWED_AT' | translate }}:</strong> {{ selectedDetail.reviewedAt | date: 'short' }}</p>
+      <p *ngIf="selectedDetail.reviewedByEmail"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.REVIEWED_BY' | translate }}:</strong> {{ selectedDetail.reviewedByEmail }}</p>
+      <p *ngIf="selectedDetail.reviewNote"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.REVIEW_NOTE' | translate }}:</strong> {{ selectedDetail.reviewNote }}</p>
 
       <div class="actions" *ngIf="selectedDetail.status === 'PENDING_REVIEW'">
-        <button class="primary-btn" [disabled]="processing" (click)="openApproveDialog(selectedDetail)">Approve</button>
-        <button class="danger-btn" [disabled]="processing" (click)="openRejectDialog(selectedDetail)">Reject</button>
+        <button class="primary-btn" [disabled]="processing" (click)="openApproveDialog(selectedDetail)">
+          {{ 'COMMON.APPROVE' | translate }}
+        </button>
+        <button class="danger-btn" [disabled]="processing" (click)="openRejectDialog(selectedDetail)">
+          {{ 'COMMON.REJECT' | translate }}
+        </button>
       </div>
     </div>
 
     <ng-template #registrationEmpty>
       <div class="detail-empty panel">
         <span class="detail-empty__icon">badge</span>
-        <h3>Select an application</h3>
-        <p>Pick a registration to review and approve or reject it.</p>
+        <h3>{{ 'ADMIN.TENANT_REGISTRATIONS.EMPTY_TITLE' | translate }}</h3>
+        <p>{{ 'ADMIN.TENANT_REGISTRATIONS.EMPTY_COPY' | translate }}</p>
       </div>
     </ng-template>
   </div>
 
   <div class="dialog-backdrop" *ngIf="confirmDialogOpen">
     <div class="dialog-panel">
-      <h3>{{ confirmAction === 'approve' ? 'Approve registration' : 'Reject registration' }}</h3>
+      <h3>{{
+        confirmAction === 'approve'
+          ? ('ADMIN.TENANT_REGISTRATIONS.APPROVE_TITLE' | translate)
+          : ('ADMIN.TENANT_REGISTRATIONS.REJECT_TITLE' | translate)
+      }}</h3>
       <p *ngIf="selectedRegistration">
         <strong>{{ selectedRegistration.businessName }}</strong>
         <span>({{ selectedRegistration.adminEmail }})</span>
       </p>
 
-      <label for="review-note">Note (optional)</label>
+      <label for="review-note">{{ 'ADMIN.TENANT_REGISTRATIONS.NOTE_OPTIONAL' | translate }}</label>
       <textarea
         id="review-note"
         rows="4"
         [(ngModel)]="reviewNote"
-        placeholder="Add a comment for audit trail"
+        [placeholder]="'ADMIN.TENANT_REGISTRATIONS.NOTE_PLACEHOLDER' | translate"
       ></textarea>
 
       <div class="dialog-actions">
-        <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDialog()">Cancel</button>
+        <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDialog()">
+          {{ 'COMMON.CANCEL' | translate }}
+        </button>
         <button
           type="button"
           [class]="confirmAction === 'approve' ? 'primary-btn' : 'danger-btn'"
           [disabled]="processing"
           (click)="submitReview()"
         >
-          {{ processing ? 'Processing...' : (confirmAction === 'approve' ? 'Confirm Approve' : 'Confirm Reject') }}
+          {{
+            processing
+              ? ('COMMON.PROCESSING' | translate)
+              : (confirmAction === 'approve'
+                  ? ('ADMIN.TENANT_REGISTRATIONS.CONFIRM_APPROVE' | translate)
+                  : ('ADMIN.TENANT_REGISTRATIONS.CONFIRM_REJECT' | translate))
+          }}
         </button>
       </div>
     </div>

@@ -1,12 +1,12 @@
 <section class="imports-page">
   <header class="imports-hero fr-glass-panel">
     <div class="imports-hero__copy">
-      <span class="imports-hero__eyebrow">Import Pipeline</span>
-      <h1>Import Workbench</h1>
-      <p>Upload files, map fields, validate normalization, and commit to canonical tables.</p>
+      <span class="imports-hero__eyebrow">{{ 'IMPORTS.WORKBENCH.EYEBROW' | translate }}</span>
+      <h1>{{ 'ADMIN.IMPORT_WORKBENCH.TITLE' | translate }}</h1>
+      <p>{{ 'IMPORTS.WORKBENCH.SUBTITLE' | translate }}</p>
     </div>
 
-    <ol class="workflow-steps" aria-label="Import workflow">
+    <ol class="workflow-steps" [attr.aria-label]="'IMPORTS.WORKBENCH.WORKFLOW_ARIA' | translate">
       <li
         class="workflow-step"
         [class.is-active]="!selectedBatch"
@@ -14,8 +14,8 @@
       >
         <span class="workflow-step__count">1</span>
         <div>
-          <strong>Upload</strong>
-          <small>Create a batch</small>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.UPLOAD' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.UPLOAD_COPY' | translate }}</small>
         </div>
       </li>
       <li
@@ -25,8 +25,8 @@
       >
         <span class="workflow-step__count">2</span>
         <div>
-          <strong>Map</strong>
-          <small>Assign headers</small>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.MAP' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.MAP_COPY' | translate }}</small>
         </div>
       </li>
       <li
@@ -36,8 +36,8 @@
       >
         <span class="workflow-step__count">3</span>
         <div>
-          <strong>Validate</strong>
-          <small>Review issues</small>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.VALIDATE' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.VALIDATE_COPY' | translate }}</small>
         </div>
       </li>
       <li
@@ -47,8 +47,8 @@
       >
         <span class="workflow-step__count">4</span>
         <div>
-          <strong>Commit</strong>
-          <small>Publish records</small>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.COMMIT' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.COMMIT_COPY' | translate }}</small>
         </div>
       </li>
     </ol>
@@ -63,29 +63,31 @@
       [disabled]="loading || processing"
       (click)="refreshHistory()"
     >
-      Refresh History
+      {{ 'IMPORTS.WORKBENCH.REFRESH_HISTORY' | translate }}
     </button>
   </div>
 
   <section class="panel upload-panel fr-glass-panel">
     <div class="panel__header">
       <div>
-        <span class="panel__eyebrow">Stage 1</span>
-        <h2>Upload Source File</h2>
-        <p>Choose the source type, drop a file, and create a new import batch.</p>
+        <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGE_1' | translate }}</span>
+        <h2>{{ 'IMPORTS.WORKBENCH.UPLOAD_TITLE' | translate }}</h2>
+        <p>{{ 'IMPORTS.WORKBENCH.UPLOAD_COPY' | translate }}</p>
       </div>
     </div>
 
     <div class="scope-badge" *ngIf="scopedSourceTypes !== null">
       <span class="material-icons scope-badge-icon">lock</span>
       <span>
-        Your role limits imports to <strong>{{ allowedSourceTypeLabel }}</strong> only. Other
-        source types are not accessible with your current permissions.
+        {{ 'IMPORTS.WORKBENCH.SCOPED_ONLY' | translate:{ sourceType: allowedSourceTypeLabel } }}
       </span>
     </div>
 
     <div class="source-type-section">
-      <label class="source-type-label">Select Source Type <span class="required">*</span></label>
+      <label class="source-type-label"
+        >{{ 'IMPORTS.WORKBENCH.SELECT_SOURCE_TYPE' | translate }}
+        <span class="required">*</span></label
+      >
       <div class="source-type-grid">
         <button
           *ngFor="let opt of scopedSourceTypeOptions"
@@ -105,7 +107,7 @@
         class="source-type-error"
         *ngIf="!importSourceType && actionError && actionError.includes('Source Type')"
       >
-        Please select a source type above.
+        {{ 'IMPORTS.WORKBENCH.SELECT_SOURCE_TYPE_ERROR' | translate }}
       </p>
     </div>
 
@@ -117,8 +119,8 @@
       (drop)="onDrop($event)"
     >
       <span class="material-icons drop-icon">upload_file</span>
-      <p class="drop-title">Drag and drop a CSV or XLSX file here</p>
-      <p class="drop-subtitle">or click anywhere in this panel to browse</p>
+      <p class="drop-title">{{ 'IMPORTS.WORKBENCH.DROP_TITLE' | translate }}</p>
+      <p class="drop-subtitle">{{ 'IMPORTS.WORKBENCH.DROP_SUBTITLE' | translate }}</p>
       <input type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)" />
     </div>
 
@@ -126,7 +128,9 @@
       <div class="file-meta" *ngIf="selectedFileName">
         <span class="material-icons">description</span>
         <strong>{{ selectedFileName }}</strong>
-        <span class="file-size" *ngIf="selectedFileSize">{{ selectedFileSize | number }} bytes</span>
+        <span class="file-size" *ngIf="selectedFileSize"
+          >{{ selectedFileSize | number }} {{ 'COMMON.BYTES' | translate }}</span
+        >
       </div>
       <button
         class="primary-btn upload-btn"
@@ -135,12 +139,15 @@
         id="upload-file-btn"
       >
         <span class="material-icons">cloud_upload</span>
-        {{ processing ? 'Uploading...' : 'Upload File' }}
+        {{
+          processing
+            ? ('IMPORTS.WORKBENCH.UPLOADING' | translate)
+            : ('IMPORTS.WORKBENCH.UPLOAD_FILE' | translate)
+        }}
       </button>
       <p class="scope-warning" *ngIf="importSourceType && !canUploadForCurrentSourceType">
         <span class="material-icons">block</span>
-        Your role does not allow importing <strong>{{ importSourceType }}</strong> files. Allowed
-        types: {{ allowedSourceTypeNames }}.
+        {{ 'IMPORTS.WORKBENCH.SCOPE_WARNING' | translate:{ sourceType: importSourceType, allowedTypes: allowedSourceTypeNames } }}
       </p>
     </div>
   </section>
@@ -149,31 +156,43 @@
     <section class="panel panel--stack history-panel fr-glass-panel">
       <div class="panel__header">
         <div>
-          <span class="panel__eyebrow">Stage 2</span>
-          <h2>Import History</h2>
-          <p>Pick a batch to continue mapping, validation, or commit.</p>
+          <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGE_2' | translate }}</span>
+          <h2>{{ 'IMPORTS.HISTORY.EYEBROW' | translate }}</h2>
+          <p>{{ 'IMPORTS.WORKBENCH.HISTORY_COPY' | translate }}</p>
         </div>
       </div>
 
       <div class="history-filters">
-        <input type="text" [(ngModel)]="search" placeholder="Search by file or source" />
-        <input type="text" [(ngModel)]="statusFilter" placeholder="Filter by status" />
-        <button class="ghost-btn" type="button" (click)="refreshHistory()">Refresh</button>
+        <input
+          type="text"
+          [(ngModel)]="search"
+          [placeholder]="'IMPORTS.HISTORY.SEARCH_PLACEHOLDER' | translate"
+        />
+        <input
+          type="text"
+          [(ngModel)]="statusFilter"
+          [placeholder]="'IMPORTS.HISTORY.STATUS_PLACEHOLDER' | translate"
+        />
+        <button class="ghost-btn" type="button" (click)="refreshHistory()">
+          {{ 'COMMON.REFRESH' | translate }}
+        </button>
       </div>
 
-      <div *ngIf="loading" class="loading-state">Loading history...</div>
+      <div *ngIf="loading" class="loading-state">
+        {{ 'IMPORTS.HISTORY.LOADING' | translate }}
+      </div>
 
       <div class="table-shell" *ngIf="!loading">
         <table class="history-table">
           <thead>
             <tr>
-              <th>File</th>
-              <th>Source</th>
-              <th>Status</th>
-              <th>Raw</th>
-              <th>Normalized</th>
-              <th>Imported</th>
-              <th *ngIf="canDeleteImport">Actions</th>
+              <th>{{ 'IMPORTS.HISTORY.FILE' | translate }}</th>
+              <th>{{ 'COMMON.SOURCE' | translate }}</th>
+              <th>{{ 'COMMON.STATUS' | translate }}</th>
+              <th>{{ 'IMPORTS.HISTORY.RAW' | translate }}</th>
+              <th>{{ 'IMPORTS.HISTORY.NORMALIZED' | translate }}</th>
+              <th>{{ 'IMPORTS.HISTORY.IMPORTED' | translate }}</th>
+              <th *ngIf="canDeleteImport">{{ 'COMMON.ACTIONS' | translate }}</th>
             </tr>
           </thead>
           <tbody>
@@ -182,7 +201,7 @@
               [class.active]="selectedBatch?.id === item.id"
               (click)="selectBatch(item)"
             >
-              <td>{{ item.originalFileName || 'n/a' }}</td>
+              <td>{{ item.originalFileName || ('COMMON.NOT_AVAILABLE' | translate) }}</td>
               <td>
                 <span class="source-pill" [attr.data-source]="(item.sourceType || '').toLowerCase()">
                   {{ item.sourceType }}
@@ -203,13 +222,13 @@
                   [disabled]="processing"
                   (click)="deleteBatch(item, $event)"
                 >
-                  Delete
+                  {{ 'COMMON.DELETE' | translate }}
                 </button>
               </td>
             </tr>
             <tr *ngIf="history.length === 0">
               <td [attr.colspan]="canDeleteImport ? 7 : 6" class="empty-row">
-                No import batches match the current filters.
+                {{ 'IMPORTS.HISTORY.EMPTY_FILTERED' | translate }}
               </td>
             </tr>
           </tbody>
@@ -221,9 +240,9 @@
       <section class="panel panel--stack process-panel fr-glass-panel">
         <div class="panel__header panel__header--wide">
           <div>
-            <span class="panel__eyebrow">Stages 3 and 4</span>
-            <h2>Process Batch</h2>
-            <p>Run parse, apply mapping, validate rows, and commit once the batch is clean.</p>
+            <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGES_3_4' | translate }}</span>
+            <h2>{{ 'IMPORTS.WORKBENCH.PROCESS_TITLE' | translate }}</h2>
+            <p>{{ 'IMPORTS.WORKBENCH.PROCESS_COPY' | translate }}</p>
           </div>
           <div class="batch-meta">
             <span class="batch-pill">{{ batch.id }}</span>
@@ -235,51 +254,54 @@
 
         <div class="process-actions">
           <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="parseSelected()">
-            Parse
+            {{ 'IMPORTS.WORKBENCH.PARSE' | translate }}
           </button>
           <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="saveMapping()">
-            Save Mapping
+            {{ 'IMPORTS.WORKBENCH.SAVE_MAPPING' | translate }}
           </button>
           <button class="warning-btn" [disabled]="processing || !canEditImport" (click)="validateSelected()">
-            Validate
+            {{ 'IMPORTS.WORKBENCH.VALIDATE' | translate }}
           </button>
           <button class="danger-btn" [disabled]="processing || !canCommit" (click)="commitSelected()">
-            Commit
+            {{ 'IMPORTS.WORKBENCH.COMMIT' | translate }}
           </button>
         </div>
 
         <p class="hint-banner" *ngIf="!canEditImport && !canCommit">
-          Parse, Mapping, and Validate require <strong>ADMIN.IMPORTS.EDIT</strong>. Commit
-          requires <strong>ADMIN.IMPORTS.COMMIT</strong>.
+          {{ 'IMPORTS.WORKBENCH.PERMISSION_HINT_EDIT_COMMIT' | translate }}
         </p>
         <p class="hint-banner" *ngIf="canEditImport && !canCommit">
-          You can parse and validate, but <strong>Commit</strong> requires
-          <strong>ADMIN.IMPORTS.COMMIT</strong>.
+          {{ 'IMPORTS.WORKBENCH.PERMISSION_HINT_COMMIT_ONLY' | translate }}
         </p>
 
         <div class="stage-surface" *ngIf="parseResult as parsed">
           <div class="stage-surface__header">
             <div>
-              <h3>Column Mapping</h3>
-              <p>Parsed rows: {{ parsed.parsedRowCount }}</p>
+              <h3>{{ 'IMPORTS.WORKBENCH.COLUMN_MAPPING' | translate }}</h3>
+              <p>{{ 'IMPORTS.WORKBENCH.PARSED_ROWS' | translate:{ count: parsed.parsedRowCount } }}</p>
             </div>
           </div>
 
           <div class="template-banner" *ngIf="activeTemplate as template">
             <span>
-              Active template: <strong>{{ template.name }}</strong>
+              {{ 'IMPORTS.WORKBENCH.ACTIVE_TEMPLATE' | translate }}:
+              <strong>{{ template.name }}</strong>
             </span>
-            <button class="ghost-btn" type="button" (click)="useActiveTemplate()">Use template</button>
+            <button class="ghost-btn" type="button" (click)="useActiveTemplate()">
+              {{ 'IMPORTS.WORKBENCH.USE_TEMPLATE' | translate }}
+            </button>
           </div>
 
           <div class="template-picker" *ngIf="canViewArchitecture">
             <label>
-              Choose template
+              {{ 'IMPORTS.WORKBENCH.CHOOSE_TEMPLATE' | translate }}
               <select [(ngModel)]="selectedTemplateId">
-                <option [ngValue]="null">Select template</option>
+                <option [ngValue]="null">{{ 'IMPORTS.WORKBENCH.SELECT_TEMPLATE' | translate }}</option>
                 <option *ngFor="let template of templates" [ngValue]="template.id">
                   {{ template.name }} (v{{ template.version }})
-                  <ng-container *ngIf="template.isActive"> - Active</ng-container>
+                  <ng-container *ngIf="template.isActive">
+                    - {{ 'COMMON.ACTIVE' | translate }}
+                  </ng-container>
                 </option>
               </select>
             </label>
@@ -290,7 +312,7 @@
                 [disabled]="!selectedTemplateId || templateLoading"
                 (click)="applySelectedTemplate()"
               >
-                Apply selected template
+                {{ 'IMPORTS.WORKBENCH.APPLY_SELECTED_TEMPLATE' | translate }}
               </button>
             </div>
           </div>
@@ -298,8 +320,8 @@
           <div class="mapping-columns">
             <div class="mapping-fields">
               <div class="mapping-section__header">
-                <h4>System fields</h4>
-                <p>Drag available fields onto uploaded headers.</p>
+                <h4>{{ 'IMPORTS.WORKBENCH.SYSTEM_FIELDS' | translate }}</h4>
+                <p>{{ 'IMPORTS.WORKBENCH.SYSTEM_FIELDS_COPY' | translate }}</p>
               </div>
               <div
                 class="field-chip"
@@ -309,13 +331,15 @@
               >
                 {{ field }}
               </div>
-              <p class="muted" *ngIf="getUnassignedFields().length === 0">All fields assigned.</p>
+              <p class="muted" *ngIf="getUnassignedFields().length === 0">
+                {{ 'IMPORTS.WORKBENCH.ALL_FIELDS_ASSIGNED' | translate }}
+              </p>
             </div>
 
             <div class="mapping-headers">
               <div class="mapping-section__header">
-                <h4>Uploaded headers</h4>
-                <p>Use drag and drop or direct selection for each column.</p>
+                <h4>{{ 'IMPORTS.WORKBENCH.UPLOADED_HEADERS' | translate }}</h4>
+                <p>{{ 'IMPORTS.WORKBENCH.UPLOADED_HEADERS_COPY' | translate }}</p>
               </div>
               <div
                 class="header-row"
@@ -329,7 +353,7 @@
                     <span class="assigned-chip" cdkDrag [cdkDragData]="assigned">{{ assigned }}</span>
                   </ng-container>
                   <ng-template #dropHint>
-                    <span class="drop-hint">Drop field here</span>
+                    <span class="drop-hint">{{ 'IMPORTS.WORKBENCH.DROP_FIELD_HERE' | translate }}</span>
                   </ng-template>
                 </div>
                 <div class="header-actions">
@@ -337,11 +361,11 @@
                     [ngModel]="getAssignedFieldForHeader(header)"
                     (ngModelChange)="assignFieldToHeader($event, header)"
                   >
-                    <option [ngValue]="null">Select field</option>
+                    <option [ngValue]="null">{{ 'IMPORTS.WORKBENCH.SELECT_FIELD' | translate }}</option>
                     <option *ngFor="let field of canonicalFields" [ngValue]="field">{{ field }}</option>
                   </select>
                   <button class="ghost-btn small" type="button" (click)="clearHeaderMapping(header)">
-                    Clear
+                    {{ 'COMMON.CLEAR' | translate }}
                   </button>
                 </div>
               </div>
@@ -350,8 +374,8 @@
 
           <div class="sample-surface">
             <div class="mapping-section__header">
-              <h4>Sample Rows</h4>
-              <p>Preview the raw structure before validation.</p>
+              <h4>{{ 'IMPORTS.WORKBENCH.SAMPLE_ROWS' | translate }}</h4>
+              <p>{{ 'IMPORTS.WORKBENCH.SAMPLE_ROWS_COPY' | translate }}</p>
             </div>
             <pre class="sample-json">{{ parsed.sampleRows | json }}</pre>
           </div>
@@ -360,43 +384,46 @@
         <div class="stage-surface validation" *ngIf="validateResult as validation">
           <div class="stage-surface__header">
             <div>
-              <h3>Validation Review</h3>
-              <p>
-                Total: {{ validation.totalRows }} | Valid: {{ validation.validRows }} | Invalid:
-                {{ validation.invalidRows }}
-              </p>
+              <h3>{{ 'IMPORTS.WORKBENCH.VALIDATION_REVIEW' | translate }}</h3>
+              <p>{{ 'IMPORTS.WORKBENCH.VALIDATION_TOTALS' | translate:{
+                total: validation.totalRows,
+                valid: validation.validRows,
+                invalid: validation.invalidRows
+              } }}</p>
             </div>
           </div>
 
           <div class="validation-dashboard" *ngIf="validationTotals as totals">
             <div class="dashboard-card">
-              <span class="dashboard-label">Total</span>
+              <span class="dashboard-label">{{ 'IMPORTS.WORKBENCH.TOTAL' | translate }}</span>
               <strong>{{ totals.totalRows }}</strong>
             </div>
             <div class="dashboard-card">
-              <span class="dashboard-label">Fixed</span>
+              <span class="dashboard-label">{{ 'IMPORTS.WORKBENCH.FIXED' | translate }}</span>
               <strong>{{ totals.validRows }}</strong>
             </div>
             <div class="dashboard-card">
-              <span class="dashboard-label">Errors</span>
+              <span class="dashboard-label">{{ 'IMPORTS.WORKBENCH.ERRORS' | translate }}</span>
               <strong>{{ totals.invalidRows }}</strong>
             </div>
           </div>
 
           <div class="validation-summary" *ngIf="validationSummary as summary">
             <span class="summary-pill" *ngIf="summary.missingRequired > 0">
-              Missing fields: {{ summary.missingRequired }}
+              {{ 'IMPORTS.WORKBENCH.MISSING_FIELDS' | translate:{ count: summary.missingRequired } }}
             </span>
             <span class="summary-pill" *ngIf="summary.invalidDate > 0">
-              Invalid dates: {{ summary.invalidDate }}
+              {{ 'IMPORTS.WORKBENCH.INVALID_DATES' | translate:{ count: summary.invalidDate } }}
             </span>
             <span class="summary-pill" *ngIf="summary.invalidAmount > 0">
-              Amount issues: {{ summary.invalidAmount }}
+              {{ 'IMPORTS.WORKBENCH.AMOUNT_ISSUES' | translate:{ count: summary.invalidAmount } }}
             </span>
             <span class="summary-pill" *ngIf="summary.conflictingAmounts > 0">
-              Conflicts: {{ summary.conflictingAmounts }}
+              {{ 'IMPORTS.WORKBENCH.CONFLICTS' | translate:{ count: summary.conflictingAmounts } }}
             </span>
-            <span class="summary-pill" *ngIf="summary.other > 0">Other: {{ summary.other }}</span>
+            <span class="summary-pill" *ngIf="summary.other > 0">
+              {{ 'IMPORTS.WORKBENCH.OTHER' | translate:{ count: summary.other } }}
+            </span>
           </div>
 
           <div class="validation-filters">
@@ -406,7 +433,7 @@
               [class.active]="validationFilter === 'INVALID'"
               (click)="validationFilter = 'INVALID'; loadValidationRows()"
             >
-              Errors
+              {{ 'IMPORTS.WORKBENCH.ERRORS' | translate }}
             </button>
             <button
               class="ghost-btn"
@@ -414,7 +441,7 @@
               [class.active]="validationFilter === 'VALID'"
               (click)="validationFilter = 'VALID'; loadValidationRows()"
             >
-              Fixed
+              {{ 'IMPORTS.WORKBENCH.FIXED' | translate }}
             </button>
             <button
               class="ghost-btn"
@@ -422,7 +449,7 @@
               [class.active]="validationFilter === ''"
               (click)="validationFilter = ''; loadValidationRows()"
             >
-              All
+              {{ 'IMPORTS.WORKBENCH.ALL' | translate }}
             </button>
           </div>
 
@@ -430,11 +457,11 @@
             <table class="validation-table">
               <thead>
                 <tr>
-                  <th>Row</th>
-                  <th>Status</th>
-                  <th>Errors</th>
+                  <th>{{ 'IMPORTS.WORKBENCH.ROW' | translate }}</th>
+                  <th>{{ 'COMMON.STATUS' | translate }}</th>
+                  <th>{{ 'IMPORTS.WORKBENCH.ERRORS' | translate }}</th>
                   <th *ngFor="let header of parsed.headers">{{ header }}</th>
-                  <th>Action</th>
+                  <th>{{ 'COMMON.ACTION' | translate }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -459,14 +486,16 @@
                       [disabled]="processing"
                       (click)="updateRow(row)"
                     >
-                      Save Fix
+                      {{ 'IMPORTS.WORKBENCH.SAVE_FIX' | translate }}
                     </button>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p class="empty-copy" *ngIf="validationRows.length === 0">No rows to display.</p>
+          <p class="empty-copy" *ngIf="validationRows.length === 0">
+            {{ 'IMPORTS.WORKBENCH.NO_ROWS' | translate }}
+          </p>
         </div>
       </section>
     </ng-container>
@@ -475,9 +504,9 @@
       <section class="panel panel--stack panel--empty fr-glass-panel">
         <div class="panel__header">
           <div>
-            <span class="panel__eyebrow">Stages 3 and 4</span>
-            <h2>Select a Batch</h2>
-            <p>Choose an import from history to parse, validate, or commit it.</p>
+            <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGES_3_4' | translate }}</span>
+            <h2>{{ 'IMPORTS.WORKBENCH.SELECT_BATCH' | translate }}</h2>
+            <p>{{ 'IMPORTS.WORKBENCH.SELECT_BATCH_COPY' | translate }}</p>
           </div>
         </div>
       </section>
@@ -488,7 +517,7 @@
     <div class="recon-result-header">
       <span class="material-icons recon-result-icon">account_tree</span>
       <div>
-        <h3>Reconciliation Complete</h3>
+        <h3>{{ 'IMPORTS.WORKBENCH.RECONCILIATION_COMPLETE' | translate }}</h3>
         <p class="recon-route">{{ r.workflowRoute }}</p>
       </div>
       <span class="source-pill" [attr.data-source]="(r.sourceType || '').toLowerCase()">
@@ -511,19 +540,19 @@
       </div>
       <div class="recon-stat matched">
         <span class="stat-value">{{ r.level4MatchedCount }}</span>
-        <span class="stat-label">Level 4 Matched</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.LEVEL4_MATCHED' | translate }}</span>
       </div>
       <div class="recon-stat exception">
         <span class="stat-value">{{ r.level4ExceptionCount }}</span>
-        <span class="stat-label">Level 4 Exceptions</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.LEVEL4_EXCEPTIONS' | translate }}</span>
       </div>
       <div class="recon-stat waiting" [class.has-value]="r.waitingForSettlementCount > 0">
         <span class="stat-value">{{ r.waitingForSettlementCount }}</span>
-        <span class="stat-label">Waiting for Settlement ID</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.WAITING_FOR_SETTLEMENT' | translate }}</span>
       </div>
       <div class="recon-stat fee">
         <span class="stat-value">{{ r.feeAdjustmentTotal | number: '1.2-2' }}</span>
-        <span class="stat-label">Fee Adjustment Total</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.FEE_ADJUSTMENT_TOTAL' | translate }}</span>
       </div>
     </div>
 
@@ -549,10 +578,10 @@
         <span class="material-icons">compare_arrows</span>
         {{
           r.sourceType === 'POS'
-            ? 'Review POS Exceptions'
+            ? ('IMPORTS.WORKBENCH.REVIEW_POS_EXCEPTIONS' | translate)
             : r.sourceType === 'ERP'
-              ? 'View Events Timeline'
-              : 'View in Matcher'
+              ? ('IMPORTS.WORKBENCH.VIEW_EVENTS_TIMELINE' | translate)
+              : ('IMPORTS.WORKBENCH.VIEW_IN_MATCHER' | translate)
         }}
       </a>
       <a
@@ -562,7 +591,7 @@
         id="go-to-waiting-btn"
       >
         <span class="material-icons">hourglass_empty</span>
-        Resolve {{ r.waitingForSettlementCount }} Waiting
+        {{ 'IMPORTS.WORKBENCH.RESOLVE_WAITING' | translate:{ count: r.waitingForSettlementCount } }}
       </a>
       <a
         *ngIf="r.level3ExceptionCount > 0 && r.sourceType !== 'POS'"
@@ -571,19 +600,19 @@
         id="go-to-sales-verify-btn"
       >
         <span class="material-icons">fact_check</span>
-        Review {{ r.level3ExceptionCount }} Sales Exceptions
+        {{ 'IMPORTS.WORKBENCH.REVIEW_SALES_EXCEPTIONS' | translate:{ count: r.level3ExceptionCount } }}
       </a>
     </div>
   </section>
 
   <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">
-      <h3 id="delete-import-title">Delete Import Batch</h3>
+      <h3 id="delete-import-title">{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_TITLE' | translate }}</h3>
       <p>
         This will permanently remove the stored file and all parsed records for
         <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong>.
       </p>
-      <p>Are you sure you want to continue?</p>
+      <p>{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_CONFIRM' | translate }}</p>
 
       <div class="dialog-actions">
         <button
@@ -592,7 +621,7 @@
           [disabled]="processing"
           (click)="closeDeleteDialog()"
         >
-          Cancel
+          {{ 'COMMON.CANCEL' | translate }}
         </button>
         <button
           type="button"
@@ -600,7 +629,7 @@
           [disabled]="processing"
           (click)="confirmDeleteBatch()"
         >
-          {{ processing ? 'Deleting...' : 'Delete' }}
+          {{ processing ? ('COMMON.DELETING' | translate) : ('COMMON.DELETE' | translate) }}
         </button>
       </div>
     </div>

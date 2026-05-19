@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { TenantRegistrationService } from '../../../core/admin-tenant/tenant-registration.service';
 import { TenantRegistrationApprovalResult, TenantRegistrationSummary, TenantRegistrationDetail } from '../../../core/admin-tenant/models';
@@ -11,7 +12,7 @@ import { TenantRegistrationApprovalResult, TenantRegistrationSummary, TenantRegi
 @Component({
   selector: 'app-admin-tenant-registrations',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './admin-tenant-registrations.html',
   styleUrls: ['./admin-tenant-registrations.scss'],
 })

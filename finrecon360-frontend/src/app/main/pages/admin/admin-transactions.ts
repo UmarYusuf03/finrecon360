@@ -21,6 +21,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
@@ -52,6 +53,7 @@ import { AuthService } from '../../../core/auth/auth.service';
     MatProgressSpinnerModule,
     RouterLink,
     RouterLinkActive,
+    TranslateModule,
   ],
   templateUrl: './admin-transactions.html',
   styleUrls: ['./admin-transaction-pages.scss'],
@@ -139,7 +141,7 @@ export class AdminTransactionsComponent implements OnInit {
         transaction.transactionType,
         transaction.paymentMethod,
         this.getBankAccountLabel(transaction.bankAccountId),
-        this.getStateLabel(transaction.transactionState),
+        this.getStateLabelKey(transaction.transactionState),
         transaction.transactionDate,
         transaction.amount.toFixed(2),
       ].join(' ').toLowerCase();
@@ -167,16 +169,16 @@ export class AdminTransactionsComponent implements OnInit {
     return this.transactions.filter((transaction) => transaction.transactionState === state).length;
   }
 
-  getEmptyTitle(): string {
+  getEmptyTitleKey(): string {
     return this.transactions.length === 0
-      ? 'No transactions yet'
-      : 'No transactions match the current filters';
+      ? 'TRANSACTIONS.EMPTY_TITLE_NONE'
+      : 'TRANSACTIONS.EMPTY_TITLE_FILTERED';
   }
 
-  getEmptyMessage(): string {
+  getEmptyMessageKey(): string {
     return this.transactions.length === 0
-      ? 'Create a cash-in or cash-out transaction to start the approval workflow.'
-      : 'Broaden the search or clear the state filter to see more transactions.';
+      ? 'TRANSACTIONS.EMPTY_COPY_NONE'
+      : 'TRANSACTIONS.EMPTY_COPY_FILTERED';
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
@@ -370,12 +372,16 @@ export class AdminTransactionsComponent implements OnInit {
     return this.actionId === transaction.transactionId;
   }
 
-  getStateLabel(state: string): string {
+  getStateLabelKey(state: string): string {
     switch (state) {
+      case 'Pending':
+        return 'COMMON.PENDING';
       case 'JournalReady':
-        return 'Journal Ready';
+        return 'TRANSACTIONS.NAV.JOURNAL_READY';
       case 'NeedsBankMatch':
-        return 'Needs Bank Match';
+        return 'TRANSACTIONS.NAV.NEEDS_BANK_MATCH';
+      case 'Rejected':
+        return 'COMMON.REJECTED';
       default:
         return state;
     }
@@ -396,22 +402,26 @@ export class AdminTransactionsComponent implements OnInit {
     }
   }
 
-  getDialogTitle(): string {
-    return this.editingTransaction ? 'Edit Transaction' : 'Add Transaction';
-  }
-
-  getDialogHelperText(): string {
+  getDialogTitleKey(): string {
     return this.editingTransaction
-      ? 'Only pending transactions can be edited before approval.'
-      : 'Create a new pending transaction for approval.';
+      ? 'TRANSACTIONS.DIALOG.EDIT_TITLE'
+      : 'TRANSACTIONS.DIALOG.ADD_TITLE';
   }
 
-  getSaveButtonLabel(): string {
+  getDialogHelperKey(): string {
+    return this.editingTransaction
+      ? 'TRANSACTIONS.DIALOG.EDIT_HELPER'
+      : 'TRANSACTIONS.DIALOG.ADD_HELPER';
+  }
+
+  getSaveButtonKey(): string {
     if (this.saving) {
-      return 'Saving...';
+      return 'TRANSACTIONS.DIALOG.SAVING_ACTION';
     }
 
-    return this.editingTransaction ? 'Update Transaction' : 'Create Transaction';
+    return this.editingTransaction
+      ? 'TRANSACTIONS.DIALOG.UPDATE_ACTION'
+      : 'TRANSACTIONS.DIALOG.CREATE_ACTION';
   }
 
   private loadTransactions(): void {

@@ -1,8 +1,8 @@
 <section class="bank-accounts-page">
   <header class="bank-accounts-page__header">
     <div class="bank-accounts-page__title-block">
-      <h1>Bank Accounts</h1>
-      <p>Manage connected institutional accounts for reconciliation.</p>
+      <h1>{{ 'BANK_ACCOUNTS.TITLE' | translate }}</h1>
+      <p>{{ 'BANK_ACCOUNTS.SUBTITLE' | translate }}</p>
     </div>
 
     <div class="bank-accounts-page__toolbar">
@@ -14,7 +14,7 @@
         [disabled]="loading"
       >
         <mat-icon>refresh</mat-icon>
-        <span>Refresh</span>
+        <span>{{ 'COMMON.REFRESH' | translate }}</span>
       </button>
 
       <button
@@ -25,14 +25,14 @@
         (click)="openAdd(bankAccountDialog)"
       >
         <mat-icon>add</mat-icon>
-        <span>Add Bank Account</span>
+        <span>{{ 'BANK_ACCOUNTS.ADD' | translate }}</span>
       </button>
     </div>
   </header>
 
   <div *ngIf="loading" class="bank-accounts-page__state bank-accounts-page__state--loading fr-glass-panel">
     <mat-spinner diameter="36"></mat-spinner>
-    <p>Loading bank accounts...</p>
+    <p>{{ 'BANK_ACCOUNTS.LOADING' | translate }}</p>
   </div>
 
   <div *ngIf="!loading && bankAccounts.length > 0" class="bank-account-grid">
@@ -66,21 +66,21 @@
           [class.status-badge--active]="account.isActive"
           [class.status-badge--inactive]="!account.isActive"
         >
-          {{ account.isActive ? 'Active' : 'Inactive' }}
+          {{ account.isActive ? ('BANK_ACCOUNTS.ACTIVE' | translate) : ('BANK_ACCOUNTS.INACTIVE' | translate) }}
         </span>
       </div>
 
       <div class="bank-account-card__details">
         <div class="bank-account-card__detail">
-          <span class="bank-account-card__label">Account Number</span>
+          <span class="bank-account-card__label">{{ 'BANK_ACCOUNTS.ACCOUNT_NUMBER' | translate }}</span>
           <span class="bank-account-card__value bank-account-card__value--mono">
             {{ maskAccountNumber(account.accountNumber) }}
           </span>
         </div>
 
         <div class="bank-account-card__detail">
-          <span class="bank-account-card__label">Currency</span>
-          <span class="bank-account-card__value">{{ account.currency || 'Not set' }}</span>
+          <span class="bank-account-card__label">{{ 'BANK_ACCOUNTS.CURRENCY' | translate }}</span>
+          <span class="bank-account-card__value">{{ account.currency || ('BANK_ACCOUNTS.NOT_SET' | translate) }}</span>
         </div>
       </div>
 
@@ -90,10 +90,10 @@
           type="button"
           class="bank-account-card__action"
           (click)="openEdit(account, bankAccountDialog)"
-          aria-label="Edit bank account"
+          [attr.aria-label]="'COMMON.EDIT' | translate"
         >
           <mat-icon>edit</mat-icon>
-          <span>Edit</span>
+          <span>{{ 'COMMON.EDIT' | translate }}</span>
         </button>
 
         <button
@@ -102,10 +102,10 @@
           class="bank-account-card__action bank-account-card__action--warn"
           (click)="deactivate(account)"
           [disabled]="!account.isActive || deactivatingId === account.bankAccountId"
-          aria-label="Deactivate bank account"
+          [attr.aria-label]="'COMMON.DEACTIVATE' | translate"
         >
           <mat-icon>{{ deactivatingId === account.bankAccountId ? 'hourglass_top' : 'block' }}</mat-icon>
-          <span>{{ deactivatingId === account.bankAccountId ? 'Deactivating' : 'Deactivate' }}</span>
+          <span>{{ deactivatingId === account.bankAccountId ? ('BANK_ACCOUNTS.DEACTIVATING' | translate) : ('COMMON.DEACTIVATE' | translate) }}</span>
         </button>
       </div>
     </article>
@@ -115,8 +115,8 @@
     <div class="bank-accounts-page__empty-icon">
       <mat-icon>account_balance</mat-icon>
     </div>
-    <h2>No bank accounts found</h2>
-    <p>Add your first connected institutional account to configure reconciliation coverage.</p>
+    <h2>{{ 'BANK_ACCOUNTS.EMPTY_TITLE' | translate }}</h2>
+    <p>{{ 'BANK_ACCOUNTS.EMPTY_COPY' | translate }}</p>
   </div>
 </section>
 
@@ -125,10 +125,10 @@
     <div class="bank-account-dialog__header">
       <div>
         <p class="bank-account-dialog__eyebrow">
-          {{ editingId ? 'Update connected account details' : 'Connect a new institutional account' }}
+          {{ editingId ? ('BANK_ACCOUNTS.DIALOG.EDIT_EYEBROW' | translate) : ('BANK_ACCOUNTS.DIALOG.ADD_EYEBROW' | translate) }}
         </p>
         <h2 mat-dialog-title class="bank-account-dialog__title">
-          {{ editingId ? 'Edit Bank Account' : 'Add Bank Account' }}
+          {{ editingId ? ('BANK_ACCOUNTS.DIALOG.EDIT_TITLE' | translate) : ('BANK_ACCOUNTS.DIALOG.ADD_TITLE' | translate) }}
         </h2>
       </div>
 
@@ -138,7 +138,7 @@
         type="button"
         class="bank-account-dialog__close"
         [disabled]="saving"
-        aria-label="Close bank account dialog"
+        [attr.aria-label]="'COMMON.CLOSE' | translate"
       >
         <mat-icon>close</mat-icon>
       </button>
@@ -150,13 +150,13 @@
           appearance="outline"
           class="bank-account-dialog__field bank-account-dialog__field--wide"
         >
-          <mat-label>Bank Name</mat-label>
+          <mat-label>{{ 'BANK_ACCOUNTS.BANK_NAME' | translate }}</mat-label>
           <input matInput formControlName="bankName" />
           <mat-error *ngIf="form.get('bankName')?.hasError('required')">
-            Bank name is required.
+            {{ 'BANK_ACCOUNTS.ERRORS.BANK_NAME_REQUIRED' | translate }}
           </mat-error>
           <mat-error *ngIf="form.get('bankName')?.hasError('maxlength')">
-            Bank name cannot exceed 200 characters.
+            {{ 'BANK_ACCOUNTS.ERRORS.BANK_NAME_MAX' | translate }}
           </mat-error>
         </mat-form-field>
 
@@ -164,35 +164,35 @@
           appearance="outline"
           class="bank-account-dialog__field bank-account-dialog__field--wide"
         >
-          <mat-label>Account Name</mat-label>
+          <mat-label>{{ 'BANK_ACCOUNTS.ACCOUNT_NAME' | translate }}</mat-label>
           <input matInput formControlName="accountName" />
           <mat-error *ngIf="form.get('accountName')?.hasError('required')">
-            Account name is required.
+            {{ 'BANK_ACCOUNTS.ERRORS.ACCOUNT_NAME_REQUIRED' | translate }}
           </mat-error>
           <mat-error *ngIf="form.get('accountName')?.hasError('maxlength')">
-            Account name cannot exceed 200 characters.
+            {{ 'BANK_ACCOUNTS.ERRORS.ACCOUNT_NAME_MAX' | translate }}
           </mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="bank-account-dialog__field">
-          <mat-label>Account Number</mat-label>
+          <mat-label>{{ 'BANK_ACCOUNTS.ACCOUNT_NUMBER' | translate }}</mat-label>
           <input matInput formControlName="accountNumber" />
           <mat-error *ngIf="form.get('accountNumber')?.hasError('required')">
-            Account number is required.
+            {{ 'BANK_ACCOUNTS.ERRORS.ACCOUNT_NUMBER_REQUIRED' | translate }}
           </mat-error>
           <mat-error *ngIf="form.get('accountNumber')?.hasError('maxlength')">
-            Account number cannot exceed 100 characters.
+            {{ 'BANK_ACCOUNTS.ERRORS.ACCOUNT_NUMBER_MAX' | translate }}
           </mat-error>
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="bank-account-dialog__field">
-          <mat-label>Currency</mat-label>
+          <mat-label>{{ 'BANK_ACCOUNTS.CURRENCY' | translate }}</mat-label>
           <input matInput formControlName="currency" />
           <mat-error *ngIf="form.get('currency')?.hasError('required')">
-            Currency is required.
+            {{ 'BANK_ACCOUNTS.ERRORS.CURRENCY_REQUIRED' | translate }}
           </mat-error>
           <mat-error *ngIf="form.get('currency')?.hasError('maxlength')">
-            Currency cannot exceed 10 characters.
+            {{ 'BANK_ACCOUNTS.ERRORS.CURRENCY_MAX' | translate }}
           </mat-error>
         </mat-form-field>
       </form>
@@ -201,10 +201,10 @@
 
     <div mat-dialog-actions align="end" class="bank-account-dialog__actions">
       <button mat-button mat-dialog-close type="button" [disabled]="saving">
-        Cancel
+        {{ 'COMMON.CANCEL' | translate }}
       </button>
       <button mat-flat-button color="primary" type="button" (click)="save()" [disabled]="saving">
-        {{ saving ? 'Saving...' : 'Save' }}
+        {{ saving ? ('BANK_ACCOUNTS.SAVING' | translate) : ('COMMON.SAVE' | translate) }}
       </button>
     </div>
   </div>

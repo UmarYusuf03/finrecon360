@@ -11,6 +11,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { ReconciliationService } from '../../../core/admin-rbac/reconciliation.service';
 import { ReconciliationEvent } from '../../../core/admin-rbac/models';
@@ -41,6 +42,7 @@ import { AuthService } from '../../../core/auth/auth.service';
     MatSelectModule,
     RouterLink,
     RouterLinkActive,
+    TranslateModule,
   ],
   templateUrl: './matcher-sales-verification.html',
   styleUrls: ['./matcher-sales-verification.scss'],

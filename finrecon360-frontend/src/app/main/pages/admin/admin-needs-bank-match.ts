@@ -10,6 +10,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
@@ -30,6 +31,7 @@ import { BankAccount, NeedsBankMatchRecord } from '../../../core/admin-rbac/mode
     MatExpansionModule,
     RouterLink,
     RouterLinkActive,
+    TranslateModule,
   ],
   templateUrl: './admin-needs-bank-match.html',
   styleUrls: ['./admin-transaction-pages.scss'],

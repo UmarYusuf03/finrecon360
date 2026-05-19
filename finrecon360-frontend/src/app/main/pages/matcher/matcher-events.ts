@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSelectModule } from '@angular/material/select';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { ReconciliationService } from '../../../core/admin-rbac/reconciliation.service';
 import { ReconciliationEvent } from '../../../core/admin-rbac/models';
@@ -40,6 +41,7 @@ import { ReconciliationEvent } from '../../../core/admin-rbac/models';
     MatExpansionModule,
     RouterLink,
     RouterLinkActive,
+    TranslateModule,
   ],
   templateUrl: './matcher-events.html',
   styleUrls: ['./matcher-events.scss'],

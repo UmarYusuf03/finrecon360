@@ -1,60 +1,60 @@
 <mat-card class="matcher">
-  <nav class="nav" aria-label="Reconciliation workflow">
+  <nav class="nav" [attr.aria-label]="'MATCHER.WORKFLOW_ARIA' | translate">
     <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
       <mat-icon>account_balance</mat-icon>
-      <span>Match Groups</span>
+      <span>{{ 'MATCHER.NAV.MATCH_GROUPS' | translate }}</span>
     </a>
     <a routerLink="/app/matcher/waiting" routerLinkActive="active">
       <mat-icon>pending</mat-icon>
-      <span>Waiting Queue</span>
+      <span>{{ 'MATCHER.NAV.WAITING_QUEUE' | translate }}</span>
     </a>
     <a routerLink="/app/matcher/sales-verification" routerLinkActive="active" id="nav-sales-verification">
       <mat-icon>find_in_page</mat-icon>
-      <span>Sales Verification</span>
+      <span>{{ 'MATCHER.NAV.SALES_VERIFICATION' | translate }}</span>
     </a>
     <a routerLink="/app/matcher/events" routerLinkActive="active" id="nav-recon-events">
       <mat-icon>timeline</mat-icon>
-      <span>Events</span>
+      <span>{{ 'MATCHER.NAV.EVENTS' | translate }}</span>
     </a>
     <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
       <mat-icon>receipt_long</mat-icon>
-      <span>Journal Ready</span>
+      <span>{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</span>
     </a>
   </nav>
 
   <section class="hero">
     <div class="copy">
-      <span class="eyebrow">Reconciliation workspace</span>
-      <h1>Reconciliation Matcher</h1>
-      <p>Review candidate groups, confirm valid settlements, and route cleared groups to Journal Ready.</p>
+      <span class="eyebrow">{{ 'MATCHER.EYEBROW' | translate }}</span>
+      <h1>{{ 'MATCHER.TITLE' | translate }}</h1>
+      <p>{{ 'MATCHER.SUBTITLE' | translate }}</p>
     </div>
 
     <div class="actions">
       <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading" id="matcher-refresh-btn">
         <mat-icon>refresh</mat-icon>
-        Refresh
+        {{ 'COMMON.REFRESH' | translate }}
       </button>
     </div>
   </section>
 
   <section class="summary" *ngIf="!loading && allGroups.length > 0">
     <article class="stat">
-      <span class="label">Total groups</span>
+      <span class="label">{{ 'MATCHER.TOTAL_GROUPS' | translate }}</span>
       <strong class="value">{{ allGroups.length }}</strong>
     </article>
 
     <article class="stat stat--pending">
-      <span class="label">Awaiting confirmation</span>
+      <span class="label">{{ 'MATCHER.AWAITING_CONFIRMATION' | translate }}</span>
       <strong class="value">{{ pendingCount }}</strong>
     </article>
 
     <article class="stat stat--confirmed">
-      <span class="label">Confirmed</span>
+      <span class="label">{{ 'MATCHER.CONFIRMED' | translate }}</span>
       <strong class="value">{{ confirmedCount }}</strong>
     </article>
 
     <article class="stat stat--posted">
-      <span class="label">Journal posted</span>
+      <span class="label">{{ 'MATCHER.JOURNAL_POSTED' | translate }}</span>
       <strong class="value">{{ postedCount }}</strong>
     </article>
   </section>
@@ -62,22 +62,22 @@
   <div *ngIf="loading" class="state">
     <mat-spinner diameter="40"></mat-spinner>
     <div>
-      <h3>Loading match groups</h3>
-      <p>Refreshing candidates and confirmation status.</p>
+      <h3>{{ 'MATCHER.LOADING_TITLE' | translate }}</h3>
+      <p>{{ 'MATCHER.LOADING_COPY' | translate }}</p>
     </div>
   </div>
 
   <section class="tabs" *ngIf="!loading">
     <mat-tab-group class="tabset" (selectedIndexChange)="onTabChange($event)" [selectedIndex]="selectedTab" animationDuration="150ms">
-      <mat-tab label="Needs Confirmation">
+      <mat-tab [label]="'MATCHER.TABS.NEEDS_CONFIRMATION' | translate">
         <ng-container *ngTemplateOutlet="groupList; context: { groups: displayedGroups, tab: 0 }"></ng-container>
       </mat-tab>
 
-      <mat-tab label="All Groups">
+      <mat-tab [label]="'MATCHER.TABS.ALL_GROUPS' | translate">
         <ng-container *ngTemplateOutlet="groupList; context: { groups: displayedGroups, tab: 1 }"></ng-container>
       </mat-tab>
 
-      <mat-tab label="Confirmed and Posted">
+      <mat-tab [label]="'MATCHER.TABS.CONFIRMED_POSTED' | translate">
         <ng-container *ngTemplateOutlet="groupList; context: { groups: displayedGroups, tab: 2 }"></ng-container>
       </mat-tab>
     </mat-tab-group>
@@ -110,12 +110,21 @@
           <mat-panel-description>
             <div class="panel-desc">
               <span class="panel-total">
-                Net {{ getNetTotal(group) | number: '1.2-2' }}
-                <span *ngIf="getFeeTotal(group) > 0">, Fee {{ getFeeTotal(group) | number: '1.2-2' }}</span>
+                {{ 'MATCHER.NET' | translate }} {{ getNetTotal(group) | number: '1.2-2' }}
+                <span *ngIf="getFeeTotal(group) > 0"
+                  >, {{ 'MATCHER.FEE' | translate }}
+                  {{ getFeeTotal(group) | number: '1.2-2' }}</span
+                >
               </span>
 
               <span class="status-badge" [ngClass]="group.isJournalPosted ? 'status-posted' : group.isConfirmed ? 'status-confirmed' : 'status-unconfirmed'">
-                {{ group.isJournalPosted ? 'Posted' : group.isConfirmed ? 'Confirmed' : 'Awaiting Confirmation' }}
+                {{
+                  group.isJournalPosted
+                    ? ('MATCHER.POSTED' | translate)
+                    : group.isConfirmed
+                      ? ('MATCHER.CONFIRMED' | translate)
+                      : ('MATCHER.AWAITING_CONFIRMATION' | translate)
+                }}
               </span>
             </div>
           </mat-panel-description>
@@ -124,73 +133,75 @@
         <div class="body">
           <div class="fin-grid">
             <div class="fin">
-              <span class="label">Gross total</span>
+              <span class="label">{{ 'MATCHER.GROSS_TOTAL' | translate }}</span>
               <span class="value">{{ getGrossTotal(group) | number: '1.2-2' }} LKR</span>
             </div>
 
             <div class="fin fin--fee">
-              <span class="label">Processing fee</span>
+              <span class="label">{{ 'MATCHER.PROCESSING_FEE' | translate }}</span>
               <span class="value">{{ getFeeTotal(group) | number: '1.2-2' }} LKR</span>
             </div>
 
             <div class="fin fin--net">
-              <span class="label">Net total</span>
+              <span class="label">{{ 'MATCHER.NET_TOTAL' | translate }}</span>
               <span class="value">{{ getNetTotal(group) | number: '1.2-2' }} LKR</span>
             </div>
 
             <div class="fin" *ngIf="group.matchedRecords.length > 0">
-              <span class="label">Matched records</span>
+              <span class="label">{{ 'MATCHER.MATCHED_RECORDS' | translate }}</span>
               <span class="value">{{ group.matchedRecords.length }}</span>
             </div>
           </div>
 
           <div class="meta">
-            <span>Created {{ group.createdAt | date: 'medium' }}</span>
-            <span *ngIf="group.confirmedAt">Confirmed {{ group.confirmedAt | date: 'medium' }}</span>
+            <span>{{ 'MATCHER.CREATED' | translate }} {{ group.createdAt | date: 'medium' }}</span>
+            <span *ngIf="group.confirmedAt"
+              >{{ 'MATCHER.CONFIRMED_AT' | translate }} {{ group.confirmedAt | date: 'medium' }}</span
+            >
           </div>
 
           <div class="table-wrap">
             <table mat-table [dataSource]="group.matchedRecords" class="table">
               <ng-container matColumnDef="sourceType">
-                <th mat-header-cell *matHeaderCellDef>Source</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.SOURCE' | translate }}</th>
                 <td mat-cell *matCellDef="let r">
                   <span class="source-badge">{{ r.sourceType }}</span>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="referenceNumber">
-                <th mat-header-cell *matHeaderCellDef>Reference</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'TRANSACTIONS.REFERENCE_NUMBER' | translate }}</th>
                 <td mat-cell *matCellDef="let r">{{ r.referenceNumber ?? '-' }}</td>
               </ng-container>
 
               <ng-container matColumnDef="transactionDate">
-                <th mat-header-cell *matHeaderCellDef>Date</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.DATE' | translate }}</th>
                 <td mat-cell *matCellDef="let r">{{ r.transactionDate | date: 'mediumDate' }}</td>
               </ng-container>
 
               <ng-container matColumnDef="grossAmount">
-                <th mat-header-cell *matHeaderCellDef>Gross</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'MATCHER.GROSS' | translate }}</th>
                 <td mat-cell *matCellDef="let r" class="amt">
                   {{ (r.grossAmount ?? 0) | number: '1.2-2' }}
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="processingFee">
-                <th mat-header-cell *matHeaderCellDef>Fee</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'MATCHER.FEE_TOTAL' | translate }}</th>
                 <td mat-cell *matCellDef="let r" class="amt amt--fee">
                   {{ (r.processingFee ?? 0) | number: '1.2-2' }}
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="netAmount">
-                <th mat-header-cell *matHeaderCellDef>Net</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'MATCHER.NET' | translate }}</th>
                 <td mat-cell *matCellDef="let r" class="amt amt--net">
                   {{ r.netAmount | number: '1.2-2' }}
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="matchStatus">
-                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.STATUS' | translate }}</th>
                 <td mat-cell *matCellDef="let r">
                   <span class="status-badge" [ngClass]="getMatchStatusClass(r.matchStatus)">
                     {{ getMatchStatusLabel(r.matchStatus) }}
@@ -212,27 +223,33 @@
               (click)="confirm(group)">
               <mat-spinner *ngIf="confirmingId === group.reconciliationMatchGroupId" diameter="18"></mat-spinner>
               <mat-icon *ngIf="confirmingId !== group.reconciliationMatchGroupId">check_circle</mat-icon>
-              Confirm Match
+              {{ 'MATCHER.CONFIRM_MATCH' | translate }}
             </button>
 
-            <span class="hint">Confirmation clears this group for Journal Ready.</span>
+            <span class="hint">{{ 'MATCHER.CONFIRM_HINT' | translate }}</span>
           </div>
 
           <div class="group-actions" *ngIf="canViewRecon && !canConfirmMatch && !group.isConfirmed">
             <span class="hint">
               <mat-icon>visibility</mat-icon>
-              Read only. You need <strong>RECONCILIATION.CONFIRM</strong> to complete this step.
+              {{ 'MATCHER.READ_ONLY_CONFIRM_HINT' | translate }}
             </span>
           </div>
 
           <div class="note note--confirmed" *ngIf="group.isConfirmed && !group.isJournalPosted">
             <mat-icon>check_circle</mat-icon>
-            <span>Confirmed. Continue in <a routerLink="/app/transactions/journal-ready">Journal Ready</a> to post the entry.</span>
+            <span
+              >{{ 'MATCHER.CONFIRMED_NOTE_PREFIX' | translate }}
+              <a routerLink="/app/transactions/journal-ready">{{
+                'TRANSACTIONS.NAV.JOURNAL_READY' | translate
+              }}</a>
+              {{ 'MATCHER.CONFIRMED_NOTE_SUFFIX' | translate }}</span
+            >
           </div>
 
           <div class="note note--posted" *ngIf="group.isJournalPosted">
             <mat-icon>task_alt</mat-icon>
-            <span>Journal entry posted.</span>
+            <span>{{ 'MATCHER.JOURNAL_POSTED_NOTE' | translate }}</span>
           </div>
         </div>
       </mat-expansion-panel>
@@ -242,10 +259,10 @@
   <ng-template #emptyState>
     <div class="state state--empty">
       <mat-icon>find_in_page</mat-icon>
-      <h3>No match groups</h3>
-      <p *ngIf="tab === 0">All groups are confirmed, or imports have not produced reviewable matches yet.</p>
-      <p *ngIf="tab === 1">No reconciliation match groups have been created yet. Import a file to begin.</p>
-      <p *ngIf="tab === 2">No confirmed or posted groups are available.</p>
+      <h3>{{ 'MATCHER.EMPTY_TITLE' | translate }}</h3>
+      <p *ngIf="tab === 0">{{ 'MATCHER.EMPTY.NEEDS_CONFIRMATION' | translate }}</p>
+      <p *ngIf="tab === 1">{{ 'MATCHER.EMPTY.ALL_GROUPS' | translate }}</p>
+      <p *ngIf="tab === 2">{{ 'MATCHER.EMPTY.CONFIRMED_POSTED' | translate }}</p>
     </div>
   </ng-template>
 </ng-template>

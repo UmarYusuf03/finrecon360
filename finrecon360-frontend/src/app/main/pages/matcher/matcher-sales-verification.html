@@ -1,87 +1,87 @@
 <section class="sv-page">
-  <nav class="matcher-nav" aria-label="Reconciliation workflow">
+  <nav class="matcher-nav" [attr.aria-label]="'MATCHER.WORKFLOW_ARIA' | translate">
     <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
       <mat-icon>account_balance</mat-icon>
-      <span>Match Groups</span>
+      <span>{{ 'MATCHER.NAV.MATCH_GROUPS' | translate }}</span>
     </a>
     <a routerLink="/app/matcher/waiting" routerLinkActive="active">
       <mat-icon>pending</mat-icon>
-      <span>Waiting Queue</span>
+      <span>{{ 'MATCHER.NAV.WAITING_QUEUE' | translate }}</span>
     </a>
     <a routerLink="/app/matcher/sales-verification" routerLinkActive="active">
       <mat-icon>find_in_page</mat-icon>
-      <span>Sales Verification</span>
+      <span>{{ 'MATCHER.NAV.SALES_VERIFICATION' | translate }}</span>
     </a>
     <a routerLink="/app/matcher/events" routerLinkActive="active">
       <mat-icon>timeline</mat-icon>
-      <span>Events</span>
+      <span>{{ 'MATCHER.NAV.EVENTS' | translate }}</span>
     </a>
     <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
       <mat-icon>receipt_long</mat-icon>
-      <span>Journal Ready</span>
+      <span>{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</span>
     </a>
   </nav>
 
   <header class="sv-hero">
     <div class="sv-hero__copy">
-      <span class="sv-hero__eyebrow">Manual review</span>
-      <h1>Sales Verification Queue</h1>
-      <p>Review Level 3 reconciliation exceptions before records continue into bank-side settlement matching.</p>
+      <span class="sv-hero__eyebrow">{{ 'MATCHER.SALES_VERIFICATION.EYEBROW' | translate }}</span>
+      <h1>{{ 'MATCHER.SALES_VERIFICATION.TITLE' | translate }}</h1>
+      <p>{{ 'MATCHER.SALES_VERIFICATION.SUBTITLE' | translate }}</p>
     </div>
 
     <div class="sv-hero__actions">
       <a routerLink="/app/matcher" class="ghost-btn back-btn">
         <mat-icon>arrow_back</mat-icon>
-        Back to Matcher
+        {{ 'MATCHER.BACK_TO_MATCHER' | translate }}
       </a>
 
       <button class="primary-btn" (click)="refresh()" [disabled]="loading" id="sv-refresh-btn">
         <mat-icon>refresh</mat-icon>
-        Refresh
+        {{ 'COMMON.REFRESH' | translate }}
       </button>
     </div>
   </header>
 
   <section class="sv-summary" *ngIf="!loading && canViewRecon">
     <article class="summary-card">
-      <span class="summary-card__label">Total events</span>
+      <span class="summary-card__label">{{ 'MATCHER.SALES_VERIFICATION.TOTAL_EVENTS' | translate }}</span>
       <strong class="summary-card__value">{{ totalCount }}</strong>
-      <span class="summary-card__meta">Open Level 1 and Level 3 items in this queue</span>
+      <span class="summary-card__meta">{{ 'MATCHER.SALES_VERIFICATION.TOTAL_EVENTS_COPY' | translate }}</span>
     </article>
 
     <article class="summary-card summary-card--exception">
-      <span class="summary-card__label">Exceptions</span>
+      <span class="summary-card__label">{{ 'MATCHER.SALES_VERIFICATION.EXCEPTIONS' | translate }}</span>
       <strong class="summary-card__value">{{ exceptionCount }}</strong>
-      <span class="summary-card__meta">Require accountant review or enrichment</span>
+      <span class="summary-card__meta">{{ 'MATCHER.SALES_VERIFICATION.EXCEPTIONS_COPY' | translate }}</span>
     </article>
 
     <article class="summary-card summary-card--success">
-      <span class="summary-card__label">Resolved</span>
+      <span class="summary-card__label">{{ 'MATCHER.SALES_VERIFICATION.RESOLVED' | translate }}</span>
       <strong class="summary-card__value">{{ verifiedCount }}</strong>
-      <span class="summary-card__meta">Already cleared from exception handling</span>
+      <span class="summary-card__meta">{{ 'MATCHER.SALES_VERIFICATION.RESOLVED_COPY' | translate }}</span>
     </article>
   </section>
 
   <section class="sv-filters-card" *ngIf="canViewRecon">
     <div class="sv-filters">
       <label class="filter-field">
-        <span>Source</span>
+        <span>{{ 'COMMON.SOURCE' | translate }}</span>
         <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="sv-source-filter">
-          <option value="">All Source Types</option>
+          <option value="">{{ 'MATCHER.SALES_VERIFICATION.ALL_SOURCE_TYPES' | translate }}</option>
           <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
         </select>
       </label>
 
       <label class="filter-field">
-        <span>Event</span>
+        <span>{{ 'MATCHER.SALES_VERIFICATION.EVENT' | translate }}</span>
         <select [(ngModel)]="eventTypeFilter" (ngModelChange)="applyFilters()" id="sv-event-filter">
-          <option value="">All Event Types</option>
+          <option value="">{{ 'MATCHER.SALES_VERIFICATION.ALL_EVENT_TYPES' | translate }}</option>
           <option *ngFor="let et of getUniqueEventTypes()" [value]="et">{{ getEventTypeLabel(et) }}</option>
         </select>
       </label>
 
       <span class="filter-count" *ngIf="filteredEvents.length !== totalCount">
-        Showing {{ filteredEvents.length }} of {{ totalCount }}
+        {{ 'COMMON.SHOWING_OF' | translate:{ shown: filteredEvents.length, total: totalCount } }}
       </span>
     </div>
   </section>
@@ -89,34 +89,34 @@
   <div class="sv-state sv-state--loading" *ngIf="loading">
     <mat-icon>hourglass_empty</mat-icon>
     <div>
-      <h3>Loading sales verification events</h3>
-      <p>Refreshing unresolved reconciliation exceptions.</p>
+      <h3>{{ 'MATCHER.SALES_VERIFICATION.LOADING_TITLE' | translate }}</h3>
+      <p>{{ 'MATCHER.SALES_VERIFICATION.LOADING_COPY' | translate }}</p>
     </div>
   </div>
 
   <div class="sv-state sv-state--empty" *ngIf="!canViewRecon">
     <mat-icon>lock</mat-icon>
-    <h3>Access required</h3>
-    <p>You need <strong>ADMIN.RECONCILIATION.VIEW</strong> or an equivalent scoped permission to view this queue.</p>
+    <h3>{{ 'MATCHER.ACCESS_REQUIRED' | translate }}</h3>
+    <p>{{ 'MATCHER.SALES_VERIFICATION.ACCESS_COPY' | translate }}</p>
   </div>
 
   <div class="sv-state sv-state--empty" *ngIf="canViewRecon && !loading && filteredEvents.length === 0">
     <mat-icon>check_circle_outline</mat-icon>
-    <h3>No items in the review queue</h3>
-    <p>No Level 3 exceptions match the current filters. All records are resolved or currently in a different stage.</p>
+    <h3>{{ 'MATCHER.SALES_VERIFICATION.EMPTY_TITLE' | translate }}</h3>
+    <p>{{ 'MATCHER.SALES_VERIFICATION.EMPTY_COPY' | translate }}</p>
   </div>
 
   <div class="sv-table-shell" *ngIf="canViewRecon && !loading && filteredEvents.length > 0">
     <table class="sv-table">
       <thead>
         <tr>
-          <th>Stage</th>
-          <th>Source</th>
-          <th>Event Type</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th>Detail</th>
-          <th *ngIf="canResolveException">Action</th>
+          <th>{{ 'MATCHER.EVENTS.STAGE' | translate }}</th>
+          <th>{{ 'COMMON.SOURCE' | translate }}</th>
+          <th>{{ 'MATCHER.SALES_VERIFICATION.EVENT_TYPE' | translate }}</th>
+          <th>{{ 'COMMON.STATUS' | translate }}</th>
+          <th>{{ 'MATCHER.CREATED' | translate }}</th>
+          <th>{{ 'MATCHER.EVENTS.DETAIL' | translate }}</th>
+          <th *ngIf="canResolveException">{{ 'COMMON.ACTION' | translate }}</th>
         </tr>
       </thead>
 
@@ -150,7 +150,7 @@
                 <strong>{{ key.key }}:</strong> {{ key.value }}
               </span>
             </ng-container>
-            <span class="muted" *ngIf="!event.detailJson">-</span>
+            <span class="muted" *ngIf="!event.detailJson">{{ 'COMMON.NOT_AVAILABLE' | translate }}</span>
           </td>
 
           <td *ngIf="canResolveException" class="action-cell">
@@ -159,7 +159,7 @@
               class="resolve-hint"
               [title]="'Requires ADMIN.RECONCILIATION.RESOLVE to act on this record via the settlement ID panel'">
               <mat-icon>manage_search</mat-icon>
-              Review in queue
+              {{ 'MATCHER.SALES_VERIFICATION.REVIEW_IN_QUEUE' | translate }}
             </span>
 
             <span *ngIf="event.status !== 'Pending'" class="muted">-</span>

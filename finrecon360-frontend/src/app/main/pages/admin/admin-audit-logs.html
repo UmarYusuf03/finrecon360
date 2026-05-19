@@ -1,9 +1,9 @@
 <section class="audit-page">
   <header class="audit-page__hero">
     <div class="audit-page__copy">
-      <span class="audit-page__eyebrow">Control trail</span>
-      <h2>Audit Logs</h2>
-      <p>Search administrative events by actor, entity, and metadata.</p>
+      <span class="audit-page__eyebrow">{{ 'ADMIN.AUDIT_LOGS.EYEBROW' | translate }}</span>
+      <h2>{{ 'ADMIN.AUDIT_LOGS.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.AUDIT_LOGS.COPY' | translate }}</p>
     </div>
     <div class="summary" *ngIf="!loading">
       {{ startIndex }} - {{ endIndex }} of {{ totalCount }}
@@ -11,37 +11,37 @@
   </header>
 
   <div class="filters">
-    <input [(ngModel)]="search" placeholder="Search action/entity/metadata" />
-    <input [(ngModel)]="action" placeholder="Action" />
-    <input [(ngModel)]="entity" placeholder="Entity" />
-    <input [(ngModel)]="userId" placeholder="User ID" />
+    <input [(ngModel)]="search" [placeholder]="'ADMIN.AUDIT_LOGS.SEARCH_PLACEHOLDER' | translate" />
+    <input [(ngModel)]="action" [placeholder]="'ADMIN.AUDIT_LOGS.ACTION' | translate" />
+    <input [(ngModel)]="entity" [placeholder]="'ADMIN.AUDIT_LOGS.ENTITY' | translate" />
+    <input [(ngModel)]="userId" [placeholder]="'ADMIN.AUDIT_LOGS.USER_ID' | translate" />
     <label>
-      From
+      {{ 'COMMON.FROM' | translate }}
       <input type="datetime-local" [(ngModel)]="fromLocal" />
     </label>
     <label>
-      To
+      {{ 'COMMON.TO' | translate }}
       <input type="datetime-local" [(ngModel)]="toLocal" />
     </label>
     <div class="actions">
-      <button class="primary-btn" (click)="applyFilters()">Apply</button>
-      <button class="ghost-btn" (click)="resetFilters()">Reset</button>
+      <button class="primary-btn" (click)="applyFilters()">{{ 'COMMON.APPLY' | translate }}</button>
+      <button class="ghost-btn" (click)="resetFilters()">{{ 'COMMON.RESET' | translate }}</button>
     </div>
   </div>
 
   <div class="state state--error" *ngIf="error">{{ error }}</div>
-  <div class="state" *ngIf="loading">Loading audit events...</div>
+  <div class="state" *ngIf="loading">{{ 'ADMIN.AUDIT_LOGS.LOADING' | translate }}</div>
 
   <div class="table-wrap" *ngIf="!loading && !error">
     <table>
       <thead>
         <tr>
-          <th>Time (UTC)</th>
-          <th>Action</th>
-          <th>Entity</th>
-          <th>Entity ID</th>
-          <th>User</th>
-          <th>Metadata</th>
+          <th>{{ 'ADMIN.AUDIT_LOGS.TIME_UTC' | translate }}</th>
+          <th>{{ 'ADMIN.AUDIT_LOGS.ACTION' | translate }}</th>
+          <th>{{ 'ADMIN.AUDIT_LOGS.ENTITY' | translate }}</th>
+          <th>{{ 'ADMIN.AUDIT_LOGS.ENTITY_ID' | translate }}</th>
+          <th>{{ 'ADMIN.AUDIT_LOGS.USER' | translate }}</th>
+          <th>{{ 'ADMIN.AUDIT_LOGS.METADATA' | translate }}</th>
         </tr>
       </thead>
       <tbody>
@@ -57,15 +57,19 @@
           <td><span class="meta-code">{{ formatMetadata(log.metadata) }}</span></td>
         </tr>
         <tr *ngIf="logs.length === 0">
-          <td colspan="6" class="empty">No audit logs found for current filters.</td>
+          <td colspan="6" class="empty">{{ 'ADMIN.AUDIT_LOGS.EMPTY' | translate }}</td>
         </tr>
       </tbody>
     </table>
   </div>
 
   <div class="pager" *ngIf="!loading && !error">
-    <button class="ghost-btn" (click)="previousPage()" [disabled]="page <= 1">Previous</button>
-    <span>Page {{ page }}</span>
-    <button class="ghost-btn" (click)="nextPage()" [disabled]="!hasNextPage">Next</button>
+    <button class="ghost-btn" (click)="previousPage()" [disabled]="page <= 1">
+      {{ 'COMMON.PREVIOUS' | translate }}
+    </button>
+    <span>{{ 'COMMON.PAGE' | translate:{ page: page } }}</span>
+    <button class="ghost-btn" (click)="nextPage()" [disabled]="!hasNextPage">
+      {{ 'COMMON.NEXT' | translate }}
+    </button>
   </div>
 </section>

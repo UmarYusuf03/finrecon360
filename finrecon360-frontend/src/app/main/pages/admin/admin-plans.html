@@ -1,26 +1,26 @@
 <section class="plans-page">
   <header class="plans-page__hero">
     <div class="plans-page__copy">
-      <span class="plans-page__eyebrow">Commercial setup</span>
-      <h2>Subscription Plans</h2>
-      <p>Manage plan tiers, limits, and activation status for onboarding.</p>
+      <span class="plans-page__eyebrow">{{ 'ADMIN.PLANS.EYEBROW' | translate }}</span>
+      <h2>{{ 'ADMIN.PLANS.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.PLANS.COPY' | translate }}</p>
     </div>
 
-    <span class="plans-page__count">{{ plans.length }} {{ plans.length === 1 ? 'plan' : 'plans' }}</span>
+    <span class="plans-page__count">{{ 'ADMIN.PLANS.COUNT' | translate:{ count: plans.length } }}</span>
   </header>
 
   <div class="plans-table-shell" *ngIf="plans.length > 0; else plansEmpty">
     <table class="plans-table">
       <thead>
         <tr>
-          <th>Code</th>
-          <th>Name</th>
-          <th>Price</th>
-          <th>Duration</th>
-          <th>Max Users</th>
-          <th>Max Accounts</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th>{{ 'ADMIN.PLANS.CODE' | translate }}</th>
+          <th>{{ 'ADMIN.PLANS.NAME' | translate }}</th>
+          <th>{{ 'ADMIN.PLANS.PRICE' | translate }}</th>
+          <th>{{ 'ADMIN.PLANS.DURATION' | translate }}</th>
+          <th>{{ 'ADMIN.PLANS.MAX_USERS' | translate }}</th>
+          <th>{{ 'ADMIN.PLANS.MAX_ACCOUNTS' | translate }}</th>
+          <th>{{ 'COMMON.STATUS' | translate }}</th>
+          <th>{{ 'COMMON.ACTIONS' | translate }}</th>
         </tr>
       </thead>
       <tbody>
@@ -28,18 +28,22 @@
           <td><span class="code-pill">{{ plan.code }}</span></td>
           <td class="plans-table__name">{{ plan.name }}</td>
           <td>{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</td>
-          <td>{{ plan.durationDays }} days</td>
+          <td>{{ 'ADMIN.PLANS.DAYS' | translate:{ count: plan.durationDays } }}</td>
           <td>{{ plan.maxUsers }}</td>
           <td>{{ plan.maxAccounts }}</td>
           <td>
             <span class="status-pill" [class.status-pill--inactive]="!plan.isActive">
-              {{ plan.isActive ? 'Active' : 'Inactive' }}
+              {{ plan.isActive ? ('COMMON.ACTIVE' | translate) : ('COMMON.INACTIVE' | translate) }}
             </span>
           </td>
           <td class="actions">
-            <button class="primary-btn" (click)="edit(plan)">Edit</button>
-            <button class="danger-btn" *ngIf="plan.isActive" (click)="deactivate(plan)">Deactivate</button>
-            <button class="primary-btn" *ngIf="!plan.isActive" (click)="activate(plan)">Activate</button>
+            <button class="primary-btn" (click)="edit(plan)">{{ 'COMMON.EDIT' | translate }}</button>
+            <button class="danger-btn" *ngIf="plan.isActive" (click)="deactivate(plan)">
+              {{ 'COMMON.DEACTIVATE' | translate }}
+            </button>
+            <button class="primary-btn" *ngIf="!plan.isActive" (click)="activate(plan)">
+              {{ 'COMMON.ACTIVATE' | translate }}
+            </button>
           </td>
         </tr>
       </tbody>
@@ -49,87 +53,87 @@
   <ng-template #plansEmpty>
     <div class="plans-empty">
       <span class="plans-empty__icon">inventory_2</span>
-      <h3>No plans configured</h3>
-      <p>Create a plan to start onboarding tenants.</p>
+      <h3>{{ 'ADMIN.PLANS.EMPTY_TITLE' | translate }}</h3>
+      <p>{{ 'ADMIN.PLANS.EMPTY_COPY' | translate }}</p>
     </div>
   </ng-template>
 
   <form [formGroup]="form" class="plan-form">
     <div class="plan-form-header">
-      <h3>{{ editingId ? 'Edit Plan' : 'Create New Plan' }}</h3>
-      <p>Keep plan details clear and consistent.</p>
+      <h3>{{ editingId ? ('ADMIN.PLANS.EDIT_PLAN' | translate) : ('ADMIN.PLANS.CREATE_PLAN' | translate) }}</h3>
+      <p>{{ 'ADMIN.PLANS.FORM_COPY' | translate }}</p>
     </div>
 
     <div class="form-grid">
       <div class="form-field">
-        <label for="plan-code">Plan Code</label>
+        <label for="plan-code">{{ 'ADMIN.PLANS.CODE' | translate }}</label>
         <input id="plan-code" formControlName="code" />
-        <small class="field-hint">Internal code, e.g. STARTER.</small>
+        <small class="field-hint">{{ 'ADMIN.PLANS.CODE_HINT' | translate }}</small>
         <small class="field-error" *ngIf="form.get('code')?.touched && form.get('code')?.invalid">
-          Plan code is required.
+          {{ 'ADMIN.PLANS.CODE_REQUIRED' | translate }}
         </small>
       </div>
 
       <div class="form-field">
-        <label for="plan-name">Plan Name</label>
+        <label for="plan-name">{{ 'ADMIN.PLANS.NAME' | translate }}</label>
         <input id="plan-name" formControlName="name" />
-        <small class="field-hint">Customer-facing display name.</small>
+        <small class="field-hint">{{ 'ADMIN.PLANS.NAME_HINT' | translate }}</small>
         <small class="field-error" *ngIf="form.get('name')?.touched && form.get('name')?.invalid">
-          Plan name is required.
+          {{ 'ADMIN.PLANS.NAME_REQUIRED' | translate }}
         </small>
       </div>
 
       <div class="form-field">
-        <label for="plan-price-cents">Price (Cents)</label>
+        <label for="plan-price-cents">{{ 'ADMIN.PLANS.PRICE_CENTS' | translate }}</label>
         <input id="plan-price-cents" type="number" formControlName="priceCents" min="0" step="1" />
-        <small class="field-hint">Use cents, e.g. 1999 = 19.99.</small>
+        <small class="field-hint">{{ 'ADMIN.PLANS.PRICE_HINT' | translate }}</small>
         <small class="field-error" *ngIf="form.get('priceCents')?.touched && form.get('priceCents')?.invalid">
-          Price must be 0 or higher.
+          {{ 'ADMIN.PLANS.PRICE_REQUIRED' | translate }}
         </small>
       </div>
 
       <div class="form-field">
-        <label for="plan-currency">Currency</label>
+        <label for="plan-currency">{{ 'COMMON.CURRENCY' | translate }}</label>
         <input id="plan-currency" formControlName="currency" />
-        <small class="field-hint">3-letter code such as USD.</small>
+        <small class="field-hint">{{ 'ADMIN.PLANS.CURRENCY_HINT' | translate }}</small>
         <small class="field-error" *ngIf="form.get('currency')?.touched && form.get('currency')?.invalid">
-          Currency is required.
+          {{ 'ADMIN.PLANS.CURRENCY_REQUIRED' | translate }}
         </small>
       </div>
 
       <div class="form-field">
-        <label for="plan-duration">Duration (Days)</label>
+        <label for="plan-duration">{{ 'ADMIN.PLANS.DURATION_DAYS' | translate }}</label>
         <input id="plan-duration" type="number" formControlName="durationDays" min="1" step="1" />
-        <small class="field-hint">Active period for each cycle.</small>
+        <small class="field-hint">{{ 'ADMIN.PLANS.DURATION_HINT' | translate }}</small>
         <small class="field-error" *ngIf="form.get('durationDays')?.touched && form.get('durationDays')?.invalid">
-          Duration must be at least 1 day.
+          {{ 'ADMIN.PLANS.DURATION_REQUIRED' | translate }}
         </small>
       </div>
 
       <div class="form-field">
-        <label for="plan-max-users">Maximum Users</label>
+        <label for="plan-max-users">{{ 'ADMIN.PLANS.MAX_USERS' | translate }}</label>
         <input id="plan-max-users" type="number" formControlName="maxUsers" min="1" step="1" />
-        <small class="field-hint">Max active users in the tenant.</small>
+        <small class="field-hint">{{ 'ADMIN.PLANS.MAX_USERS_HINT' | translate }}</small>
         <small class="field-error" *ngIf="form.get('maxUsers')?.touched && form.get('maxUsers')?.invalid">
-          Max users must be at least 1.
+          {{ 'ADMIN.PLANS.MAX_USERS_REQUIRED' | translate }}
         </small>
       </div>
 
       <div class="form-field">
-        <label for="plan-max-accounts">Maximum Accounts</label>
+        <label for="plan-max-accounts">{{ 'ADMIN.PLANS.MAX_ACCOUNTS' | translate }}</label>
         <input id="plan-max-accounts" type="number" formControlName="maxAccounts" min="1" step="1" />
-        <small class="field-hint">Max connected bank accounts.</small>
+        <small class="field-hint">{{ 'ADMIN.PLANS.MAX_ACCOUNTS_HINT' | translate }}</small>
         <small class="field-error" *ngIf="form.get('maxAccounts')?.touched && form.get('maxAccounts')?.invalid">
-          Max accounts must be at least 1.
+          {{ 'ADMIN.PLANS.MAX_ACCOUNTS_REQUIRED' | translate }}
         </small>
       </div>
     </div>
 
     <div class="actions">
       <button class="primary-btn" type="button" (click)="save()" [disabled]="form.invalid">
-        {{ editingId ? 'Update' : 'Create' }}
+        {{ editingId ? ('COMMON.UPDATE' | translate) : ('COMMON.CREATE' | translate) }}
       </button>
-      <button class="ghost-btn" type="button" (click)="reset()">Clear</button>
+      <button class="ghost-btn" type="button" (click)="reset()">{{ 'COMMON.CLEAR' | translate }}</button>
     </div>
   </form>
 </section>
