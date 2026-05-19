@@ -1,8 +1,12 @@
-<section class="admin-card">
-  <div class="header">
-    <h2>Tenant Registrations</h2>
+<section class="registrations-page">
+  <header class="registrations-page__hero">
+    <div class="registrations-page__copy">
+      <span class="registrations-page__eyebrow">Onboarding queue</span>
+      <h2>Tenant Registrations</h2>
+      <p>Review applications, move them through approval, and track fallback onboarding links.</p>
+    </div>
     <div class="filters">
-      <input type="text" [(ngModel)]="searchTerm" placeholder="Search applications..." class="search-input" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #d6d9e4; width: 250px; margin-right: 12px;" />
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Search applications..." class="search-input" />
       <label>Status:</label>
       <select [(ngModel)]="statusFilter" (change)="load()">
         <option value="PENDING_REVIEW">Pending</option>
@@ -10,7 +14,7 @@
         <option value="REJECTED">Rejected</option>
       </select>
     </div>
-  </div>
+  </header>
 
   <div *ngIf="actionMessage" class="action-message" [class.error]="actionMessage.type === 'error'">
     <span>{{ actionMessage.text }}</span>
@@ -26,24 +30,33 @@
   </div>
 
   <div class="layout">
-    <div class="list">
-      <div *ngIf="loading">Loading...</div>
+    <div class="list panel">
+      <div class="panel__header">
+        <h3>Applications</h3>
+        <span class="panel__count">{{ filteredRegistrations.length }}</span>
+      </div>
+      <div class="panel__state" *ngIf="loading">Loading applications...</div>
       <ul *ngIf="!loading">
         <li *ngFor="let reg of filteredRegistrations" (click)="selectRegistration(reg)" [class.active]="selectedDetail?.id === reg.id">
           <div class="name">{{ reg.businessName }}</div>
           <div class="meta">{{ reg.adminEmail }}</div>
-          <div class="meta">{{ reg.status }} - {{ reg.submittedAt | date: 'shortDate' }}</div>
+          <div class="meta"><span class="status-pill" [class.status-pill--warning]="reg.status === 'PENDING_REVIEW'" [class.status-pill--danger]="reg.status === 'REJECTED'">{{ reg.status }}</span> - {{ reg.submittedAt | date: 'shortDate' }}</div>
         </li>
       </ul>
     </div>
 
-    <div class="detail" *ngIf="selectedDetail">
-      <h3>{{ selectedDetail.businessName }}</h3>
+    <div class="detail panel" *ngIf="selectedDetail; else registrationEmpty">
+      <div class="panel__header panel__header--detail">
+        <div>
+          <h3>{{ selectedDetail.businessName }}</h3>
+          <p>Selected registration profile and review controls.</p>
+        </div>
+        <span class="status-pill" [class.status-pill--warning]="selectedDetail.status === 'PENDING_REVIEW'" [class.status-pill--danger]="selectedDetail.status === 'REJECTED'">{{ selectedDetail.status }}</span>
+      </div>
       <p><strong>Admin Email:</strong> {{ selectedDetail.adminEmail }}</p>
       <p *ngIf="selectedDetail.phoneNumber"><strong>Phone Number:</strong> {{ selectedDetail.phoneNumber }}</p>
       <p *ngIf="selectedDetail.businessRegistrationNumber"><strong>Registration No:</strong> {{ selectedDetail.businessRegistrationNumber }}</p>
       <p *ngIf="selectedDetail.businessType"><strong>Business Type:</strong> {{ selectedDetail.businessType }}</p>
-      <p><strong>Status:</strong> {{ selectedDetail.status }}</p>
       <p><strong>Submitted At:</strong> {{ selectedDetail.submittedAt | date: 'short' }}</p>
       <p *ngIf="selectedDetail.reviewedAt"><strong>Reviewed At:</strong> {{ selectedDetail.reviewedAt | date: 'short' }}</p>
       <p *ngIf="selectedDetail.reviewedByEmail"><strong>Reviewed By:</strong> {{ selectedDetail.reviewedByEmail }}</p>
@@ -54,6 +67,14 @@
         <button class="danger-btn" [disabled]="processing" (click)="openRejectDialog(selectedDetail)">Reject</button>
       </div>
     </div>
+
+    <ng-template #registrationEmpty>
+      <div class="detail-empty panel">
+        <span class="detail-empty__icon">badge</span>
+        <h3>Select an application</h3>
+        <p>Pick a registration to review and approve or reject it.</p>
+      </div>
+    </ng-template>
   </div>
 
   <div class="dialog-backdrop" *ngIf="confirmDialogOpen">

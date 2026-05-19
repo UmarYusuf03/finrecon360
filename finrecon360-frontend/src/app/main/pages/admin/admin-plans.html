@@ -1,50 +1,70 @@
-<section class="admin-card">
-  <div class="header">
-    <h2>Subscription Plans</h2>
+<section class="plans-page">
+  <header class="plans-page__hero">
+    <div class="plans-page__copy">
+      <span class="plans-page__eyebrow">Commercial setup</span>
+      <h2>Subscription Plans</h2>
+      <p>Manage plan tiers, limits, and activation status for onboarding.</p>
+    </div>
+
+    <span class="plans-page__count">{{ plans.length }} {{ plans.length === 1 ? 'plan' : 'plans' }}</span>
+  </header>
+
+  <div class="plans-table-shell" *ngIf="plans.length > 0; else plansEmpty">
+    <table class="plans-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Price</th>
+          <th>Duration</th>
+          <th>Max Users</th>
+          <th>Max Accounts</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let plan of plans">
+          <td><span class="code-pill">{{ plan.code }}</span></td>
+          <td class="plans-table__name">{{ plan.name }}</td>
+          <td>{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</td>
+          <td>{{ plan.durationDays }} days</td>
+          <td>{{ plan.maxUsers }}</td>
+          <td>{{ plan.maxAccounts }}</td>
+          <td>
+            <span class="status-pill" [class.status-pill--inactive]="!plan.isActive">
+              {{ plan.isActive ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td class="actions">
+            <button class="primary-btn" (click)="edit(plan)">Edit</button>
+            <button class="danger-btn" *ngIf="plan.isActive" (click)="deactivate(plan)">Deactivate</button>
+            <button class="primary-btn" *ngIf="!plan.isActive" (click)="activate(plan)">Activate</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Code</th>
-        <th>Name</th>
-        <th>Price</th>
-        <th>Duration</th>
-        <th>Max Users</th>
-        <th>Max Accounts</th>
-        <th>Status</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let plan of plans">
-        <td>{{ plan.code }}</td>
-        <td>{{ plan.name }}</td>
-        <td>{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</td>
-        <td>{{ plan.durationDays }} days</td>
-        <td>{{ plan.maxUsers }}</td>
-        <td>{{ plan.maxAccounts }}</td>
-        <td>{{ plan.isActive ? 'Active' : 'Inactive' }}</td>
-        <td class="actions">
-          <button class="primary-btn" (click)="edit(plan)">Edit</button>
-          <button class="danger-btn" *ngIf="plan.isActive" (click)="deactivate(plan)">Deactivate</button>
-          <button class="primary-btn" *ngIf="!plan.isActive" (click)="activate(plan)">Activate</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <ng-template #plansEmpty>
+    <div class="plans-empty">
+      <span class="plans-empty__icon">inventory_2</span>
+      <h3>No plans configured</h3>
+      <p>Create a plan to start onboarding tenants.</p>
+    </div>
+  </ng-template>
 
   <form [formGroup]="form" class="plan-form">
     <div class="plan-form-header">
       <h3>{{ editingId ? 'Edit Plan' : 'Create New Plan' }}</h3>
-      <p>Use clear plan details so tenant admins can quickly choose the right package.</p>
+      <p>Keep plan details clear and consistent.</p>
     </div>
 
     <div class="form-grid">
       <div class="form-field">
         <label for="plan-code">Plan Code</label>
         <input id="plan-code" formControlName="code" />
-        <small class="field-hint">Short unique code used internally. Example: STARTER</small>
+        <small class="field-hint">Internal code, e.g. STARTER.</small>
         <small class="field-error" *ngIf="form.get('code')?.touched && form.get('code')?.invalid">
           Plan code is required.
         </small>
@@ -53,7 +73,7 @@
       <div class="form-field">
         <label for="plan-name">Plan Name</label>
         <input id="plan-name" formControlName="name" />
-        <small class="field-hint">Display name visible to customers.</small>
+        <small class="field-hint">Customer-facing display name.</small>
         <small class="field-error" *ngIf="form.get('name')?.touched && form.get('name')?.invalid">
           Plan name is required.
         </small>
@@ -62,7 +82,7 @@
       <div class="form-field">
         <label for="plan-price-cents">Price (Cents)</label>
         <input id="plan-price-cents" type="number" formControlName="priceCents" min="0" step="1" />
-        <small class="field-hint">Use cents to avoid decimal rounding (e.g., 1999 = 19.99).</small>
+        <small class="field-hint">Use cents, e.g. 1999 = 19.99.</small>
         <small class="field-error" *ngIf="form.get('priceCents')?.touched && form.get('priceCents')?.invalid">
           Price must be 0 or higher.
         </small>
@@ -71,7 +91,7 @@
       <div class="form-field">
         <label for="plan-currency">Currency</label>
         <input id="plan-currency" formControlName="currency" />
-        <small class="field-hint">3-letter currency code such as USD or LKR.</small>
+        <small class="field-hint">3-letter code such as USD.</small>
         <small class="field-error" *ngIf="form.get('currency')?.touched && form.get('currency')?.invalid">
           Currency is required.
         </small>
@@ -80,7 +100,7 @@
       <div class="form-field">
         <label for="plan-duration">Duration (Days)</label>
         <input id="plan-duration" type="number" formControlName="durationDays" min="1" step="1" />
-        <small class="field-hint">How long the subscription remains active per cycle.</small>
+        <small class="field-hint">Active period for each cycle.</small>
         <small class="field-error" *ngIf="form.get('durationDays')?.touched && form.get('durationDays')?.invalid">
           Duration must be at least 1 day.
         </small>
@@ -89,7 +109,7 @@
       <div class="form-field">
         <label for="plan-max-users">Maximum Users</label>
         <input id="plan-max-users" type="number" formControlName="maxUsers" min="1" step="1" />
-        <small class="field-hint">Maximum active users allowed in the tenant.</small>
+        <small class="field-hint">Max active users in the tenant.</small>
         <small class="field-error" *ngIf="form.get('maxUsers')?.touched && form.get('maxUsers')?.invalid">
           Max users must be at least 1.
         </small>
@@ -98,7 +118,7 @@
       <div class="form-field">
         <label for="plan-max-accounts">Maximum Accounts</label>
         <input id="plan-max-accounts" type="number" formControlName="maxAccounts" min="1" step="1" />
-        <small class="field-hint">Maximum bank accounts that can be connected.</small>
+        <small class="field-hint">Max connected bank accounts.</small>
         <small class="field-error" *ngIf="form.get('maxAccounts')?.touched && form.get('maxAccounts')?.invalid">
           Max accounts must be at least 1.
         </small>

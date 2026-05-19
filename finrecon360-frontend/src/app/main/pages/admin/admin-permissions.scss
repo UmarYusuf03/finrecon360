@@ -1,148 +1,269 @@
-mat-card {
+.perm-page {
+  display: grid;
+  gap: 20px;
   padding: 24px;
 }
 
-table {
-  width: 100%;
-  margin-top: 16px;
+.perm-page__hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
 }
 
-h2 {
-  margin: 0 0 4px;
+.perm-page__copy {
+  max-width: 56rem;
+
+  h2 {
+    margin: 0;
+    color: var(--fr-text-primary);
+    font-size: 1.9rem;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  p {
+    margin: 10px 0 0;
+    color: var(--fr-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+}
+
+.perm-page__eyebrow {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: var(--fr-primary);
+  font-size: 0.74rem;
   font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-p {
-  margin: 0 0 12px;
-  color: #6b7280;
-}
-
-.perm__header {
+.perm-page__actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.perm-page__note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.92);
+  color: var(--fr-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.perm__filters,
+.perm__scoped,
+.perm__matrix-shell {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--fr-radius-xl);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--fr-shadow-soft);
 }
 
 .perm__filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
-  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.perm__matrix-shell {
+  overflow: hidden;
 }
 
 .perm__matrix {
   overflow: auto;
-  padding-bottom: 4px;
+}
+
+.perm__matrix-table {
+  width: 100%;
+  min-width: 900px;
 }
 
 .perm__component {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 4px;
 }
 
 .perm__component-name {
+  color: var(--fr-text-primary);
   font-weight: 700;
-  color: #111827;
 }
 
 .perm__component-code {
-  color: #6b7280;
-  font-size: 12px;
+  color: var(--fr-text-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-// ── Source-type scoped permissions section ──────────────────────────────────
+.perm__empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 24px;
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  border-radius: var(--fr-radius-xl);
+  background: rgba(255, 255, 255, 0.62);
+  text-align: center;
+
+  mat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 40px;
+    color: rgba(11, 132, 216, 0.42);
+  }
+
+  h3 {
+    margin: 0;
+    color: var(--fr-text-primary);
+    font-size: 1rem;
+  }
+
+  p {
+    margin: 0;
+    max-width: 28rem;
+    color: var(--fr-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+}
+
 .perm__scoped {
-  margin-top: 36px;
-  border-top: 2px solid #e5e7eb;
-  padding-top: 24px;
+  display: grid;
+  gap: 10px;
+  padding: 20px;
 }
 
 .perm__scoped-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  margin: 0;
+  color: var(--fr-text-primary);
+  font-size: 1rem;
   font-weight: 700;
-  color: #111827;
-  margin: 0 0 6px;
 
   mat-icon {
-    font-size: 20px;
-    color: #6366f1;
+    color: #7c3aed;
   }
 }
 
 .perm__scoped-subtitle {
-  font-size: 13px;
-  color: #6b7280;
-  margin: 0 0 16px;
+  margin: 0;
+  color: var(--fr-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.perm__scoped-shell {
+  overflow-x: auto;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--fr-radius-lg);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .perm__scoped-table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
-  border-radius: 8px;
-  overflow: hidden;
 
   th,
   td {
-    padding: 10px 14px;
+    padding: 12px 14px;
     text-align: left;
-    font-size: 13px;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.72);
+    font-size: 0.88rem;
   }
 
   thead th {
-    background: #f9fafb;
-    font-weight: 600;
-    color: #374151;
-    font-size: 12px;
+    background: rgba(240, 246, 255, 0.92);
+    color: var(--fr-text-muted);
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
-  tbody tr:hover {
-    background: #f9fafb;
-  }
-
-  .perm__scoped-source {
-    width: 120px;
-  }
-  .perm__scoped-module {
-    width: 160px;
-    color: #6b7280;
-    font-size: 12px;
-  }
-  .perm__scoped-action {
-    width: 140px;
+  tbody tr:last-child td {
+    border-bottom: none;
   }
 }
 
+.perm__scoped-module {
+  color: var(--fr-text-muted);
+}
+
 .perm__source-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 
   &--pos {
-    background: #dbeafe;
+    background: rgba(219, 234, 254, 0.92);
     color: #1d4ed8;
   }
   &--erp {
-    background: #ede9fe;
+    background: rgba(237, 233, 254, 0.92);
     color: #6d28d9;
   }
   &--gateway {
-    background: #d1fae5;
-    color: #065f46;
+    background: rgba(220, 252, 231, 0.92);
+    color: #166534;
   }
   &--bank {
-    background: #fef3c7;
-    color: #92400e;
+    background: rgba(254, 243, 199, 0.92);
+    color: #b45309;
+  }
+}
+
+:host ::ng-deep .perm__matrix-table .mat-mdc-header-row {
+  background: rgba(240, 246, 255, 0.92);
+}
+
+:host ::ng-deep .perm__matrix-table .mat-mdc-header-cell {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  color: var(--fr-text-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+:host ::ng-deep .perm__matrix-table .mat-mdc-cell {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.72);
+  color: var(--fr-text-primary);
+  font-size: 0.9rem;
+}
+
+:host ::ng-deep .perm__matrix-table .mat-mdc-row:last-child .mat-mdc-cell {
+  border-bottom: none;
+}
+
+@media (max-width: 820px) {
+  .perm-page__hero {
+    flex-direction: column;
+  }
+
+  .perm-page__actions {
+    justify-content: flex-start;
   }
 }

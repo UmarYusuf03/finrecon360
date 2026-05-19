@@ -1,29 +1,42 @@
-<section class="admin-card">
-  <div class="header">
-    <h2>Tenants</h2>
-    <div class="filters">
-      <input type="text" [(ngModel)]="searchTerm" placeholder="Search tenants..." class="search-input" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #d6d9e4; width: 250px;" />
+<section class="tenants-page">
+  <header class="tenants-page__hero">
+    <div class="tenants-page__copy">
+      <span class="tenants-page__eyebrow">Tenant management</span>
+      <h2>Tenants</h2>
+      <p>Review tenant status, subscriptions, admins, and enforcement controls.</p>
     </div>
-  </div>
+    <div class="tenants-page__toolbar">
+      <input type="text" [(ngModel)]="searchTerm" placeholder="Search tenants..." class="search-input" />
+    </div>
+  </header>
 
-  <div class="success" *ngIf="actionMessage">{{ actionMessage }}</div>
-  <div class="error" *ngIf="actionError">{{ actionError }}</div>
+  <div class="message message--success" *ngIf="actionMessage">{{ actionMessage }}</div>
+  <div class="message message--error" *ngIf="actionError">{{ actionError }}</div>
 
   <div class="layout">
-    <div class="list">
-      <div *ngIf="loading">Loading...</div>
+    <div class="list panel">
+      <div class="panel__header">
+        <h3>Tenant directory</h3>
+        <span class="panel__count">{{ filteredTenants.length }}</span>
+      </div>
+      <div class="panel__state" *ngIf="loading">Loading tenants...</div>
       <ul *ngIf="!loading">
         <li *ngFor="let tenant of filteredTenants" (click)="selectTenant(tenant)" [class.active]="selected?.id === tenant.id">
           <div class="name">{{ tenant.name }}</div>
-          <div class="meta">{{ tenant.status }}</div>
+          <div class="meta"><span class="status-pill" [class.status-pill--warning]="tenant.status === 'SUSPENDED'" [class.status-pill--danger]="tenant.status === 'BANNED'">{{ tenant.status }}</span></div>
         </li>
       </ul>
     </div>
 
-    <div class="detail" *ngIf="selected">
-      <h3>{{ selected.name }}</h3>
-      <p>Status: <strong>{{ selected.status }}</strong></p>
-      <p *ngIf="selected.currentSubscription">
+    <div class="detail panel" *ngIf="selected; else tenantEmpty">
+      <div class="panel__header panel__header--detail">
+        <div>
+          <h3>{{ selected.name }}</h3>
+          <p>Selected tenant profile and control actions.</p>
+        </div>
+        <span class="status-pill" [class.status-pill--warning]="selected.status === 'SUSPENDED'" [class.status-pill--danger]="selected.status === 'BANNED'">{{ selected.status }}</span>
+      </div>
+      <p *ngIf="selected.currentSubscription" class="detail__subscription">
         Plan: {{ selected.currentSubscription.planName }} ({{ selected.currentSubscription.status }})
       </p>
 
@@ -44,6 +57,14 @@
         </div>
       </div>
     </div>
+
+    <ng-template #tenantEmpty>
+      <div class="detail-empty panel">
+        <span class="detail-empty__icon">apartment</span>
+        <h3>Select a tenant</h3>
+        <p>Choose a tenant to review admins and enforcement controls.</p>
+      </div>
+    </ng-template>
   </div>
 
   <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
@@ -53,7 +74,7 @@
         You are about to permanently remove
         <strong>{{ deleteTargetName }}</strong>.
       </p>
-      <p>This action cannot be undone and will remove tenant access and data mappings from the control plane.</p>
+      <p>This action cannot be undone.</p>
 
       <div class="dialog-actions">
         <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDeleteDialog()">Cancel</button>

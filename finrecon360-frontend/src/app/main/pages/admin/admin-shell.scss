@@ -1,18 +1,18 @@
 .admin-shell {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 
 .admin-shell__nav-shell {
-  padding: 8px;
-  border-radius: var(--fr-radius-lg);
+  padding: 10px;
+  border-radius: var(--fr-radius-xl);
 }
 
 .admin-shell__nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   border-bottom: 0;
 }
 
@@ -20,9 +20,12 @@
   min-height: 42px;
   padding: 0 18px;
   border-radius: 999px;
-  border: 1px solid transparent;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.5);
   color: var(--fr-text-muted);
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-decoration: none;
   transition:
     background-color 160ms ease,
@@ -33,12 +36,12 @@
 
 .admin-shell__link:hover {
   color: var(--fr-text-primary);
-  background: rgba(255, 255, 255, 0.6);
-  border-color: var(--fr-border);
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(11, 132, 216, 0.16);
 }
 
 .admin-shell__content {
-  padding: 4px 0 0;
+  padding: 2px 0 0;
 }
 
 .active-link {
