@@ -35,16 +35,78 @@
   </table>
 
   <form [formGroup]="form" class="plan-form">
-    <h3>{{ editingId ? 'Edit Plan' : 'New Plan' }}</h3>
-    <input formControlName="code" placeholder="Code" />
-    <input formControlName="name" placeholder="Name" />
-    <input type="number" formControlName="priceCents" placeholder="Price (cents)" />
-    <input formControlName="currency" placeholder="Currency" />
-    <input type="number" formControlName="durationDays" placeholder="Duration (days)" />
-    <input type="number" formControlName="maxUsers" placeholder="Max users" />
-    <input type="number" formControlName="maxAccounts" placeholder="Max accounts" />
+    <div class="plan-form-header">
+      <h3>{{ editingId ? 'Edit Plan' : 'Create New Plan' }}</h3>
+      <p>Use clear plan details so tenant admins can quickly choose the right package.</p>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-field">
+        <label for="plan-code">Plan Code</label>
+        <input id="plan-code" formControlName="code" />
+        <small class="field-hint">Short unique code used internally. Example: STARTER</small>
+        <small class="field-error" *ngIf="form.get('code')?.touched && form.get('code')?.invalid">
+          Plan code is required.
+        </small>
+      </div>
+
+      <div class="form-field">
+        <label for="plan-name">Plan Name</label>
+        <input id="plan-name" formControlName="name" />
+        <small class="field-hint">Display name visible to customers.</small>
+        <small class="field-error" *ngIf="form.get('name')?.touched && form.get('name')?.invalid">
+          Plan name is required.
+        </small>
+      </div>
+
+      <div class="form-field">
+        <label for="plan-price-cents">Price (Cents)</label>
+        <input id="plan-price-cents" type="number" formControlName="priceCents" min="0" step="1" />
+        <small class="field-hint">Use cents to avoid decimal rounding (e.g., 1999 = 19.99).</small>
+        <small class="field-error" *ngIf="form.get('priceCents')?.touched && form.get('priceCents')?.invalid">
+          Price must be 0 or higher.
+        </small>
+      </div>
+
+      <div class="form-field">
+        <label for="plan-currency">Currency</label>
+        <input id="plan-currency" formControlName="currency" />
+        <small class="field-hint">3-letter currency code such as USD or LKR.</small>
+        <small class="field-error" *ngIf="form.get('currency')?.touched && form.get('currency')?.invalid">
+          Currency is required.
+        </small>
+      </div>
+
+      <div class="form-field">
+        <label for="plan-duration">Duration (Days)</label>
+        <input id="plan-duration" type="number" formControlName="durationDays" min="1" step="1" />
+        <small class="field-hint">How long the subscription remains active per cycle.</small>
+        <small class="field-error" *ngIf="form.get('durationDays')?.touched && form.get('durationDays')?.invalid">
+          Duration must be at least 1 day.
+        </small>
+      </div>
+
+      <div class="form-field">
+        <label for="plan-max-users">Maximum Users</label>
+        <input id="plan-max-users" type="number" formControlName="maxUsers" min="1" step="1" />
+        <small class="field-hint">Maximum active users allowed in the tenant.</small>
+        <small class="field-error" *ngIf="form.get('maxUsers')?.touched && form.get('maxUsers')?.invalid">
+          Max users must be at least 1.
+        </small>
+      </div>
+
+      <div class="form-field">
+        <label for="plan-max-accounts">Maximum Accounts</label>
+        <input id="plan-max-accounts" type="number" formControlName="maxAccounts" min="1" step="1" />
+        <small class="field-hint">Maximum bank accounts that can be connected.</small>
+        <small class="field-error" *ngIf="form.get('maxAccounts')?.touched && form.get('maxAccounts')?.invalid">
+          Max accounts must be at least 1.
+        </small>
+      </div>
+    </div>
+
     <div class="actions">
-      <button class="primary-btn" type="button" (click)="save()">
+      <button class="primary-btn" type="button" (click)="save()" [disabled]="form.invalid">
         {{ editingId ? 'Update' : 'Create' }}
       </button>
       <button class="ghost-btn" type="button" (click)="reset()">Clear</button>

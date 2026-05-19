@@ -18,6 +18,11 @@ namespace finrecon360_backend.Services
         Task<OnboardingMagicLinkConsumeResult> ConsumeTokenAsync(string token, string purpose, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// WHY: Dedicated service for tenant onboarding token lifecycle (separate from system auth tokens).
+    /// Onboarding tokens have different TTLs, purposes, and use-cases than user login tokens.
+    /// Isolating them prevents token confusion and allows different enforcement rules (cooldown, max attempts).
+    /// </summary>
     public class OnboardingMagicLinkService : IOnboardingMagicLinkService
     {
         private readonly AppDbContext _dbContext;

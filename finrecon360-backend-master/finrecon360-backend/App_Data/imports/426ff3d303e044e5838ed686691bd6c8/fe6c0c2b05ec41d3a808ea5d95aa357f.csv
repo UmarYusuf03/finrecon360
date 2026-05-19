@@ -1,0 +1,11 @@
+Transaction Date,Posting Date,Reference Number,Description,Account Code,Account Name,Debit,Credit,Net,Currency
+10/04/2026,10/04/2026,REF-1001,Subscription payment,4001,Service Revenue,,1500.00, -1500.00,USD
+09/04/2026,09/04/2026,REF-1002,Office supplies,6002,Office Expense,250.75,,250.75,LKR
+08/04/2026,08/04/2026,REF-1003,Bank fee,6005,Bank Charges,45.00,,45.00,LKR
+07/04/2026,07/04/2026,REF-1004,Customer refund,4001,Service Revenue,,300.00,-300.00,USD
+06/04/2026,06/04/2026,REF-1005,Petty cash top-up,1001,Cash on Hand,500.00,,500.00,LKR
+05/04/2026,05/04/2026,REF-1006,Payment received,4001,Service Revenue,,1200.00,-1200.00,USD
+04/04/2026,04/04/2026,REF-1007,Utilities bill,6008,Utilities Expense,310.50,,310.50,LKR
+03/04/2026,03/04/2026,REF-1008,Internet service,6010,IT Expense,89.99,,89.99,LKR
+02/04/2026,02/04/2026,REF-1009,Client invoice payment,4001,Service Revenue,,2200.00,-2200.00,USD
+01/04/2026,01/04/2026,REF-1010,Travel expense,6020,Travel Expense,120.00,,120.00,LKR

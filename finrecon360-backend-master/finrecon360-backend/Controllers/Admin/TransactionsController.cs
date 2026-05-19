@@ -81,7 +81,7 @@ namespace finrecon360_backend.Controllers.Admin
 
         [HttpGet("needs-bank-match")]
         [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
-        public async Task<ActionResult<List<TransactionResponse>>> GetNeedsBankMatch(CancellationToken ct)
+        public async Task<ActionResult<List<NeedsBankMatchResponse>>> GetNeedsBankMatch(CancellationToken ct)
         {
             var auth = await AuthorizeTenantUserAsync(ct);
             if (auth.Error != null) return auth.Error;

@@ -6,6 +6,11 @@ using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Services
 {
+    /// <summary>
+    /// WHY: Orchestrates outbound emails using the Brevo HTTP REST API instead of traditional SMTP. 
+    /// REST is vastly preferred because it natively supports dynamic template parameterization 
+    /// and provides granular HTTP status codes to detect throttling or gateway failures immediately.
+    /// </summary>
     public class BrevoEmailSender : IEmailSender
     {
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -59,6 +64,9 @@ namespace finrecon360_backend.Services
                         break;
                     }
 
+                    // WHY: Fundamental resilience pattern for out-of-process networking. 
+                    // Introduces an exponential delay before retrying transient faults 
+                    // (like TooManyRequests) to prevent cascading failures or dropped critical emails.
                     await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
                     continue;
                 }

@@ -10,6 +10,11 @@ using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Controllers
 {
+    /// <summary>
+    /// WHY: Separates magic-link (token-based) flows from traditional credential-based auth.
+    /// This design enables secure password-reset/email-verification without storing temporary secrets in memory,
+    /// and allows time-limited token reuse across multiple devices/platforms.
+    /// </summary>
     [ApiController]
     [Route("api/auth")]
     public class AuthMagicLinksController : ControllerBase

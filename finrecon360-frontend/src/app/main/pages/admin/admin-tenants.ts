@@ -14,6 +14,16 @@ import { TenantDetail, TenantSummary } from '../../../core/admin-tenant/models';
 })
 export class AdminTenantsComponent implements OnInit {
   tenants: TenantSummary[] = [];
+  searchTerm = '';
+
+  get filteredTenants(): TenantSummary[] {
+    if (!this.searchTerm) {
+      return this.tenants;
+    }
+    const lowerTerm = this.searchTerm.toLowerCase();
+    return this.tenants.filter((t) => t.name.toLowerCase().includes(lowerTerm));
+  }
+
   selected: TenantDetail | null = null;
   loading = true;
   processing = false;

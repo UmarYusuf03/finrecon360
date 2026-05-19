@@ -8,6 +8,11 @@ namespace finrecon360_backend.Services
         Task<TenantDbContext> CreateAsync(Guid tenantId, CancellationToken cancellationToken = default);
     }
 
+    /// <summary>
+    /// WHY: This factory creates instances of TenantDbContext dynamically at runtime. 
+    /// Standard Dependency Injection for DbContext expects a static connection string, 
+    /// so this factory pattern is required to intercept the request and inject the resolved tenant string.
+    /// </summary>
     public class TenantDbContextFactory : ITenantDbContextFactory
     {
         private readonly ITenantDbResolver _resolver;
@@ -29,6 +34,8 @@ namespace finrecon360_backend.Services
 
             try
             {
+                // WHY: Guarantees that any newly provisioned database or newly deployed schema version 
+                // is automatically updated to match the active EF Core models before the connection is handed off.
                 await _schemaMigrator.ApplyAsync(connectionString, cancellationToken);
             }
             catch (Exception ex)

@@ -499,6 +499,139 @@ Typical outputs:
 - enforcement
 - subscription governance
 
+### Ironclad Data Pipeline (Canonical Import + Tiered Matching)
+
+This architecture variant enforces a strict canonicalization-first pipeline and a four-level hierarchical workflow to prevent revenue leakage and ensure bank-level confirmation before journal posting.
+
+Pipeline (high level)
+
+1. Upload: tenant staff uploads CSV/Excel to the import workbench.
+2. Parse & Preview: backend parses headers and returns preview rows for mapping.
+3. Map: user maps source columns to canonical fields using tenant templates.
+4. Normalize: apply transformation rules (dates, sign handling, trimming, currency normalization).
+5. Persist: store both raw payload (`ImportedRecords.RawPayload`) and the normalized record used by the matcher.
+
+Storage model (tenant DB)
+
+- `ImportedRecords`: `RawPayload`, `ReferenceNo`, `SettlementID`, `Amount`, `Date`, `SourceType`, `BatchID`.
+- `TransactionState` + `TransactionStateHistory`: auditable states and history entries (e.g., `PENDING`, `SALES_VERIFIED`, `EXCEPTION`, `NEEDS_SETTLEMENT`, `MATCHED`).
+- `MatchGroups`: settlement-level grouping with `SettlementID`, `TotalAmount`, `IsConfirmed`.
+
+Tiered matcher logic
+
+- Level 1 — Sales Verification: match ERP (sales ledger) vs Gateway by `ReferenceNo`. Outcome: `SALES_VERIFIED` or `EXCEPTION` (Revenue Uncollected).
+- Level 2 — Settlement Grouping: group gateway records by `SettlementID` and compute Net Total (Gross - Fees) to form `MatchGroup`.
+- Level 3 — Final Bank Match: when bank statement is imported, compare `MatchGroup.NetTotal` to bank line; suggest match to user; upon human confirmation, mark `MATCHED` and enable journal posting.
+
+Waiting / Exception behavior
+
+If a Gateway-imported record lacks `SettlementID`, mark it `SALES_VERIFIED` but keep it in an Exception/Waiting queue until a later Gateway import provides the `SettlementID` or a manual reconciliation attaches it. This prevents premature bank matching and reduces false positives.
+
+Operational notes
+
+- Implement the matcher as a background worker reading normalized staging tables and producing match suggestions and `MatchGroup` candidates.
+- Require human confirmation for Level-3 matches; journal posting should remain gated until `MATCHED`.
+- Persist all state transitions into `TransactionStateHistory` for auditors.
+
+### Ironclad Hierarchical Workflow Baseline
+
+The target baseline now expands the matching model into four workflow levels so implementation planning can distinguish operational verification, sync audit, sales matching, and bank matching.
+
+| Level | Match Type | Source A | Source B | Match Key | Target Result |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | Operational | Staff Manual Input | POS End-of-Day (EOD) | Time + Amount + Ref | `INTERNAL_VERIFIED` |
+| 2 | Sync Audit | POS EOD Export | ERP Sales Ledger | `ReferenceNo` / Order ID | `SALES_VERIFIED` |
+| 3 | Sales Match | ERP Sales Ledger | Payment Gateway File | `ReferenceNo` / Order ID | `SALES_VERIFIED` or `EXCEPTION` |
+| 4 | Bank Match | Gateway Payout Total | Bank Statement | `SettlementID` | `MATCHED` after human confirmation |
+
+State and storage implications
+
+- `ImportedRecords` must keep both `RawPayload` and normalized canonical fields so the matcher can be replayed and audited.
+- `TransactionState` should represent the current level outcome, while `TransactionStateHistory` remains an immutable audit trail.
+- `MatchGroups` should represent settlement batches formed from gateway data before bank matching.
+- Gateway rows without a `SettlementID` should stay in Waiting/Exception until a later import resolves the missing identifier.
+- Journal posting must remain gated until the bank match is confirmed.
+
+Difference from the current implementation notes
+
+- The current backend README still documents the partial state machine with `Pending`, `NeedsBankMatch`, and `JournalReady` for the implemented flow.
+- This architecture baseline adds the POS and ERP audit layers and makes bank matching explicitly settlement-driven.
+
+### Ironclad Master Matching Matrix (4 Stages, 6 Events)
+
+The 4 stages define the execution order. The 6 events define the business rules applied inside that sequence.
+
+| Stage | Event | Purpose | Comparison | Key | Expected Result |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | Operational Match | Verify staff entries against POS EOD | Staff Manual Input ↔ POS End-of-Day | Time + Amount + Ref | `INTERNAL_VERIFIED` and booking reference inherited |
+| 2 | Sync Audit | Ensure POS data reached ERP | POS EOD ↔ ERP Sales Ledger | `ReferenceNo` / Order ID | Accounting sync confirmed |
+| 3 | Sales Match | Prove sale was charged | ERP Sales Ledger ↔ Payment Gateway File | `ReferenceNo` / Order ID | `SALES_VERIFIED` or `EXCEPTION` |
+| 4 | Settlement Match | Confirm online payout landed in bank | Gateway Payout Totals ↔ Bank Statement | `SettlementID` | `MATCHED` after human confirmation |
+| 4 | Expense Match | Gate approved card cashout before posting | Approved Card Cashout ↔ Bank Statement | Auth Code / Ref | Must match before posting |
+| 4 | Collection Match | Confirm physical card receipt settlement | Physical Card Receipt ↔ Bank Statement | Settlement / receipt ref | Matched before posting |
+
+SourceType orchestration rules
+
+- POS source imports start at Stage 1.
+- ERP source imports start at Stage 2, then continue into Stage 3.
+- Gateway source imports start at Stage 3, then continue into Stage 4.
+- Bank source imports start at Stage 4 and can trigger settlement, expense, or collection matching.
+- Gateway rows without a `SettlementID` may complete Stage 3 but remain blocked from Stage 4 in the Waiting/Exception queue.
+- The orchestrator should branch Stage 4 by money type, not by a single generic bank rule.
+
+### Gross/Net/Fee Matching Logic
+
+Data model requirements
+
+- `ImportedRecords` must store `GrossAmount`, `FeeAmount`, and `NetAmount` for all Payment Gateway sources.
+- The canonical import pipeline must map these fields separately from gateway CSV/Excel payloads.
+
+Level 3 match: Sales Verification
+
+- Target: ERP Sales Ledger versus Payment Gateway details.
+- Matching rule: compare ERP `Amount` with gateway `GrossAmount`.
+- Key: `ReferenceNo` / Order ID.
+- Success condition: exact value match is required to reach `SALES_VERIFIED`.
+
+Level 4 match: Settlement Verification
+
+- Target: Payment Gateway `MatchGroup` versus Bank Statement.
+- Matching rule:
+   1. Group gateway records by `SettlementID`.
+   2. Sum the `NetAmount` values for the group.
+   3. Compare `Sum(NetAmount)` against the bank statement deposit line.
+- Key: `SettlementID`.
+
+Automated journaling rule
+
+- On `MATCHED`, generate an automated adjusting journal entry for the `FeeAmount` total associated with the `SettlementID`.
+- Purpose: reconcile the difference between Revenue (`Gross`) and Cash (`Net`) by recording the processing fee as an expense.
+
+## Implementation status (control-plane vs tenant-plane)
+
+This architecture document is a design baseline. The list below clarifies which components are design-only vs currently implemented in code (see repository READMEs for details).
+
+Implemented or partially implemented:
+
+- Control-plane onboarding, plan, and tenant provisioning flows (implemented).
+- Canonical import UI and import mapping pipeline (upload, parse, map, validate, normalize, commit) — implemented.
+- Tenant RBAC scaffolding and tenant user management — implemented.
+- Transaction capture and `TransactionState` / `TransactionStateHistory` model — implemented (state records present and endpoints exist).
+
+Design-only / TODO (documented as target behavior but not fully implemented):
+
+- Matcher / bank-statement reconciliation engine (design present; implementation TODO).
+- Journal posting executor/worker that consumes the `journal-ready` queue and writes journal entries (TODO).
+- Reporting snapshot jobs and precomputed reporting tables (recommendation present; jobs TODO).
+- Cross-tenant migration orchestration for tenant schema upgrades at scale (improvement planned).
+
+Key business rules to encode (already in design):
+
+- Cash cashout: Approved -> JournalReady -> eligible for posting.
+- Card cashout: Approved -> NeedsBankMatch -> (after match) JournalReady -> posting.
+
+Confirm these items if you want the docs to assert them as enforced — otherwise they remain recommended design decisions to be implemented.
+
 ### Module 2: Identity / Authentication
 
 - login flow

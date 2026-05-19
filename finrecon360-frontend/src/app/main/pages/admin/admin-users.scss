@@ -1,21 +1,30 @@
+mat-card {
+  padding: 24px;
+}
+
 .users__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
 .users__actions {
   display: flex;
-  gap: 4px;
+  gap: 8px;
 }
 
 .users__form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   min-width: 320px;
+}
+
+table {
+  width: 100%;
+  margin-top: 16px;
 }
 
 .users__error {

@@ -8,6 +8,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Controllers
 {
+    /// <summary>
+    /// WHY: Isolates user profile CRUD operations (self-service updates) from admin/system-level user management.
+    /// This endpoint is rate-limited and requires [Authorize] to ensure only authenticated users can read/modify their own profile.
+    /// Keeps the surface area small and predictable for user-facing self-service features.
+    /// </summary>
     [ApiController]
     [Route("api/users/profile")]
     [Authorize]

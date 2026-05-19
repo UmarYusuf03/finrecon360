@@ -23,11 +23,18 @@
       <div class="form-group">
         <label class="field-label">Business Name</label>
         <input class="auth-input" formControlName="businessName" placeholder="Acme Finance LLC" />
+        <div class="field-error" *ngIf="form.get('businessName')?.invalid && form.get('businessName')?.touched">
+          Business Name is required.
+        </div>
       </div>
 
       <div class="form-group">
         <label class="field-label">Tenant Admin Email</label>
         <input class="auth-input" formControlName="adminEmail" placeholder="admin@acme.com" />
+        <div class="field-error" *ngIf="form.get('adminEmail')?.invalid && form.get('adminEmail')?.touched">
+          <span *ngIf="form.get('adminEmail')?.hasError('required')">Email is required.</span>
+          <span *ngIf="form.get('adminEmail')?.hasError('email')">Please enter a valid email address.</span>
+        </div>
         <p class="field-help">
           This email will be set as the initial Tenant Admin account for your organization and will receive the onboarding magic link after approval.
         </p>
@@ -36,11 +43,18 @@
       <div class="form-group">
         <label class="field-label">Phone Number</label>
         <input class="auth-input" formControlName="phoneNumber" placeholder="+1 555 123 4567" />
+        <div class="field-error" *ngIf="form.get('phoneNumber')?.invalid && form.get('phoneNumber')?.touched">
+          <span *ngIf="form.get('phoneNumber')?.hasError('required')">Phone number is required.</span>
+          <span *ngIf="form.get('phoneNumber')?.hasError('pattern')">Please enter a valid phone number.</span>
+        </div>
       </div>
 
       <div class="form-group">
         <label class="field-label">Business Registration Number</label>
         <input class="auth-input" formControlName="businessRegistrationNumber" placeholder="BRN-12345678" />
+        <div class="field-error" *ngIf="form.get('businessRegistrationNumber')?.invalid && form.get('businessRegistrationNumber')?.touched">
+          Business Registration Number is required.
+        </div>
       </div>
 
       <div class="form-group">
@@ -49,12 +63,19 @@
           <option value="" disabled>Select Business Type</option>
           <option *ngFor="let type of businessTypes" [value]="type.value">{{ type.label }}</option>
         </select>
+        <div class="field-error" *ngIf="form.get('businessType')?.invalid && form.get('businessType')?.touched">
+          Business Type is required.
+        </div>
       </div>
 
       <div class="form-row">
         <div class="form-col">
           <label class="field-label">Number of Bank Accounts</label>
           <input class="auth-input" type="number" formControlName="bankAccounts" min="1" />
+          <div class="field-error" *ngIf="form.get('bankAccounts')?.invalid && form.get('bankAccounts')?.touched">
+            <span *ngIf="form.get('bankAccounts')?.hasError('required')">Number of bank accounts is required.</span>
+            <span *ngIf="form.get('bankAccounts')?.hasError('min')">Must have at least 1.</span>
+          </div>
         </div>
         <div class="form-col">
           <label class="field-label">Notes</label>

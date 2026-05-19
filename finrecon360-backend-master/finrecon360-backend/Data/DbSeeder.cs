@@ -3,6 +3,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Data
 {
+    /// <summary>
+    /// WHY: This aggressive seeding guarantees that a freshly deployed instance 
+    /// is immediately usable with all required RBAC tables populated and a root 
+    /// super-admin provisioned, avoiding the need for out-of-band SQL scripts.
+    /// </summary>
     public static class DbSeeder
     {
         public static async Task SeedAsync(AppDbContext db)
@@ -33,6 +38,22 @@ namespace finrecon360_backend.Data
                 new("BALANCER.VIEW", "Balancer View", "Reconciliation", "View balancer"),
                 new("BALANCER.MANAGE", "Balancer Manage", "Reconciliation", "Manage balancer"),
                 new("TASKS.VIEW", "Tasks View", "Reconciliation", "View tasks"),
+                new("ADMIN.IMPORTS.POS.CREATE", "POS Import Upload", "Imports", "Upload POS import files only"),
+                new("ADMIN.IMPORTS.POS.EDIT", "POS Import Edit", "Imports", "Parse, map and validate POS import batches"),
+                new("ADMIN.IMPORTS.POS.COMMIT", "POS Import Commit", "Imports", "Commit validated POS import batches"),
+                new("ADMIN.RECONCILIATION.POS.RESOLVE", "POS Recon Resolve", "Reconciliation", "Resolve POS reconciliation exceptions"),
+                new("ADMIN.IMPORTS.ERP.CREATE", "ERP Import Upload", "Imports", "Upload ERP import files only"),
+                new("ADMIN.IMPORTS.ERP.EDIT", "ERP Import Edit", "Imports", "Parse, map and validate ERP import batches"),
+                new("ADMIN.IMPORTS.ERP.COMMIT", "ERP Import Commit", "Imports", "Commit validated ERP import batches"),
+                new("ADMIN.RECONCILIATION.ERP.RESOLVE", "ERP Recon Resolve", "Reconciliation", "Resolve ERP reconciliation exceptions"),
+                new("ADMIN.IMPORTS.GATEWAY.CREATE", "Gateway Import Upload", "Imports", "Upload Gateway import files only"),
+                new("ADMIN.IMPORTS.GATEWAY.EDIT", "Gateway Import Edit", "Imports", "Parse, map and validate Gateway import batches"),
+                new("ADMIN.IMPORTS.GATEWAY.COMMIT", "Gateway Import Commit", "Imports", "Commit validated Gateway import batches"),
+                new("ADMIN.RECONCILIATION.GATEWAY.RESOLVE", "Gateway Recon Resolve", "Reconciliation", "Resolve Gateway reconciliation exceptions"),
+                new("ADMIN.IMPORTS.BANK.CREATE", "Bank Import Upload", "Imports", "Upload Bank import files only"),
+                new("ADMIN.IMPORTS.BANK.EDIT", "Bank Import Edit", "Imports", "Parse, map and validate Bank import batches"),
+                new("ADMIN.IMPORTS.BANK.COMMIT", "Bank Import Commit", "Imports", "Commit validated Bank import batches"),
+                new("ADMIN.RECONCILIATION.BANK.RESOLVE", "Bank Recon Resolve", "Reconciliation", "Resolve Bank reconciliation exceptions"),
                 new("JOURNAL.VIEW", "Journal View", "Accounting", "View journal entries"),
                 new("ANALYTICS.VIEW", "Analytics View", "Analytics", "View analytics"),
                 new("BASIC_ACCESS", "Basic Access", "Core", "Baseline access")
