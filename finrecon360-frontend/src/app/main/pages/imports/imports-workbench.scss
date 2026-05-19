@@ -98,7 +98,6 @@
 
 .upload-panel {
   position: relative;
-  overflow: hidden;
 }
 
 .file-meta {
@@ -494,21 +493,17 @@ button[disabled] {
   background: #f8faff;
   color: #2f3d5c;
   cursor: pointer;
-  transition: all 0.18s ease;
   text-align: center;
 
   &:hover {
     border-color: #1d2b64;
     background: #eef2ff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 14px rgba(29, 43, 100, 0.12);
   }
 
   &.selected {
     border-color: #1d2b64;
     background: #1e1e84;
     color: #fff;
-    box-shadow: 0 4px 18px rgba(29, 43, 100, 0.25);
 
     .source-type-hint {
       color: rgba(255, 255, 255, 0.7);
@@ -561,7 +556,7 @@ button[disabled] {
 
 .recon-result-panel {
   border-left: 4px solid #1d8c5e;
-  background: linear-gradient(135deg, #f0faf5 0%, #f8faff 100%);
+  background: #f8faff;
 }
 
 .recon-result-header {
@@ -703,10 +698,6 @@ button[disabled] {
     font-size: 20px;
     margin-top: 1px;
   }
-
-  strong {
-    font-weight: 700;
-  }
 }
 
 .recon-result-actions {
@@ -720,5 +711,4 @@ button[disabled] {
   align-items: center;
   gap: 6px;
   text-decoration: none;
-  font-size: 0.9rem;
 }

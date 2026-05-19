@@ -45,7 +45,6 @@
 .transaction-page-header__actions,
 .transaction-filter-group,
 .transaction-history-event__flow,
-.match-card__header,
 .transaction-dialog__intro,
 .transaction-reject-dialog__warning,
 .transaction-history-hero,
@@ -55,7 +54,6 @@
 }
 
 .transaction-page-header,
-.match-card__header,
 .transaction-dialog__intro,
 .transaction-reject-dialog__warning,
 .transaction-history-hero,
@@ -71,8 +69,6 @@
 .transaction-page-header p,
 .transaction-dialog__helper,
 .transaction-dialog__subtext,
-.match-card__header p,
-  .match-card__meta span,
 .transaction-stat p,
 .transaction-page-empty,
 .transaction-page-empty p {
@@ -101,7 +97,6 @@
 
 .transaction-stat,
 .transaction-history-summary__item,
-.match-card__meta div,
 .transaction-dialog__note {
   padding: 14px 16px;
   border: 1px solid var(--fr-border);
@@ -124,8 +119,7 @@
 
 .transaction-stat strong,
 .transaction-history-summary__item strong,
-.transaction-dialog__note strong,
-.match-card__meta strong {
+.transaction-dialog__note strong {
   display: block;
   color: var(--fr-text-primary);
   overflow-wrap: anywhere;
@@ -173,10 +167,6 @@
   background: rgba(255, 255, 255, 0.56);
 }
 
-.transaction-search mat-icon {
-  color: var(--fr-text-muted);
-}
-
 .transaction-search input {
   width: 100%;
   border: 0;
@@ -206,10 +196,6 @@
   gap: 10px;
   padding: 48px 20px;
   text-align: center;
-}
-
-.transaction-page-loading--compact {
-  padding: 24px;
 }
 
 .transaction-page-empty mat-icon {
@@ -255,10 +241,6 @@
   vertical-align: top;
 }
 
-.transaction-table .mat-mdc-row:hover {
-  background: rgba(255, 255, 255, 0.48);
-}
-
 .transaction-table .mat-mdc-row:last-child .mat-mdc-cell {
   border-bottom: none;
 }
@@ -268,10 +250,6 @@
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-}
-
-.transaction-table__bank-account {
-  color: var(--fr-text-muted);
 }
 
 .transaction-table__actions-cell {
@@ -326,12 +304,7 @@
   color: #475569;
 }
 
-.action-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(15, 27, 51, 0.62);
-}
+.action-button { color: rgba(15, 27, 51, 0.62); }
 
 .action-history {
   color: #526076;
@@ -407,8 +380,7 @@
 
 .transaction-form__grid,
 .transaction-history-summary,
-.transaction-history-event__meta,
-.match-card__meta {
+.transaction-history-event__meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -425,13 +397,11 @@
   vertical-align: middle;
 }
 
-.transaction-history-hero__amount,
-.match-card__amount {
+.transaction-history-hero__amount {
   align-self: flex-start;
 }
 
-.transaction-history-timeline,
-.match-queue {
+.transaction-history-timeline {
   display: grid;
   gap: 14px;
 }
@@ -440,8 +410,7 @@
   display: none;
 }
 
-.transaction-history-event__card,
-.match-card {
+.transaction-history-event__card {
   padding: 18px;
   border-radius: var(--fr-radius-xl);
 }
@@ -465,22 +434,12 @@
   color: #d97706;
 }
 
-.match-card__header h3 {
-  margin: 0 0 6px;
-}
-
-.match-card__amount {
-  font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-  font-weight: 600;
-}
-
 @media (max-width: 900px) {
   .transaction-page-controls--search,
   .transaction-page-controls--filters,
   .transaction-form__grid,
   .transaction-history-summary,
   .transaction-history-event__meta,
-  .match-card__meta,
   .transaction-dialog__notes {
     grid-template-columns: 1fr;
   }
@@ -488,8 +447,7 @@
   .transaction-page-header,
   .transaction-dialog__intro,
   .transaction-reject-dialog__warning,
-  .transaction-history-hero,
-  .match-card__header {
+  .transaction-history-hero {
     flex-direction: column;
   }
 
@@ -501,46 +459,6 @@
 
 // ── Needs Bank Match — accordion queue styles ─────────────────────────────────
 
-.nbm-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.nbm-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 110px;
-  padding: 10px 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  background: #f8fafc;
-
-  .chip-value {
-    font-size: 1.55rem;
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-  }
-
-  .chip-label {
-    margin-top: 3px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: rgba(15, 23, 42, 0.55);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-  }
-
-  &.nbm-chip--total    { .chip-value { color: #0f172a; } }
-  &.nbm-chip--import   { background: #eff6ff; .chip-value { color: #1d4ed8; } }
-  &.nbm-chip--group    { background: #f0fdf4; .chip-value { color: #047857; } }
-  &.nbm-chip--confirmed { background: #ecfdf5; .chip-value { color: #065f46; } }
-}
-
 .nbm-list {
   display: flex;
   flex-direction: column;
@@ -551,15 +469,6 @@
   border: 1px solid rgba(15, 23, 42, 0.08) !important;
   border-radius: 8px !important;
   box-shadow: none !important;
-  transition: box-shadow 180ms ease;
-
-  &:hover {
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
-  }
-}
-
-.nbm-panel-header {
-  min-height: 58px !important;
 }
 
 .nbm-panel-title {
@@ -637,12 +546,6 @@
   color: rgba(15, 23, 42, 0.55);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-
-  mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
-  }
 }
 
 .nbm-dl {
@@ -672,14 +575,6 @@
     font-weight: 500;
     min-width: 0;
     overflow-wrap: anywhere;
-
-    code {
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      font-size: 0.83rem;
-      background: #e2e8f0;
-      padding: 1px 5px;
-      border-radius: 4px;
-    }
   }
 
   .amount-val { font-variant-numeric: tabular-nums; font-weight: 700; }
@@ -695,72 +590,63 @@
   font-size: 0.85rem;
   color: rgba(15, 23, 42, 0.6);
   line-height: 1.45;
+}
 
-  mat-icon {
-    flex-shrink: 0;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    margin-top: 1px;
-    color: rgba(15, 23, 42, 0.38);
-  }
+.goto-btn mat-icon,
+.import-icon,
+.confirm-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
 }
 
 .goto-btn {
   margin-top: 10px;
+}
 
-  mat-icon { margin-right: 6px; }
+.goto-btn mat-icon {
+  margin-right: 6px;
 }
 
 .import-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
   color: #1d4ed8;
 
   &.muted-icon { color: rgba(15, 23, 42, 0.3); }
 }
 
 .confirm-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
   vertical-align: middle;
   color: rgba(15, 23, 42, 0.35);
 
   &.confirmed { color: #047857; }
 }
 
-// Source badge
-.source-badge {
-  display: inline-block;
-  padding: 2px 8px;
+.source-badge,
+.level-badge,
+.ms-badge {
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 700;
+}
+
+.source-badge {
+  display: inline-block;
+  padding: 2px 8px;
   background: #dbeafe;
   color: #1e40af;
 }
 
-// Level badge (match group)
 .level-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
   background: #ede9fe;
   color: #5b21b6;
 }
 
-// Match status badges (ms-*)
 .ms-badge {
   display: inline-flex;
   align-items: center;
   padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
