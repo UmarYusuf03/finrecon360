@@ -138,8 +138,7 @@
       <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
     </table>
   </div>
-
-  <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
+ <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
     <mat-icon>post_add</mat-icon>
     <h3>{{ allTransactions.length > 0 ? 'No journal-ready transactions match the filters' : 'No journal-ready transactions' }}</h3>
     <p>{{ allTransactions.length > 0 ? 'Adjust the year, month, or sorting controls to broaden the list.' : 'Approved cash activity will appear here once it is ready for journal posting.' }}</p>
