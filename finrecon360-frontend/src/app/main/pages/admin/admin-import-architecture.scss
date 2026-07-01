@@ -120,8 +120,12 @@
 
 .templates-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.3fr);
+  grid-template-columns: 1fr;
   gap: 18px;
+}
+
+.templates-layout .architecture-card {
+  width: 100%;
 }
 
 .template-form {
@@ -136,6 +140,54 @@
 
 .table-shell {
   overflow: hidden;
+}
+
+.templates-layout .table-shell .mat-mdc-header-cell,
+.templates-layout .table-shell .mat-mdc-cell {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.templates-layout .table-shell .mat-mdc-header-cell {
+  white-space: nowrap;
+}
+
+.templates-layout .table-shell .mat-mdc-cell {
+  vertical-align: middle;
+}
+
+.templates-layout .table-shell .mat-mdc-cell:last-child {
+  width: 460px;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.table-actions .template-action {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 8px;
+  line-height: 1.1;
+  font-size: 0.78rem;
+}
+
+.table-actions .template-action--deactivate {
+  color: #4b5563;
+}
+
+.table-actions .template-action--delete {
+  color: #b91c1c;
+}
+
+.table-actions .template-action--delete:hover,
+.table-actions .template-action--delete:focus-visible {
+  color: #991b1b;
 }
 
 .table-shell--schema {
@@ -223,7 +275,7 @@
 @media (max-width: 960px) {
   .architecture-overview,
   .templates-layout {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 }
 
