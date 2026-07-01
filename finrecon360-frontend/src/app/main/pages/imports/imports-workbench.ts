@@ -111,6 +111,8 @@ export class ImportsWorkbenchComponent implements OnInit {
   templates: ImportMappingTemplate[] = [];
   selectedTemplateId: string | null = null;
   templateLoading = false;
+  private templateActionFeedbackTimer: number | null = null;
+  templateActionFeedback: 'use' | 'apply' | null = null;
 
   // WHY: Typed getters expose each atomic permission independently so the template
   // can show/hide the Upload button, the Commit button, and the Delete button separately
@@ -507,7 +509,11 @@ export class ImportsWorkbenchComponent implements OnInit {
   }
 
   useActiveTemplate(): void {
-    this.applyActiveTemplate(true);
+    this.flashTemplateAction('use');
+    const applied = this.applyActiveTemplate(true);
+    if (applied && this.activeTemplate) {
+      this.actionMessage = `Applied active mapping template "${this.activeTemplate.name}".`;
+    }
   }
 
   applySelectedTemplate(): void {
@@ -515,7 +521,11 @@ export class ImportsWorkbenchComponent implements OnInit {
       return;
     }
 
-    const template = this.templates.find((item) => item.id === this.selectedTemplateId);
+    this.flashTemplateAction('apply');
+
+    const template = this.templates.find(
+      (item) => String(item.id) === String(this.selectedTemplateId),
+    );
     if (!template) {
       return;
     }
@@ -531,6 +541,18 @@ export class ImportsWorkbenchComponent implements OnInit {
     });
 
     this.actionMessage = `Applied mapping template "${template.name}".`;
+  }
+
+  private flashTemplateAction(action: 'use' | 'apply'): void {
+    this.templateActionFeedback = action;
+    if (this.templateActionFeedbackTimer !== null) {
+      window.clearTimeout(this.templateActionFeedbackTimer);
+    }
+
+    this.templateActionFeedbackTimer = window.setTimeout(() => {
+      this.templateActionFeedback = null;
+      this.templateActionFeedbackTimer = null;
+    }, 180);
   }
 
   assignFieldToHeader(field: string, header: string | null): void {
@@ -620,7 +642,7 @@ export class ImportsWorkbenchComponent implements OnInit {
       next: (template) => {
         this.activeTemplate = template;
         if (!this.selectedTemplateId) {
-          this.selectedTemplateId = template.id;
+          this.selectedTemplateId = String(template.id);
         }
         const applied = this.applyActiveTemplate(false);
         if (applied) {
@@ -648,12 +670,18 @@ export class ImportsWorkbenchComponent implements OnInit {
     }
 
     this.templateLoading = true;
-    this.importArchitectureService.getMappingTemplates(this.selectedBatch.sourceType).subscribe({
+    this.importArchitectureService.getMappingTemplates().subscribe({
       next: (templates) => {
         this.templateLoading = false;
-        this.templates = templates;
-        if (!this.selectedTemplateId && templates.length > 0) {
-          this.selectedTemplateId = templates[0].id;
+        this.templates = templates.filter((template) => template.isActive);
+        const hasSelectedTemplate = this.templates.some(
+          (template) => String(template.id) === String(this.selectedTemplateId),
+        );
+
+        if (!hasSelectedTemplate && this.templates.length > 0) {
+          this.selectedTemplateId = String(this.templates[0].id);
+        } else if (!this.templates.length) {
+          this.selectedTemplateId = null;
         }
       },
       error: (error: unknown) => {

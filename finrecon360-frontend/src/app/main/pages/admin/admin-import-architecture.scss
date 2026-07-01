@@ -158,7 +158,7 @@
 }
 
 .templates-layout .table-shell .mat-mdc-cell:last-child {
-  width: 380px;
+  width: 460px;
 }
 
 .table-actions {
@@ -170,6 +170,7 @@
 }
 
 .table-actions .template-action {
+  flex: 0 0 auto;
   min-height: 28px;
   padding: 0 8px;
   line-height: 1.1;
