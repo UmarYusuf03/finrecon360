@@ -1,123 +1,168 @@
 <section class="sv-page">
-  <header class="sv-header">
-    <div class="sv-header-left">
-      <h2>Sales Verification Queue</h2>
-      <p>Level-3 ERP ↔ Gateway reconciliation exceptions requiring manual review.</p>
+  <nav class="matcher-nav" [attr.aria-label]="'MATCHER.WORKFLOW_ARIA' | translate">
+    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <mat-icon>account_balance</mat-icon>
+      <span>{{ 'MATCHER.NAV.MATCH_GROUPS' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
+      <mat-icon>pending</mat-icon>
+      <span>{{ 'MATCHER.NAV.WAITING_QUEUE' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/sales-verification" routerLinkActive="active">
+      <mat-icon>find_in_page</mat-icon>
+      <span>{{ 'MATCHER.NAV.SALES_VERIFICATION' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/events" routerLinkActive="active">
+      <mat-icon>timeline</mat-icon>
+      <span>{{ 'MATCHER.NAV.EVENTS' | translate }}</span>
+    </a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
+      <mat-icon>receipt_long</mat-icon>
+      <span>{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</span>
+    </a>
+  </nav>
+
+  <header class="sv-hero">
+    <div class="sv-hero__copy">
+      <span class="sv-hero__eyebrow">{{ 'MATCHER.SALES_VERIFICATION.EYEBROW' | translate }}</span>
+      <h1>{{ 'MATCHER.SALES_VERIFICATION.TITLE' | translate }}</h1>
+      <p>{{ 'MATCHER.SALES_VERIFICATION.SUBTITLE' | translate }}</p>
     </div>
-    <div class="sv-header-actions">
+
+    <div class="sv-hero__actions">
       <a routerLink="/app/matcher" class="ghost-btn back-btn">
-        <span class="material-icons">arrow_back</span>
-        Back to Matcher
+        <mat-icon>arrow_back</mat-icon>
+        {{ 'MATCHER.BACK_TO_MATCHER' | translate }}
       </a>
+
       <button class="primary-btn" (click)="refresh()" [disabled]="loading" id="sv-refresh-btn">
-        <span class="material-icons">refresh</span>
-        Refresh
+        <mat-icon>refresh</mat-icon>
+        {{ 'COMMON.REFRESH' | translate }}
       </button>
     </div>
   </header>
 
-  <!-- Summary chips -->
-  <div class="sv-chips">
-    <div class="chip chip-total">
-      <span class="chip-value">{{ totalCount }}</span>
-      <span class="chip-label">Total Events</span>
+  <section class="sv-summary" *ngIf="!loading && canViewRecon">
+    <article class="summary-card">
+      <span class="summary-card__label">{{ 'MATCHER.SALES_VERIFICATION.TOTAL_EVENTS' | translate }}</span>
+      <strong class="summary-card__value">{{ totalCount }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.SALES_VERIFICATION.TOTAL_EVENTS_COPY' | translate }}</span>
+    </article>
+
+    <article class="summary-card summary-card--exception">
+      <span class="summary-card__label">{{ 'MATCHER.SALES_VERIFICATION.EXCEPTIONS' | translate }}</span>
+      <strong class="summary-card__value">{{ exceptionCount }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.SALES_VERIFICATION.EXCEPTIONS_COPY' | translate }}</span>
+    </article>
+
+    <article class="summary-card summary-card--success">
+      <span class="summary-card__label">{{ 'MATCHER.SALES_VERIFICATION.RESOLVED' | translate }}</span>
+      <strong class="summary-card__value">{{ verifiedCount }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.SALES_VERIFICATION.RESOLVED_COPY' | translate }}</span>
+    </article>
+  </section>
+
+  <section class="sv-filters-card" *ngIf="canViewRecon">
+    <div class="sv-filters">
+      <label class="filter-field">
+        <span>{{ 'COMMON.SOURCE' | translate }}</span>
+        <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="sv-source-filter">
+          <option value="">{{ 'MATCHER.SALES_VERIFICATION.ALL_SOURCE_TYPES' | translate }}</option>
+          <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>{{ 'MATCHER.SALES_VERIFICATION.EVENT' | translate }}</span>
+        <select [(ngModel)]="eventTypeFilter" (ngModelChange)="applyFilters()" id="sv-event-filter">
+          <option value="">{{ 'MATCHER.SALES_VERIFICATION.ALL_EVENT_TYPES' | translate }}</option>
+          <option *ngFor="let et of getUniqueEventTypes()" [value]="et">{{ getEventTypeLabel(et) }}</option>
+        </select>
+      </label>
+
+      <span class="filter-count" *ngIf="filteredEvents.length !== totalCount">
+        {{ 'COMMON.SHOWING_OF' | translate:{ shown: filteredEvents.length, total: totalCount } }}
+      </span>
     </div>
-    <div class="chip chip-exception">
-      <span class="chip-value">{{ exceptionCount }}</span>
-      <span class="chip-label">Exceptions</span>
+  </section>
+
+  <div class="sv-state sv-state--loading" *ngIf="loading">
+    <mat-icon>hourglass_empty</mat-icon>
+    <div>
+      <h3>{{ 'MATCHER.SALES_VERIFICATION.LOADING_TITLE' | translate }}</h3>
+      <p>{{ 'MATCHER.SALES_VERIFICATION.LOADING_COPY' | translate }}</p>
     </div>
-    <div class="chip chip-resolved">
-      <span class="chip-value">{{ verifiedCount }}</span>
-      <span class="chip-label">Resolved</span>
-    </div>
   </div>
 
-  <!-- Filters -->
-  <div class="sv-filters">
-    <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="sv-source-filter">
-      <option value="">All Source Types</option>
-      <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
-    </select>
-    <select [(ngModel)]="eventTypeFilter" (ngModelChange)="applyFilters()" id="sv-event-filter">
-      <option value="">All Event Types</option>
-      <option *ngFor="let et of getUniqueEventTypes()" [value]="et">{{ getEventTypeLabel(et) }}</option>
-    </select>
-    <span class="filter-count" *ngIf="filteredEvents.length !== totalCount">
-      Showing {{ filteredEvents.length }} of {{ totalCount }}
-    </span>
+  <div class="sv-state sv-state--empty" *ngIf="!canViewRecon">
+    <mat-icon>lock</mat-icon>
+    <h3>{{ 'MATCHER.ACCESS_REQUIRED' | translate }}</h3>
+    <p>{{ 'MATCHER.SALES_VERIFICATION.ACCESS_COPY' | translate }}</p>
   </div>
 
-  <!-- Loading spinner -->
-  <div class="loading-wrapper" *ngIf="loading">
-    <span class="material-icons spin">hourglass_empty</span>
-    <p>Loading Level-3 events...</p>
+  <div class="sv-state sv-state--empty" *ngIf="canViewRecon && !loading && filteredEvents.length === 0">
+    <mat-icon>check_circle_outline</mat-icon>
+    <h3>{{ 'MATCHER.SALES_VERIFICATION.EMPTY_TITLE' | translate }}</h3>
+    <p>{{ 'MATCHER.SALES_VERIFICATION.EMPTY_COPY' | translate }}</p>
   </div>
 
-  <!-- No-permission state — shown when user lacks ADMIN.RECONCILIATION.VIEW -->
-  <div class="empty-state" *ngIf="!canViewRecon">
-    <span class="material-icons empty-icon">lock</span>
-    <p>You do not have permission to view reconciliation exceptions.</p>
-    <p class="muted">Requires <strong>ADMIN.RECONCILIATION.VIEW</strong> or a scoped equivalent.</p>
-  </div>
-
-  <!-- Empty state (has access, but no records) -->
-  <div class="empty-state" *ngIf="canViewRecon && !loading && filteredEvents.length === 0">
-    <span class="material-icons empty-icon">check_circle_outline</span>
-    <p>No Level-3 exceptions found. All records are resolved or pending different stages.</p>
-  </div>
-
-  <!-- Events table -->
-  <div class="sv-table-wrapper" *ngIf="canViewRecon && !loading && filteredEvents.length > 0">
+  <div class="sv-table-shell" *ngIf="canViewRecon && !loading && filteredEvents.length > 0">
     <table class="sv-table">
       <thead>
         <tr>
-          <th>Stage</th>
-          <th>Source</th>
-          <th>Event Type</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th>Detail</th>
-          <th *ngIf="canResolveException">Action</th>
+          <th>{{ 'MATCHER.EVENTS.STAGE' | translate }}</th>
+          <th>{{ 'COMMON.SOURCE' | translate }}</th>
+          <th>{{ 'MATCHER.SALES_VERIFICATION.EVENT_TYPE' | translate }}</th>
+          <th>{{ 'COMMON.STATUS' | translate }}</th>
+          <th>{{ 'MATCHER.CREATED' | translate }}</th>
+          <th>{{ 'MATCHER.EVENTS.DETAIL' | translate }}</th>
+          <th *ngIf="canResolveException">{{ 'COMMON.ACTION' | translate }}</th>
         </tr>
       </thead>
+
       <tbody>
         <tr *ngFor="let event of filteredEvents">
           <td>
             <span class="stage-badge">{{ event.stage }}</span>
           </td>
+
           <td>
             <span class="source-badge">{{ event.sourceType }}</span>
           </td>
+
           <td>
             <span class="event-chip" [ngClass]="getEventTypeClass(event.eventType)">
               {{ getEventTypeLabel(event.eventType) }}
             </span>
           </td>
+
           <td>
             <span class="status-dot" [ngClass]="getStatusClass(event.status)">
               {{ event.status }}
             </span>
           </td>
+
           <td class="date-cell">{{ event.createdAt | date: 'dd MMM yy, HH:mm' }}</td>
+
           <td class="detail-cell">
             <ng-container *ngIf="parseDetail(event.detailJson) as detail">
               <span *ngFor="let key of $any(detail) | keyvalue" class="detail-kv">
                 <strong>{{ key.key }}:</strong> {{ key.value }}
               </span>
             </ng-container>
-            <span class="muted" *ngIf="!event.detailJson">—</span>
+            <span class="muted" *ngIf="!event.detailJson">{{ 'COMMON.NOT_AVAILABLE' | translate }}</span>
           </td>
-          <!-- WHY: Show resolve action column only for users with RECONCILIATION.RESOLVE.
-               The backend will reject the call anyway, but we avoid showing a useless button. -->
-          <td *ngIf="canResolveException">
+
+          <td *ngIf="canResolveException" class="action-cell">
             <span
               *ngIf="event.status === 'Pending'"
               class="resolve-hint"
-              [title]="'Requires ADMIN.RECONCILIATION.RESOLVE to act on this record via the settlement ID panel'"
-            >
-              <span class="material-icons resolve-icon">manage_search</span>
+              [title]="'Requires ADMIN.RECONCILIATION.RESOLVE to act on this record via the settlement ID panel'">
+              <mat-icon>manage_search</mat-icon>
+              {{ 'MATCHER.SALES_VERIFICATION.REVIEW_IN_QUEUE' | translate }}
             </span>
-            <span *ngIf="event.status !== 'Pending'" class="muted">—</span>
+
+            <span *ngIf="event.status !== 'Pending'" class="muted">-</span>
           </td>
         </tr>
       </tbody>

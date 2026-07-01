@@ -40,7 +40,7 @@ export class AdminShellComponent implements OnInit {
   private readonly links: AdminLink[] = [
     {
       path: '/app/admin/bank-accounts',
-      label: 'Bank Accounts',
+      label: 'BANK_ACCOUNTS.TITLE',
       permission: 'ADMIN.BANK_ACCOUNTS.VIEW',
       scope: 'tenant',
     },

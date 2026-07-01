@@ -1,64 +1,92 @@
-<section class="admin-card">
-  <div class="header">
-    <h2>Tenants</h2>
-    <div class="filters">
-      <input type="text" [(ngModel)]="searchTerm" placeholder="Search tenants..." class="search-input" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #d6d9e4; width: 250px;" />
+<section class="tenants-page">
+  <header class="tenants-page__hero">
+    <div class="tenants-page__copy">
+      <span class="tenants-page__eyebrow">{{ 'ADMIN.TENANTS.EYEBROW' | translate }}</span>
+      <h2>{{ 'ADMIN.TENANTS.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.TENANTS.COPY' | translate }}</p>
     </div>
-  </div>
+    <div class="tenants-page__toolbar">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        [placeholder]="'ADMIN.TENANTS.SEARCH_PLACEHOLDER' | translate"
+        class="search-input"
+      />
+    </div>
+  </header>
 
-  <div class="success" *ngIf="actionMessage">{{ actionMessage }}</div>
-  <div class="error" *ngIf="actionError">{{ actionError }}</div>
+  <div class="message message--success" *ngIf="actionMessage">{{ actionMessage }}</div>
+  <div class="message message--error" *ngIf="actionError">{{ actionError }}</div>
 
   <div class="layout">
-    <div class="list">
-      <div *ngIf="loading">Loading...</div>
+    <div class="list panel">
+      <div class="panel__header">
+        <h3>{{ 'ADMIN.TENANTS.DIRECTORY' | translate }}</h3>
+        <span class="panel__count">{{ filteredTenants.length }}</span>
+      </div>
+      <div class="panel__state" *ngIf="loading">{{ 'ADMIN.TENANTS.LOADING' | translate }}</div>
       <ul *ngIf="!loading">
         <li *ngFor="let tenant of filteredTenants" (click)="selectTenant(tenant)" [class.active]="selected?.id === tenant.id">
           <div class="name">{{ tenant.name }}</div>
-          <div class="meta">{{ tenant.status }}</div>
+          <div class="meta"><span class="status-pill" [class.status-pill--warning]="tenant.status === 'SUSPENDED'" [class.status-pill--danger]="tenant.status === 'BANNED'">{{ tenant.status }}</span></div>
         </li>
       </ul>
     </div>
 
-    <div class="detail" *ngIf="selected">
-      <h3>{{ selected.name }}</h3>
-      <p>Status: <strong>{{ selected.status }}</strong></p>
-      <p *ngIf="selected.currentSubscription">
-        Plan: {{ selected.currentSubscription.planName }} ({{ selected.currentSubscription.status }})
+    <div class="detail panel" *ngIf="selected; else tenantEmpty">
+      <div class="panel__header panel__header--detail">
+        <div>
+          <h3>{{ selected.name }}</h3>
+          <p>{{ 'ADMIN.TENANTS.SELECTED_COPY' | translate }}</p>
+        </div>
+        <span class="status-pill" [class.status-pill--warning]="selected.status === 'SUSPENDED'" [class.status-pill--danger]="selected.status === 'BANNED'">{{ selected.status }}</span>
+      </div>
+      <p *ngIf="selected.currentSubscription" class="detail__subscription">
+        {{ 'ADMIN.TENANTS.PLAN' | translate }}: {{ selected.currentSubscription.planName }} ({{ selected.currentSubscription.status }})
       </p>
 
       <div class="admin-box">
-        <label>Tenant Admins (comma separated emails)</label>
+        <label>{{ 'ADMIN.TENANTS.TENANT_ADMINS' | translate }}</label>
         <textarea [(ngModel)]="adminEmails" rows="3"></textarea>
-        <button class="primary-btn" (click)="saveAdmins()">Update Admins</button>
+        <button class="primary-btn" (click)="saveAdmins()">{{ 'ADMIN.TENANTS.UPDATE_ADMINS' | translate }}</button>
       </div>
 
       <div class="enforcement">
-        <label>Enforcement Reason</label>
-        <input [(ngModel)]="enforcementReason" placeholder="Reason" />
+        <label>{{ 'ADMIN.TENANTS.ENFORCEMENT_REASON' | translate }}</label>
+        <input [(ngModel)]="enforcementReason" [placeholder]="'ADMIN.TENANTS.REASON' | translate" />
         <div class="actions">
-          <button class="warning-btn" (click)="suspend()">Suspend</button>
-          <button class="danger-btn" (click)="ban()">Ban</button>
-          <button class="primary-btn" (click)="reinstate()">Reinstate</button>
-          <button class="danger-btn" (click)="deleteSelectedTenant()">Delete Tenant</button>
+          <button class="warning-btn" (click)="suspend()">{{ 'ADMIN.TENANTS.SUSPEND' | translate }}</button>
+          <button class="danger-btn" (click)="ban()">{{ 'ADMIN.TENANTS.BAN' | translate }}</button>
+          <button class="primary-btn" (click)="reinstate()">{{ 'ADMIN.TENANTS.REINSTATE' | translate }}</button>
+          <button class="danger-btn" (click)="deleteSelectedTenant()">{{ 'ADMIN.TENANTS.DELETE_TENANT' | translate }}</button>
         </div>
       </div>
     </div>
+
+    <ng-template #tenantEmpty>
+      <div class="detail-empty panel">
+        <span class="detail-empty__icon">apartment</span>
+        <h3>{{ 'ADMIN.TENANTS.EMPTY_TITLE' | translate }}</h3>
+        <p>{{ 'ADMIN.TENANTS.EMPTY_COPY' | translate }}</p>
+      </div>
+    </ng-template>
   </div>
 
   <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-tenant-title">
-      <h3 id="delete-tenant-title">Delete Tenant</h3>
+      <h3 id="delete-tenant-title">{{ 'ADMIN.TENANTS.DELETE_TITLE' | translate }}</h3>
       <p>
         You are about to permanently remove
         <strong>{{ deleteTargetName }}</strong>.
       </p>
-      <p>This action cannot be undone and will remove tenant access and data mappings from the control plane.</p>
+      <p>{{ 'ADMIN.TENANTS.DELETE_NOTE' | translate }}</p>
 
       <div class="dialog-actions">
-        <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDeleteDialog()">Cancel</button>
+        <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDeleteDialog()">
+          {{ 'COMMON.CANCEL' | translate }}
+        </button>
         <button type="button" class="danger-btn" [disabled]="processing" (click)="confirmDeleteTenant()">
-          {{ processing ? 'Deleting...' : 'Delete Tenant' }}
+          {{ processing ? ('COMMON.DELETING' | translate) : ('ADMIN.TENANTS.DELETE_TENANT' | translate) }}
         </button>
       </div>
     </div>

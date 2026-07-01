@@ -1,58 +1,71 @@
-<mat-card class="transaction-page-card">
-  <nav class="transaction-workflow-nav" aria-label="Transaction workflow">
-    <a routerLink="/app/transactions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Transactions</a>
-    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">Journal Ready</a>
-    <a routerLink="/app/transactions/needs-bank-match" routerLinkActive="active">Needs Bank Match</a>
+<mat-card class="transaction-page-card transaction-page-card--actions">
+  <nav class="transaction-workflow-nav" [attr.aria-label]="'TRANSACTIONS.WORKFLOW_ARIA' | translate">
+    <a routerLink="/app/transactions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">{{ 'TRANSACTIONS.NAV.TRANSACTIONS' | translate }}</a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</a>
+    <a routerLink="/app/transactions/needs-bank-match" routerLinkActive="active">{{ 'TRANSACTIONS.NAV.NEEDS_BANK_MATCH' | translate }}</a>
   </nav>
 
   <div class="transaction-page-header">
     <div>
-      <h2>Journal Ready</h2>
-      <p>Review approved transactions waiting for journal posting.</p>
+      <h2>{{ 'TRANSACTIONS.JOURNAL_READY.TITLE' | translate }}</h2>
+      <p>{{ 'TRANSACTIONS.JOURNAL_READY.SUBTITLE' | translate }}</p>
     </div>
     <div class="transaction-page-header__actions">
       <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading">
         <mat-icon>refresh</mat-icon>
-        Refresh
+        {{ 'COMMON.REFRESH' | translate }}
       </button>
     </div>
   </div>
 
-  <div class="transaction-page-controls" *ngIf="!loading || allTransactions.length > 0">
+  <div class="transaction-page-stats" *ngIf="!loading || allTransactions.length > 0">
+    <article class="transaction-stat">
+      <span>{{ 'TRANSACTIONS.JOURNAL_READY.IN_QUEUE' | translate }}</span>
+      <strong>{{ allTransactions.length }}</strong>
+      <p>{{ 'TRANSACTIONS.JOURNAL_READY.IN_QUEUE_COPY' | translate }}</p>
+    </article>
+    <article class="transaction-stat">
+      <span>{{ 'TRANSACTIONS.JOURNAL_READY.VISIBLE' | translate }}</span>
+      <strong>{{ transactions.length }}</strong>
+      <p>{{ hasFilterState() ? ('TRANSACTIONS.JOURNAL_READY.VISIBLE_FILTERED' | translate) : ('TRANSACTIONS.JOURNAL_READY.VISIBLE_DEFAULT' | translate) }}</p>
+    </article>
+  </div>
+
+  <div class="transaction-page-controls transaction-page-controls--filters" *ngIf="!loading || allTransactions.length > 0">
     <mat-form-field appearance="outline">
-      <mat-label>Sort by</mat-label>
+      <mat-label>{{ 'TRANSACTIONS.JOURNAL_READY.SORT_BY' | translate }}</mat-label>
       <mat-select [(ngModel)]="sortField" (selectionChange)="applyFilters()">
-        <mat-option value="transactionDate">Transaction Date</mat-option>
-        <mat-option value="amount">Amount</mat-option>
+        <mat-option value="transactionDate">{{ 'TRANSACTIONS.TRANSACTION_DATE' | translate }}</mat-option>
+        <mat-option value="amount">{{ 'TRANSACTIONS.AMOUNT' | translate }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Direction</mat-label>
+      <mat-label>{{ 'TRANSACTIONS.JOURNAL_READY.DIRECTION' | translate }}</mat-label>
       <mat-select [(ngModel)]="sortDirection" (selectionChange)="applyFilters()">
-        <mat-option value="asc">Ascending</mat-option>
-        <mat-option value="desc">Descending</mat-option>
+        <mat-option value="asc">{{ 'TRANSACTIONS.JOURNAL_READY.ASCENDING' | translate }}</mat-option>
+        <mat-option value="desc">{{ 'TRANSACTIONS.JOURNAL_READY.DESCENDING' | translate }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Year</mat-label>
+      <mat-label>{{ 'TRANSACTIONS.JOURNAL_READY.YEAR' | translate }}</mat-label>
       <mat-select [(ngModel)]="selectedYear" (selectionChange)="applyFilters()">
-        <mat-option [value]="null">All years</mat-option>
+        <mat-option [value]="null">{{ 'TRANSACTIONS.JOURNAL_READY.ALL_YEARS' | translate }}</mat-option>
         <mat-option *ngFor="let year of years" [value]="year">{{ year }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <mat-form-field appearance="outline">
-      <mat-label>Month</mat-label>
+      <mat-label>{{ 'TRANSACTIONS.JOURNAL_READY.MONTH' | translate }}</mat-label>
       <mat-select [(ngModel)]="selectedMonth" (selectionChange)="applyFilters()">
-        <mat-option [value]="null">All months</mat-option>
+        <mat-option [value]="null">{{ 'TRANSACTIONS.JOURNAL_READY.ALL_MONTHS' | translate }}</mat-option>
         <mat-option *ngFor="let month of months" [value]="month.value">{{ month.label }}</mat-option>
       </mat-select>
     </mat-form-field>
 
     <button mat-stroked-button type="button" (click)="clearFilters()" [disabled]="!hasFilterState()">
-      Clear filters
+      {{ 'TRANSACTIONS.JOURNAL_READY.CLEAR_FILTERS' | translate }}
     </button>
   </div>
 
@@ -60,71 +73,74 @@
     <mat-spinner diameter="36"></mat-spinner>
   </div>
 
-  <table mat-table [dataSource]="transactions" class="transaction-table" *ngIf="!loading && transactions.length > 0">
-    <ng-container matColumnDef="transactionDate">
-      <th mat-header-cell *matHeaderCellDef>Date</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
-    </ng-container>
+  <div class="transaction-table-shell fr-glass-panel" *ngIf="!loading && transactions.length > 0">
+    <table mat-table [dataSource]="transactions" class="transaction-table">
+      <ng-container matColumnDef="transactionDate">
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.DATE' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="amount">
-      <th mat-header-cell *matHeaderCellDef>Amount</th>
-      <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
-    </ng-container>
+      <ng-container matColumnDef="amount">
+        <th mat-header-cell *matHeaderCellDef>{{ 'TRANSACTIONS.AMOUNT' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="type">
-      <th mat-header-cell *matHeaderCellDef>Type</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
-    </ng-container>
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.TYPE' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="method">
-      <th mat-header-cell *matHeaderCellDef>Method</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
-    </ng-container>
+      <ng-container matColumnDef="method">
+        <th mat-header-cell *matHeaderCellDef>{{ 'TRANSACTIONS.METHOD' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="state">
-      <th mat-header-cell *matHeaderCellDef>State</th>
-      <td mat-cell *matCellDef="let transaction">
-        <span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">
-          {{ getStateLabel(transaction.transactionState) }}
-        </span>
-      </td>
-    </ng-container>
+      <ng-container matColumnDef="state">
+        <th mat-header-cell *matHeaderCellDef>{{ 'TRANSACTIONS.STATE' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction">
+          <span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">
+            {{ getStateLabelKey(transaction.transactionState) | translate }}
+          </span>
+        </td>
+      </ng-container>
 
-    <ng-container matColumnDef="description">
-      <th mat-header-cell *matHeaderCellDef>Description</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.description }}</td>
-    </ng-container>
+      <ng-container matColumnDef="description">
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.DESCRIPTION' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.description }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="createdAt">
-      <th mat-header-cell *matHeaderCellDef>Created</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.createdAt | date: 'short' }}</td>
-    </ng-container>
+      <ng-container matColumnDef="createdAt">
+        <th mat-header-cell *matHeaderCellDef>{{ 'TRANSACTIONS.CREATED' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.createdAt | date: 'short' }}</td>
+      </ng-container>
 
-    <ng-container matColumnDef="actions">
-      <th mat-header-cell *matHeaderCellDef></th>
-      <td mat-cell *matCellDef="let transaction">
-        <button
-          *ngIf="canPostJournal"
-          mat-flat-button
-          color="primary"
-          id="post-journal-{{ transaction.transactionId }}"
-          [disabled]="postingId === transaction.transactionId"
-          (click)="postJournal(transaction)"
-          style="font-size: 12px; height: 32px;">
-          <mat-spinner *ngIf="postingId === transaction.transactionId" diameter="14" style="display:inline-block;margin-right:4px;"></mat-spinner>
-          <mat-icon *ngIf="postingId !== transaction.transactionId" style="font-size:14px;height:14px;width:14px;margin-right:2px;">receipt_long</mat-icon>
-          Post to Journal
-        </button>
-      </td>
-    </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.ACTIONS' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction" class="transaction-table__actions-cell">
+          <div class="transaction-table__actions">
+            <button
+              *ngIf="canPostJournal"
+              mat-flat-button
+              color="primary"
+              type="button"
+              [attr.id]="'post-journal-' + transaction.transactionId"
+              [disabled]="postingId === transaction.transactionId"
+              (click)="postJournal(transaction)">
+              <mat-spinner *ngIf="postingId === transaction.transactionId" diameter="16"></mat-spinner>
+              <mat-icon *ngIf="postingId !== transaction.transactionId">receipt_long</mat-icon>
+              <span>{{ 'TRANSACTIONS.JOURNAL_READY.POST_TO_JOURNAL' | translate }}</span>
+            </button>
+          </div>
+        </td>
+      </ng-container>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-  </table>
-
-  <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+  </div>
+ <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
     <mat-icon>post_add</mat-icon>
-    <h3>{{ allTransactions.length > 0 ? 'No journal-ready transactions match the filters' : 'No journal-ready transactions' }}</h3>
-    <p>{{ allTransactions.length > 0 ? 'Adjust the year, month, or sorting controls to broaden the list.' : 'Approved cash activity will appear here once it is ready for journal posting.' }}</p>
+    <h3>{{ allTransactions.length > 0 ? ('TRANSACTIONS.JOURNAL_READY.EMPTY_FILTERED_TITLE' | translate) : ('TRANSACTIONS.JOURNAL_READY.EMPTY_TITLE' | translate) }}</h3>
+    <p>{{ allTransactions.length > 0 ? ('TRANSACTIONS.JOURNAL_READY.EMPTY_FILTERED_COPY' | translate) : ('TRANSACTIONS.JOURNAL_READY.EMPTY_COPY' | translate) }}</p>
   </div>
 </mat-card>

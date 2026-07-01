@@ -1,11 +1,61 @@
 <section class="imports-page">
-  <header class="imports-header">
-    <h2>Import Workbench</h2>
-    <p>Upload files, map fields, validate normalization, and commit to canonical tables.</p>
+  <header class="imports-hero fr-glass-panel">
+    <div class="imports-hero__copy">
+      <span class="imports-hero__eyebrow">{{ 'IMPORTS.WORKBENCH.EYEBROW' | translate }}</span>
+      <h1>{{ 'ADMIN.IMPORT_WORKBENCH.TITLE' | translate }}</h1>
+      <p>{{ 'IMPORTS.WORKBENCH.SUBTITLE' | translate }}</p>
+    </div>
+
+    <ol class="workflow-steps" [attr.aria-label]="'IMPORTS.WORKBENCH.WORKFLOW_ARIA' | translate">
+      <li
+        class="workflow-step"
+        [class.is-active]="!selectedBatch"
+        [class.is-complete]="!!selectedBatch"
+      >
+        <span class="workflow-step__count">1</span>
+        <div>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.UPLOAD' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.UPLOAD_COPY' | translate }}</small>
+        </div>
+      </li>
+      <li
+        class="workflow-step"
+        [class.is-active]="!!selectedBatch && !parseResult"
+        [class.is-complete]="!!parseResult"
+      >
+        <span class="workflow-step__count">2</span>
+        <div>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.MAP' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.MAP_COPY' | translate }}</small>
+        </div>
+      </li>
+      <li
+        class="workflow-step"
+        [class.is-active]="!!parseResult && !validateResult"
+        [class.is-complete]="!!validateResult"
+      >
+        <span class="workflow-step__count">3</span>
+        <div>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.VALIDATE' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.VALIDATE_COPY' | translate }}</small>
+        </div>
+      </li>
+      <li
+        class="workflow-step"
+        [class.is-active]="!!validateResult && !lastCommitSummary"
+        [class.is-complete]="!!lastCommitSummary"
+      >
+        <span class="workflow-step__count">4</span>
+        <div>
+          <strong>{{ 'IMPORTS.WORKBENCH.STEPS.COMMIT' | translate }}</strong>
+          <small>{{ 'IMPORTS.WORKBENCH.STEPS.COMMIT_COPY' | translate }}</small>
+        </div>
+      </li>
+    </ol>
   </header>
 
-  <div class="notice success" *ngIf="actionMessage">{{ actionMessage }}</div>
-  <div class="notice error" *ngIf="actionError">
+  <div class="notice success fr-glass-panel" *ngIf="actionMessage">{{ actionMessage }}</div>
+  <div class="notice error fr-glass-panel" *ngIf="actionError">
     <span>{{ actionError }}</span>
     <button
       class="ghost-btn"
@@ -13,27 +63,31 @@
       [disabled]="loading || processing"
       (click)="refreshHistory()"
     >
-      Refresh History
+      {{ 'IMPORTS.WORKBENCH.REFRESH_HISTORY' | translate }}
     </button>
   </div>
 
-  <div class="panel upload-panel">
-    <h3>1. Upload</h3>
+  <section class="panel upload-panel fr-glass-panel">
+    <div class="panel__header">
+      <div>
+        <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGE_1' | translate }}</span>
+        <h2>{{ 'IMPORTS.WORKBENCH.UPLOAD_TITLE' | translate }}</h2>
+        <p>{{ 'IMPORTS.WORKBENCH.UPLOAD_COPY' | translate }}</p>
+      </div>
+    </div>
 
-    <!-- Source Type Scope Badge: shown when user's access is restricted to specific source types -->
     <div class="scope-badge" *ngIf="scopedSourceTypes !== null">
       <span class="material-icons scope-badge-icon">lock</span>
       <span>
-        Your role limits imports to
-        <!-- WHY: Inline contextual message so CASHIER understands why they see fewer options. -->
-        <strong>{{ allowedSourceTypeLabel }}</strong>
-        only. Other source types are not accessible with your current permissions.
+        {{ 'IMPORTS.WORKBENCH.SCOPED_ONLY' | translate:{ sourceType: allowedSourceTypeLabel } }}
       </span>
     </div>
 
-    <!-- Source Type Selector -->
     <div class="source-type-section">
-      <label class="source-type-label">Select Source Type <span class="required">*</span></label>
+      <label class="source-type-label"
+        >{{ 'IMPORTS.WORKBENCH.SELECT_SOURCE_TYPE' | translate }}
+        <span class="required">*</span></label
+      >
       <div class="source-type-grid">
         <button
           *ngFor="let opt of scopedSourceTypeOptions"
@@ -49,12 +103,14 @@
           <span class="source-type-hint">{{ opt.hint }}</span>
         </button>
       </div>
-      <p class="source-type-error" *ngIf="!importSourceType && actionError && actionError.includes('Source Type')">
-        Please select a source type above.
+      <p
+        class="source-type-error"
+        *ngIf="!importSourceType && actionError && actionError.includes('Source Type')"
+      >
+        {{ 'IMPORTS.WORKBENCH.SELECT_SOURCE_TYPE_ERROR' | translate }}
       </p>
     </div>
 
-    <!-- Drop zone -->
     <div
       class="upload-dropzone"
       [class.dragging]="isDragging"
@@ -63,8 +119,8 @@
       (drop)="onDrop($event)"
     >
       <span class="material-icons drop-icon">upload_file</span>
-      <p class="drop-title">Drag &amp; drop a CSV or XLSX file here</p>
-      <p class="drop-subtitle">or click to browse</p>
+      <p class="drop-title">{{ 'IMPORTS.WORKBENCH.DROP_TITLE' | translate }}</p>
+      <p class="drop-subtitle">{{ 'IMPORTS.WORKBENCH.DROP_SUBTITLE' | translate }}</p>
       <input type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)" />
     </div>
 
@@ -72,7 +128,9 @@
       <div class="file-meta" *ngIf="selectedFileName">
         <span class="material-icons">description</span>
         <strong>{{ selectedFileName }}</strong>
-        <span class="file-size" *ngIf="selectedFileSize">{{ selectedFileSize | number }} bytes</span>
+        <span class="file-size" *ngIf="selectedFileSize"
+          >{{ selectedFileSize | number }} {{ 'COMMON.BYTES' | translate }}</span
+        >
       </div>
       <button
         class="primary-btn upload-btn"
@@ -81,300 +139,397 @@
         id="upload-file-btn"
       >
         <span class="material-icons">cloud_upload</span>
-        {{ processing ? 'Uploading...' : 'Upload File' }}
+        {{
+          processing
+            ? ('IMPORTS.WORKBENCH.UPLOADING' | translate)
+            : ('IMPORTS.WORKBENCH.UPLOAD_FILE' | translate)
+        }}
       </button>
-      <!-- WHY: Shown when a CASHIER selects an unsupported source type via URL hack.
-           Backend will also reject it with 403, but this gives immediate inline feedback. -->
       <p class="scope-warning" *ngIf="importSourceType && !canUploadForCurrentSourceType">
         <span class="material-icons">block</span>
-        Your role does not allow importing <strong>{{ importSourceType }}</strong> files.
-        Allowed types: {{ allowedSourceTypeNames }}.
+        {{ 'IMPORTS.WORKBENCH.SCOPE_WARNING' | translate:{ sourceType: importSourceType, allowedTypes: allowedSourceTypeNames } }}
       </p>
     </div>
-  </div>
+  </section>
 
-  <div class="panel history-panel">
-    <h3>2. History</h3>
-    <div class="history-filters">
-      <input type="text" [(ngModel)]="search" placeholder="Search by file/source" />
-      <input type="text" [(ngModel)]="statusFilter" placeholder="Status filter" />
-      <button class="ghost-btn" (click)="refreshHistory()">Refresh</button>
-    </div>
-
-    <div *ngIf="loading" class="loading">Loading history...</div>
-    <table *ngIf="!loading" class="history-table">
-      <thead>
-        <tr>
-          <th>File</th>
-          <th>Source</th>
-          <th>Status</th>
-          <th>Raw</th>
-          <th>Normalized</th>
-          <th>Imported</th>
-          <!-- Actions column only appears if user can delete imports -->
-          <th *ngIf="canDeleteImport">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          *ngFor="let item of history"
-          [class.active]="selectedBatch?.id === item.id"
-          (click)="selectBatch(item)"
-        >
-          <td>{{ item.originalFileName || 'n/a' }}</td>
-          <td>{{ item.sourceType }}</td>
-          <td>{{ item.status }}</td>
-          <td>{{ item.rawRecordCount }}</td>
-          <td>{{ item.normalizedRecordCount }}</td>
-          <td>{{ item.importedAt | date: 'short' }}</td>
-          <!-- Delete is the most destructive action — gated by its own permission -->
-          <td *ngIf="canDeleteImport">
-            <button
-              class="ghost-btn danger-ghost"
-              type="button"
-              [disabled]="processing"
-              (click)="deleteBatch(item, $event)"
-            >
-              Delete
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="panel process-panel" *ngIf="selectedBatch as batch">
-    <h3>3. Process Batch</h3>
-    <p class="batch-meta">
-      Batch: <strong>{{ batch.id }}</strong> | Status: <strong>{{ batch.status }}</strong>
-    </p>
-
-    <div class="process-actions">
-      <!-- Parse, map, validate = EDIT permission; Commit = its own stricter COMMIT permission -->
-      <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="parseSelected()">
-        Parse
-      </button>
-      <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="saveMapping()">
-        Save Mapping
-      </button>
-      <button
-        class="warning-btn"
-        [disabled]="processing || !canEditImport"
-        (click)="validateSelected()"
-      >
-        Validate
-      </button>
-      <!-- Commit is irreversible — ADMIN only in the default role matrix -->
-      <button class="danger-btn" [disabled]="processing || !canCommit" (click)="commitSelected()">
-        Commit
-      </button>
-    </div>
-
-    <ng-container *ngIf="!canEditImport && !canCommit">
-      <p class="hint">Parse / Mapping / Validate requires <strong>ADMIN.IMPORTS.EDIT</strong> and Commit requires <strong>ADMIN.IMPORTS.COMMIT</strong>.</p>
-    </ng-container>
-    <ng-container *ngIf="canEditImport && !canCommit">
-      <p class="hint">You can parse and validate but <strong>Commit</strong> requires ADMIN.IMPORTS.COMMIT permission.</p>
-    </ng-container>
-
-    <div class="mapping-grid" *ngIf="parseResult as parsed">
-      <h4>2. Column Mapping</h4>
-      <p>Parsed rows: {{ parsed.parsedRowCount }}</p>
-      <div class="template-banner" *ngIf="activeTemplate as template">
-        <span>
-          Active template: <strong>{{ template.name }}</strong>
-        </span>
-        <button class="ghost-btn" type="button" (click)="useActiveTemplate()">Use template</button>
+  <div class="imports-layout">
+    <section class="panel panel--stack history-panel fr-glass-panel">
+      <div class="panel__header">
+        <div>
+          <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGE_2' | translate }}</span>
+          <h2>{{ 'IMPORTS.HISTORY.EYEBROW' | translate }}</h2>
+          <p>{{ 'IMPORTS.WORKBENCH.HISTORY_COPY' | translate }}</p>
+        </div>
       </div>
 
-      <!-- Template picker visible to anyone who can VIEW the architecture -->
-      <div class="template-picker" *ngIf="canViewArchitecture">
-        <label>
-          Choose template
-          <select [(ngModel)]="selectedTemplateId">
-            <option [ngValue]="null">-- Select template --</option>
-            <option *ngFor="let template of templates" [ngValue]="template.id">
-              {{ template.name }} (v{{ template.version }})
-              <ng-container *ngIf="template.isActive"> - Active</ng-container>
-            </option>
-          </select>
-        </label>
-        <div class="template-actions">
-          <button
-            class="ghost-btn"
-            type="button"
-            [disabled]="!selectedTemplateId || templateLoading"
-            (click)="applySelectedTemplate()"
-          >
-            Apply selected template
+      <div class="history-filters">
+        <input
+          type="text"
+          [(ngModel)]="search"
+          [placeholder]="'IMPORTS.HISTORY.SEARCH_PLACEHOLDER' | translate"
+        />
+        <input
+          type="text"
+          [(ngModel)]="statusFilter"
+          [placeholder]="'IMPORTS.HISTORY.STATUS_PLACEHOLDER' | translate"
+        />
+        <button class="ghost-btn" type="button" (click)="refreshHistory()">
+          {{ 'COMMON.REFRESH' | translate }}
+        </button>
+      </div>
+
+      <div *ngIf="loading" class="loading-state">
+        {{ 'IMPORTS.HISTORY.LOADING' | translate }}
+      </div>
+
+      <div class="table-shell" *ngIf="!loading">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>{{ 'IMPORTS.HISTORY.FILE' | translate }}</th>
+              <th>{{ 'COMMON.SOURCE' | translate }}</th>
+              <th>{{ 'COMMON.STATUS' | translate }}</th>
+              <th>{{ 'IMPORTS.HISTORY.RAW' | translate }}</th>
+              <th>{{ 'IMPORTS.HISTORY.NORMALIZED' | translate }}</th>
+              <th>{{ 'IMPORTS.HISTORY.IMPORTED' | translate }}</th>
+              <th *ngIf="canDeleteImport">{{ 'COMMON.ACTIONS' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let item of history"
+              [class.active]="selectedBatch?.id === item.id"
+              (click)="selectBatch(item)"
+            >
+              <td>{{ item.originalFileName || ('COMMON.NOT_AVAILABLE' | translate) }}</td>
+              <td>
+                <span class="source-pill" [attr.data-source]="(item.sourceType || '').toLowerCase()">
+                  {{ item.sourceType }}
+                </span>
+              </td>
+              <td>
+                <span class="status-pill" [attr.data-status]="(item.status || '').toLowerCase()">
+                  {{ item.status }}
+                </span>
+              </td>
+              <td>{{ item.rawRecordCount }}</td>
+              <td>{{ item.normalizedRecordCount }}</td>
+              <td>{{ item.importedAt | date: 'short' }}</td>
+              <td *ngIf="canDeleteImport">
+                <button
+                  class="ghost-btn danger-ghost"
+                  type="button"
+                  [disabled]="processing"
+                  (click)="deleteBatch(item, $event)"
+                >
+                  {{ 'COMMON.DELETE' | translate }}
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="history.length === 0">
+              <td [attr.colspan]="canDeleteImport ? 7 : 6" class="empty-row">
+                {{ 'IMPORTS.HISTORY.EMPTY_FILTERED' | translate }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <ng-container *ngIf="selectedBatch as batch; else emptyProcessState">
+      <section class="panel panel--stack process-panel fr-glass-panel">
+        <div class="panel__header panel__header--wide">
+          <div>
+            <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGES_3_4' | translate }}</span>
+            <h2>{{ 'IMPORTS.WORKBENCH.PROCESS_TITLE' | translate }}</h2>
+            <p>{{ 'IMPORTS.WORKBENCH.PROCESS_COPY' | translate }}</p>
+          </div>
+          <div class="batch-meta">
+            <span class="batch-pill">{{ batch.id }}</span>
+            <span class="status-pill" [attr.data-status]="(batch.status || '').toLowerCase()">
+              {{ batch.status }}
+            </span>
+          </div>
+        </div>
+
+        <div class="process-actions">
+          <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="parseSelected()">
+            {{ 'IMPORTS.WORKBENCH.PARSE' | translate }}
+          </button>
+          <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="saveMapping()">
+            {{ 'IMPORTS.WORKBENCH.SAVE_MAPPING' | translate }}
+          </button>
+          <button class="warning-btn" [disabled]="processing || !canEditImport" (click)="validateSelected()">
+            {{ 'IMPORTS.WORKBENCH.VALIDATE' | translate }}
+          </button>
+          <button class="danger-btn" [disabled]="processing || !canCommit" (click)="commitSelected()">
+            {{ 'IMPORTS.WORKBENCH.COMMIT' | translate }}
           </button>
         </div>
-      </div>
 
-      <div class="mapping-columns">
-        <div class="mapping-fields">
-          <h5>System fields</h5>
-          <div
-            class="field-chip"
-            *ngFor="let field of getUnassignedFields()"
-            cdkDrag
-            [cdkDragData]="field"
-          >
-            {{ field }}
-          </div>
-          <p class="muted" *ngIf="getUnassignedFields().length === 0">All fields assigned.</p>
-        </div>
+        <p class="hint-banner" *ngIf="!canEditImport && !canCommit">
+          {{ 'IMPORTS.WORKBENCH.PERMISSION_HINT_EDIT_COMMIT' | translate }}
+        </p>
+        <p class="hint-banner" *ngIf="canEditImport && !canCommit">
+          {{ 'IMPORTS.WORKBENCH.PERMISSION_HINT_COMMIT_ONLY' | translate }}
+        </p>
 
-        <div class="mapping-headers">
-          <h5>Uploaded headers</h5>
-          <div
-            class="header-row"
-            *ngFor="let header of parsed.headers"
-            cdkDropList
-            (cdkDropListDropped)="onFieldDropped($event, header)"
-          >
-            <div class="header-label">{{ header }}</div>
-            <div class="header-drop">
-              <ng-container *ngIf="getAssignedFieldForHeader(header) as assigned; else dropHint">
-                <span class="assigned-chip" cdkDrag [cdkDragData]="assigned">{{ assigned }}</span>
-              </ng-container>
-              <ng-template #dropHint>
-                <span class="drop-hint">Drop field here</span>
-              </ng-template>
+        <div class="stage-surface" *ngIf="parseResult as parsed">
+          <div class="stage-surface__header">
+            <div>
+              <h3>{{ 'IMPORTS.WORKBENCH.COLUMN_MAPPING' | translate }}</h3>
+              <p>{{ 'IMPORTS.WORKBENCH.PARSED_ROWS' | translate:{ count: parsed.parsedRowCount } }}</p>
             </div>
-            <div class="header-actions">
-              <select
-                [ngModel]="getAssignedFieldForHeader(header)"
-                (ngModelChange)="assignFieldToHeader($event, header)"
-              >
-                <option [ngValue]="null">-- Select field --</option>
-                <option *ngFor="let field of canonicalFields" [ngValue]="field">{{ field }}</option>
+          </div>
+
+          <div class="template-banner" *ngIf="activeTemplate as template">
+            <span>
+              {{ 'IMPORTS.WORKBENCH.ACTIVE_TEMPLATE' | translate }}:
+              <strong>{{ template.name }}</strong>
+            </span>
+            <button class="ghost-btn" type="button" (click)="useActiveTemplate()">
+              {{ 'IMPORTS.WORKBENCH.USE_TEMPLATE' | translate }}
+            </button>
+          </div>
+
+          <div class="template-picker" *ngIf="canViewArchitecture">
+            <label>
+              {{ 'IMPORTS.WORKBENCH.CHOOSE_TEMPLATE' | translate }}
+              <select [(ngModel)]="selectedTemplateId">
+                <option [ngValue]="null">{{ 'IMPORTS.WORKBENCH.SELECT_TEMPLATE' | translate }}</option>
+                <option *ngFor="let template of templates" [ngValue]="template.id">
+                  {{ template.name }} (v{{ template.version }})
+                  <ng-container *ngIf="template.isActive">
+                    - {{ 'COMMON.ACTIVE' | translate }}
+                  </ng-container>
+                </option>
               </select>
-              <button class="ghost-btn small" type="button" (click)="clearHeaderMapping(header)">
-                Clear
+            </label>
+            <div class="template-actions">
+              <button
+                class="ghost-btn"
+                type="button"
+                [disabled]="!selectedTemplateId || templateLoading"
+                (click)="applySelectedTemplate()"
+              >
+                {{ 'IMPORTS.WORKBENCH.APPLY_SELECTED_TEMPLATE' | translate }}
               </button>
             </div>
           </div>
-        </div>
-      </div>
 
-      <h4>Sample Rows</h4>
-      <pre class="sample-json">{{ parsed.sampleRows | json }}</pre>
-    </div>
-
-    <div class="validation" *ngIf="validateResult as validation">
-      <h4>3. Validation Review</h4>
-      <p>
-        Total: {{ validation.totalRows }} | Valid: {{ validation.validRows }} | Invalid:
-        {{ validation.invalidRows }}
-      </p>
-
-      <div class="validation-summary" *ngIf="validationSummary as summary">
-        <span class="summary-pill" *ngIf="summary.missingRequired > 0">
-          Missing fields: {{ summary.missingRequired }}
-        </span>
-        <span class="summary-pill" *ngIf="summary.invalidDate > 0">
-          Invalid dates: {{ summary.invalidDate }}
-        </span>
-        <span class="summary-pill" *ngIf="summary.invalidAmount > 0">
-          Amount issues: {{ summary.invalidAmount }}
-        </span>
-        <span class="summary-pill" *ngIf="summary.conflictingAmounts > 0">
-          Conflicts: {{ summary.conflictingAmounts }}
-        </span>
-        <span class="summary-pill" *ngIf="summary.other > 0"> Other: {{ summary.other }} </span>
-      </div>
-
-      <div class="validation-dashboard" *ngIf="validationTotals as totals">
-        <div class="dashboard-card">
-          <span class="dashboard-label">Fixed</span>
-          <strong>{{ totals.validRows }}</strong>
-        </div>
-        <div class="dashboard-card">
-          <span class="dashboard-label">Errors</span>
-          <strong>{{ totals.invalidRows }}</strong>
-        </div>
-      </div>
-
-      <div class="validation-filters">
-        <button
-          class="ghost-btn"
-          type="button"
-          [class.active]="validationFilter === 'INVALID'"
-          (click)="validationFilter = 'INVALID'; loadValidationRows()"
-        >
-          Errors
-        </button>
-        <button
-          class="ghost-btn"
-          type="button"
-          [class.active]="validationFilter === 'VALID'"
-          (click)="validationFilter = 'VALID'; loadValidationRows()"
-        >
-          Fixed
-        </button>
-        <button
-          class="ghost-btn"
-          type="button"
-          [class.active]="validationFilter === ''"
-          (click)="validationFilter = ''; loadValidationRows()"
-        >
-          All
-        </button>
-      </div>
-
-      <table class="validation-table" *ngIf="validationRows.length > 0 && parseResult as parsed">
-        <thead>
-          <tr>
-            <th>Row</th>
-            <th>Status</th>
-            <th>Errors</th>
-            <th *ngFor="let header of parsed.headers">{{ header }}</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let row of validationRows">
-            <td>{{ row.rowNumber }}</td>
-            <td>{{ row.normalizationStatus }}</td>
-            <td>{{ row.normalizationErrors || '—' }}</td>
-            <td *ngFor="let header of parsed.headers">
-              <input type="text" [(ngModel)]="row.payload[header]" />
-            </td>
-            <td>
-              <button
-                class="primary-btn"
-                type="button"
-                [disabled]="processing"
-                (click)="updateRow(row)"
+          <div class="mapping-columns">
+            <div class="mapping-fields">
+              <div class="mapping-section__header">
+                <h4>{{ 'IMPORTS.WORKBENCH.SYSTEM_FIELDS' | translate }}</h4>
+                <p>{{ 'IMPORTS.WORKBENCH.SYSTEM_FIELDS_COPY' | translate }}</p>
+              </div>
+              <div
+                class="field-chip"
+                *ngFor="let field of getUnassignedFields()"
+                cdkDrag
+                [cdkDragData]="field"
               >
-                Save Fix
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <p class="hint" *ngIf="validationRows.length === 0">No rows to display.</p>
-    </div>
+                {{ field }}
+              </div>
+              <p class="muted" *ngIf="getUnassignedFields().length === 0">
+                {{ 'IMPORTS.WORKBENCH.ALL_FIELDS_ASSIGNED' | translate }}
+              </p>
+            </div>
+
+            <div class="mapping-headers">
+              <div class="mapping-section__header">
+                <h4>{{ 'IMPORTS.WORKBENCH.UPLOADED_HEADERS' | translate }}</h4>
+                <p>{{ 'IMPORTS.WORKBENCH.UPLOADED_HEADERS_COPY' | translate }}</p>
+              </div>
+              <div
+                class="header-row"
+                *ngFor="let header of parsed.headers"
+                cdkDropList
+                (cdkDropListDropped)="onFieldDropped($event, header)"
+              >
+                <div class="header-label">{{ header }}</div>
+                <div class="header-drop">
+                  <ng-container *ngIf="getAssignedFieldForHeader(header) as assigned; else dropHint">
+                    <span class="assigned-chip" cdkDrag [cdkDragData]="assigned">{{ assigned }}</span>
+                  </ng-container>
+                  <ng-template #dropHint>
+                    <span class="drop-hint">{{ 'IMPORTS.WORKBENCH.DROP_FIELD_HERE' | translate }}</span>
+                  </ng-template>
+                </div>
+                <div class="header-actions">
+                  <select
+                    [ngModel]="getAssignedFieldForHeader(header)"
+                    (ngModelChange)="assignFieldToHeader($event, header)"
+                  >
+                    <option [ngValue]="null">{{ 'IMPORTS.WORKBENCH.SELECT_FIELD' | translate }}</option>
+                    <option *ngFor="let field of canonicalFields" [ngValue]="field">{{ field }}</option>
+                  </select>
+                  <button class="ghost-btn small" type="button" (click)="clearHeaderMapping(header)">
+                    {{ 'COMMON.CLEAR' | translate }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sample-surface">
+            <div class="mapping-section__header">
+              <h4>{{ 'IMPORTS.WORKBENCH.SAMPLE_ROWS' | translate }}</h4>
+              <p>{{ 'IMPORTS.WORKBENCH.SAMPLE_ROWS_COPY' | translate }}</p>
+            </div>
+            <pre class="sample-json">{{ parsed.sampleRows | json }}</pre>
+          </div>
+        </div>
+
+        <div class="stage-surface validation" *ngIf="validateResult as validation">
+          <div class="stage-surface__header">
+            <div>
+              <h3>{{ 'IMPORTS.WORKBENCH.VALIDATION_REVIEW' | translate }}</h3>
+              <p>{{ 'IMPORTS.WORKBENCH.VALIDATION_TOTALS' | translate:{
+                total: validation.totalRows,
+                valid: validation.validRows,
+                invalid: validation.invalidRows
+              } }}</p>
+            </div>
+          </div>
+
+          <div class="validation-dashboard" *ngIf="validationTotals as totals">
+            <div class="dashboard-card">
+              <span class="dashboard-label">{{ 'IMPORTS.WORKBENCH.TOTAL' | translate }}</span>
+              <strong>{{ totals.totalRows }}</strong>
+            </div>
+            <div class="dashboard-card">
+              <span class="dashboard-label">{{ 'IMPORTS.WORKBENCH.FIXED' | translate }}</span>
+              <strong>{{ totals.validRows }}</strong>
+            </div>
+            <div class="dashboard-card">
+              <span class="dashboard-label">{{ 'IMPORTS.WORKBENCH.ERRORS' | translate }}</span>
+              <strong>{{ totals.invalidRows }}</strong>
+            </div>
+          </div>
+
+          <div class="validation-summary" *ngIf="validationSummary as summary">
+            <span class="summary-pill" *ngIf="summary.missingRequired > 0">
+              {{ 'IMPORTS.WORKBENCH.MISSING_FIELDS' | translate:{ count: summary.missingRequired } }}
+            </span>
+            <span class="summary-pill" *ngIf="summary.invalidDate > 0">
+              {{ 'IMPORTS.WORKBENCH.INVALID_DATES' | translate:{ count: summary.invalidDate } }}
+            </span>
+            <span class="summary-pill" *ngIf="summary.invalidAmount > 0">
+              {{ 'IMPORTS.WORKBENCH.AMOUNT_ISSUES' | translate:{ count: summary.invalidAmount } }}
+            </span>
+            <span class="summary-pill" *ngIf="summary.conflictingAmounts > 0">
+              {{ 'IMPORTS.WORKBENCH.CONFLICTS' | translate:{ count: summary.conflictingAmounts } }}
+            </span>
+            <span class="summary-pill" *ngIf="summary.other > 0">
+              {{ 'IMPORTS.WORKBENCH.OTHER' | translate:{ count: summary.other } }}
+            </span>
+          </div>
+
+          <div class="validation-filters">
+            <button
+              class="ghost-btn"
+              type="button"
+              [class.active]="validationFilter === 'INVALID'"
+              (click)="validationFilter = 'INVALID'; loadValidationRows()"
+            >
+              {{ 'IMPORTS.WORKBENCH.ERRORS' | translate }}
+            </button>
+            <button
+              class="ghost-btn"
+              type="button"
+              [class.active]="validationFilter === 'VALID'"
+              (click)="validationFilter = 'VALID'; loadValidationRows()"
+            >
+              {{ 'IMPORTS.WORKBENCH.FIXED' | translate }}
+            </button>
+            <button
+              class="ghost-btn"
+              type="button"
+              [class.active]="validationFilter === ''"
+              (click)="validationFilter = ''; loadValidationRows()"
+            >
+              {{ 'IMPORTS.WORKBENCH.ALL' | translate }}
+            </button>
+          </div>
+
+          <div class="table-shell" *ngIf="validationRows.length > 0 && parseResult as parsed">
+            <table class="validation-table">
+              <thead>
+                <tr>
+                  <th>{{ 'IMPORTS.WORKBENCH.ROW' | translate }}</th>
+                  <th>{{ 'COMMON.STATUS' | translate }}</th>
+                  <th>{{ 'IMPORTS.WORKBENCH.ERRORS' | translate }}</th>
+                  <th *ngFor="let header of parsed.headers">{{ header }}</th>
+                  <th>{{ 'COMMON.ACTION' | translate }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of validationRows">
+                  <td>{{ row.rowNumber }}</td>
+                  <td>
+                    <span
+                      class="status-pill"
+                      [attr.data-status]="(row.normalizationStatus || '').toLowerCase()"
+                    >
+                      {{ row.normalizationStatus }}
+                    </span>
+                  </td>
+                  <td>{{ row.normalizationErrors || '-' }}</td>
+                  <td *ngFor="let header of parsed.headers">
+                    <input type="text" [(ngModel)]="row.payload[header]" />
+                  </td>
+                  <td>
+                    <button
+                      class="primary-btn"
+                      type="button"
+                      [disabled]="processing"
+                      (click)="updateRow(row)"
+                    >
+                      {{ 'IMPORTS.WORKBENCH.SAVE_FIX' | translate }}
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="empty-copy" *ngIf="validationRows.length === 0">
+            {{ 'IMPORTS.WORKBENCH.NO_ROWS' | translate }}
+          </p>
+        </div>
+      </section>
+    </ng-container>
+
+    <ng-template #emptyProcessState>
+      <section class="panel panel--stack panel--empty fr-glass-panel">
+        <div class="panel__header">
+          <div>
+            <span class="panel__eyebrow">{{ 'IMPORTS.WORKBENCH.STAGES_3_4' | translate }}</span>
+            <h2>{{ 'IMPORTS.WORKBENCH.SELECT_BATCH' | translate }}</h2>
+            <p>{{ 'IMPORTS.WORKBENCH.SELECT_BATCH_COPY' | translate }}</p>
+          </div>
+        </div>
+      </section>
+    </ng-template>
   </div>
 
-  <!-- Reconciliation Summary Banner (task 2.8 + 3.7) -->
-  <div class="panel recon-result-panel" *ngIf="lastCommitSummary as r">
+  <section class="panel recon-result-panel fr-glass-panel" *ngIf="lastCommitSummary as r">
     <div class="recon-result-header">
       <span class="material-icons recon-result-icon">account_tree</span>
       <div>
-        <h3>Reconciliation Complete</h3>
+        <h3>{{ 'IMPORTS.WORKBENCH.RECONCILIATION_COMPLETE' | translate }}</h3>
         <p class="recon-route">{{ r.workflowRoute }}</p>
       </div>
-      <span class="source-badge">{{ r.sourceType }}</span>
+      <span class="source-pill" [attr.data-source]="(r.sourceType || '').toLowerCase()">
+        {{ r.sourceType }}
+      </span>
     </div>
 
     <div class="recon-stats-grid">
-      <!-- L1 / L3 Verified — label depends on source type -->
       <div class="recon-stat verified">
         <span class="stat-value">{{ r.level3VerifiedCount }}</span>
         <span class="stat-label">
-          {{ r.sourceType === 'POS' ? 'Level 1 Verified (POS ↔ ERP)' : 'Level 3 Verified' }}
+          {{ r.sourceType === 'POS' ? 'Level 1 Verified (POS to ERP)' : 'Level 3 Verified' }}
         </span>
       </div>
       <div class="recon-stat exception">
@@ -385,43 +540,49 @@
       </div>
       <div class="recon-stat matched">
         <span class="stat-value">{{ r.level4MatchedCount }}</span>
-        <span class="stat-label">Level 4 Matched</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.LEVEL4_MATCHED' | translate }}</span>
       </div>
       <div class="recon-stat exception">
         <span class="stat-value">{{ r.level4ExceptionCount }}</span>
-        <span class="stat-label">Level 4 Exceptions</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.LEVEL4_EXCEPTIONS' | translate }}</span>
       </div>
       <div class="recon-stat waiting" [class.has-value]="r.waitingForSettlementCount > 0">
         <span class="stat-value">{{ r.waitingForSettlementCount }}</span>
-        <span class="stat-label">Waiting for Settlement ID</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.WAITING_FOR_SETTLEMENT' | translate }}</span>
       </div>
       <div class="recon-stat fee">
         <span class="stat-value">{{ r.feeAdjustmentTotal | number: '1.2-2' }}</span>
-        <span class="stat-label">Fee Adjustment Total</span>
+        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.FEE_ADJUSTMENT_TOTAL' | translate }}</span>
       </div>
     </div>
 
-    <!-- 3.7: GATEWAY-specific Gross / Fee / Net breakdown notice -->
     <div class="gateway-fee-notice" *ngIf="r.sourceType === 'GATEWAY' && r.feeAdjustmentTotal !== 0">
       <span class="material-icons">info_outline</span>
       <span>
-        Gateway records contain <strong>GrossAmount</strong>, <strong>ProcessingFee</strong>, and <strong>NetAmount</strong> fields.
-        A total fee deduction of <strong>{{ r.feeAdjustmentTotal | number:'1.2-2' }}</strong> was detected across matched records.
-        Review individual records in the <strong>Matcher → Sales Verification</strong> tab for the full Gross → Net breakdown.
+        Gateway records contain <strong>GrossAmount</strong>, <strong>ProcessingFee</strong>, and
+        <strong>NetAmount</strong> fields. A total fee deduction of
+        <strong>{{ r.feeAdjustmentTotal | number: '1.2-2' }}</strong> was detected across matched
+        records. Review individual records in <strong>Matcher -> Sales Verification</strong> for
+        the full gross to net breakdown.
       </span>
     </div>
 
     <p class="recon-summary-text">{{ r.summary }}</p>
 
     <div class="recon-result-actions">
-      <!-- Smart routing: navigate to the correct matcher sub-view -->
       <a
         [routerLink]="resolvePostCommitRoute(r.sourceType)"
         class="primary-btn recon-nav-btn"
         id="go-to-matcher-btn"
       >
         <span class="material-icons">compare_arrows</span>
-        {{ r.sourceType === 'POS' ? 'Review POS Exceptions' : r.sourceType === 'ERP' ? 'View Events Timeline' : 'View in Matcher' }}
+        {{
+          r.sourceType === 'POS'
+            ? ('IMPORTS.WORKBENCH.REVIEW_POS_EXCEPTIONS' | translate)
+            : r.sourceType === 'ERP'
+              ? ('IMPORTS.WORKBENCH.VIEW_EVENTS_TIMELINE' | translate)
+              : ('IMPORTS.WORKBENCH.VIEW_IN_MATCHER' | translate)
+        }}
       </a>
       <a
         *ngIf="r.waitingForSettlementCount > 0"
@@ -430,7 +591,7 @@
         id="go-to-waiting-btn"
       >
         <span class="material-icons">hourglass_empty</span>
-        Resolve {{ r.waitingForSettlementCount }} Waiting
+        {{ 'IMPORTS.WORKBENCH.RESOLVE_WAITING' | translate:{ count: r.waitingForSettlementCount } }}
       </a>
       <a
         *ngIf="r.level3ExceptionCount > 0 && r.sourceType !== 'POS'"
@@ -439,21 +600,19 @@
         id="go-to-sales-verify-btn"
       >
         <span class="material-icons">fact_check</span>
-        Review {{ r.level3ExceptionCount }} Sales Exceptions
+        {{ 'IMPORTS.WORKBENCH.REVIEW_SALES_EXCEPTIONS' | translate:{ count: r.level3ExceptionCount } }}
       </a>
     </div>
-  </div>
-
+  </section>
 
   <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">
-      <h3 id="delete-import-title">Delete Import Batch</h3>
+      <h3 id="delete-import-title">{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_TITLE' | translate }}</h3>
       <p>
         This will permanently remove the stored file and all parsed records for
-        <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong
-        >.
+        <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong>.
       </p>
-      <p>Are you sure you want to continue?</p>
+      <p>{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_CONFIRM' | translate }}</p>
 
       <div class="dialog-actions">
         <button
@@ -462,7 +621,7 @@
           [disabled]="processing"
           (click)="closeDeleteDialog()"
         >
-          Cancel
+          {{ 'COMMON.CANCEL' | translate }}
         </button>
         <button
           type="button"
@@ -470,7 +629,7 @@
           [disabled]="processing"
           (click)="confirmDeleteBatch()"
         >
-          {{ processing ? 'Deleting...' : 'Delete' }}
+          {{ processing ? ('COMMON.DELETING' | translate) : ('COMMON.DELETE' | translate) }}
         </button>
       </div>
     </div>

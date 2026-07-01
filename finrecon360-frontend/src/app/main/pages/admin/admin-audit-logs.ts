@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { AuditLogService } from '../../../core/audit-logs/audit-log.service';
 import { AuditLogItem } from '../../../core/audit-logs/models';
@@ -8,7 +9,7 @@ import { AuditLogItem } from '../../../core/audit-logs/models';
 @Component({
   selector: 'app-admin-audit-logs',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './admin-audit-logs.html',
   styleUrls: ['./admin-audit-logs.scss'],
 })

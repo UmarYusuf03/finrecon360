@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
@@ -31,12 +32,12 @@ import { BankAccount } from '../../../core/admin-rbac/models';
     MatInputModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    TranslateModule,
   ],
   templateUrl: './admin-bank-accounts.html',
   styleUrls: ['./admin-bank-accounts.scss'],
 })
 export class AdminBankAccountsComponent implements OnInit {
-  displayedColumns = ['bankName', 'accountName', 'accountNumber', 'currency', 'status', 'actions'];
   bankAccounts: BankAccount[] = [];
   form!: FormGroup;
   editingId: string | null = null;
@@ -44,6 +45,11 @@ export class AdminBankAccountsComponent implements OnInit {
   saving = false;
   deactivatingId: string | null = null;
   saveError: string | null = null;
+  private readonly dialogConfig = {
+    autoFocus: false,
+    maxWidth: 'calc(100vw - 32px)',
+    width: '560px',
+  };
 
   constructor(
     private bankAccountService: BankAccountService,
@@ -70,8 +76,13 @@ export class AdminBankAccountsComponent implements OnInit {
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
     this.editingId = null;
     this.saveError = null;
-    this.form.reset();
-    this.dialog.open(dialogTemplate);
+    this.form.reset({
+      bankName: '',
+      accountName: '',
+      accountNumber: '',
+      currency: '',
+    });
+    this.openDialog(dialogTemplate);
   }
 
   openEdit(account: BankAccount, dialogTemplate: TemplateRef<unknown>): void {
@@ -85,7 +96,7 @@ export class AdminBankAccountsComponent implements OnInit {
           accountNumber: details.accountNumber,
           currency: details.currency,
         });
-        this.dialog.open(dialogTemplate);
+        this.openDialog(dialogTemplate);
       },
       error: (error: unknown) => {
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
@@ -158,6 +169,15 @@ export class AdminBankAccountsComponent implements OnInit {
     });
   }
 
+  maskAccountNumber(accountNumber: string): string {
+    const value = accountNumber?.trim();
+    if (!value) {
+      return 'Not available';
+    }
+
+    return value.length <= 4 ? value : `**** ${value.slice(-4)}`;
+  }
+
   private loadBankAccounts(): void {
     this.loading = true;
     this.bankAccountService.getAll().subscribe({
@@ -172,6 +192,10 @@ export class AdminBankAccountsComponent implements OnInit {
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
       },
     });
+  }
+
+  private openDialog(dialogTemplate: TemplateRef<unknown>): void {
+    this.dialog.open(dialogTemplate, this.dialogConfig);
   }
 
   private extractErrorMessage(error: unknown): string {

@@ -1,22 +1,31 @@
-<div class="admin-shell">
-  <nav mat-tab-nav-bar backgroundColor="primary" color="primary" [tabPanel]="tabPanel">
-    <a
-      mat-tab-link
-      *ngFor="let link of visibleLinks$ | async"
-      [routerLink]="link.path"
-      routerLinkActive="active-link"
-      [routerLinkActiveOptions]="{ exact: true }"
-      #rla="routerLinkActive"
-      [active]="rla.isActive"
-      [class.active-link]="rla.isActive"
+<section class="admin-shell">
+  <div class="admin-shell__nav-shell fr-glass-panel">
+    <nav
+      mat-tab-nav-bar
+      backgroundColor="primary"
+      color="primary"
+      [tabPanel]="tabPanel"
+      class="admin-shell__nav"
     >
-      {{ link.label | translate }}
-    </a>
-  </nav>
+      <a
+        mat-tab-link
+        class="admin-shell__link"
+        *ngFor="let link of visibleLinks$ | async"
+        [routerLink]="link.path"
+        routerLinkActive="active-link"
+        [routerLinkActiveOptions]="{ exact: true }"
+        #rla="routerLinkActive"
+        [active]="rla.isActive"
+        [class.active-link]="rla.isActive"
+      >
+        {{ link.label | translate }}
+      </a>
+    </nav>
+  </div>
 
   <mat-tab-nav-panel #tabPanel>
     <div class="admin-shell__content">
       <router-outlet></router-outlet>
     </div>
   </mat-tab-nav-panel>
-</div>
+</section>

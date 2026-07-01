@@ -21,6 +21,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
@@ -52,14 +53,15 @@ import { AuthService } from '../../../core/auth/auth.service';
     MatProgressSpinnerModule,
     RouterLink,
     RouterLinkActive,
+    TranslateModule,
   ],
   templateUrl: './admin-transactions.html',
   styleUrls: ['./admin-transaction-pages.scss'],
 })
 export class AdminTransactionsComponent implements OnInit {
   displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
-  historyColumns = ['changedAt', 'transition', 'changedBy', 'note'];
   transactions: Transaction[] = [];
+  filteredTransactions: Transaction[] = [];
   bankAccounts: BankAccount[] = [];
   history: TransactionStateHistory[] = [];
   form!: FormGroup;
@@ -73,9 +75,12 @@ export class AdminTransactionsComponent implements OnInit {
   saving = false;
   actionId: string | null = null;
   saveError: string | null = null;
+  searchTerm = '';
+  selectedStateFilter = 'All';
 
   readonly transactionTypes = ['CashIn', 'CashOut'];
   readonly paymentMethods = ['Cash', 'Card'];
+  readonly stateFilters = ['All', 'Pending', 'JournalReady', 'NeedsBankMatch', 'Rejected'] as const;
   readonly minTransactionDate = '2000-01-01';
   readonly maxTransactionDate = new Date().toISOString().slice(0, 10);
 
@@ -118,6 +123,62 @@ export class AdminTransactionsComponent implements OnInit {
     }
 
     this.loadTransactions();
+  }
+
+  applyListFilters(): void {
+    const term = this.searchTerm.trim().toLowerCase();
+    this.filteredTransactions = this.transactions.filter((transaction) => {
+      if (this.selectedStateFilter !== 'All' && transaction.transactionState !== this.selectedStateFilter) {
+        return false;
+      }
+
+      if (!term) {
+        return true;
+      }
+
+      const searchable = [
+        transaction.description,
+        transaction.transactionType,
+        transaction.paymentMethod,
+        this.getBankAccountLabel(transaction.bankAccountId),
+        this.getStateLabelKey(transaction.transactionState),
+        transaction.transactionDate,
+        transaction.amount.toFixed(2),
+      ].join(' ').toLowerCase();
+
+      return searchable.includes(term);
+    });
+  }
+
+  setStateFilter(state: string): void {
+    this.selectedStateFilter = state;
+    this.applyListFilters();
+  }
+
+  clearListFilters(): void {
+    this.searchTerm = '';
+    this.selectedStateFilter = 'All';
+    this.applyListFilters();
+  }
+
+  hasListFilters(): boolean {
+    return this.searchTerm.trim().length > 0 || this.selectedStateFilter !== 'All';
+  }
+
+  getStateCount(state: string): number {
+    return this.transactions.filter((transaction) => transaction.transactionState === state).length;
+  }
+
+  getEmptyTitleKey(): string {
+    return this.transactions.length === 0
+      ? 'TRANSACTIONS.EMPTY_TITLE_NONE'
+      : 'TRANSACTIONS.EMPTY_TITLE_FILTERED';
+  }
+
+  getEmptyMessageKey(): string {
+    return this.transactions.length === 0
+      ? 'TRANSACTIONS.EMPTY_COPY_NONE'
+      : 'TRANSACTIONS.EMPTY_COPY_FILTERED';
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
@@ -311,12 +372,16 @@ export class AdminTransactionsComponent implements OnInit {
     return this.actionId === transaction.transactionId;
   }
 
-  getStateLabel(state: string): string {
+  getStateLabelKey(state: string): string {
     switch (state) {
+      case 'Pending':
+        return 'COMMON.PENDING';
       case 'JournalReady':
-        return 'Journal Ready';
+        return 'TRANSACTIONS.NAV.JOURNAL_READY';
       case 'NeedsBankMatch':
-        return 'Needs Bank Match';
+        return 'TRANSACTIONS.NAV.NEEDS_BANK_MATCH';
+      case 'Rejected':
+        return 'COMMON.REJECTED';
       default:
         return state;
     }
@@ -337,22 +402,26 @@ export class AdminTransactionsComponent implements OnInit {
     }
   }
 
-  getDialogTitle(): string {
-    return this.editingTransaction ? 'Edit Transaction' : 'Add Transaction';
-  }
-
-  getDialogHelperText(): string {
+  getDialogTitleKey(): string {
     return this.editingTransaction
-      ? 'Only pending transactions can be edited before approval.'
-      : 'Create a new pending transaction for approval.';
+      ? 'TRANSACTIONS.DIALOG.EDIT_TITLE'
+      : 'TRANSACTIONS.DIALOG.ADD_TITLE';
   }
 
-  getSaveButtonLabel(): string {
+  getDialogHelperKey(): string {
+    return this.editingTransaction
+      ? 'TRANSACTIONS.DIALOG.EDIT_HELPER'
+      : 'TRANSACTIONS.DIALOG.ADD_HELPER';
+  }
+
+  getSaveButtonKey(): string {
     if (this.saving) {
-      return 'Saving...';
+      return 'TRANSACTIONS.DIALOG.SAVING_ACTION';
     }
 
-    return this.editingTransaction ? 'Update Transaction' : 'Create Transaction';
+    return this.editingTransaction
+      ? 'TRANSACTIONS.DIALOG.UPDATE_ACTION'
+      : 'TRANSACTIONS.DIALOG.CREATE_ACTION';
   }
 
   private loadTransactions(): void {
@@ -360,6 +429,7 @@ export class AdminTransactionsComponent implements OnInit {
     this.transactionService.getAll().subscribe({
       next: (transactions) => {
         this.transactions = transactions;
+        this.applyListFilters();
         this.loading = false;
       },
       error: (error: unknown) => {
@@ -373,6 +443,7 @@ export class AdminTransactionsComponent implements OnInit {
     this.bankAccountService.getAll().subscribe({
       next: (accounts) => {
         this.bankAccounts = accounts.filter((account) => account.isActive);
+        this.applyListFilters();
       },
       error: (error: unknown) => {
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
