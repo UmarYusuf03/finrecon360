@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { PlanService } from '../../../core/admin-tenant/plan.service';
 import { PlanSummary } from '../../../core/admin-tenant/models';
@@ -8,7 +9,7 @@ import { PlanSummary } from '../../../core/admin-tenant/models';
 @Component({
   selector: 'app-admin-plans',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, TranslateModule],
   templateUrl: './admin-plans.html',
   styleUrls: ['./admin-plans.scss'],
 })

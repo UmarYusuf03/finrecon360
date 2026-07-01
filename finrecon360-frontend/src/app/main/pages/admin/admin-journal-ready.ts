@@ -11,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
 import { ReconciliationService } from '../../../core/admin-rbac/reconciliation.service';
@@ -33,6 +34,7 @@ import { Transaction } from '../../../core/admin-rbac/models';
     MatProgressSpinnerModule,
     RouterLink,
     RouterLinkActive,
+    TranslateModule,
   ],
   templateUrl: './admin-journal-ready.html',
   styleUrls: ['./admin-transaction-pages.scss'],
@@ -136,12 +138,16 @@ export class AdminJournalReadyComponent implements OnInit {
       this.sortDirection !== 'asc';
   }
 
-  getStateLabel(state: string): string {
+  getStateLabelKey(state: string): string {
     switch (state) {
+      case 'Pending':
+        return 'COMMON.PENDING';
       case 'JournalReady':
-        return 'Journal Ready';
+        return 'TRANSACTIONS.NAV.JOURNAL_READY';
       case 'NeedsBankMatch':
-        return 'Needs Bank Match';
+        return 'TRANSACTIONS.NAV.NEEDS_BANK_MATCH';
+      case 'Rejected':
+        return 'COMMON.REJECTED';
       default:
         return state;
     }

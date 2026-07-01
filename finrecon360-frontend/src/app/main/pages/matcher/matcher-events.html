@@ -1,119 +1,171 @@
 <section class="events-page">
-  <header class="events-header">
-    <div class="events-header-left">
-      <h2>Reconciliation Events</h2>
-      <p>Full timeline of Level-3 and Level-4 reconciliation events, grouped by import batch.</p>
+  <nav class="matcher-nav" [attr.aria-label]="'MATCHER.WORKFLOW_ARIA' | translate">
+    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <mat-icon>account_balance</mat-icon>
+      <span>{{ 'MATCHER.NAV.MATCH_GROUPS' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
+      <mat-icon>pending</mat-icon>
+      <span>{{ 'MATCHER.NAV.WAITING_QUEUE' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/sales-verification" routerLinkActive="active">
+      <mat-icon>find_in_page</mat-icon>
+      <span>{{ 'MATCHER.NAV.SALES_VERIFICATION' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/events" routerLinkActive="active">
+      <mat-icon>timeline</mat-icon>
+      <span>{{ 'MATCHER.NAV.EVENTS' | translate }}</span>
+    </a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
+      <mat-icon>receipt_long</mat-icon>
+      <span>{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</span>
+    </a>
+  </nav>
+
+  <header class="events-hero">
+    <div class="events-hero__copy">
+      <span class="events-hero__eyebrow">{{ 'MATCHER.EVENTS.EYEBROW' | translate }}</span>
+      <h1>{{ 'MATCHER.EVENTS.TITLE' | translate }}</h1>
+      <p>{{ 'MATCHER.EVENTS.SUBTITLE' | translate }}</p>
     </div>
-    <div class="events-header-actions">
+
+    <div class="events-hero__actions">
       <a routerLink="/app/matcher" class="ghost-btn back-btn">
-        <span class="material-icons">arrow_back</span>
-        Back to Matcher
+        <mat-icon>arrow_back</mat-icon>
+        {{ 'MATCHER.BACK_TO_MATCHER' | translate }}
       </a>
+
       <button class="primary-btn" (click)="refresh()" [disabled]="loading" id="events-refresh-btn">
-        <span class="material-icons">refresh</span>
-        Refresh
+        <mat-icon>refresh</mat-icon>
+        {{ 'COMMON.REFRESH' | translate }}
       </button>
     </div>
   </header>
 
-  <!-- Summary chips -->
-  <div class="events-chips">
-    <div class="chip chip-level3">
-      <span class="chip-value">{{ level3Count }}</span>
-      <span class="chip-label">Level 3</span>
+  <section class="events-summary" *ngIf="!loading && allEvents.length > 0">
+    <article class="summary-card summary-card--violet">
+      <span class="summary-card__label">{{ 'MATCHER.EVENTS.LEVEL3' | translate }}</span>
+      <strong class="summary-card__value">{{ level3Count }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.EVENTS.LEVEL3_COPY' | translate }}</span>
+    </article>
+
+    <article class="summary-card">
+      <span class="summary-card__label">{{ 'MATCHER.EVENTS.LEVEL4' | translate }}</span>
+      <strong class="summary-card__value">{{ level4Count }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.EVENTS.LEVEL4_COPY' | translate }}</span>
+    </article>
+
+    <article class="summary-card summary-card--success">
+      <span class="summary-card__label">{{ 'MATCHER.EVENTS.MATCHED' | translate }}</span>
+      <strong class="summary-card__value">{{ matchedCount }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.EVENTS.MATCHED_COPY' | translate }}</span>
+    </article>
+
+    <article class="summary-card summary-card--warning">
+      <span class="summary-card__label">{{ 'MATCHER.SALES_VERIFICATION.EXCEPTIONS' | translate }}</span>
+      <strong class="summary-card__value">{{ exceptionCount }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.EVENTS.EXCEPTIONS_COPY' | translate }}</span>
+    </article>
+
+    <article class="summary-card summary-card--pending">
+      <span class="summary-card__label">{{ 'COMMON.PENDING' | translate }}</span>
+      <strong class="summary-card__value">{{ pendingCount }}</strong>
+      <span class="summary-card__meta">{{ 'MATCHER.EVENTS.PENDING_COPY' | translate }}</span>
+    </article>
+  </section>
+
+  <section class="events-filters-card">
+    <div class="events-filters">
+      <label class="filter-field">
+        <span>{{ 'MATCHER.EVENTS.STAGE' | translate }}</span>
+        <select [(ngModel)]="stageFilter" (ngModelChange)="applyFilters()" id="events-stage-filter">
+          <option value="">{{ 'MATCHER.EVENTS.ALL_STAGES' | translate }}</option>
+          <option value="Level3">{{ 'MATCHER.EVENTS.LEVEL3' | translate }}</option>
+          <option value="Level4">{{ 'MATCHER.EVENTS.LEVEL4' | translate }}</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>{{ 'COMMON.SOURCE' | translate }}</span>
+        <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="events-source-filter">
+          <option value="">{{ 'MATCHER.EVENTS.ALL_SOURCES' | translate }}</option>
+          <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>{{ 'COMMON.STATUS' | translate }}</span>
+        <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" id="events-status-filter">
+          <option value="">{{ 'MATCHER.EVENTS.ALL_STATUSES' | translate }}</option>
+          <option value="Pending">{{ 'COMMON.PENDING' | translate }}</option>
+          <option value="Resolved">{{ 'MATCHER.SALES_VERIFICATION.RESOLVED' | translate }}</option>
+        </select>
+      </label>
+
+      <span class="filter-count" *ngIf="filteredEvents.length !== allEvents.length">
+        {{ 'COMMON.SHOWING_OF' | translate:{ shown: filteredEvents.length, total: allEvents.length } }}
+      </span>
     </div>
-    <div class="chip chip-level4">
-      <span class="chip-value">{{ level4Count }}</span>
-      <span class="chip-label">Level 4</span>
-    </div>
-    <div class="chip chip-matched">
-      <span class="chip-value">{{ matchedCount }}</span>
-      <span class="chip-label">Matched</span>
-    </div>
-    <div class="chip chip-exception">
-      <span class="chip-value">{{ exceptionCount }}</span>
-      <span class="chip-label">Exceptions</span>
-    </div>
-    <div class="chip chip-pending">
-      <span class="chip-value">{{ pendingCount }}</span>
-      <span class="chip-label">Pending</span>
+  </section>
+
+  <div class="events-state events-state--loading" *ngIf="loading">
+    <mat-icon>hourglass_empty</mat-icon>
+    <div>
+      <h3>{{ 'MATCHER.EVENTS.LOADING_TITLE' | translate }}</h3>
+      <p>{{ 'MATCHER.EVENTS.LOADING_COPY' | translate }}</p>
     </div>
   </div>
 
-  <!-- Filters -->
-  <div class="events-filters">
-    <select [(ngModel)]="stageFilter" (ngModelChange)="applyFilters()" id="events-stage-filter">
-      <option value="">All Stages</option>
-      <option value="Level3">Level 3</option>
-      <option value="Level4">Level 4</option>
-    </select>
-    <select [(ngModel)]="sourceTypeFilter" (ngModelChange)="applyFilters()" id="events-source-filter">
-      <option value="">All Sources</option>
-      <option *ngFor="let st of getUniqueSourceTypes()" [value]="st">{{ st }}</option>
-    </select>
-    <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()" id="events-status-filter">
-      <option value="">All Statuses</option>
-      <option value="Pending">Pending</option>
-      <option value="Resolved">Resolved</option>
-    </select>
-    <span class="filter-count" *ngIf="filteredEvents.length !== allEvents.length">
-      Showing {{ filteredEvents.length }} of {{ allEvents.length }}
-    </span>
+  <div class="events-state events-state--empty" *ngIf="!loading && batches.length === 0">
+    <mat-icon>timeline</mat-icon>
+    <h3>{{
+      allEvents.length === 0
+        ? ('MATCHER.EVENTS.EMPTY_TITLE' | translate)
+        : ('MATCHER.EVENTS.EMPTY_FILTERED_TITLE' | translate)
+    }}</h3>
+    <p *ngIf="allEvents.length === 0">{{ 'MATCHER.EVENTS.EMPTY_COPY' | translate }}</p>
+    <p *ngIf="allEvents.length > 0">{{ 'MATCHER.EVENTS.EMPTY_FILTERED_COPY' | translate }}</p>
   </div>
 
-  <!-- Loading -->
-  <div class="loading-wrapper" *ngIf="loading">
-    <span class="material-icons spin">hourglass_empty</span>
-    <p>Loading reconciliation timeline...</p>
-  </div>
-
-  <!-- Empty state -->
-  <div class="empty-state" *ngIf="!loading && batches.length === 0">
-    <span class="material-icons empty-icon">timeline</span>
-    <p>No reconciliation events found. Import and commit a file to generate events.</p>
-  </div>
-
-  <!-- Timeline grouped by batch -->
   <div class="batches-timeline" *ngIf="!loading && batches.length > 0">
-    <mat-accordion>
-      <mat-expansion-panel
-        *ngFor="let batch of batches"
-        class="batch-panel"
-      >
+    <mat-accordion class="events-accordion">
+      <mat-expansion-panel *ngFor="let batch of batches" class="batch-panel">
         <mat-expansion-panel-header>
           <mat-panel-title class="batch-panel-title">
-            <span class="material-icons batch-icon">folder_open</span>
-            <span class="batch-id" [title]="batch.batchId">Batch {{ truncateBatchId(batch.batchId) }}</span>
-            <span class="batch-count">{{ batch.events.length }} events</span>
+            <mat-icon>folder_open</mat-icon>
+            <span class="batch-id" [title]="batch.batchId">{{
+              'MATCHER.EVENTS.BATCH' | translate
+            }} {{ truncateBatchId(batch.batchId) }}</span>
+            <span class="batch-count"
+              >{{ batch.events.length }} {{ batch.events.length === 1 ? 'event' : 'events' }}</span
+            >
           </mat-panel-title>
+
           <mat-panel-description class="batch-panel-desc">
-            <span class="badge-level3">
-              L3: {{ countStage(batch.events, 'Level3') }}
-            </span>
-            <span class="badge-level4">
-              L4: {{ countStage(batch.events, 'Level4') }}
-            </span>
+            <span class="stage-pill stage-pill--violet">L3 {{ countStage(batch.events, 'Level3') }}</span>
+            <span class="stage-pill">L4 {{ countStage(batch.events, 'Level4') }}</span>
           </mat-panel-description>
         </mat-expansion-panel-header>
 
-        <!-- Events timeline inside accordion -->
         <div class="events-timeline">
           <div
             class="timeline-item"
             *ngFor="let event of batch.events"
-            [ngClass]="getEventClass(event.eventType)"
-          >
+            [ngClass]="getEventClass(event.eventType)">
+
             <div class="timeline-dot">
-              <span class="material-icons timeline-icon">{{ getEventIcon(event.eventType) }}</span>
+              <mat-icon>{{ getEventIcon(event.eventType) }}</mat-icon>
             </div>
+
             <div class="timeline-content">
               <div class="timeline-row">
                 <span class="event-type-label">{{ getEventTypeLabel(event.eventType) }}</span>
                 <span class="stage-badge" [ngClass]="getStageClass(event.stage)">{{ event.stage }}</span>
                 <span class="source-badge">{{ event.sourceType }}</span>
                 <span class="event-status" [class.resolved]="event.status === 'Resolved'">{{ event.status }}</span>
-                <span class="timeline-time">{{ event.createdAt | date: 'HH:mm · dd MMM' }}</span>
+                <span class="timeline-time">{{ event.createdAt | date: 'HH:mm, dd MMM' }}</span>
               </div>
+
               <div class="timeline-detail" *ngIf="parseDetail(event.detailJson) as detail">
                 <span *ngFor="let kv of $any(detail) | keyvalue" class="detail-kv">
                   <strong>{{ kv.key }}:</strong> {{ kv.value }}
@@ -122,9 +174,7 @@
             </div>
           </div>
         </div>
-
       </mat-expansion-panel>
     </mat-accordion>
   </div>
-
 </section>
