@@ -1,10 +1,12 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Dtos.Subscriptions;
 using finrecon360_backend.Dtos.Me;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
+using finrecon360_backend.Authorization;
 
 namespace finrecon360_backend.Controllers
 {
@@ -17,12 +19,32 @@ namespace finrecon360_backend.Controllers
         private readonly AppDbContext _dbContext;
         private readonly IUserContext _userContext;
         private readonly IPermissionService _permissionService;
+<<<<<<< Updated upstream
 
         public MeController(AppDbContext dbContext, IUserContext userContext, IPermissionService permissionService)
+=======
+        private readonly ITenantContext _tenantContext;
+        private readonly ITenantDbContextFactory _tenantDbContextFactory;
+        private readonly ISubscriptionService _subscriptionService;
+
+        public MeController(
+            AppDbContext dbContext,
+            IUserContext userContext,
+            IPermissionService permissionService,
+            ITenantContext tenantContext,
+            ITenantDbContextFactory tenantDbContextFactory,
+            ISubscriptionService subscriptionService)
+>>>>>>> Stashed changes
         {
             _dbContext = dbContext;
             _userContext = userContext;
             _permissionService = permissionService;
+<<<<<<< Updated upstream
+=======
+            _tenantContext = tenantContext;
+            _tenantDbContextFactory = tenantDbContextFactory;
+            _subscriptionService = subscriptionService;
+>>>>>>> Stashed changes
         }
 
         [HttpGet]
@@ -57,6 +79,60 @@ namespace finrecon360_backend.Controllers
                 displayName,
                 roles.ToList(),
                 permissions.OrderBy(p => p).ToList()));
+        }
+
+        [HttpGet("subscription")]
+        [RequirePermission("PROFILE.SUBSCRIPTION.VIEW")]
+        public async Task<ActionResult<SubscriptionOverviewDto>> GetSubscriptionOverview(CancellationToken cancellationToken)
+        {
+            if (_userContext.UserId is not { } userId)
+            {
+                return Unauthorized();
+            }
+
+            var tenant = await _tenantContext.ResolveAsync();
+            if (tenant == null)
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var overview = await _subscriptionService.GetOverviewAsync(tenant.TenantId, cancellationToken);
+                return Ok(overview);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("subscription/checkout")]
+        [RequirePermission("PROFILE.SUBSCRIPTION.CHANGE")]
+        public async Task<ActionResult<SubscriptionCheckoutResponse>> CreateSubscriptionCheckout(
+            [FromBody] SubscriptionChangeRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (_userContext.UserId is not { } userId)
+            {
+                return Unauthorized();
+            }
+
+            var tenant = await _tenantContext.ResolveAsync();
+            if (tenant == null)
+            {
+                return NotFound();
+            }
+
+            try
+            {
+                var result = await _subscriptionService.CreateCheckoutAsync(tenant.TenantId, userId, request.PlanId, cancellationToken);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

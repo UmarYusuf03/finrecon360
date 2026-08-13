@@ -92,6 +92,36 @@ builder.Services.Configure<MagicLinkOptions>(options =>
     options.FrontendBaseUrl = builder.Configuration["FRONTEND_BASE_URL"] ?? string.Empty;
 });
 
+<<<<<<< Updated upstream
+=======
+builder.Services.Configure<TenantProvisioningOptions>(options =>
+{
+    options.DefaultConnectionString = builder.Configuration["TENANT_DB_TEMPLATE"]
+        ?? builder.Configuration["TENANT_DB_DEFAULT"];
+});
+
+builder.Services.Configure<PayHereOptions>(options =>
+{
+    options.MerchantId = builder.Configuration["PAYHERE_MERCHANT_ID"] ?? string.Empty;
+    options.MerchantSecret = builder.Configuration["PAYHERE_MERCHANT_SECRET"] ?? string.Empty;
+    var merchantSecretMode = builder.Configuration["PAYHERE_MERCHANT_SECRET_MODE"] ?? "Auto";
+    options.MerchantSecretMode = Enum.TryParse<PayHereMerchantSecretMode>(merchantSecretMode, true, out var parsedMode)
+        ? parsedMode
+        : PayHereMerchantSecretMode.Auto;
+    options.CheckoutBaseUrl = builder.Configuration["PAYHERE_CHECKOUT_BASE_URL"] ?? "https://sandbox.payhere.lk/pay/checkout";
+    options.ReturnUrl = builder.Configuration["PAYHERE_RETURN_URL"] ?? string.Empty;
+    options.CancelUrl = builder.Configuration["PAYHERE_CANCEL_URL"] ?? string.Empty;
+    options.NotifyUrl = builder.Configuration["PAYHERE_NOTIFY_URL"] ?? string.Empty;
+    options.Currency = builder.Configuration["PAYHERE_CURRENCY"] ?? "LKR";
+});
+
+builder.Services.Configure<OnboardingTokenOptions>(options =>
+{
+    options.Issuer = builder.Configuration["ONBOARDING_TOKEN_ISSUER"] ?? "finrecon360";
+    options.Audience = builder.Configuration["ONBOARDING_TOKEN_AUDIENCE"] ?? "onboarding";
+    options.ExpiresMinutes = builder.Configuration.GetValue<int>("ONBOARDING_TOKEN_EXPIRES_MINUTES", 20);
+});
+>>>>>>> Stashed changes
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, UserContext>();
@@ -99,6 +129,35 @@ builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IMagicLinkService, MagicLinkService>();
 builder.Services.AddScoped<IAuditLogger, AuditLogger>();
 builder.Services.AddSingleton<IPasswordHasher, Sha256PasswordHasher>();
+<<<<<<< Updated upstream
+=======
+builder.Services.AddScoped<ITenantContext, TenantContext>();
+builder.Services.AddScoped<ITenantProvisioner, DefaultTenantProvisioner>();
+builder.Services.AddScoped<ITenantDbProtector, TenantDbProtector>();
+builder.Services.AddScoped<ITenantDbResolver, TenantDbResolver>();
+builder.Services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
+builder.Services.AddSingleton<ITenantSchemaMigrator, SqlServerTenantSchemaMigrator>();
+builder.Services.AddScoped<ITenantUserDirectoryService, TenantUserDirectoryService>();
+builder.Services.AddScoped<ISystemEnforcementService, SystemEnforcementService>();
+builder.Services.AddScoped<IOnboardingTokenService, OnboardingTokenService>();
+builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkService>();
+builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
+builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
+builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
+builder.Services.AddSingleton<IReconciliationOrchestrator, ReconciliationOrchestrator>();
+builder.Services.AddScoped<IReconciliationExecutionService, ReconciliationExecutionService>();
+builder.Services.AddScoped<BankAccountService>();
+builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<IBankStatementReconciliationWorker, BankStatementReconciliationWorker>();
+builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+builder.Services.AddHostedService<BankReconciliationHostedService>();
+builder.Services.AddHostedService<JournalPostingHostedService>();
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("finrecon360-backend");
+>>>>>>> Stashed changes
 
 builder.Services.AddControllers();
 
@@ -201,6 +260,8 @@ builder.Services.AddCors(options =>
         }
     });
 });
+
+builder.Services.AddMemoryCache();
 
 // 4. Authentication & Authorization
 var jwtSection = builder.Configuration.GetSection("Jwt");

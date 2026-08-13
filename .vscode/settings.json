@@ -1,0 +1,31 @@
+{
+    "sqltools.connections": [
+        {
+            "connectionTimeout": 15,
+            "mssqlOptions": {
+                "appName": "SQLTools",
+                "useUTC": true,
+                "encrypt": true,
+                "trustServerCertificate": true
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 1433,
+            "askForPassword": true,
+            "driver": "MSSQL",
+            "name": "finrecon",
+            "database": "finrecon360",
+            "username": "sa"
+        }
+    ],
+    "chat.tools.terminal.autoApprove": {
+        "dotnet test": true,
+        "dotnet ef": true,
+        "dotnet run": true,
+        "dotnet build": true,
+        "npm run build": true,
+        "docker exec": true,
+        "npm test": true
+    }
+}
