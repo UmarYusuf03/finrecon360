@@ -1,0 +1,39 @@
+<section class="subscription-card">
+  <div class="hero">
+    <p class="eyebrow">Billing</p>
+    <h2>{{ currentTenantName }} subscription</h2>
+    <p class="lede">Choose a new plan when your team grows. The change is applied after payment confirmation.</p>
+  </div>
+
+  <div class="alert error" *ngIf="error">{{ error }}</div>
+
+  <div class="current-plan" *ngIf="overview?.currentSubscription as current">
+    <span class="label">Current plan</span>
+    <strong>{{ current.planName }}</strong>
+    <span>{{ current.status }}</span>
+  </div>
+
+  <div *ngIf="loading" class="state">Loading subscription details...</div>
+
+  <div *ngIf="!loading" class="plan-grid">
+    <button
+      type="button"
+      class="plan-card"
+      *ngFor="let plan of plans"
+      [class.active]="plan.id === selectedPlanId"
+      (click)="selectedPlanId = plan.id"
+    >
+      <span class="plan-name">{{ plan.name }}</span>
+      <span class="plan-price">{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</span>
+      <span class="plan-meta">{{ plan.durationDays }} days</span>
+      <span class="plan-meta">{{ plan.maxUsers }} users</span>
+      <span class="plan-meta">{{ plan.maxAccounts }} bank accounts</span>
+    </button>
+  </div>
+
+  <div class="actions">
+    <button class="primary-btn" type="button" [disabled]="busy || !selectedPlanId" (click)="changePlan()">
+      {{ busy ? 'Starting checkout...' : 'Change plan' }}
+    </button>
+  </div>
+</section>

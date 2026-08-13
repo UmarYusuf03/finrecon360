@@ -31,6 +31,7 @@ namespace finrecon360_backend.Services
         PayHereCallbackResult ParseCallback(IFormCollection form);
         bool IsConfigured();
         string GetFallbackCheckoutUrl();
+        bool TryGetCheckoutLaunchHtml(string orderId, out string? launchHtml);
     }
 
     /// <summary>
@@ -157,6 +158,12 @@ namespace finrecon360_backend.Services
             }
 
             return "http://localhost:4200/onboarding/success";
+        }
+
+        public bool TryGetCheckoutLaunchHtml(string orderId, out string? launchHtml)
+        {
+            launchHtml = null;
+            return false;
         }
 
         private static string BuildUrl(string baseUrl, IReadOnlyDictionary<string, string> query)
