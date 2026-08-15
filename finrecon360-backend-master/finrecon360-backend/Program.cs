@@ -145,14 +145,8 @@ builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
 builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
-builder.Services.AddSingleton<IReconciliationOrchestrator, ReconciliationOrchestrator>();
-builder.Services.AddScoped<IReconciliationExecutionService, ReconciliationExecutionService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
-builder.Services.AddScoped<IBankStatementReconciliationWorker, BankStatementReconciliationWorker>();
-builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
-builder.Services.AddHostedService<BankReconciliationHostedService>();
-builder.Services.AddHostedService<JournalPostingHostedService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
@@ -266,6 +260,42 @@ var jwtKey = jwtSection["Key"];
 var jwtIssuer = jwtSection["Issuer"];
 var jwtAudience = jwtSection["Audience"];
 var isTesting = builder.Environment.IsEnvironment("Testing");
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (isTesting)
+    {
+        jwtKey = "test-signing-key-should-be-long-32chars";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Key is not configured.");
+    }
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    if (isTesting)
+    {
+        jwtIssuer = "test-issuer";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Issuer is not configured.");
+    }
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    if (isTesting)
+    {
+        jwtAudience = "test-audience";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Audience is not configured.");
+    }
+}
 
 if (string.IsNullOrWhiteSpace(jwtKey))
 {

@@ -9,13 +9,6 @@ export interface TenantRegistrationSummary {
   submittedAt: string;
 }
 
-export interface TenantRegistrationDetail extends TenantRegistrationSummary {
-  reviewedAt?: string | null;
-  reviewedByEmail?: string | null;
-  reviewNote?: string | null;
-  onboardingMetadata?: string | null;
-}
-
 export interface TenantRegistrationApprovalResult {
   requestId: string;
   adminEmail: string;

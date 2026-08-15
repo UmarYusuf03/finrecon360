@@ -1,5 +1,5 @@
 <div class="imports-shell">
-  <nav mat-tab-nav-bar backgroundColor="primary" color="primary" [tabPanel]="tabPanel">
+  <nav mat-tab-nav-bar backgroundColor="primary" color="primary">
     <a
       mat-tab-link
       *ngFor="let link of visibleLinks$ | async"
@@ -17,9 +17,7 @@
     </a>
   </nav>
 
-  <mat-tab-nav-panel #tabPanel>
-    <div class="imports-shell__content">
-      <router-outlet></router-outlet>
-    </div>
-  </mat-tab-nav-panel>
+  <div class="imports-shell__content">
+    <router-outlet></router-outlet>
+  </div>
 </div>

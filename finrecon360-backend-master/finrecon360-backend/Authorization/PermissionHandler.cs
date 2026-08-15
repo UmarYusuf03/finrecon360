@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using finrecon360_backend.Data;
 using finrecon360_backend.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -21,13 +20,6 @@ namespace finrecon360_backend.Authorization
             "ADMIN.ENFORCEMENT.MANAGE"
         };
 
-        /// <summary>
-        /// WHY: The AliasMap implements the "MANAGE→VIEW implication" rule.
-        /// Any mutating permission (CREATE/EDIT/DELETE/COMMIT/CONFIRM/RESOLVE/POST/MANAGE) also satisfies
-        /// a VIEW check for the same module. This is enforced here, centrally, so every endpoint
-        /// that checks VIEW will also pass for users who only have a mutating grant — no per-controller
-        /// logic needed, and no duplicate VIEW grants needed in the role seed.
-        /// </summary>
         private static readonly Dictionary<string, string[]> AliasMap = new(StringComparer.OrdinalIgnoreCase)
         {
             // Legacy aliases (kept for backwards compatibility)
@@ -142,25 +134,6 @@ namespace finrecon360_backend.Authorization
             _dbContext = dbContext;
         }
 
-        public static IReadOnlyList<string> ExpandPermissions(IEnumerable<string>? permissions)
-        {
-            if (permissions == null)
-            {
-                return Array.Empty<string>();
-            }
-
-            var expanded = new HashSet<string>(permissions.Where(permission => !string.IsNullOrWhiteSpace(permission)), StringComparer.OrdinalIgnoreCase);
-            var hasScopedImportPermission = expanded.Any(permission =>
-                Regex.IsMatch(permission, @"^ADMIN\.IMPORTS(\.[A-Z]+)?\.(CREATE|EDIT|COMMIT|DELETE|MANAGE)$", RegexOptions.IgnoreCase));
-
-            if (hasScopedImportPermission)
-            {
-                expanded.Add("ADMIN.IMPORT_WORKBENCH.VIEW");
-            }
-
-            return expanded.ToList();
-        }
-
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
         {
             var userId = _userContext.UserId;
@@ -223,27 +196,12 @@ namespace finrecon360_backend.Authorization
                     return;
                 }
 
-                permissions = ExpandPermissions(await tenantDb.UserRoles
+                permissions = await tenantDb.UserRoles
                     .AsNoTracking()
                     .Where(ur => ur.UserId == userId.Value && ur.Role.IsActive)
                     .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
                     .Distinct()
-                    .ToListAsync());
-
-                if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))
-                {
-                    context.Succeed(requirement);
-                    return;
-                }
-
-                var isCanonicalTenantAdmin = await tenantDb.TenantUsers
-                    .AsNoTracking()
-                    .AnyAsync(tu => tu.UserId == userId.Value && tu.IsActive && tu.Role == Models.TenantUserRole.TenantAdmin.ToString());
-
-                if (isCanonicalTenantAdmin)
-                {
-                    context.Succeed(requirement);
-                }
+                    .ToListAsync();
                 }
             }
             else
@@ -253,7 +211,7 @@ namespace finrecon360_backend.Authorization
                     // Tenant permissions require a resolved tenant context.
                     return;
                 }
-                permissions = ExpandPermissions(await _permissionService.GetPermissionsForUserAsync(userId.Value));
+                permissions = await _permissionService.GetPermissionsForUserAsync(userId.Value);
             }
 
             if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))

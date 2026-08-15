@@ -142,8 +142,8 @@ public class BankStatementReconciliationWorkerTests
             .Where(mr => mr.ReconciliationMatchGroupId == matchGroup.ReconciliationMatchGroupId)
             .ToListAsync();
         Assert.Equal(2, matchedRecords.Count);
-        Assert.Single(matchedRecords.Where(mr => mr.SourceType == "GATEWAY"));
-        Assert.Single(matchedRecords.Where(mr => mr.SourceType == "BANK"));
+        Assert.Single(matchedRecords, mr => mr.SourceType == "GATEWAY");
+        Assert.Single(matchedRecords, mr => mr.SourceType == "BANK");
     }
 
     [Fact]

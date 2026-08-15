@@ -1,5 +1,4 @@
 .DS_Store
-**/.DS_Store
 
 # Node/Angular
 **/node_modules/
@@ -17,10 +16,6 @@
 # Environment files
 **/.env
 
-# Local ide and db sessions
-**/.vscode/
+.vscode/
+*.log
 finrecon.session.sql
-
-# Local generated docs
-endpoints.txt
-detailedExplanation.txt

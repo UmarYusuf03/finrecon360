@@ -7,13 +7,11 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatExpansionModule } from '@angular/material/expansion';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
-import { BankAccount, NeedsBankMatchRecord } from '../../../core/admin-rbac/models';
+import { BankAccount, Transaction } from '../../../core/admin-rbac/models';
 
 @Component({
   selector: 'app-admin-needs-bank-match',
@@ -26,8 +24,6 @@ import { BankAccount, NeedsBankMatchRecord } from '../../../core/admin-rbac/mode
     MatIconModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
-    MatTooltipModule,
-    MatExpansionModule,
     RouterLink,
     RouterLinkActive,
   ],
@@ -35,26 +31,10 @@ import { BankAccount, NeedsBankMatchRecord } from '../../../core/admin-rbac/mode
   styleUrls: ['./admin-transaction-pages.scss'],
 })
 export class AdminNeedsBankMatchComponent implements OnInit {
-  readonly displayedColumns = [
-    'transactionDate',
-    'amount',
-    'type',
-    'bankAccount',
-    'description',
-    'importContext',
-    'matchStatus',
-    'matchGroup',
-    'goToMatcher',
-  ];
-
-  records: NeedsBankMatchRecord[] = [];
+  displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'description', 'state'];
+  transactions: Transaction[] = [];
   bankAccounts: BankAccount[] = [];
   loading = false;
-
-  // Summary
-  get withImportContext(): number { return this.records.filter(r => !!r.importedNormalizedRecordId).length; }
-  get withMatchGroup(): number { return this.records.filter(r => !!r.reconciliationMatchGroupId).length; }
-  get confirmedCount(): number { return this.records.filter(r => r.isConfirmed).length; }
 
   constructor(
     private transactionService: TransactionService,
@@ -64,48 +44,58 @@ export class AdminNeedsBankMatchComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadBankAccounts();
-    this.loadQueue();
+    this.loadNeedsBankMatch();
   }
 
   refresh(): void {
-    if (this.loading) return;
-    this.loadQueue();
+    if (this.loading) {
+      return;
+    }
+
+    this.loadNeedsBankMatch();
   }
 
   getBankAccountLabel(bankAccountId?: string | null): string {
-    if (!bankAccountId) return '—';
-    const account = this.bankAccounts.find(a => a.bankAccountId === bankAccountId);
-    return account ? `${account.bankName} · ${account.accountNumber}` : bankAccountId;
+    if (!bankAccountId) {
+      return '-';
+    }
+
+    const account = this.bankAccounts.find((item) => item.bankAccountId === bankAccountId);
+    return account ? `${account.bankName} - ${account.accountNumber}` : bankAccountId;
   }
 
-  getMatchStatusClass(status: string): string {
-    switch (status) {
-      case 'MATCHED':           return 'ms-matched';
-      case 'INTERNAL_VERIFIED': return 'ms-verified';
-      case 'SALES_VERIFIED':    return 'ms-verified';
-      case 'EXCEPTION':         return 'ms-exception';
-      case 'WAITING':           return 'ms-waiting';
-      default:                  return 'ms-pending';
+  getStateLabel(state: string): string {
+    switch (state) {
+      case 'JournalReady':
+        return 'Journal Ready';
+      case 'NeedsBankMatch':
+        return 'Needs Bank Match';
+      default:
+        return state;
     }
   }
 
-  getMatchLevelLabel(level?: string | null): string {
-    switch (level) {
-      case 'Level3': return 'L3 — Sales Match';
-      case 'Level4': return 'L4 — Settlement';
-      default: return level ?? '—';
+  getStateClass(state: string): string {
+    switch (state) {
+      case 'Pending':
+        return 'state-pending';
+      case 'JournalReady':
+        return 'state-journal-ready';
+      case 'NeedsBankMatch':
+        return 'state-needs-bank-match';
+      case 'Rejected':
+        return 'state-rejected';
+      default:
+        return 'state-default';
     }
   }
 
-  hasImportContext(record: NeedsBankMatchRecord): boolean {
-    return !!record.importedNormalizedRecordId;
-  }
-
-  private loadQueue(): void {
+  private loadNeedsBankMatch(): void {
     this.loading = true;
+    // This queue is read-only until the matcher/reconciliation member owns the next handoff.
     this.transactionService.getNeedsBankMatch().subscribe({
-      next: (records) => {
-        this.records = records;
+      next: (transactions) => {
+        this.transactions = transactions;
         this.loading = false;
       },
       error: (error: unknown) => {
@@ -117,9 +107,11 @@ export class AdminNeedsBankMatchComponent implements OnInit {
 
   private loadBankAccounts(): void {
     this.bankAccountService.getAll().subscribe({
-      next: (accounts) => { this.bankAccounts = accounts; },
+      next: (accounts) => {
+        this.bankAccounts = accounts;
+      },
       error: (error: unknown) => {
-        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3000 });
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
       },
     });
   }
@@ -129,6 +121,7 @@ export class AdminNeedsBankMatchComponent implements OnInit {
       const body = error.error as { message?: string } | null;
       return body?.message ?? `Request failed with status ${error.status}.`;
     }
+
     return 'Request failed.';
   }
 }

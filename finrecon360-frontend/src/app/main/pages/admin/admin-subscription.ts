@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { API_BASE_URL } from '../../../core/constants/api.constants';
 import {
   SubscriptionOverview,
   SubscriptionPlan,
@@ -54,7 +55,7 @@ export class AdminSubscriptionComponent implements OnInit {
 
     this.subscriptionService.createTenantCheckout(this.selectedPlanId).subscribe({
       next: (response) => {
-        window.location.href = response.checkoutUrl;
+        window.location.href = this.resolveCheckoutUrl(response.checkoutUrl);
       },
       error: (error) => {
         const message = error?.error?.message as string | undefined;
@@ -66,5 +67,13 @@ export class AdminSubscriptionComponent implements OnInit {
 
   get currentTenantName(): string {
     return this.authService.currentUser?.tenantName ?? 'Your tenant';
+  }
+
+  private resolveCheckoutUrl(checkoutUrl: string): string {
+    if (/^https?:\/\//i.test(checkoutUrl)) {
+      return checkoutUrl;
+    }
+
+    return `${API_BASE_URL}${checkoutUrl.startsWith('/') ? '' : '/'}${checkoutUrl}`;
   }
 }

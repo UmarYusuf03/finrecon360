@@ -7,6 +7,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { API_BASE_URL } from '../../../core/constants/api.constants';
+
 import {
   SubscriptionOverview,
   SubscriptionPlan,
@@ -191,7 +193,7 @@ export class ProfileSubscriptionComponent implements OnInit {
       next: (response) => {
         if (response.checkoutUrl) {
           // Redirect to PayHere checkout
-          window.location.href = response.checkoutUrl;
+          window.location.href = this.resolveCheckoutUrl(response.checkoutUrl);
         } else {
           this.changing = false;
           this.error = 'Payment gateway did not return a valid checkout URL.';
@@ -244,5 +246,13 @@ export class ProfileSubscriptionComponent implements OnInit {
 
   refresh(): void {
     this.loadSubscription();
+  }
+
+  private resolveCheckoutUrl(checkoutUrl: string): string {
+    if (/^https?:\/\//i.test(checkoutUrl)) {
+      return checkoutUrl;
+    }
+
+    return `${API_BASE_URL}${checkoutUrl.startsWith('/') ? '' : '/'}${checkoutUrl}`;
   }
 }
