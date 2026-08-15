@@ -20,6 +20,10 @@ namespace finrecon360_backend.Models
         public decimal NetAmount { get; set; }
         public string Currency { get; set; } = "LKR";
         public DateTime CreatedAt { get; set; }
+        
+        public string? MatchStatus { get; set; } = "PENDING";
+        public string? SettlementId { get; set; }
+        public string? SettlementKey { get; set; }
 
         public ImportBatch? ImportBatch { get; set; }
         public ImportedRawRecord? SourceRawRecord { get; set; }

@@ -38,6 +38,11 @@ namespace finrecon360_backend.Models
 
         // Pending | Confirmed | Rejected
         public string Status { get; set; } = "Pending";
+        public Guid? ImportBatchId { get; set; }
+        public bool IsJournalPosted { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public Guid? PrimaryEventId { get; set; }
+        public string? MatchMetadataJson { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

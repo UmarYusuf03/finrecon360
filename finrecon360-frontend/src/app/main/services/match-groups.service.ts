@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../environments/environment';
 
 export interface MatchedRecordDetail {
   importedNormalizedRecordId: string;
@@ -62,7 +62,7 @@ export interface MatcherSummary {
 })
 export class MatchGroupsService {
   private http = inject(HttpClient);
-  private apiUrl = `${environment.apiUrl}/api/admin/match-groups`;
+  private apiUrl = `${environment.apiBaseUrl}/api/admin/match-groups`;
 
   getSummary(): Observable<MatcherSummary> {
     return this.http.get<MatcherSummary>(`${this.apiUrl}/summary`);

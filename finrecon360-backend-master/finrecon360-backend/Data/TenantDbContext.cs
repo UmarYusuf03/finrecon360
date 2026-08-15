@@ -28,6 +28,11 @@ namespace finrecon360_backend.Data
         public DbSet<ImportedRawRecord> ImportedRawRecords => Set<ImportedRawRecord>();
         public DbSet<ImportedNormalizedRecord> ImportedNormalizedRecords => Set<ImportedNormalizedRecord>();
         public DbSet<ImportMappingTemplate> ImportMappingTemplates => Set<ImportMappingTemplate>();
+        
+        public DbSet<ReconciliationEvent> ReconciliationEvents => Set<ReconciliationEvent>();
+        public DbSet<ReconciliationMatchGroup> ReconciliationMatchGroups => Set<ReconciliationMatchGroup>();
+        public DbSet<ReconciliationMatchedRecord> ReconciliationMatchedRecords => Set<ReconciliationMatchedRecord>();
+        public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

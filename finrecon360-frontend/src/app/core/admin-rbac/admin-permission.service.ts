@@ -216,6 +216,16 @@ export class AdminPermissionService {
     );
   }
 
+  getRolePermissionCodes(roleId: string): Observable<string[]> {
+    if (USE_MOCK_API) {
+      return of([]);
+    }
+
+    return this.http
+      .get<RoleDetailDto>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}/${roleId}`)
+      .pipe(map((role) => role.permissions.map((p) => p.code)));
+  }
+
   /**
    * WHY: The backend typically returns a flat list of `PermissionDto` objects assigned to a role. 
    * The matrix UI requires an object per cell (Component x Action). This method crosses 
@@ -248,4 +258,10 @@ export class AdminPermissionService {
 
     return assignments;
   }
+}
+
+export interface ScopedPermissionRow {
+  sourceType: string;
+  module: string;
+  actions: { code: string; label: string; permissionCode: string }[];
 }

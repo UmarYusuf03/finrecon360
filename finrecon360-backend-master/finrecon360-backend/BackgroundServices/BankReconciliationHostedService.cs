@@ -101,12 +101,12 @@ namespace finrecon360_backend.BackgroundServices
             {
                 using var scope = _scopeFactory.CreateScope();
                 var tenantDbContextFactory = scope.ServiceProvider.GetRequiredService<ITenantDbContextFactory>();
-                var worker = scope.ServiceProvider.GetRequiredService<IBankStatementReconciliationWorker>();
+                var worker = scope.ServiceProvider.GetRequiredService<BankStatementReconciliationWorker>();
 
                 await using var tenantDb = await tenantDbContextFactory.CreateAsync(tenantId, cancellationToken);
                 var result = await worker.ExecuteAsync(tenantId, tenantDb, cancellationToken);
-                _logger.LogInformation("Bank reconciliation completed for tenant {TenantId}: {Summary}", 
-                    tenantId, result.Summary);
+                _logger.LogInformation("Bank reconciliation completed for tenant {TenantId}: matched={Matched}, exceptions={Exceptions}, noMatch={NoMatch}", 
+                    tenantId, result.AutoMatchedCount, result.ExceptionCount, result.NoMatchCount);
             }
             catch (Exception ex)
             {

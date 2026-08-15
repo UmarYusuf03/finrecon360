@@ -190,9 +190,6 @@ namespace finrecon360_backend.Services
                 tenant.TenantId,
                 subscription.SubscriptionId,
                 userId,
-                tenant.Name,
-                currentUser.Email,
-                string.IsNullOrWhiteSpace(currentUser.PhoneNumber) ? "0000000000" : currentUser.PhoneNumber.Trim(),
                 cancellationToken);
 
             var paymentSession = new PaymentSession

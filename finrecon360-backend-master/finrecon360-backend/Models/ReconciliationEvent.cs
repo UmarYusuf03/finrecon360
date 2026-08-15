@@ -29,7 +29,14 @@ namespace finrecon360_backend.Models
         // Human-readable detail: variance amount, candidate counts, etc.
         public string? Details { get; set; }
 
+        public string? Stage { get; set; }
+        public string? SourceType { get; set; }
+        public string? Status { get; set; }
+        public string? DetailJson { get; set; }
+        public Guid? ImportBatchId { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? ResolvedAt { get; set; }
 
         // Navigation
         public ReconciliationMatchGroup? MatchGroup { get; set; }

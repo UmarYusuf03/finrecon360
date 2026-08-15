@@ -19,10 +19,12 @@ namespace finrecon360_backend.Models
         // Denormalised here so that query-side code can identify roles without a join.
         public string SourceType { get; set; } = string.Empty;
 
+        public decimal MatchAmount { get; set; }
+
         public DateTime LinkedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation
         public ReconciliationMatchGroup? MatchGroup { get; set; }
-        public ImportedNormalizedRecord? ImportedRecord { get; set; }
+        public ImportedNormalizedRecord? ImportedNormalizedRecord { get; set; }
     }
 }

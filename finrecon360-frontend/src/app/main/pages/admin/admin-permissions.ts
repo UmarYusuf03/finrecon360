@@ -11,7 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { combineLatest } from 'rxjs';
+import { combineLatest, forkJoin } from 'rxjs';
 import { distinctUntilChanged } from 'rxjs/operators';
 
 import { AdminPermissionService, ScopedPermissionRow } from '../../../core/admin-rbac/admin-permission.service';
@@ -67,6 +67,10 @@ export class AdminPermissionsComponent implements OnInit {
   displayedColumns: string[] = ['component'];
   saving = false;
 
+  scopedRows: ScopedPermissionRow[] = [];
+  scopedCodes = new Set<string>();
+  originalScopedCodes = new Set<string>();
+
   form!: FormGroup;
 
   constructor(
@@ -76,7 +80,9 @@ export class AdminPermissionsComponent implements OnInit {
     private componentService: AdminComponentService,
     private translate: TranslateService,
     private snackBar: MatSnackBar
-  ) {}
+  ) {
+    this.buildScopedRows();
+  }
 
   ngOnInit(): void {
     this.form = this.fb.group({
@@ -200,9 +206,11 @@ export class AdminPermissionsComponent implements OnInit {
     if (!window.confirm(confirmMessage)) return;
 
     this.saving = true;
-    this.permissionService.saveRoleAssignments(roleId, this.assignments).subscribe({
+    const scopedArray = Array.from(this.scopedCodes);
+    this.permissionService.saveRoleAssignments(roleId, this.assignments, scopedArray).subscribe({
       next: () => {
         this.originalAssignments = this.assignments.map((a) => ({ ...a }));
+        this.originalScopedCodes = new Set(this.scopedCodes);
         this.saving = false;
         this.snackBar.open('Permissions updated successfully.', 'Close', { duration: 2500 });
       },
@@ -225,6 +233,12 @@ export class AdminPermissionsComponent implements OnInit {
     for (const code of current) {
       if (!original.has(code)) return true;
     }
+
+    if (this.scopedCodes.size !== this.originalScopedCodes.size) return true;
+    for (const code of this.scopedCodes) {
+      if (!this.originalScopedCodes.has(code)) return true;
+    }
+
     return false;
   }
 
@@ -235,9 +249,17 @@ export class AdminPermissionsComponent implements OnInit {
     forkJoin({
       assignments: this.permissionService.getRoleAssignments(roleId),
       rawCodes: this.permissionService.getRolePermissionCodes(roleId),
-    }).subscribe(({ assignments, rawCodes }) => {
+    }).subscribe(({ assignments, rawCodes }: { assignments: PermissionAssignment[], rawCodes: string[] }) => {
       this.assignments = assignments;
-      this.originalAssignments = assignments.map((a) => ({ ...a }));
+      this.originalAssignments = assignments.map((a: PermissionAssignment) => ({ ...a }));
+
+      this.scopedCodes.clear();
+      rawCodes.forEach(code => {
+        if (AdminPermissionService.SOURCE_TYPES.some(st => code.includes(`.${st}.`))) {
+          this.scopedCodes.add(code);
+        }
+      });
+      this.originalScopedCodes = new Set(this.scopedCodes);
     });
   }
 
@@ -292,5 +314,34 @@ export class AdminPermissionsComponent implements OnInit {
     if (!hasAllRequired) {
       this.setAssignment(roleId, component, 'MANAGE', false);
     }
+  }
+
+  isScopedGranted(permissionCode: string): boolean {
+    return this.scopedCodes.has(permissionCode);
+  }
+
+  toggleScoped(permissionCode: string): void {
+    if (this.scopedCodes.has(permissionCode)) {
+      this.scopedCodes.delete(permissionCode);
+    } else {
+      this.scopedCodes.add(permissionCode);
+    }
+  }
+
+  private buildScopedRows(): void {
+    this.scopedRows = [];
+    AdminPermissionService.SCOPED_MODULES.forEach(mod => {
+      AdminPermissionService.SOURCE_TYPES.forEach(sourceType => {
+        this.scopedRows.push({
+          sourceType,
+          module: mod.module,
+          actions: mod.actions.map(action => ({
+            code: action.code,
+            label: action.label,
+            permissionCode: `${mod.prefix}.${sourceType}.${action.code}`
+          }))
+        });
+      });
+    });
   }
 }

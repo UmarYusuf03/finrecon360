@@ -179,15 +179,15 @@ export class MatcherPageComponent implements OnInit {
   }
 
   getNetTotal(group: ReconciliationMatchGroup): number {
-    return group.matchedRecords.reduce((sum, r) => sum + r.netAmount, 0);
+    return group.matchedRecords.reduce((sum: number, r: ReconciliationMatchedRecord) => sum + r.netAmount, 0);
   }
 
   getGrossTotal(group: ReconciliationMatchGroup): number {
-    return group.matchedRecords.reduce((sum, r) => sum + (r.grossAmount ?? 0), 0);
+    return group.matchedRecords.reduce((sum: number, r: ReconciliationMatchedRecord) => sum + (r.grossAmount ?? 0), 0);
   }
 
   getFeeTotal(group: ReconciliationMatchGroup): number {
-    return group.matchedRecords.reduce((sum, r) => sum + (r.processingFee ?? 0), 0);
+    return group.matchedRecords.reduce((sum: number, r: ReconciliationMatchedRecord) => sum + (r.processingFee ?? 0), 0);
   }
 
   private loadGroups(): void {

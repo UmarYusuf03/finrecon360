@@ -268,3 +268,77 @@ export interface ImportMappingTemplate {
   createdAt: string;
   updatedAt?: string | null;
 }
+
+export interface AttachSettlementIdRequest {
+  settlementId: string;
+}
+
+export interface PostJournalRequest {
+  notes?: string;
+}
+
+export interface JournalEntry {
+  journalEntryId: string;
+  transactionId?: string;
+  reconciliationMatchGroupId?: string;
+  entryType: string;
+  amount: number;
+  currency: string;
+  postedAt: string;
+  postedByUserId?: string;
+  notes?: string;
+}
+
+export interface ReconciliationEvent {
+  reconciliationEventId: string;
+  importBatchId?: string;
+  importedNormalizedRecordId?: string;
+  eventType: string;
+  stage: string;
+  sourceType: string;
+  status: string;
+  detailJson?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface ReconciliationMatchedRecord {
+  reconciliationMatchedRecordId: string;
+  importedNormalizedRecordId: string;
+  sourceType: string;
+  matchAmount: number;
+  transactionDate?: string;
+  referenceNumber?: string;
+  grossAmount?: number;
+  processingFee?: number;
+  netAmount: number;
+  currency: string;
+  matchStatus: string;
+}
+
+export interface ReconciliationMatchGroup {
+  reconciliationMatchGroupId: string;
+  importBatchId?: string;
+  matchLevel: string;
+  settlementKey?: string;
+  isConfirmed: boolean;
+  confirmedByUserId?: string;
+  confirmedAt?: string;
+  isJournalPosted: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  matchedRecords: ReconciliationMatchedRecord[];
+}
+
+export interface WaitingRecord {
+  importedNormalizedRecordId: string;
+  importBatchId: string;
+  transactionDate: string;
+  referenceNumber?: string;
+  description?: string;
+  grossAmount?: number;
+  processingFee?: number;
+  netAmount: number;
+  currency: string;
+  matchStatus: string;
+}
