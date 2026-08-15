@@ -8,6 +8,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { TranslateModule } from '@ngx-translate/core';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { TransactionService } from '../../../core/admin-rbac/transaction.service';
@@ -26,6 +27,7 @@ import { BankAccount, Transaction } from '../../../core/admin-rbac/models';
     MatProgressSpinnerModule,
     RouterLink,
     RouterLinkActive,
+    TranslateModule,
   ],
   templateUrl: './admin-needs-bank-match.html',
   styleUrls: ['./admin-transaction-pages.scss'],

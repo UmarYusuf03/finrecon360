@@ -1,152 +1,226 @@
 <div class="profile">
-  <mat-card>
-    <div class="profile__header">
-      <div>
-        <h2>{{ 'PROFILE.TITLE' | translate }}</h2>
-        <p>{{ 'PROFILE.SUBTITLE' | translate }}</p>
-      </div>
+  <header class="profile__hero fr-glass-panel">
+    <div class="profile__hero-copy">
+      <span class="profile__eyebrow">{{ 'PROFILE.TITLE' | translate }}</span>
+      <h1>{{ 'PROFILE.TITLE' | translate }}</h1>
+      <p>{{ 'PROFILE.SUBTITLE' | translate }}</p>
     </div>
 
-    <div class="profile__identity">
-      <div class="profile__avatar">
-        <div class="profile__avatar-frame" [class.has-image]="profileImageUrl">
-          <img *ngIf="profileImageUrl" [src]="profileImageUrl" alt="Profile" />
-          <div *ngIf="!profileImageUrl" class="profile__avatar-placeholder">
-            <span class="profile__avatar-initials">{{ getInitials(form.get('displayName')?.value) }}</span>
-          </div>
-          <label *ngIf="!profileImageUrl" class="profile__avatar-add">
-            <input type="file" accept="image/*" (change)="onProfileImageSelected($event)" />
-            <mat-icon>add</mat-icon>
-          </label>
-          <button
-            *ngIf="profileImageUrl"
-            mat-icon-button
-            type="button"
-            class="profile__avatar-remove"
-            (click)="removeProfileImage()"
-            [disabled]="profileImageRemoving"
-          >
-            <mat-icon>delete</mat-icon>
-          </button>
-          <div *ngIf="profileImageUploading" class="profile__avatar-overlay">Uploading...</div>
+    <div class="profile__hero-meta">
+      <div class="profile-chip" *ngIf="form.get('preferredLanguage')?.value">
+        <span>{{ 'PROFILE.PREFERRED_LANGUAGE' | translate }}</span>
+        <strong>{{ form.get('preferredLanguage')?.value }}</strong>
+      </div>
+      <div class="profile-chip" *ngIf="form.get('timeZone')?.value">
+        <span>{{ 'PROFILE.TIME_ZONE' | translate }}</span>
+        <strong>{{ form.get('timeZone')?.value }}</strong>
+      </div>
+      <div class="profile-chip" *ngIf="roles.length">
+        <span>{{ 'PROFILE.ROLES' | translate }}</span>
+        <strong>{{ roles.length }}</strong>
+      </div>
+    </div>
+  </header>
+
+  <div class="profile__layout">
+    <mat-card class="profile-card profile-card--identity">
+      <div class="profile-card__header">
+        <div>
+          <h2>{{ form.get('displayName')?.value || ('PROFILE.TITLE' | translate) }}</h2>
+          <p>{{ form.get('email')?.value }}</p>
         </div>
-        <div *ngIf="profileImageStatus" class="profile__status">{{ profileImageStatus }}</div>
       </div>
 
-      <div class="profile__danger">
-        <button
-          mat-stroked-button
-          type="button"
-          class="profile__delete-btn"
-          (click)="deleteAccount()"
-          [disabled]="deleteSubmitting"
-        >
-          <mat-icon>delete</mat-icon>
-          <span>{{ deleteSubmitting ? 'Deactivating...' : 'Delete account' }}</span>
-        </button>
-        <div *ngIf="deleteStatus" class="profile__status">{{ deleteStatus }}</div>
+      <div class="profile__identity">
+        <div class="profile__avatar">
+          <div class="profile__avatar-frame" [class.has-image]="profileImageUrl">
+            <img *ngIf="profileImageUrl" [src]="profileImageUrl" [alt]="'PROFILE.AVATAR_ALT' | translate" />
+            <div *ngIf="!profileImageUrl" class="profile__avatar-placeholder">
+              <span class="profile__avatar-initials">{{ getInitials(form.get('displayName')?.value) }}</span>
+            </div>
+            <label *ngIf="!profileImageUrl" class="profile__avatar-add">
+              <input type="file" accept="image/*" (change)="onProfileImageSelected($event)" />
+              <mat-icon>add</mat-icon>
+            </label>
+            <button
+              *ngIf="profileImageUrl"
+              mat-icon-button
+              type="button"
+              class="profile__avatar-remove"
+              (click)="removeProfileImage()"
+              [disabled]="profileImageRemoving"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+            <div *ngIf="profileImageUploading" class="profile__avatar-overlay">
+              {{ 'PROFILE.UPLOADING' | translate }}
+            </div>
+          </div>
+          <div *ngIf="profileImageStatus" class="profile__status profile__status--inline">
+            {{ profileImageStatus }}
+          </div>
+        </div>
+
+        <div class="profile__identity-content">
+          <dl class="profile__meta-list">
+            <div class="profile__meta-item">
+              <dt>{{ 'PROFILE.EMAIL' | translate }}</dt>
+              <dd>{{ form.get('email')?.value }}</dd>
+            </div>
+            <div class="profile__meta-item" *ngIf="form.get('preferredLanguage')?.value">
+              <dt>{{ 'PROFILE.PREFERRED_LANGUAGE' | translate }}</dt>
+              <dd>{{ form.get('preferredLanguage')?.value }}</dd>
+            </div>
+            <div class="profile__meta-item" *ngIf="form.get('timeZone')?.value">
+              <dt>{{ 'PROFILE.TIME_ZONE' | translate }}</dt>
+              <dd>{{ form.get('timeZone')?.value }}</dd>
+            </div>
+          </dl>
+
+          <div class="profile__danger-zone">
+            <button
+              mat-stroked-button
+              type="button"
+              class="profile__delete-btn"
+              (click)="deleteAccount()"
+              [disabled]="deleteSubmitting"
+            >
+              <mat-icon>delete</mat-icon>
+              <span>{{
+                deleteSubmitting ? ('PROFILE.DEACTIVATING' | translate) : ('PROFILE.DELETE_ACCOUNT' | translate)
+              }}</span>
+            </button>
+            <div *ngIf="deleteStatus" class="profile__status profile__status--danger">
+              {{ deleteStatus }}
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </mat-card>
 
-    <form [formGroup]="form" (ngSubmit)="save()" class="profile__grid">
-      <mat-form-field appearance="outline">
-        <mat-label>First Name</mat-label>
-        <input matInput formControlName="firstName" />
-        <mat-error *ngIf="form.get('firstName')?.hasError('required')">Required</mat-error>
-      </mat-form-field>
+    <mat-card class="profile-card profile-card--details">
+      <form [formGroup]="form" (ngSubmit)="save()" class="profile-form">
+        <div class="profile-form__grid">
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'PROFILE.FIRST_NAME' | translate }}</mat-label>
+            <input matInput formControlName="firstName" />
+            <mat-error *ngIf="form.get('firstName')?.hasError('required')">
+              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
+            </mat-error>
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Last Name</mat-label>
-        <input matInput formControlName="lastName" />
-        <mat-error *ngIf="form.get('lastName')?.hasError('required')">Required</mat-error>
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'PROFILE.LAST_NAME' | translate }}</mat-label>
+            <input matInput formControlName="lastName" />
+            <mat-error *ngIf="form.get('lastName')?.hasError('required')">
+              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
+            </mat-error>
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>{{ 'PROFILE.DISPLAY_NAME' | translate }}</mat-label>
-        <input matInput formControlName="displayName" />
-        <mat-error *ngIf="form.get('displayName')?.hasError('required')">
-          {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
-        </mat-error>
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'PROFILE.DISPLAY_NAME' | translate }}</mat-label>
+            <input matInput formControlName="displayName" />
+            <mat-error *ngIf="form.get('displayName')?.hasError('required')">
+              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
+            </mat-error>
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>{{ 'PROFILE.EMAIL' | translate }}</mat-label>
-        <input matInput formControlName="email" />
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'PROFILE.EMAIL' | translate }}</mat-label>
+            <input matInput formControlName="email" />
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Phone Number</mat-label>
-        <input matInput formControlName="phoneNumber" />
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'PROFILE.PHONE_NUMBER' | translate }}</mat-label>
+            <input matInput formControlName="phoneNumber" />
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>{{ 'PROFILE.PREFERRED_LANGUAGE' | translate }}</mat-label>
-        <mat-select formControlName="preferredLanguage">
-          <mat-option *ngFor="let lang of languages" [value]="lang.code">
-            {{ lang.label }}
-          </mat-option>
-        </mat-select>
-        <mat-error *ngIf="form.get('preferredLanguage')?.hasError('required')">
-          {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
-        </mat-error>
-      </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>{{ 'PROFILE.PREFERRED_LANGUAGE' | translate }}</mat-label>
+            <mat-select formControlName="preferredLanguage">
+              <mat-option *ngFor="let lang of languages" [value]="lang.code">
+                {{ lang.label }}
+              </mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('preferredLanguage')?.hasError('required')">
+              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
+            </mat-error>
+          </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>{{ 'PROFILE.TIME_ZONE' | translate }}</mat-label>
-        <mat-select formControlName="timeZone">
-          <mat-option *ngFor="let tz of timeZones" [value]="tz">
-            {{ tz }}
-          </mat-option>
-        </mat-select>
-        <mat-error *ngIf="form.get('timeZone')?.hasError('required')">
-          {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
-        </mat-error>
-      </mat-form-field>
+          <mat-form-field appearance="outline" class="profile-form__field profile-form__field--wide">
+            <mat-label>{{ 'PROFILE.TIME_ZONE' | translate }}</mat-label>
+            <mat-select formControlName="timeZone">
+              <mat-option *ngFor="let tz of timeZones" [value]="tz">
+                {{ tz }}
+              </mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.get('timeZone')?.hasError('required')">
+              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
+            </mat-error>
+          </mat-form-field>
+        </div>
 
-      <div class="profile__toggle">
-        <span>{{ 'PROFILE.EMAIL_NOTIFICATIONS' | translate }}</span>
-        <mat-slide-toggle formControlName="emailNotifications"></mat-slide-toggle>
-      </div>
+        <div class="profile-form__panels">
+          <div class="profile-surface-card profile__toggle">
+            <span>{{ 'PROFILE.EMAIL_NOTIFICATIONS' | translate }}</span>
+            <mat-slide-toggle formControlName="emailNotifications"></mat-slide-toggle>
+          </div>
 
-      <div class="profile__roles">
-        <span class="profile__label">{{ 'PROFILE.ROLES' | translate }}</span>
-        <mat-chip-set>
-          <mat-chip *ngFor="let role of roles">{{ role }}</mat-chip>
-        </mat-chip-set>
-      </div>
+          <div class="profile-surface-card profile__roles">
+            <span class="profile__label">{{ 'PROFILE.ROLES' | translate }}</span>
+            <mat-chip-set>
+              <mat-chip *ngFor="let role of roles">{{ role }}</mat-chip>
+            </mat-chip-set>
+          </div>
 
-      <div class="profile__actions">
-        <button
-          mat-stroked-button
-          type="button"
-          class="profile__change-btn"
-          (click)="openChangePasswordDialog()"
-          [disabled]="changePasswordSubmitting"
-        >
-          {{ changePasswordSubmitting ? 'Sending link...' : 'Change password' }}
-        </button>
-        <button mat-flat-button color="primary" type="submit">
-          {{ 'PROFILE.SAVE' | translate }}
-        </button>
-      </div>
-      <div *ngIf="changePasswordStatus" class="profile__status">{{ changePasswordStatus }}</div>
-      <div *ngIf="changePasswordFallbackLink" class="profile__status profile__status--link">
-        <span>Email delivery failed. Use secure link:</span>
-        <a [href]="changePasswordFallbackLink" target="_blank" rel="noopener noreferrer">Open change password link</a>
-      </div>
-    </form>
-  </mat-card>
+          <div class="profile-surface-card profile__security">
+            <button
+              mat-stroked-button
+              type="button"
+              class="profile__change-btn"
+              (click)="openChangePasswordDialog()"
+              [disabled]="changePasswordSubmitting"
+            >
+              {{
+                changePasswordSubmitting
+                  ? ('PROFILE.SENDING_LINK' | translate)
+                  : ('PROFILE.CHANGE_PASSWORD' | translate)
+              }}
+            </button>
+
+            <div *ngIf="changePasswordStatus" class="profile__status">
+              {{ changePasswordStatus }}
+            </div>
+            <div *ngIf="changePasswordFallbackLink" class="profile__status profile__status--link">
+              <span>{{ 'PROFILE.EMAIL_DELIVERY_FAILED' | translate }}</span>
+              <a [href]="changePasswordFallbackLink" target="_blank" rel="noopener noreferrer">
+                {{ 'PROFILE.OPEN_CHANGE_PASSWORD_LINK' | translate }}
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile__actions">
+          <button mat-flat-button color="primary" type="submit">
+            {{ 'PROFILE.SAVE' | translate }}
+          </button>
+        </div>
+      </form>
+    </mat-card>
+  </div>
 
   <div class="dialog-backdrop" *ngIf="changePasswordDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
-      <h3 id="change-password-title">Send Password Change Link</h3>
-      <p>We will send a secure password change link to <strong>{{ changePasswordMaskedEmail }}</strong>.</p>
-      <p>You can use the link while logged in to confirm your current password and set a new one.</p>
+      <h3 id="change-password-title">{{ 'PROFILE.CHANGE_PASSWORD_DIALOG_TITLE' | translate }}</h3>
+      <p>{{ 'PROFILE.CHANGE_PASSWORD_DIALOG_COPY' | translate: { email: changePasswordMaskedEmail } }}</p>
+      <p>{{ 'PROFILE.CHANGE_PASSWORD_DIALOG_NOTE' | translate }}</p>
 
       <div class="dialog-actions">
-        <button type="button" class="ghost-btn" [disabled]="changePasswordSubmitting" (click)="closeChangePasswordDialog()">Cancel</button>
+        <button type="button" class="ghost-btn" [disabled]="changePasswordSubmitting" (click)="closeChangePasswordDialog()">
+          {{ 'COMMON.CANCEL' | translate }}
+        </button>
         <button type="button" class="primary-btn" [disabled]="changePasswordSubmitting" (click)="confirmChangePasswordLink()">
-          {{ changePasswordSubmitting ? 'Sending...' : 'Send Link' }}
+          {{ changePasswordSubmitting ? ('PROFILE.SENDING' | translate) : ('PROFILE.SEND_LINK' | translate) }}
         </button>
       </div>
     </div>

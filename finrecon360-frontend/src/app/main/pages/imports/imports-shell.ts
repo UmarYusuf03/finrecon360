@@ -31,7 +31,7 @@ export class ImportsShellComponent implements OnInit {
   private readonly links: ImportLink[] = [
     {
       path: '/app/imports/workbench',
-      label: 'Workbench',
+      label: 'ADMIN.IMPORT_WORKBENCH.TITLE',
       permission: 'ADMIN.IMPORT_WORKBENCH.VIEW',
     },
     {

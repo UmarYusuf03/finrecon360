@@ -1,22 +1,26 @@
-<mat-card>
-  <div class="perm__header">
-    <div>
+<mat-card class="perm-page">
+  <section class="perm-page__hero">
+    <div class="perm-page__copy">
+      <span class="perm-page__eyebrow">{{ 'ADMIN.PERMISSIONS.EYEBROW' | translate }}</span>
       <h2>{{ 'ADMIN.PERMISSIONS.TITLE' | translate }}</h2>
       <p>{{ 'ADMIN.PERMISSIONS.COPY' | translate }}</p>
     </div>
-    <button
-      mat-flat-button
-      color="primary"
-      *appHasPermission="'ADMIN.PERMISSIONS.EDIT'"
-      (click)="save()"
-      [disabled]="!hasChanges || saving || !form.get('roleId')?.value"
-    >
-      {{ 'ADMIN.PERMISSIONS.SAVE' | translate }}
-    </button>
-  </div>
-  <p *ngIf="form.get('roleId')?.value && !hasChanges" class="perm__status">
-    {{ 'ADMIN.PERMISSIONS.NO_CHANGES' | translate }}
-  </p>
+
+    <div class="perm-page__actions">
+      <span class="perm-page__note" *ngIf="form.get('roleId')?.value && !hasChanges">
+        {{ 'ADMIN.PERMISSIONS.NO_CHANGES' | translate }}
+      </span>
+      <button
+        mat-flat-button
+        color="primary"
+        *appHasPermission="'ADMIN.PERMISSIONS.EDIT'"
+        (click)="save()"
+        [disabled]="!hasChanges || saving || !form.get('roleId')?.value"
+      >
+        {{ 'ADMIN.PERMISSIONS.SAVE' | translate }}
+      </button>
+    </div>
+  </section>
 
   <form class="perm__filters" [formGroup]="form">
     <mat-form-field appearance="outline">
@@ -34,84 +38,89 @@
     </mat-form-field>
   </form>
 
-  <div class="perm__matrix">
-    <table mat-table [dataSource]="filteredComponents()" class="mat-elevation-z1">
-      <ng-container matColumnDef="component">
-        <th mat-header-cell *matHeaderCellDef sticky>{{ 'ADMIN.PERMISSIONS.COMPONENT' | translate }}</th>
-        <td mat-cell *matCellDef="let c">
-          <div class="perm__component">
-            <span class="perm__component-name">{{ c.name }}</span>
-            <span class="perm__component-code">{{ c.code }}</span>
-          </div>
-        </td>
-      </ng-container>
+  <div class="perm__matrix-shell" *ngIf="filteredComponents().length > 0; else permEmpty">
+    <div class="perm__matrix">
+      <table mat-table [dataSource]="filteredComponents()" class="perm__matrix-table">
+        <ng-container matColumnDef="component">
+          <th mat-header-cell *matHeaderCellDef sticky>{{ 'ADMIN.PERMISSIONS.COMPONENT' | translate }}</th>
+          <td mat-cell *matCellDef="let c">
+            <div class="perm__component">
+              <span class="perm__component-name">{{ c.name }}</span>
+              <span class="perm__component-code">{{ c.code }}</span>
+            </div>
+          </td>
+        </ng-container>
 
-      <ng-container *ngFor="let action of visibleActions" [matColumnDef]="action.code">
-        <th mat-header-cell *matHeaderCellDef sticky>
-          {{ action.name | translate }}
-        </th>
-        <td mat-cell *matCellDef="let c">
-          <ng-container *ngIf="isApplicable(c, action); else notApplicableCell">
-            <mat-checkbox
-              [checked]="isChecked(c.id, action.code)"
-              (change)="toggle(c, action)"
-            ></mat-checkbox>
-          </ng-container>
-          <ng-template #notApplicableCell>
-            <span>-</span>
-          </ng-template>
-        </td>
-      </ng-container>
+        <ng-container *ngFor="let action of visibleActions" [matColumnDef]="action.code">
+          <th mat-header-cell *matHeaderCellDef sticky>
+            {{ action.name | translate }}
+          </th>
+          <td mat-cell *matCellDef="let c">
+            <ng-container *ngIf="isApplicable(c, action); else notApplicableCell">
+              <mat-checkbox
+                [checked]="isChecked(c.id, action.code)"
+                (change)="toggle(c, action)"
+              ></mat-checkbox>
+            </ng-container>
+            <ng-template #notApplicableCell>
+              <span>-</span>
+            </ng-template>
+          </td>
+        </ng-container>
 
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-    </table>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
   </div>
 
-  <!-- ── Source-Type Scoped Permissions ───────────────────────────────────── -->
-  <!-- WHY: Scoped permission codes (ADMIN.IMPORTS.POS.CREATE) don't map to a single
-       Component×Action cell because they embed both a module AND a source type.
-       This dedicated section makes them first-class toggleable items for any role,
-       so admins can grant POS-only access to any role — not just CASHIER. -->
+  <ng-template #permEmpty>
+    <div class="perm__empty">
+      <mat-icon>shield</mat-icon>
+      <h3>{{ 'ADMIN.PERMISSIONS.EMPTY_TITLE' | translate }}</h3>
+      <p>{{ 'ADMIN.PERMISSIONS.EMPTY_COPY' | translate }}</p>
+    </div>
+  </ng-template>
+
   <div class="perm__scoped" *ngIf="form.get('roleId')?.value && scopedRows.length > 0">
     <h3 class="perm__scoped-title">
       <mat-icon>lock_person</mat-icon>
-      Source-Type Scoped Permissions
+      {{ 'ADMIN.PERMISSIONS.SCOPED_TITLE' | translate }}
     </h3>
     <p class="perm__scoped-subtitle">
-      Grant access to specific data source types only. These permissions are additive —
-      a role can hold both full module access (above) and scoped access for individual sources.
+      {{ 'ADMIN.PERMISSIONS.SCOPED_COPY' | translate }}
     </p>
 
-    <table class="perm__scoped-table mat-elevation-z1">
-      <thead>
-        <tr>
-          <th class="perm__scoped-source">Source Type</th>
-          <th class="perm__scoped-module">Module</th>
-          <!-- WHY: Render action columns from the first row's action list (they're identical for all rows) -->
-          <ng-container *ngFor="let action of scopedRows[0]?.actions">
-            <th class="perm__scoped-action">{{ action.label }}</th>
-          </ng-container>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of scopedRows">
-          <td class="perm__scoped-source">
-            <span class="perm__source-badge perm__source-badge--{{ row.sourceType | lowercase }}">
-              {{ row.sourceType }}
-            </span>
-          </td>
-          <td class="perm__scoped-module">{{ row.module }}</td>
-          <td *ngFor="let action of row.actions" class="perm__scoped-action">
-            <mat-checkbox
-              [id]="'scoped-' + row.sourceType + '-' + row.module + '-' + action.code"
-              [checked]="isScopedGranted(action.permissionCode)"
-              (change)="toggleScoped(action.permissionCode)"
-              [title]="action.permissionCode"
-            ></mat-checkbox>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="perm__scoped-shell">
+      <table class="perm__scoped-table">
+        <thead>
+          <tr>
+            <th class="perm__scoped-source">{{ 'ADMIN.PERMISSIONS.SOURCE_TYPE' | translate }}</th>
+            <th class="perm__scoped-module">{{ 'ADMIN.PERMISSIONS.MODULE' | translate }}</th>
+            <ng-container *ngFor="let action of scopedRows[0]?.actions">
+              <th class="perm__scoped-action">{{ action.label }}</th>
+            </ng-container>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of scopedRows">
+            <td class="perm__scoped-source">
+              <span class="perm__source-badge perm__source-badge--{{ row.sourceType | lowercase }}">
+                {{ row.sourceType }}
+              </span>
+            </td>
+            <td class="perm__scoped-module">{{ row.module }}</td>
+            <td *ngFor="let action of row.actions" class="perm__scoped-action">
+              <mat-checkbox
+                [id]="'scoped-' + row.sourceType + '-' + row.module + '-' + action.code"
+                [checked]="isScopedGranted(action.permissionCode)"
+                (change)="toggleScoped(action.permissionCode)"
+                [title]="action.permissionCode"
+              ></mat-checkbox>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </mat-card>

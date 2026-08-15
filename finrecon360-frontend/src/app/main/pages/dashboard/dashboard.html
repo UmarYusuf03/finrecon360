@@ -1,131 +1,168 @@
 <section class="dashboard">
-  <div class="dashboard__header">
-    <div>
-      <h2 class="dashboard__title">{{ 'DASHBOARD.TITLE' | translate }}</h2>
+  <header class="dashboard__hero fr-glass-panel">
+    <div class="dashboard__hero-copy">
+      <span class="dashboard__eyebrow">{{ 'DASHBOARD.EYEBROW' | translate }}</span>
+      <h1 class="dashboard__title">
+        {{
+          currentUserDisplayName
+            ? ('DASHBOARD.WELCOME_USER' | translate:{ name: currentUserDisplayName })
+            : ('DASHBOARD.TITLE' | translate)
+        }}
+      </h1>
       <p class="dashboard__subtitle">{{ 'DASHBOARD.SUBTITLE' | translate }}</p>
     </div>
-  </div>
 
-  <div class="dashboard__grid">
-    <!-- Matcher -->
-    <mat-card *ngIf="canViewMatcher" class="dash-card">
-      <div class="dash-card__header">
-        <mat-icon color="primary">link</mat-icon>
+    <div class="dashboard__workspace" *ngIf="currentTenantName || isAdmin">
+      <span class="dashboard__workspace-label">{{ 'DASHBOARD.WORKSPACE' | translate }}</span>
+      <strong>{{ currentTenantName || ('DASHBOARD.ADMIN_WORKSPACE' | translate) }}</strong>
+    </div>
+  </header>
+
+  <section class="dashboard__summary" *ngIf="data as d">
+    <article *ngIf="canViewMatcher" class="dashboard-summary-card fr-glass-panel">
+      <span class="dashboard-summary-card__label">{{ 'DASHBOARD.MATCH_COVERAGE' | translate }}</span>
+      <strong>{{ matchedPercent }}%</strong>
+    </article>
+
+    <article *ngIf="canViewBalancer" class="dashboard-summary-card fr-glass-panel">
+      <span class="dashboard-summary-card__label">{{ 'DASHBOARD.RECONCILIATION_HEALTH' | translate }}</span>
+      <strong>{{ reconciledPercent }}%</strong>
+    </article>
+
+    <article *ngIf="canViewJournal" class="dashboard-summary-card fr-glass-panel">
+      <span class="dashboard-summary-card__label">{{ 'DASHBOARD.PENDING_APPROVALS' | translate }}</span>
+      <strong>{{ d.journal.pendingApprovals }}</strong>
+    </article>
+
+    <article *ngIf="canViewTasks" class="dashboard-summary-card fr-glass-panel">
+      <span class="dashboard-summary-card__label">{{ 'DASHBOARD.PIPELINE_ON_TRACK' | translate }}</span>
+      <strong>{{ d.tasks.completionPercent }}%</strong>
+    </article>
+  </section>
+
+  <section class="dashboard__layout" *ngIf="data as d">
+    <mat-card *ngIf="canViewBalancer" class="dashboard-panel dashboard-panel--wide">
+      <div class="dashboard-panel__header">
+        <span class="dashboard-panel__icon dashboard-panel__icon--emerald">
+          <mat-icon>account_balance</mat-icon>
+        </span>
         <div>
-          <h3>{{ 'DASHBOARD.MATCHER.TITLE' | translate }}</h3>
-          <p>{{ 'DASHBOARD.MATCHER.DESCRIPTION' | translate }}</p>
+          <h2>{{ 'DASHBOARD.RECONCILIATION_HEALTH' | translate }}</h2>
         </div>
       </div>
-      <div class="dash-card__stats" *ngIf="data as d">
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.MATCHER.TOTAL' | translate }}</span>
-          <span class="stat__value">{{ d.matcher.totalTransactions | number }}</span>
+
+      <div class="dashboard-progress">
+        <div class="dashboard-progress__track">
+          <span [style.width.%]="reconciledPercent"></span>
         </div>
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.MATCHER.MATCHED' | translate }}</span>
-          <span class="stat__value">{{ d.matcher.matched | number }}</span>
-          <span class="stat__chip success">{{ matchedPercent }}%</span>
+        <strong>{{ reconciledPercent }}%</strong>
+      </div>
+
+      <div class="dashboard-panel__stats">
+        <div class="dashboard-mini-stat">
+          <span>{{ 'DASHBOARD.RECONCILED_ACCOUNTS' | translate }}</span>
+          <strong>{{ d.balancer.reconciledAccounts }}/{{ d.balancer.totalAccounts }}</strong>
         </div>
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.MATCHER.UNMATCHED' | translate }}</span>
-          <span class="stat__value">{{ unmatchedPercent }}%</span>
-        </div>
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.MATCHER.EXCEPTIONS' | translate }}</span>
-          <span class="stat__value">{{ d.matcher.exceptions }}</span>
+        <div class="dashboard-mini-stat">
+          <span>{{ 'DASHBOARD.PENDING_REVIEW' | translate }}</span>
+          <strong>{{ d.balancer.pendingReconciliations }}</strong>
         </div>
       </div>
     </mat-card>
 
-    <!-- Balancer -->
-    <mat-card *ngIf="canViewBalancer" class="dash-card">
-      <div class="dash-card__header">
-        <mat-icon color="primary">balance</mat-icon>
+    <mat-card *ngIf="canViewJournal" class="dashboard-panel">
+      <div class="dashboard-panel__header">
+        <span class="dashboard-panel__icon dashboard-panel__icon--amber">
+          <mat-icon>approval</mat-icon>
+        </span>
         <div>
-          <h3>{{ 'DASHBOARD.BALANCER.TITLE' | translate }}</h3>
-          <p>{{ 'DASHBOARD.BALANCER.DESCRIPTION' | translate }}</p>
+          <h2>{{ 'DASHBOARD.PENDING_APPROVALS' | translate }}</h2>
         </div>
       </div>
-      <div class="dash-card__stats" *ngIf="data as d">
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.BALANCER.RECONCILED' | translate }}</span>
-          <span class="stat__value">{{ d.balancer.reconciledAccounts }}/{{ d.balancer.totalAccounts }}</span>
-          <span class="stat__chip success">{{ reconciledPercent }}%</span>
-        </div>
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.BALANCER.PENDING' | translate }}</span>
-          <span class="stat__value">{{ d.balancer.pendingReconciliations }}</span>
+
+      <div class="dashboard-feature-value">{{ d.journal.pendingApprovals }}</div>
+      <div class="dashboard-panel__stats">
+        <div class="dashboard-mini-stat">
+          <span>{{ 'DASHBOARD.POSTED_ENTRIES' | translate }}</span>
+          <strong>{{ d.journal.posted }}</strong>
         </div>
       </div>
     </mat-card>
 
-    <!-- Tasks -->
-    <mat-card *ngIf="canViewTasks" class="dash-card">
-      <div class="dash-card__header">
-        <mat-icon color="primary">check_circle</mat-icon>
+    <mat-card *ngIf="canViewJournal" class="dashboard-panel">
+      <div class="dashboard-panel__header">
+        <span class="dashboard-panel__icon dashboard-panel__icon--cyan">
+          <mat-icon>receipt_long</mat-icon>
+        </span>
         <div>
-          <h3>{{ 'DASHBOARD.TASKS.TITLE' | translate }}</h3>
-          <p>{{ 'DASHBOARD.TASKS.DESCRIPTION' | translate }}</p>
+          <h2>{{ 'DASHBOARD.JOURNAL_READY' | translate }}</h2>
         </div>
       </div>
-      <div class="dash-card__stats" *ngIf="data as d">
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.TASKS.OPEN' | translate }}</span>
-          <span class="stat__value">{{ d.tasks.openTasks }}</span>
+
+      <div class="dashboard-feature-value">{{ d.journal.posted }}</div>
+    </mat-card>
+
+    <mat-card *ngIf="canViewMatcher" class="dashboard-panel">
+      <div class="dashboard-panel__header">
+        <span class="dashboard-panel__icon dashboard-panel__icon--blue">
+          <mat-icon>compare_arrows</mat-icon>
+        </span>
+        <div>
+          <h2>{{ 'DASHBOARD.NEEDS_BANK_MATCH' | translate }}</h2>
         </div>
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.TASKS.DUE_TODAY' | translate }}</span>
-          <span class="stat__value">{{ d.tasks.dueToday }}</span>
+      </div>
+
+      <div class="dashboard-feature-value">{{ d.matcher.exceptions }}</div>
+      <div class="dashboard-panel__stats">
+        <div class="dashboard-mini-stat">
+          <span>{{ 'DASHBOARD.UNMATCHED_SHARE' | translate }}</span>
+          <strong>{{ unmatchedPercent }}%</strong>
         </div>
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.TASKS.COMPLETION' | translate }}</span>
-          <span class="stat__value">{{ d.tasks.completionPercent }}%</span>
-          <span class="stat__chip neutral">{{ 'DASHBOARD.TASKS.ON_TRACK' | translate }}</span>
+        <div class="dashboard-mini-stat">
+          <span>{{ 'DASHBOARD.TOTAL_VOLUME' | translate }}</span>
+          <strong>{{ d.matcher.totalTransactions | number }}</strong>
         </div>
       </div>
     </mat-card>
 
-    <!-- Journal -->
-    <mat-card *ngIf="canViewJournal" class="dash-card">
-      <div class="dash-card__header">
-        <mat-icon color="primary">description</mat-icon>
+    <mat-card *ngIf="canViewTasks || canViewAnalytics" class="dashboard-panel dashboard-panel--wide">
+      <div class="dashboard-panel__header">
+        <span class="dashboard-panel__icon dashboard-panel__icon--navy">
+          <mat-icon>insights</mat-icon>
+        </span>
         <div>
-          <h3>{{ 'DASHBOARD.JOURNAL.TITLE' | translate }}</h3>
-          <p>{{ 'DASHBOARD.JOURNAL.DESCRIPTION' | translate }}</p>
+          <h2>{{ 'DASHBOARD.PIPELINE_HEALTH' | translate }}</h2>
         </div>
       </div>
-      <div class="dash-card__stats" *ngIf="data as d">
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.JOURNAL.PENDING' | translate }}</span>
-          <span class="stat__value">{{ d.journal.pendingApprovals }}</span>
-        </div>
-        <div class="stat">
-          <span class="stat__label">{{ 'DASHBOARD.JOURNAL.POSTED' | translate }}</span>
-          <span class="stat__value">{{ d.journal.posted }}</span>
-        </div>
-      </div>
-    </mat-card>
 
-    <!-- Analytics -->
-    <mat-card *ngIf="canViewAnalytics" class="dash-card">
-      <div class="dash-card__header">
-        <mat-icon color="primary">insights</mat-icon>
-        <div>
-          <h3>{{ 'DASHBOARD.ANALYTICS.TITLE' | translate }}</h3>
-          <p>{{ 'DASHBOARD.ANALYTICS.DESCRIPTION' | translate }}</p>
+      <div class="dashboard-panel__split">
+        <div class="dashboard-stack" *ngIf="canViewTasks">
+          <div class="dashboard-mini-stat">
+            <span>{{ 'DASHBOARD.OPEN_TASKS' | translate }}</span>
+            <strong>{{ d.tasks.openTasks }}</strong>
+          </div>
+          <div class="dashboard-mini-stat">
+            <span>{{ 'DASHBOARD.DUE_TODAY' | translate }}</span>
+            <strong>{{ d.tasks.dueToday }}</strong>
+          </div>
+          <div class="dashboard-mini-stat">
+            <span>{{ 'DASHBOARD.COMPLETION' | translate }}</span>
+            <strong>{{ d.tasks.completionPercent }}%</strong>
+          </div>
         </div>
-      </div>
-      <div class="analytics-grid" *ngIf="data as d">
-        <div class="kpi" *ngFor="let kpi of d.analytics">
-          <span class="kpi__label">{{ kpi.labelKey | translate }}</span>
-          <span class="kpi__value">{{ kpi.value }}</span>
-          <span class="kpi__trend" [ngClass]="kpi.trend">
-            <mat-icon *ngIf="kpi.trend === 'up'">trending_up</mat-icon>
-            <mat-icon *ngIf="kpi.trend === 'down'">trending_down</mat-icon>
-            <mat-icon *ngIf="kpi.trend === 'flat'">trending_flat</mat-icon>
-          </span>
+
+        <div class="dashboard-signals" *ngIf="canViewAnalytics">
+          <article class="dashboard-signal" *ngFor="let kpi of d.analytics">
+            <span class="dashboard-signal__label">{{ kpi.labelKey | translate }}</span>
+            <strong>{{ kpi.value }}</strong>
+            <span class="dashboard-signal__trend" [ngClass]="kpi.trend">
+              <mat-icon *ngIf="kpi.trend === 'up'">trending_up</mat-icon>
+              <mat-icon *ngIf="kpi.trend === 'down'">trending_down</mat-icon>
+              <mat-icon *ngIf="kpi.trend === 'flat'">trending_flat</mat-icon>
+            </span>
+          </article>
         </div>
       </div>
     </mat-card>
-  </div>
+  </section>
 </section>

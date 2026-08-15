@@ -18,8 +18,8 @@ import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
 import { Role } from '../../../core/admin-rbac/models';
 
 /**
- * WHY: This component serves as the CRUD interface for Roles. 
- * Form state is managed locally here rather than via NgRx/Redux to minimize boilerplate 
+ * WHY: This component serves as the CRUD interface for Roles.
+ * Form state is managed locally here rather than via NgRx/Redux to minimize boilerplate
  * for simple entity administration, delegating standard caching to the `AdminRoleService`.
  */
 @Component({
@@ -41,6 +41,7 @@ import { Role } from '../../../core/admin-rbac/models';
     HasPermissionDirective,
   ],
   templateUrl: './admin-roles.html',
+  styleUrls: ['./admin-roles.scss'],
 })
 export class AdminRolesComponent implements OnInit {
   displayedColumns = ['code', 'name', 'description', 'status', 'system', 'actions'];
@@ -53,7 +54,7 @@ export class AdminRolesComponent implements OnInit {
     private adminRoleService: AdminRoleService,
     private fb: FormBuilder,
     private dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit(): void {
@@ -132,21 +133,23 @@ export class AdminRolesComponent implements OnInit {
   }
 
   /**
-   * WHY: System roles are intrinsic to the operational logic of the platform 
+   * WHY: System roles are intrinsic to the operational logic of the platform
    * (e.g., hardcoded checks for Super Admin). Deactivating them would break core workflows.
    */
   deactivate(role: Role): void {
     if (role.isSystem) return; // avoid switching off built-ins
     this.adminRoleService.deactivateRole(role.id).subscribe({
       next: () => this.snackBar.open('Role deactivated.', 'Close', { duration: 2500 }),
-      error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
+      error: (error: unknown) =>
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
     });
   }
 
   reactivate(role: Role): void {
     this.adminRoleService.reactivateRole(role.id).subscribe({
       next: () => this.snackBar.open('Role reactivated.', 'Close', { duration: 2500 }),
-      error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
+      error: (error: unknown) =>
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
     });
   }
 

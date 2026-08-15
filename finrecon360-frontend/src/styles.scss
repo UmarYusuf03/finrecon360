@@ -16,11 +16,503 @@ html {
   ));
 }
 
-// Base body styling (you can keep tuning this)
+:root {
+  --fr-app-background: #f3f7ff;
+  --fr-app-background-strong: #eef4ff;
+  --fr-sidebar-background: rgba(240, 246, 255, 0.76);
+  --fr-glass-surface: rgba(255, 255, 255, 0.72);
+  --fr-glass-surface-strong: rgba(255, 255, 255, 0.88);
+  --fr-glass-border: rgba(255, 255, 255, 0.62);
+  --fr-border: rgba(148, 163, 184, 0.22);
+  --fr-border-strong: rgba(148, 163, 184, 0.38);
+  --fr-text-primary: #0f1b33;
+  --fr-text-muted: #6a7a96;
+  --fr-primary: #0b84d8;
+  --fr-shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.05);
+  --fr-radius-md: 12px;
+  --fr-radius-lg: 16px;
+  --fr-radius-xl: 24px;
+  --fr-success-bg: rgba(220, 252, 231, 0.92);
+  --fr-success-text: #166534;
+  --fr-warning-bg: rgba(254, 243, 199, 0.94);
+  --fr-warning-text: #b45309;
+  --fr-info-bg: rgba(219, 234, 254, 0.94);
+  --fr-info-text: #1d4ed8;
+  --fr-cyan-bg: rgba(224, 242, 254, 0.94);
+  --fr-cyan-text: #0f766e;
+  --fr-violet-bg: rgba(243, 232, 255, 0.94);
+  --fr-violet-text: #7e22ce;
+  --fr-danger-bg: rgba(254, 226, 226, 0.94);
+  --fr-danger-text: #b91c1c;
+  --fr-neutral-bg: rgba(241, 245, 249, 0.92);
+  --fr-neutral-text: #475569;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font-family: Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  background:
+    radial-gradient(circle at top left, rgba(125, 211, 252, 0.18), transparent 26%),
+    radial-gradient(circle at top right, rgba(191, 219, 254, 0.22), transparent 30%),
+    linear-gradient(180deg, var(--fr-app-background-strong), var(--fr-app-background));
+  color: var(--fr-text-primary);
+  font-family: Inter, Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     sans-serif;
   margin: 0;
+  min-height: 100vh;
+}
+
+.fr-glass-panel {
+  background: var(--fr-glass-surface);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--fr-glass-border);
+  box-shadow: var(--fr-shadow-soft);
+}
+
+.mat-mdc-card {
+  background: var(--fr-glass-surface-strong) !important;
+  border: 1px solid var(--fr-border);
+  box-shadow: var(--fr-shadow-soft) !important;
+  border-radius: var(--fr-radius-lg) !important;
+}
+
+.mat-mdc-table {
+  background: transparent !important;
+}
+
+.mat-mdc-header-cell {
+  color: var(--fr-text-muted) !important;
+  font-weight: 700 !important;
+}
+
+.mat-mdc-form-field .mat-mdc-text-field-wrapper {
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: var(--fr-radius-md) !important;
+}
+
+.mat-mdc-form-field .mdc-notched-outline__leading,
+.mat-mdc-form-field .mdc-notched-outline__notch,
+.mat-mdc-form-field .mdc-notched-outline__trailing {
+  border-color: var(--fr-border-strong) !important;
+}
+
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing {
+  border-color: rgba(11, 132, 216, 0.55) !important;
+}
+
+.mat-mdc-form-field-focus-overlay {
+  background: transparent !important;
+}
+
+.mat-mdc-dialog-surface {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(28px);
+  border: 1px solid var(--fr-glass-border);
+  border-radius: var(--fr-radius-xl) !important;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16) !important;
+}
+
+.cdk-overlay-dark-backdrop {
+  background: rgba(15, 23, 42, 0.12) !important;
+  backdrop-filter: blur(4px);
+}
+
+:where(
+  .admin-shell__nav-shell,
+  .imports-shell__nav-shell,
+  .transaction-workflow-nav
+) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(255, 255, 255, 0.6));
+  border: 1px solid var(--fr-glass-border);
+  box-shadow: var(--fr-shadow-soft);
+  backdrop-filter: blur(20px);
+}
+
+:where(
+  .admin-shell__link,
+  .imports-shell__link,
+  .transaction-workflow-nav a,
+  .matcher .nav a,
+  .matcher-nav a
+) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding-inline: 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--fr-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+:where(
+  .admin-shell__link:hover,
+  .imports-shell__link:hover,
+  .transaction-workflow-nav a:hover,
+  .matcher .nav a:hover,
+  .matcher-nav a:hover
+) {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(11, 132, 216, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+:where(
+  .active-link,
+  .transaction-workflow-nav a.active,
+  .matcher .nav a.active,
+  .matcher-nav a.active
+) {
+  background: rgba(11, 132, 216, 0.12);
+  border-color: rgba(11, 132, 216, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.44);
+}
+
+:where(
+  .imports-hero__copy h1,
+  .architecture-hero h1,
+  .history-hero h1,
+  .copy h1,
+  .waiting-hero__copy h1,
+  .sv-hero__copy h1,
+  .events-hero__copy h1,
+  .users-page__copy h2,
+  .roles-page__copy h2,
+  .perm-page__copy h2,
+  .components-page__copy h2,
+  .plans-page__copy h2,
+  .tenants-page__copy h2,
+  .registrations-page__copy h2,
+  .audit-page__copy h2,
+  .transaction-page-header h2
+) {
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+:where(
+  .imports-hero__copy h1,
+  .architecture-hero h1,
+  .history-hero h1,
+  .copy h1,
+  .waiting-hero__copy h1,
+  .sv-hero__copy h1,
+  .events-hero__copy h1
+) {
+  font-size: clamp(1.95rem, 1.72rem + 0.65vw, 2.35rem);
+}
+
+:where(
+  .users-page__copy h2,
+  .roles-page__copy h2,
+  .perm-page__copy h2,
+  .components-page__copy h2,
+  .plans-page__copy h2,
+  .tenants-page__copy h2,
+  .registrations-page__copy h2,
+  .audit-page__copy h2,
+  .transaction-page-header h2
+) {
+  font-size: clamp(1.7rem, 1.56rem + 0.45vw, 2rem);
+}
+
+:where(
+  .imports-hero__eyebrow,
+  .panel__eyebrow,
+  .architecture-hero__eyebrow,
+  .history-hero__eyebrow,
+  .eyebrow,
+  .waiting-hero__eyebrow,
+  .sv-hero__eyebrow,
+  .events-hero__eyebrow,
+  .users-page__eyebrow,
+  .roles-page__eyebrow,
+  .perm-page__eyebrow,
+  .components-page__eyebrow,
+  .plans-page__eyebrow,
+  .tenants-page__eyebrow,
+  .registrations-page__eyebrow,
+  .audit-page__eyebrow
+) {
+  min-height: 30px;
+  padding-inline: 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  color: var(--fr-primary);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+:where(
+  .imports-hero__copy p,
+  .architecture-hero p,
+  .history-hero p,
+  .copy p,
+  .waiting-hero__copy p,
+  .sv-hero__copy p,
+  .events-hero__copy p,
+  .users-page__copy p,
+  .roles-page__copy p,
+  .perm-page__copy p,
+  .components-page__copy p,
+  .plans-page__copy p,
+  .tenants-page__copy p,
+  .registrations-page__copy p,
+  .audit-page__copy p,
+  .transaction-page-header p
+) {
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+:where(
+  .transaction-table-shell,
+  .users-table-shell,
+  .roles-table-shell,
+  .components-table-shell,
+  .plans-table-shell,
+  .table-shell,
+  .table-wrap,
+  .perm__matrix-shell,
+  .perm__scoped-shell,
+  .waiting-table-shell,
+  .sv-table-shell
+) {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.76));
+  box-shadow: var(--fr-shadow-soft);
+  backdrop-filter: blur(18px);
+}
+
+:where(
+  .transaction-table,
+  .users-table,
+  .roles-table,
+  .components-table,
+  .perm__matrix-table,
+  .waiting-table,
+  .table
+) .mat-mdc-row:hover .mat-mdc-cell {
+  background: rgba(240, 246, 255, 0.54);
+}
+
+:where(
+  .plans-table,
+  .perm__scoped-table,
+  .audit-page table,
+  .history-table,
+  .validation-table
+) tbody tr:hover td {
+  background: rgba(240, 246, 255, 0.54);
+}
+
+:where(.table-shell) {
+  overflow: hidden;
+}
+
+:where(.primary-btn, .warning-btn, .danger-btn, .ghost-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+:where(.primary-btn) {
+  background: var(--fr-primary);
+  color: #fff;
+}
+
+:where(.warning-btn) {
+  background: #d97706;
+  color: #fff;
+}
+
+:where(.danger-btn) {
+  background: #be123c;
+  color: #fff;
+}
+
+:where(.ghost-btn) {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--fr-text-primary);
+  border: 1px solid var(--fr-border);
+}
+
+:where(.ghost-btn.danger-ghost) {
+  color: #be123c;
+  background: rgba(255, 241, 242, 0.9);
+}
+
+:where(.ghost-btn.small) {
+  min-height: 36px;
+}
+
+:where(button[disabled], a[disabled]) {
+  opacity: 0.66;
+  cursor: not-allowed;
+}
+
+:where(.batch-pill, .status-pill, .source-pill, .summary-pill, .state-badge) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:where(.batch-pill, .summary-pill) {
+  background: rgba(226, 232, 240, 0.72);
+  color: var(--fr-text-primary);
+}
+
+:where(.status-pill, .source-pill) {
+  text-transform: uppercase;
+}
+
+:where(.status-pill) {
+  background: rgba(226, 232, 240, 0.68);
+  color: #334155;
+}
+
+:where(
+  .status-pill[data-status*='commit'],
+  .status-pill[data-status*='valid'],
+  .status-pill[data-status*='active'],
+  .status-pill[data-status*='success']
+) {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+:where(
+  .status-pill[data-status*='invalid'],
+  .status-pill[data-status*='error'],
+  .status-pill[data-status*='fail'],
+  .status-pill[data-status*='exception']
+) {
+  background: rgba(244, 63, 94, 0.12);
+  color: #be123c;
+}
+
+:where(.source-pill) {
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--fr-primary);
+}
+
+:where(.state-badge--link) {
+  text-decoration: none;
+}
+
+:where(.state-pending) {
+  background: rgba(245, 158, 11, 0.14);
+  color: #a16207;
+}
+
+:where(.state-journal-ready) {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+
+:where(.state-needs-bank-match) {
+  background: rgba(14, 165, 233, 0.14);
+  color: #0369a1;
+}
+
+:where(.state-rejected) {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
+:where(.state-default) {
+  background: rgba(148, 163, 184, 0.16);
+  color: #475569;
+}
+
+:where(
+  .state-badge,
+  .status-pill,
+  .source-badge,
+  .level-badge,
+  .ms-badge,
+  .action-pill,
+  .entity-pill,
+  .event-status,
+  .stage-badge,
+  .batch-pill,
+  .summary-pill,
+  .source-pill,
+  .code-pill,
+  .type-pill,
+  .route-pill,
+  .category-pill,
+  .panel-key,
+  .batch-count,
+  .stage-pill,
+  .no-permission,
+  .perm__source-badge
+) {
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+}
+
+:where(
+  .users-empty,
+  .roles-empty,
+  .components-empty,
+  .plans-empty,
+  .perm__empty,
+  .detail-empty,
+  .waiting-state,
+  .sv-state,
+  .events-state,
+  .transaction-page-empty,
+  .transaction-page-loading,
+  .architecture-empty,
+  .empty-state,
+  .state
+) {
+  backdrop-filter: blur(18px);
+}
+
+.mat-mdc-unelevated-button:not(.mat-mdc-icon-button),
+.mat-mdc-raised-button:not(.mat-mdc-icon-button),
+.mat-mdc-outlined-button:not(.mat-mdc-icon-button) {
+  min-height: 40px;
+  padding-inline: 16px !important;
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+}
+
+.mat-mdc-outlined-button:not(.mat-mdc-icon-button) {
+  background: rgba(255, 255, 255, 0.74);
+  border-color: rgba(11, 132, 216, 0.18) !important;
 }

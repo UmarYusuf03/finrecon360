@@ -1,76 +1,169 @@
 <mat-card class="transaction-page-card">
-  <nav class="transaction-workflow-nav" aria-label="Transaction workflow">
-    <a routerLink="/app/transactions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Transactions</a>
-    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">Journal Ready</a>
-    <a routerLink="/app/transactions/needs-bank-match" routerLinkActive="active">Needs Bank Match</a>
+  <nav class="transaction-workflow-nav" [attr.aria-label]="'TRANSACTIONS.WORKFLOW_ARIA' | translate">
+    <a routerLink="/app/transactions" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">{{ 'TRANSACTIONS.NAV.TRANSACTIONS' | translate }}</a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</a>
+    <a routerLink="/app/transactions/needs-bank-match" routerLinkActive="active">{{ 'TRANSACTIONS.NAV.NEEDS_BANK_MATCH' | translate }}</a>
   </nav>
 
   <div class="transaction-page-header">
     <div>
-      <h2>Needs Bank Match</h2>
-      <p>Approved card cash-outs waiting for matcher/reconciliation handoff. No matching actions are available in this module.</p>
+      <h2>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.TITLE' | translate }}</h2>
+      <p>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.SUBTITLE' | translate }}</p>
     </div>
     <div class="transaction-page-header__actions">
-      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading">
+      <a mat-stroked-button routerLink="/app/matcher" id="goto-matcher-btn">
+        <mat-icon>account_balance</mat-icon>
+        {{ 'TRANSACTIONS.NEEDS_BANK_MATCH.OPEN_MATCHER' | translate }}
+      </a>
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading" id="nbm-refresh-btn">
         <mat-icon>refresh</mat-icon>
-        Refresh
+        {{ 'COMMON.REFRESH' | translate }}
       </button>
     </div>
+  </div>
+
+  <div class="transaction-page-stats" *ngIf="!loading || records.length > 0">
+    <article class="transaction-stat">
+      <span>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.AWAITING_MATCH' | translate }}</span>
+      <strong>{{ records.length }}</strong>
+      <p>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.AWAITING_MATCH_COPY' | translate }}</p>
+    </article>
+    <article class="transaction-stat">
+      <span>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.GATEWAY_RECORD_FOUND' | translate }}</span>
+      <strong>{{ withImportContext }}</strong>
+      <p>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.GATEWAY_RECORD_FOUND_COPY' | translate }}</p>
+    </article>
+    <article class="transaction-stat">
+      <span>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.MATCH_GROUP_EXISTS' | translate }}</span>
+      <strong>{{ withMatchGroup }}</strong>
+      <p>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.MATCH_GROUP_EXISTS_COPY' | translate }}</p>
+    </article>
+    <article class="transaction-stat">
+      <span>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.CONFIRMED' | translate }}</span>
+      <strong>{{ confirmedCount }}</strong>
+      <p>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.CONFIRMED_COPY' | translate }}</p>
+    </article>
   </div>
 
   <div *ngIf="loading" class="transaction-page-loading">
     <mat-spinner diameter="36"></mat-spinner>
   </div>
 
-  <table mat-table [dataSource]="transactions" class="transaction-table" *ngIf="!loading && transactions.length > 0">
-    <ng-container matColumnDef="transactionDate">
-      <th mat-header-cell *matHeaderCellDef>Date</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
-    </ng-container>
+  <mat-accordion *ngIf="!loading && records.length > 0" class="nbm-list">
+    <mat-expansion-panel *ngFor="let record of records" class="nbm-panel">
+      <mat-expansion-panel-header class="nbm-panel-header">
+        <mat-panel-title class="nbm-panel-title">
+          <span class="nbm-date">{{ record.transactionDate | date: 'dd MMM yyyy' }}</span>
+          <span class="nbm-amount">{{ record.amount | number: '1.2-2' }}</span>
+          <span class="nbm-desc" [title]="record.description">{{ record.description }}</span>
+        </mat-panel-title>
+        <mat-panel-description class="nbm-panel-desc">
+          <span class="nbm-bank">{{ getBankAccountLabel(record.bankAccountId) }}</span>
+          <span class="ms-badge" [ngClass]="getMatchStatusClass(record.matchStatus)">{{ record.matchStatus }}</span>
+          <mat-icon class="import-icon" *ngIf="hasImportContext(record)" [matTooltip]="'TRANSACTIONS.NEEDS_BANK_MATCH.GATEWAY_RECORD_FOUND_COPY' | translate">link</mat-icon>
+          <mat-icon class="import-icon muted-icon" *ngIf="!hasImportContext(record)" [matTooltip]="'TRANSACTIONS.NEEDS_BANK_MATCH.NO_IMPORT_COPY' | translate">link_off</mat-icon>
+        </mat-panel-description>
+      </mat-expansion-panel-header>
 
-    <ng-container matColumnDef="amount">
-      <th mat-header-cell *matHeaderCellDef>Amount</th>
-      <td mat-cell *matCellDef="let transaction" class="transaction-table__amount">{{ transaction.amount | number: '1.2-2' }}</td>
-    </ng-container>
+      <div class="nbm-detail">
+        <div class="nbm-section">
+          <h4 class="nbm-section-title">
+            <mat-icon>receipt_long</mat-icon>
+            {{ 'TRANSACTIONS.NEEDS_BANK_MATCH.GATEWAY_IMPORT_RECORD' | translate }}
+          </h4>
+          <ng-container *ngIf="hasImportContext(record); else noImport">
+            <dl class="nbm-dl">
+              <div class="nbm-dl-row">
+                <dt>{{ 'COMMON.SOURCE' | translate }}</dt>
+                <dd><span class="source-badge">{{ record.importSourceType }}</span></dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.referenceNumber">
+                <dt>{{ 'TRANSACTIONS.REFERENCE_NUMBER' | translate }}</dt>
+                <dd><code>{{ record.referenceNumber }}</code></dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.accountCode">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.ACCOUNT_CODE' | translate }}</dt>
+                <dd><code>{{ record.accountCode }}</code></dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.grossAmount != null">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.GROSS_AMOUNT' | translate }}</dt>
+                <dd class="amount-val">{{ record.grossAmount | number: '1.2-2' }}</dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.processingFee != null">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.PROCESSING_FEE' | translate }}</dt>
+                <dd class="amount-val fee-val">- {{ record.processingFee | number: '1.2-2' }}</dd>
+              </div>
+              <div class="nbm-dl-row">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.NET_AMOUNT' | translate }}</dt>
+                <dd class="amount-val net-val">{{ record.netImportAmount | number: '1.2-2' }}</dd>
+              </div>
+              <div class="nbm-dl-row" *ngIf="record.settlementId">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.SETTLEMENT_ID' | translate }}</dt>
+                <dd><code>{{ record.settlementId }}</code></dd>
+              </div>
+            </dl>
+          </ng-container>
+          <ng-template #noImport>
+            <p class="nbm-empty-hint">
+              <mat-icon>info_outline</mat-icon>
+              {{ 'TRANSACTIONS.NEEDS_BANK_MATCH.NO_IMPORT_COPY' | translate }}
+            </p>
+          </ng-template>
+        </div>
 
-    <ng-container matColumnDef="type">
-      <th mat-header-cell *matHeaderCellDef>Type</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.transactionType }}</td>
-    </ng-container>
+        <div class="nbm-section">
+          <h4 class="nbm-section-title">
+            <mat-icon>account_balance</mat-icon>
+            {{ 'TRANSACTIONS.NEEDS_BANK_MATCH.RECONCILIATION_MATCH_GROUP' | translate }}
+          </h4>
+          <ng-container *ngIf="record.reconciliationMatchGroupId; else noGroup">
+            <dl class="nbm-dl">
+              <div class="nbm-dl-row">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.MATCH_LEVEL' | translate }}</dt>
+                <dd><span class="level-badge">{{ getMatchLevelLabel(record.matchLevel) }}</span></dd>
+              </div>
+              <div class="nbm-dl-row">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.CONFIRMED_LABEL' | translate }}</dt>
+                <dd>
+                  <mat-icon class="confirm-icon" [class.confirmed]="record.isConfirmed">
+                    {{ record.isConfirmed ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                  {{ record.isConfirmed ? ('COMMON.YES' | translate) : ('TRANSACTIONS.NEEDS_BANK_MATCH.AWAITING_CONFIRMATION' | translate) }}
+                </dd>
+              </div>
+              <div class="nbm-dl-row">
+                <dt>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.JOURNAL_POSTED' | translate }}</dt>
+                <dd>
+                  <mat-icon class="confirm-icon" [class.confirmed]="record.isJournalPosted">
+                    {{ record.isJournalPosted ? 'check_circle' : 'radio_button_unchecked' }}
+                  </mat-icon>
+                  {{ record.isJournalPosted ? ('COMMON.YES' | translate) : ('TRANSACTIONS.NEEDS_BANK_MATCH.NOT_YET_POSTED' | translate) }}
+                </dd>
+              </div>
+            </dl>
+            <a mat-stroked-button routerLink="/app/matcher" class="goto-btn">
+              <mat-icon>open_in_new</mat-icon>
+              {{ 'TRANSACTIONS.NEEDS_BANK_MATCH.CONFIRM_IN_MATCHER' | translate }}
+            </a>
+          </ng-container>
+          <ng-template #noGroup>
+            <p class="nbm-empty-hint">
+              <mat-icon>info_outline</mat-icon>
+              {{ 'TRANSACTIONS.NEEDS_BANK_MATCH.NO_GROUP_COPY' | translate }}
+            </p>
+            <a mat-stroked-button routerLink="/app/matcher/waiting" class="goto-btn">
+              <mat-icon>pending</mat-icon>
+              {{ 'TRANSACTIONS.NEEDS_BANK_MATCH.VIEW_WAITING_QUEUE' | translate }}
+            </a>
+          </ng-template>
+        </div>
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
 
-    <ng-container matColumnDef="method">
-      <th mat-header-cell *matHeaderCellDef>Method</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.paymentMethod }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="bankAccount">
-      <th mat-header-cell *matHeaderCellDef>Bank Account</th>
-      <td mat-cell *matCellDef="let transaction">
-        <span class="transaction-table__bank-account">{{ getBankAccountLabel(transaction.bankAccountId) }}</span>
-      </td>
-    </ng-container>
-
-    <ng-container matColumnDef="description">
-      <th mat-header-cell *matHeaderCellDef>Description</th>
-      <td mat-cell *matCellDef="let transaction">{{ transaction.description }}</td>
-    </ng-container>
-
-    <ng-container matColumnDef="state">
-      <th mat-header-cell *matHeaderCellDef>State</th>
-      <td mat-cell *matCellDef="let transaction">
-        <span class="state-badge" [ngClass]="getStateClass(transaction.transactionState)">
-          {{ getStateLabel(transaction.transactionState) }}
-        </span>
-      </td>
-    </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-  </table>
-
-  <div *ngIf="!loading && transactions.length === 0" class="transaction-page-empty">
+  <div *ngIf="!loading && records.length === 0" class="transaction-page-empty">
     <mat-icon>compare_arrows</mat-icon>
-    <h3>No transactions waiting for bank match</h3>
-    <p>Approved card cash-outs will appear here when they are ready for matcher handoff.</p>
+    <h3>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.EMPTY_TITLE' | translate }}</h3>
+    <p>{{ 'TRANSACTIONS.NEEDS_BANK_MATCH.EMPTY_COPY' | translate }}</p>
   </div>
 </mat-card>

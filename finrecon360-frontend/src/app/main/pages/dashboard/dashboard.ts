@@ -24,6 +24,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   canViewTasks = false;
   canViewJournal = false;
   canViewAnalytics = false;
+  currentUserDisplayName = '';
+  currentTenantName = '';
 
   private destroy$ = new Subject<void>();
 
@@ -42,6 +44,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((user) => {
         this.isAdmin = !!user?.roles.includes('ADMIN');
+        this.currentUserDisplayName = user?.displayName ?? '';
+        this.currentTenantName = user?.tenantName ?? '';
         const permissions = user?.permissions ?? [];
         this.canViewMatcher = permissions.includes('MATCHER.VIEW');
         this.canViewBalancer = permissions.includes('BALANCER.VIEW');
@@ -71,4 +75,5 @@ export class DashboardComponent implements OnInit, OnDestroy {
       (this.data.balancer.reconciledAccounts / this.data.balancer.totalAccounts) * 100
     );
   }
+
 }
