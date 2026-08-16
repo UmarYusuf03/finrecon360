@@ -67,8 +67,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 
@@ -94,8 +94,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "BANK",
             Status = "COMMITTED",
-            FileName = "bank.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "bank.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(bankBatch);
 
@@ -125,17 +125,28 @@ public class BankStatementReconciliationWorkerTests
         Assert.Equal(0, result.ExceptionCount);
         Assert.Equal(0, result.NoMatchCount);
 
-        // 6. Verify transaction moved to JournalReady
+        // 6. The transaction must NOT move on its own. The worker proposes a match; a person
+        // confirms it, and that confirmation is what promotes the transaction. Asserting the old
+        // auto-promotion here is what let the confirmation gate be bypassed unnoticed.
         var updatedTxn = await tenantDb.Transactions.FirstOrDefaultAsync(x => x.TransactionId == txn.TransactionId);
         Assert.NotNull(updatedTxn);
-        Assert.Equal(TransactionState.JournalReady, updatedTxn.TransactionState);
+        Assert.Equal(TransactionState.NeedsBankMatch, updatedTxn.TransactionState);
 
-        // 7. Verify match group created
+        // 7. Verify match group is proposed but unconfirmed
         var matchGroup = await tenantDb.ReconciliationMatchGroups.FirstOrDefaultAsync();
         Assert.NotNull(matchGroup);
         Assert.Equal("Level4", matchGroup.MatchLevel);
-        Assert.True(matchGroup.IsConfirmed);
+        Assert.False(matchGroup.IsConfirmed);
+        Assert.Null(matchGroup.ConfirmedAt);
         Assert.Equal("ACCT001|REF001", matchGroup.SettlementKey);
+
+        // The proposal records that a machine suggested it, so the UI can distinguish
+        // auto-proposed matches from ones a person built by hand.
+        var metadata = finrecon360_backend.Services.Reconciliation.MatchGroupMetadata
+            .TryParse(matchGroup.MatchMetadataJson);
+        Assert.NotNull(metadata);
+        Assert.True(metadata.AutoMatched);
+        Assert.Equal(txn.TransactionId, metadata.TransactionId);
 
         // 8. Verify matched records linked
         var matchedRecords = await tenantDb.ReconciliationMatchedRecords
@@ -176,8 +187,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 
@@ -203,8 +214,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "BANK",
             Status = "COMMITTED",
-            FileName = "bank.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "bank.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(bankBatch);
 
@@ -275,8 +286,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 
@@ -335,8 +346,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 

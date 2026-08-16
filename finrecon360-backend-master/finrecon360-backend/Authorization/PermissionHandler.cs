@@ -214,6 +214,9 @@ namespace finrecon360_backend.Authorization
                 permissions = await _permissionService.GetPermissionsForUserAsync(userId.Value);
             }
 
+            // Derive permissions implied by the ones actually granted, before any check.
+            permissions = ExpandPermissions(permissions).ToList();
+
             if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))
             {
                 context.Succeed(requirement);
@@ -224,6 +227,62 @@ namespace finrecon360_backend.Authorization
             {
                 context.Succeed(requirement);
             }
+        }
+
+        /// <summary>
+        /// Expands a granted permission set with the permissions those grants imply.
+        ///
+        /// WHY this is separate from AliasMap: AliasMap answers "which grants satisfy this
+        /// requirement" — requirement to satisfier. This answers the other direction, "what does
+        /// holding this grant also give you". The two are not interchangeable, and the distinction
+        /// matters for scoped grants.
+        ///
+        /// Currently one rule: any source-scoped import grant (ADMIN.IMPORTS.POS.CREATE and
+        /// friends) implies ADMIN.IMPORT_WORKBENCH.VIEW. Without it a cashier who is allowed to
+        /// import POS files cannot open the workbench that is the only place to do it — the API
+        /// still filters the visible batches down to their permitted source types.
+        /// </summary>
+        public static IReadOnlyCollection<string> ExpandPermissions(IEnumerable<string>? permissions)
+        {
+            if (permissions is null)
+            {
+                return Array.Empty<string>();
+            }
+
+            var expanded = permissions
+                .Where(permission => !string.IsNullOrWhiteSpace(permission))
+                .ToList();
+
+            if (expanded.Count == 0)
+            {
+                return expanded;
+            }
+
+            var hasScopedImportGrant = expanded.Any(IsSourceScopedImportPermission);
+            var alreadyHasWorkbenchView = expanded.Contains(ImportWorkbenchViewPermission, StringComparer.OrdinalIgnoreCase);
+
+            if (hasScopedImportGrant && !alreadyHasWorkbenchView)
+            {
+                expanded.Add(ImportWorkbenchViewPermission);
+            }
+
+            return expanded;
+        }
+
+        private const string ImportWorkbenchViewPermission = "ADMIN.IMPORT_WORKBENCH.VIEW";
+
+        /// <summary>
+        /// Matches ADMIN.IMPORTS.{SOURCE}.{ACTION} — four segments — as opposed to the unscoped
+        /// ADMIN.IMPORTS.{ACTION}, which already grants the workbench through AliasMap.
+        /// </summary>
+        private static bool IsSourceScopedImportPermission(string permission)
+        {
+            if (!permission.StartsWith("ADMIN.IMPORTS.", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return permission.Count(character => character == '.') == 3;
         }
 
         private static bool IsControlPlanePermission(string permissionCode)
