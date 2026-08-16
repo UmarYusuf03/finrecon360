@@ -8,7 +8,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileService } from '../../services/profile.service';
 import { CurrentUser } from '../../../core/auth/models';
@@ -24,7 +23,6 @@ import { LanguageSwitcherComponent } from '../../../shared/components/language-s
     RouterLinkActive,
     LanguageSwitcherComponent,
     TranslateModule,
-    HasPermissionDirective,
     MatMenuModule,
     MatButtonModule,
     MatIconModule,
@@ -39,8 +37,9 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.ROLES.VIEW',
     'ADMIN.COMPONENTS.VIEW',
     'ADMIN.PERMISSIONS.VIEW',
-    'ADMIN.BANK_ACCOUNTS.VIEW',
     'ADMIN.AUDIT_LOGS.VIEW',
+    'ADMIN.BANK_ACCOUNTS.VIEW',
+    'ADMIN.TRANSACTIONS.VIEW',
     'ADMIN.TENANT_REGISTRATIONS.MANAGE',
     'ADMIN.TENANTS.MANAGE',
     'ADMIN.PLANS.MANAGE',

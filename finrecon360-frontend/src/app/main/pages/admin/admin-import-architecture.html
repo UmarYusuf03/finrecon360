@@ -8,7 +8,10 @@
       <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.COPY' | translate }}</p>
     </div>
     <span class="architecture-hero__badge" *ngIf="overview as data">
-      {{ 'ADMIN.IMPORT_ARCHITECTURE.SCHEMA_BADGE' | translate: { version: data.canonicalSchema.version } }}
+      {{
+        'ADMIN.IMPORT_ARCHITECTURE.SCHEMA_BADGE'
+          | translate: { version: data.canonicalSchema.version }
+      }}
     </span>
   </header>
 
@@ -22,15 +25,11 @@
       <strong class="stat-value">{{ data.totalRawRecords }}</strong>
     </article>
     <article class="stat-item">
-      <span class="stat-label">{{
-        'ADMIN.IMPORT_ARCHITECTURE.TOTAL_NORMALIZED' | translate
-      }}</span>
+      <span class="stat-label">{{ 'ADMIN.IMPORT_ARCHITECTURE.TOTAL_NORMALIZED' | translate }}</span>
       <strong class="stat-value">{{ data.totalNormalizedRecords }}</strong>
     </article>
     <article class="stat-item">
-      <span class="stat-label">{{
-        'ADMIN.IMPORT_ARCHITECTURE.ACTIVE_TEMPLATES' | translate
-      }}</span>
+      <span class="stat-label">{{ 'ADMIN.IMPORT_ARCHITECTURE.ACTIVE_TEMPLATES' | translate }}</span>
       <strong class="stat-value">{{ data.activeMappingTemplates }}</strong>
     </article>
     <div class="latest-import" *ngIf="data.latestImportAt as latestImportAt">
@@ -50,10 +49,12 @@
       <div class="card-heading">
         <div>
           <h2>{{ 'ADMIN.IMPORT_ARCHITECTURE.CANONICAL_TITLE' | translate }}</h2>
-          <p>{{
-            'ADMIN.IMPORT_ARCHITECTURE.CANONICAL_COPY'
-              | translate: { version: data.canonicalSchema.version }
-          }}</p>
+          <p>
+            {{
+              'ADMIN.IMPORT_ARCHITECTURE.CANONICAL_COPY'
+                | translate: { version: data.canonicalSchema.version }
+            }}
+          </p>
         </div>
       </div>
 
@@ -78,7 +79,10 @@
               {{ 'ADMIN.IMPORT_ARCHITECTURE.REQUIRED' | translate }}
             </th>
             <td mat-cell *matCellDef="let element">
-              <span class="status-pill" [attr.data-status]="element.required ? 'active' : 'inactive'">
+              <span
+                class="status-pill"
+                [attr.data-status]="element.required ? 'active' : 'inactive'"
+              >
                 {{ element.required ? ('COMMON.YES' | translate) : ('COMMON.NO' | translate) }}
               </span>
             </td>
@@ -172,7 +176,10 @@
                 {{ 'ADMIN.IMPORT_ARCHITECTURE.SOURCE_TYPE' | translate }}
               </th>
               <td mat-cell *matCellDef="let template">
-                <span class="source-pill" [attr.data-source]="(template.sourceType || '').toLowerCase()">
+                <span
+                  class="source-pill"
+                  [attr.data-source]="(template.sourceType || '').toLowerCase()"
+                >
                   {{ template.sourceType }}
                 </span>
               </td>
@@ -230,13 +237,18 @@
                   <button
                     mat-button
                     type="button"
-                    color="warn"
+                    class="template-action template-action--deactivate"
                     *ngIf="template.isActive"
                     (click)="deactivateTemplate(template)"
                   >
                     {{ 'ADMIN.IMPORT_ARCHITECTURE.DEACTIVATE' | translate }}
                   </button>
-                  <button mat-button type="button" color="warn" (click)="deleteTemplate(template)">
+                  <button
+                    mat-button
+                    type="button"
+                    class="template-action template-action--delete"
+                    (click)="deleteTemplate(template)"
+                  >
                     {{ 'COMMON.DELETE' | translate }}
                   </button>
                 </div>
@@ -266,8 +278,7 @@
       </h3>
       <p>
         {{
-          'ADMIN.IMPORT_ARCHITECTURE.DELETE_COPY'
-            | translate: { name: deleteTarget?.name || '' }
+          'ADMIN.IMPORT_ARCHITECTURE.DELETE_COPY' | translate: { name: deleteTarget?.name || '' }
         }}
       </p>
       <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.DELETE_NOTE' | translate }}</p>

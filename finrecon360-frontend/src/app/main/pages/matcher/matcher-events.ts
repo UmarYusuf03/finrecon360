@@ -98,7 +98,7 @@ export class MatcherEventsComponent implements OnInit {
   groupByBatch(): void {
     const map = new Map<string, ReconciliationEvent[]>();
     for (const event of this.filteredEvents) {
-      const id = event.importBatchId;
+      const id = event.importBatchId || 'unknown';
       if (!map.has(id)) map.set(id, []);
       map.get(id)!.push(event);
     }

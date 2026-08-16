@@ -5,7 +5,6 @@ namespace finrecon360_backend.Models
         public Guid TransactionId { get; set; }
         public decimal Amount { get; set; }
         public DateTime TransactionDate { get; set; }
-        public string? ReferenceNumber { get; set; }
         public string Description { get; set; } = string.Empty;
         public Guid? BankAccountId { get; set; }
         public TransactionType TransactionType { get; set; }
@@ -18,6 +17,7 @@ namespace finrecon360_backend.Models
         public DateTime? RejectedAt { get; set; }
         public Guid? RejectedByUserId { get; set; }
         public string? RejectionReason { get; set; }
+        public string? CardLast4 { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 

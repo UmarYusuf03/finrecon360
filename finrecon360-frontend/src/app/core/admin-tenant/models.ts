@@ -9,13 +9,6 @@ export interface TenantRegistrationSummary {
   submittedAt: string;
 }
 
-export interface TenantRegistrationDetail extends TenantRegistrationSummary {
-  reviewedAt?: string | null;
-  reviewedByEmail?: string | null;
-  reviewNote?: string | null;
-  onboardingMetadata?: string | null;
-}
-
 export interface TenantRegistrationApprovalResult {
   requestId: string;
   adminEmail: string;
@@ -67,4 +60,25 @@ export interface PlanSummary {
   maxUsers: number;
   maxAccounts: number;
   isActive: boolean;
+}
+
+export interface SubscriptionPlan extends PlanSummary {}
+
+export interface TenantSubscription {
+  subscriptionId: string;
+  planCode: string;
+  planName: string;
+  status: string;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+}
+
+export interface SubscriptionOverview {
+  currentSubscription: TenantSubscription | null;
+  availablePlans: SubscriptionPlan[];
+}
+
+export interface SubscriptionCheckoutResponse {
+  subscriptionId: string;
+  checkoutUrl: string;
 }

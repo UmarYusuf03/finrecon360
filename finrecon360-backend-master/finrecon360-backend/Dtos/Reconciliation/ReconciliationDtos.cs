@@ -5,7 +5,7 @@ namespace finrecon360_backend.Dtos.Reconciliation
     public class ReconciliationMatchGroupResponse
     {
         public Guid ReconciliationMatchGroupId { get; set; }
-        public Guid ImportBatchId { get; set; }
+        public Guid? ImportBatchId { get; set; }
         public string MatchLevel { get; set; } = null!;
         public string? SettlementKey { get; set; }
         public bool IsConfirmed { get; set; }
@@ -37,8 +37,8 @@ namespace finrecon360_backend.Dtos.Reconciliation
     public class ReconciliationEventResponse
     {
         public Guid ReconciliationEventId { get; set; }
-        public Guid ImportBatchId { get; set; }
-        public Guid ImportedNormalizedRecordId { get; set; }
+        public Guid? ImportBatchId { get; set; }
+        public Guid? ImportedNormalizedRecordId { get; set; }
         public string EventType { get; set; } = null!;
         public string Stage { get; set; } = null!;
         public string SourceType { get; set; } = null!;

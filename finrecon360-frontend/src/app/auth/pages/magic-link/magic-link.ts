@@ -21,7 +21,6 @@ type MagicLinkState = 'loading' | 'ready' | 'success' | 'error';
 export class MagicLinkComponent implements OnInit, OnDestroy {
   private static readonly PendingOnboardingTokenKey = 'fr360_pending_onboarding_token';
   private static readonly PendingOnboardingTenantKey = 'fr360_pending_onboarding_tenant';
-  private static readonly PendingOnboardingRequestedBankAccountsKey = 'fr360_pending_onboarding_requested_bank_accounts';
   private static readonly PendingMagicLinkTokenKey = 'fr360_pending_magic_link_token';
 
   state: MagicLinkState = 'loading';
@@ -34,7 +33,6 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
   onboardingForm!: FormGroup;
   onboardingToken: string | null = null;
   tenantName: string | null = null;
-  requestedBankAccounts: number | null = null;
 
   private destroy$ = new Subject<void>();
 
@@ -86,15 +84,11 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
       if (purpose === 'TenantOnboarding') {
         const pendingOnboardingToken = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTokenKey);
         const pendingTenantName = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTenantKey);
-        const pendingRequestedBankAccounts = sessionStorage.getItem(
-          MagicLinkComponent.PendingOnboardingRequestedBankAccountsKey
-        );
         const pendingMagicLinkToken = sessionStorage.getItem(MagicLinkComponent.PendingMagicLinkTokenKey);
 
         if (pendingOnboardingToken && pendingMagicLinkToken === token) {
           this.onboardingToken = pendingOnboardingToken;
           this.tenantName = pendingTenantName;
-          this.requestedBankAccounts = this.parseRequestedBankAccounts(pendingRequestedBankAccounts);
           this.state = 'ready';
           return;
         }
@@ -181,16 +175,10 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
         next: () => {
           sessionStorage.removeItem(MagicLinkComponent.PendingOnboardingTokenKey);
           sessionStorage.removeItem(MagicLinkComponent.PendingOnboardingTenantKey);
-          sessionStorage.removeItem(MagicLinkComponent.PendingOnboardingRequestedBankAccountsKey);
           sessionStorage.removeItem(MagicLinkComponent.PendingMagicLinkTokenKey);
 
           sessionStorage.setItem('fr360_onboarding_token', this.onboardingToken!);
           sessionStorage.setItem('fr360_onboarding_tenant', this.tenantName ?? '');
-          if (this.requestedBankAccounts && this.requestedBankAccounts > 0) {
-            sessionStorage.setItem('fr360_onboarding_requested_bank_accounts', this.requestedBankAccounts.toString());
-          } else {
-            sessionStorage.removeItem('fr360_onboarding_requested_bank_accounts');
-          }
           this.router.navigateByUrl('/onboarding/subscribe');
         },
         error: (error: unknown) => {
@@ -229,18 +217,9 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
       next: (result) => {
         this.onboardingToken = result.onboardingToken;
         this.tenantName = result.tenantName;
-        this.requestedBankAccounts = result.requestedBankAccounts;
 
         sessionStorage.setItem(MagicLinkComponent.PendingOnboardingTokenKey, result.onboardingToken);
         sessionStorage.setItem(MagicLinkComponent.PendingOnboardingTenantKey, result.tenantName ?? '');
-        if (result.requestedBankAccounts && result.requestedBankAccounts > 0) {
-          sessionStorage.setItem(
-            MagicLinkComponent.PendingOnboardingRequestedBankAccountsKey,
-            result.requestedBankAccounts.toString()
-          );
-        } else {
-          sessionStorage.removeItem(MagicLinkComponent.PendingOnboardingRequestedBankAccountsKey);
-        }
         sessionStorage.setItem(MagicLinkComponent.PendingMagicLinkTokenKey, token);
 
         this.state = 'ready';
@@ -248,15 +227,11 @@ export class MagicLinkComponent implements OnInit, OnDestroy {
       error: (error: unknown) => {
         const pendingOnboardingToken = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTokenKey);
         const pendingTenantName = sessionStorage.getItem(MagicLinkComponent.PendingOnboardingTenantKey);
-        const pendingRequestedBankAccounts = sessionStorage.getItem(
-          MagicLinkComponent.PendingOnboardingRequestedBankAccountsKey
-        );
         const pendingMagicLinkToken = sessionStorage.getItem(MagicLinkComponent.PendingMagicLinkTokenKey);
 
         if (pendingOnboardingToken && pendingMagicLinkToken === token) {
           this.onboardingToken = pendingOnboardingToken;
           this.tenantName = pendingTenantName;
-          this.requestedBankAccounts = this.parseRequestedBankAccounts(pendingRequestedBankAccounts);
           this.state = 'ready';
           return;
         }

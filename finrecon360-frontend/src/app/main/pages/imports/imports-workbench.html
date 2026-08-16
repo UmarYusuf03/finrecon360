@@ -79,7 +79,7 @@
     <div class="scope-badge" *ngIf="scopedSourceTypes !== null">
       <span class="material-icons scope-badge-icon">lock</span>
       <span>
-        {{ 'IMPORTS.WORKBENCH.SCOPED_ONLY' | translate:{ sourceType: allowedSourceTypeLabel } }}
+        {{ 'IMPORTS.WORKBENCH.SCOPED_ONLY' | translate: { sourceType: allowedSourceTypeLabel } }}
       </span>
     </div>
 
@@ -147,7 +147,10 @@
       </button>
       <p class="scope-warning" *ngIf="importSourceType && !canUploadForCurrentSourceType">
         <span class="material-icons">block</span>
-        {{ 'IMPORTS.WORKBENCH.SCOPE_WARNING' | translate:{ sourceType: importSourceType, allowedTypes: allowedSourceTypeNames } }}
+        {{
+          'IMPORTS.WORKBENCH.SCOPE_WARNING'
+            | translate: { sourceType: importSourceType, allowedTypes: allowedSourceTypeNames }
+        }}
       </p>
     </div>
   </section>
@@ -203,7 +206,10 @@
             >
               <td>{{ item.originalFileName || ('COMMON.NOT_AVAILABLE' | translate) }}</td>
               <td>
-                <span class="source-pill" [attr.data-source]="(item.sourceType || '').toLowerCase()">
+                <span
+                  class="source-pill"
+                  [attr.data-source]="(item.sourceType || '').toLowerCase()"
+                >
                   {{ item.sourceType }}
                 </span>
               </td>
@@ -253,16 +259,32 @@
         </div>
 
         <div class="process-actions">
-          <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="parseSelected()">
+          <button
+            class="primary-btn"
+            [disabled]="processing || !canEditImport"
+            (click)="parseSelected()"
+          >
             {{ 'IMPORTS.WORKBENCH.PARSE' | translate }}
           </button>
-          <button class="primary-btn" [disabled]="processing || !canEditImport" (click)="saveMapping()">
+          <button
+            class="primary-btn"
+            [disabled]="processing || !canEditImport"
+            (click)="saveMapping()"
+          >
             {{ 'IMPORTS.WORKBENCH.SAVE_MAPPING' | translate }}
           </button>
-          <button class="warning-btn" [disabled]="processing || !canEditImport" (click)="validateSelected()">
+          <button
+            class="warning-btn"
+            [disabled]="processing || !canEditImport"
+            (click)="validateSelected()"
+          >
             {{ 'IMPORTS.WORKBENCH.VALIDATE' | translate }}
           </button>
-          <button class="danger-btn" [disabled]="processing || !canCommit" (click)="commitSelected()">
+          <button
+            class="danger-btn"
+            [disabled]="processing || !canCommit"
+            (click)="commitSelected()"
+          >
             {{ 'IMPORTS.WORKBENCH.COMMIT' | translate }}
           </button>
         </div>
@@ -278,7 +300,9 @@
           <div class="stage-surface__header">
             <div>
               <h3>{{ 'IMPORTS.WORKBENCH.COLUMN_MAPPING' | translate }}</h3>
-              <p>{{ 'IMPORTS.WORKBENCH.PARSED_ROWS' | translate:{ count: parsed.parsedRowCount } }}</p>
+              <p>
+                {{ 'IMPORTS.WORKBENCH.PARSED_ROWS' | translate: { count: parsed.parsedRowCount } }}
+              </p>
             </div>
           </div>
 
@@ -287,7 +311,12 @@
               {{ 'IMPORTS.WORKBENCH.ACTIVE_TEMPLATE' | translate }}:
               <strong>{{ template.name }}</strong>
             </span>
-            <button class="ghost-btn" type="button" (click)="useActiveTemplate()">
+            <button
+              class="ghost-btn template-action-btn"
+              type="button"
+              [class.is-pressed]="templateActionFeedback === 'use'"
+              (click)="useActiveTemplate()"
+            >
               {{ 'IMPORTS.WORKBENCH.USE_TEMPLATE' | translate }}
             </button>
           </div>
@@ -296,9 +325,11 @@
             <label>
               {{ 'IMPORTS.WORKBENCH.CHOOSE_TEMPLATE' | translate }}
               <select [(ngModel)]="selectedTemplateId">
-                <option [ngValue]="null">{{ 'IMPORTS.WORKBENCH.SELECT_TEMPLATE' | translate }}</option>
-                <option *ngFor="let template of templates" [ngValue]="template.id">
-                  {{ template.name }} (v{{ template.version }})
+                <option [ngValue]="null">
+                  {{ 'IMPORTS.WORKBENCH.SELECT_TEMPLATE' | translate }}
+                </option>
+                <option *ngFor="let template of templates" [value]="template.id">
+                  {{ template.name }} - {{ template.sourceType }} (v{{ template.version }})
                   <ng-container *ngIf="template.isActive">
                     - {{ 'COMMON.ACTIVE' | translate }}
                   </ng-container>
@@ -307,9 +338,10 @@
             </label>
             <div class="template-actions">
               <button
-                class="ghost-btn"
+                class="ghost-btn template-action-btn"
                 type="button"
                 [disabled]="!selectedTemplateId || templateLoading"
+                [class.is-pressed]="templateActionFeedback === 'apply'"
                 (click)="applySelectedTemplate()"
               >
                 {{ 'IMPORTS.WORKBENCH.APPLY_SELECTED_TEMPLATE' | translate }}
@@ -349,11 +381,17 @@
               >
                 <div class="header-label">{{ header }}</div>
                 <div class="header-drop">
-                  <ng-container *ngIf="getAssignedFieldForHeader(header) as assigned; else dropHint">
-                    <span class="assigned-chip" cdkDrag [cdkDragData]="assigned">{{ assigned }}</span>
+                  <ng-container
+                    *ngIf="getAssignedFieldForHeader(header) as assigned; else dropHint"
+                  >
+                    <span class="assigned-chip" cdkDrag [cdkDragData]="assigned">{{
+                      assigned
+                    }}</span>
                   </ng-container>
                   <ng-template #dropHint>
-                    <span class="drop-hint">{{ 'IMPORTS.WORKBENCH.DROP_FIELD_HERE' | translate }}</span>
+                    <span class="drop-hint">{{
+                      'IMPORTS.WORKBENCH.DROP_FIELD_HERE' | translate
+                    }}</span>
                   </ng-template>
                 </div>
                 <div class="header-actions">
@@ -361,10 +399,18 @@
                     [ngModel]="getAssignedFieldForHeader(header)"
                     (ngModelChange)="assignFieldToHeader($event, header)"
                   >
-                    <option [ngValue]="null">{{ 'IMPORTS.WORKBENCH.SELECT_FIELD' | translate }}</option>
-                    <option *ngFor="let field of canonicalFields" [ngValue]="field">{{ field }}</option>
+                    <option [ngValue]="null">
+                      {{ 'IMPORTS.WORKBENCH.SELECT_FIELD' | translate }}
+                    </option>
+                    <option *ngFor="let field of canonicalFields" [ngValue]="field">
+                      {{ field }}
+                    </option>
                   </select>
-                  <button class="ghost-btn small" type="button" (click)="clearHeaderMapping(header)">
+                  <button
+                    class="ghost-btn small"
+                    type="button"
+                    (click)="clearHeaderMapping(header)"
+                  >
                     {{ 'COMMON.CLEAR' | translate }}
                   </button>
                 </div>
@@ -385,11 +431,17 @@
           <div class="stage-surface__header">
             <div>
               <h3>{{ 'IMPORTS.WORKBENCH.VALIDATION_REVIEW' | translate }}</h3>
-              <p>{{ 'IMPORTS.WORKBENCH.VALIDATION_TOTALS' | translate:{
-                total: validation.totalRows,
-                valid: validation.validRows,
-                invalid: validation.invalidRows
-              } }}</p>
+              <p>
+                {{
+                  'IMPORTS.WORKBENCH.VALIDATION_TOTALS'
+                    | translate
+                      : {
+                          total: validation.totalRows,
+                          valid: validation.validRows,
+                          invalid: validation.invalidRows,
+                        }
+                }}
+              </p>
             </div>
           </div>
 
@@ -410,19 +462,21 @@
 
           <div class="validation-summary" *ngIf="validationSummary as summary">
             <span class="summary-pill" *ngIf="summary.missingRequired > 0">
-              {{ 'IMPORTS.WORKBENCH.MISSING_FIELDS' | translate:{ count: summary.missingRequired } }}
+              {{
+                'IMPORTS.WORKBENCH.MISSING_FIELDS' | translate: { count: summary.missingRequired }
+              }}
             </span>
             <span class="summary-pill" *ngIf="summary.invalidDate > 0">
-              {{ 'IMPORTS.WORKBENCH.INVALID_DATES' | translate:{ count: summary.invalidDate } }}
+              {{ 'IMPORTS.WORKBENCH.INVALID_DATES' | translate: { count: summary.invalidDate } }}
             </span>
             <span class="summary-pill" *ngIf="summary.invalidAmount > 0">
-              {{ 'IMPORTS.WORKBENCH.AMOUNT_ISSUES' | translate:{ count: summary.invalidAmount } }}
+              {{ 'IMPORTS.WORKBENCH.AMOUNT_ISSUES' | translate: { count: summary.invalidAmount } }}
             </span>
             <span class="summary-pill" *ngIf="summary.conflictingAmounts > 0">
-              {{ 'IMPORTS.WORKBENCH.CONFLICTS' | translate:{ count: summary.conflictingAmounts } }}
+              {{ 'IMPORTS.WORKBENCH.CONFLICTS' | translate: { count: summary.conflictingAmounts } }}
             </span>
             <span class="summary-pill" *ngIf="summary.other > 0">
-              {{ 'IMPORTS.WORKBENCH.OTHER' | translate:{ count: summary.other } }}
+              {{ 'IMPORTS.WORKBENCH.OTHER' | translate: { count: summary.other } }}
             </span>
           </div>
 
@@ -556,14 +610,17 @@
       </div>
     </div>
 
-    <div class="gateway-fee-notice" *ngIf="r.sourceType === 'GATEWAY' && r.feeAdjustmentTotal !== 0">
+    <div
+      class="gateway-fee-notice"
+      *ngIf="r.sourceType === 'GATEWAY' && r.feeAdjustmentTotal !== 0"
+    >
       <span class="material-icons">info_outline</span>
       <span>
         Gateway records contain <strong>GrossAmount</strong>, <strong>ProcessingFee</strong>, and
         <strong>NetAmount</strong> fields. A total fee deduction of
         <strong>{{ r.feeAdjustmentTotal | number: '1.2-2' }}</strong> was detected across matched
-        records. Review individual records in <strong>Matcher -> Sales Verification</strong> for
-        the full gross to net breakdown.
+        records. Review individual records in <strong>Matcher -> Sales Verification</strong> for the
+        full gross to net breakdown.
       </span>
     </div>
 
@@ -591,7 +648,9 @@
         id="go-to-waiting-btn"
       >
         <span class="material-icons">hourglass_empty</span>
-        {{ 'IMPORTS.WORKBENCH.RESOLVE_WAITING' | translate:{ count: r.waitingForSettlementCount } }}
+        {{
+          'IMPORTS.WORKBENCH.RESOLVE_WAITING' | translate: { count: r.waitingForSettlementCount }
+        }}
       </a>
       <a
         *ngIf="r.level3ExceptionCount > 0 && r.sourceType !== 'POS'"
@@ -600,7 +659,9 @@
         id="go-to-sales-verify-btn"
       >
         <span class="material-icons">fact_check</span>
-        {{ 'IMPORTS.WORKBENCH.REVIEW_SALES_EXCEPTIONS' | translate:{ count: r.level3ExceptionCount } }}
+        {{
+          'IMPORTS.WORKBENCH.REVIEW_SALES_EXCEPTIONS' | translate: { count: r.level3ExceptionCount }
+        }}
       </a>
     </div>
   </section>
@@ -610,7 +671,8 @@
       <h3 id="delete-import-title">{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_TITLE' | translate }}</h3>
       <p>
         This will permanently remove the stored file and all parsed records for
-        <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong>.
+        <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong
+        >.
       </p>
       <p>{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_CONFIRM' | translate }}</p>
 

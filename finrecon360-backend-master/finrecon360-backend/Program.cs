@@ -145,12 +145,30 @@ builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
 builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
-builder.Services.AddSingleton<IReconciliationOrchestrator, ReconciliationOrchestrator>();
-builder.Services.AddScoped<IReconciliationExecutionService, ReconciliationExecutionService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
-builder.Services.AddScoped<IBankStatementReconciliationWorker, BankStatementReconciliationWorker>();
+
+// ── Reconciliation workers ───────────────────────────────────────────────────
+// These registrations were lost in the reconciliation rewrite. Without them the two
+// hosted services below resolve nothing and throw on their first cycle, so no matching
+// and no journal posting happened at all.
+builder.Services.AddScoped<BankStatementReconciliationWorker>();
 builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+
+// The per-level workers are registered so they are resolvable and testable, but nothing
+// drives them on a timer yet. Sequencing the full matrix (L1 → L2 → L3 → L4 → L5/L6) is a
+// deliberate design step, not something to switch on implicitly.
+builder.Services.AddScoped<OperationalMatchWorker>();
+builder.Services.AddScoped<PosErpSyncAuditWorker>();
+builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
+builder.Services.AddScoped<SettlementMatchWorker>();
+builder.Services.AddScoped<CollectionMatchWorker>();
+
+// WHY these are hosted services and why that constrains deployment: each one sweeps every
+// tenant on a timer, and the concurrency guard is an in-process dictionary. Running more
+// than one instance of this API means each replica reconciles every tenant independently.
+// Until that guard is distributed, run exactly one instance, or split these into a single
+// dedicated worker process.
 builder.Services.AddHostedService<BankReconciliationHostedService>();
 builder.Services.AddHostedService<JournalPostingHostedService>();
 
@@ -266,6 +284,42 @@ var jwtKey = jwtSection["Key"];
 var jwtIssuer = jwtSection["Issuer"];
 var jwtAudience = jwtSection["Audience"];
 var isTesting = builder.Environment.IsEnvironment("Testing");
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    if (isTesting)
+    {
+        jwtKey = "test-signing-key-should-be-long-32chars";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Key is not configured.");
+    }
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    if (isTesting)
+    {
+        jwtIssuer = "test-issuer";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Issuer is not configured.");
+    }
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    if (isTesting)
+    {
+        jwtAudience = "test-audience";
+    }
+    else
+    {
+        throw new InvalidOperationException("Jwt:Audience is not configured.");
+    }
+}
 
 if (string.IsNullOrWhiteSpace(jwtKey))
 {
