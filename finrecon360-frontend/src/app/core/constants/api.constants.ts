@@ -31,6 +31,8 @@ export const API_ENDPOINTS = {
     CONFIRM_PASSWORD_RESET_LINK: '/api/auth/confirm-password-reset-link',
     REQUEST_CHANGE_PASSWORD_LINK: '/api/auth/request-change-password-link',
     CONFIRM_CHANGE_PASSWORD_LINK: '/api/auth/confirm-change-password-link',
+    SSO_GOOGLE: '/api/auth/sso/google',
+    SSO_CONFIG: '/api/auth/sso/config',
   },
   PUBLIC: {
     TENANT_REGISTRATIONS: '/api/public/tenant-registrations',

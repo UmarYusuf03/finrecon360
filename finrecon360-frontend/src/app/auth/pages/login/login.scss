@@ -248,8 +248,44 @@
 
 .social-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  // Two columns rather than three: Google's rendered button spans the full width on its own
+  // row, leaving the two not-yet-implemented providers to sit evenly beneath it.
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.sso-slot {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  min-height: 48px;
+}
+
+// Kept in the DOM but visually removed, because Google's script needs the element to exist
+// before it can render into it.
+.sso-slot--hidden {
+  display: none;
+}
+
+.google-button-host {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+
+  // Google controls the button's internal markup; this only constrains its footprint so it
+  // lines up with the fields above it.
+  iframe,
+  > div {
+    max-width: 100% !important;
+  }
+}
+
+.sso-pending {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.75;
 }
 
 .ghost-btn {

@@ -87,13 +87,27 @@
       </div>
 
       <div class="social-row">
-        <button type="button" class="ghost-btn social-btn">
-          {{ 'AUTH.LOGIN.SOCIAL_GOOGLE' | translate }}
-        </button>
-        <button type="button" class="ghost-btn social-btn">
+        <!--
+          Google renders its own button into this element. It stays in the DOM even when SSO is
+          unconfigured, because the element has to exist before the script can draw into it; the
+          wrapper is what hides it.
+        -->
+        <div class="sso-slot" [class.sso-slot--hidden]="!googleSsoAvailable">
+          <div #googleButton class="google-button-host"></div>
+        </div>
+
+        <p class="sso-pending" *ngIf="isGoogleSubmitting">
+          {{ 'AUTH.LOGIN.SSO_SIGNING_IN' | translate }}
+        </p>
+
+        <!--
+          Microsoft and Okta are not implemented. Shown disabled rather than as working buttons,
+          so the screen does not advertise sign-in routes that silently do nothing.
+        -->
+        <button type="button" class="ghost-btn social-btn" disabled>
           {{ 'AUTH.LOGIN.SOCIAL_MICROSOFT' | translate }}
         </button>
-        <button type="button" class="ghost-btn social-btn">
+        <button type="button" class="ghost-btn social-btn" disabled>
           {{ 'AUTH.LOGIN.SOCIAL_OKTA' | translate }}
         </button>
       </div>

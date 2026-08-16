@@ -1,11 +1,14 @@
-import { Component } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
 
 import { AuthService } from '../../../core/auth/auth.service';
+import { CurrentUser } from '../../../core/auth/models';
+import { GoogleSsoService } from '../../../core/auth/google-sso.service';
 
 /**
  * Login component handles user authentication.
@@ -18,16 +21,25 @@ import { AuthService } from '../../../core/auth/auth.service';
   styleUrls: ['./login.scss'],
   imports: [CommonModule, ReactiveFormsModule, RouterModule, MatIconModule, TranslateModule],
 })
-export class LoginComponent {
+export class LoginComponent implements AfterViewInit, OnDestroy {
   hide = true;
   loginForm: FormGroup;
   isSubmitting = false;
   errorMessageKey: string | null = null;
   errorMessage: string | null = null;
 
+  /** Google's own button is rendered into this element when SSO is configured. */
+  @ViewChild('googleButton') googleButtonRef?: ElementRef<HTMLElement>;
+
+  googleSsoAvailable = false;
+  isGoogleSubmitting = false;
+
+  private readonly subscriptions = new Subscription();
+
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
+    private googleSso: GoogleSsoService,
     private translate: TranslateService,
     private router: Router,
   ) {
@@ -35,6 +47,77 @@ export class LoginComponent {
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required]],
     });
+  }
+
+  ngAfterViewInit(): void {
+    this.setUpGoogleSignIn();
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+  /**
+   * Asks the backend whether Google sign-in is configured, and only then renders the button.
+   * A button that cannot possibly work is worse than no button — it reads as a broken feature.
+   */
+  private setUpGoogleSignIn(): void {
+    const container = this.googleButtonRef?.nativeElement;
+    if (!container) {
+      return;
+    }
+
+    this.subscriptions.add(
+      this.googleSso.renderSignInButton(container).subscribe({
+        next: (idToken) => {
+          this.googleSsoAvailable = true;
+          this.signInWithGoogle(idToken);
+        },
+        error: () => {
+          // Not configured, offline, or the script was blocked. Leave the password form as the
+          // only route rather than surfacing an error the user cannot act on.
+          this.googleSsoAvailable = false;
+        },
+      }),
+    );
+
+    this.subscriptions.add(
+      this.googleSso.getConfig().subscribe((config) => {
+        this.googleSsoAvailable = config.googleEnabled;
+      }),
+    );
+  }
+
+  private signInWithGoogle(idToken: string): void {
+    this.errorMessageKey = null;
+    this.errorMessage = null;
+    this.isGoogleSubmitting = true;
+
+    this.subscriptions.add(
+      this.authService.loginWithGoogle(idToken).subscribe({
+        next: (response) => {
+          this.isGoogleSubmitting = false;
+          this.router.navigateByUrl(this.resolveLandingRoute(response));
+        },
+        error: (err) => {
+          this.isGoogleSubmitting = false;
+          this.errorMessage = err?.error?.message ?? null;
+          this.errorMessageKey = this.errorMessage ? null : 'AUTH.LOGIN_FAILED';
+        },
+      }),
+    );
+  }
+
+  /**
+   * Where a signed-in user lands. Identical for password and Google sign-in — the route depends
+   * on what the account may do, never on how the person proved who they are.
+   */
+  private resolveLandingRoute(user: CurrentUser): string {
+    if (!user.permissions.includes('ADMIN.DASHBOARD.VIEW')) {
+      return '/app/dashboard';
+    }
+
+    return user.isSystemAdmin ? '/app/system' : '/app/admin';
   }
 
   onSubmit() {
@@ -48,16 +131,10 @@ export class LoginComponent {
     this.isSubmitting = true;
     const { email, password } = this.loginForm.value;
 
-    // Swap this mock call with a backend HTTP call once IdentityServer is wired.
     this.authService.login(email, password).subscribe({
       next: (response) => {
         this.isSubmitting = false;
-        const target = response.permissions.includes('ADMIN.DASHBOARD.VIEW')
-          ? response.isSystemAdmin
-            ? '/app/system'
-            : '/app/admin'
-          : '/app/dashboard';
-        this.router.navigateByUrl(target);
+        this.router.navigateByUrl(this.resolveLandingRoute(response));
       },
       error: (err) => {
         this.isSubmitting = false;
