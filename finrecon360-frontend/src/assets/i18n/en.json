@@ -79,6 +79,7 @@
       "SOCIAL_GOOGLE": "Google",
       "SOCIAL_MICROSOFT": "Microsoft",
       "SOCIAL_OKTA": "Okta",
+      "SSO_SIGNING_IN": "Signing you in with Google…",
       "NO_ACCOUNT": "Don't have an account?",
       "SIGN_UP_LINK": "Sign Up",
       "NEED_TENANT_ACCOUNT": "Need a tenant account?",

@@ -65,7 +65,7 @@ public class OperationalMatchWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "POS",
             Status = "COMMITTED",
-            CreatedAt = DateTime.UtcNow
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(posBatch);
 
@@ -120,7 +120,7 @@ public class OperationalMatchWorkerTests
         };
         tenantDb.Transactions.Add(txn);
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED", CreatedAt = DateTime.UtcNow };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED", ImportedAt = DateTime.UtcNow };
         tenantDb.ImportBatches.Add(posBatch);
 
         var posRecord = new ImportedNormalizedRecord

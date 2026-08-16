@@ -4,6 +4,7 @@ using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Auth;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Auth;
 using finrecon360_backend.Services.Workers;
 using finrecon360_backend.Options;
 using finrecon360_backend.Services.BankAccounts;
@@ -80,6 +81,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // 3. Register JWT token service
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
+// SSO sign-in. The validator is a singleton because it holds Google's cached signing keys —
+// a new instance per request would refetch the discovery document every time.
+builder.Services.AddSingleton<IGoogleIdTokenValidator, GoogleIdTokenValidator>();
+builder.Services.AddScoped<ISsoAuthenticationService, SsoAuthenticationService>();
+
 builder.Services.Configure<BrevoOptions>(options =>
 {
     options.ApiKey = builder.Configuration["BREVO_API_KEY"] ?? string.Empty;
@@ -105,6 +111,13 @@ builder.Services.Configure<TenantProvisioningOptions>(options =>
 {
     options.DefaultConnectionString = builder.Configuration["TENANT_DB_TEMPLATE"]
         ?? builder.Configuration["TENANT_DB_DEFAULT"];
+});
+
+builder.Services.Configure<GoogleSsoOptions>(options =>
+{
+    options.ClientId = builder.Configuration["GOOGLE_CLIENT_ID"] ?? string.Empty;
+    options.HostedDomain = builder.Configuration["GOOGLE_HOSTED_DOMAIN"] ?? string.Empty;
+    options.AllowAutoProvisioning = builder.Configuration.GetValue("GOOGLE_ALLOW_AUTO_PROVISIONING", true);
 });
 
 builder.Services.Configure<PayHereOptions>(options =>
@@ -147,6 +160,30 @@ builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
+
+// ── Reconciliation workers ───────────────────────────────────────────────────
+// These registrations were lost in the reconciliation rewrite. Without them the two
+// hosted services below resolve nothing and throw on their first cycle, so no matching
+// and no journal posting happened at all.
+builder.Services.AddScoped<BankStatementReconciliationWorker>();
+builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+
+// The per-level workers are registered so they are resolvable and testable, but nothing
+// drives them on a timer yet. Sequencing the full matrix (L1 → L2 → L3 → L4 → L5/L6) is a
+// deliberate design step, not something to switch on implicitly.
+builder.Services.AddScoped<OperationalMatchWorker>();
+builder.Services.AddScoped<PosErpSyncAuditWorker>();
+builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
+builder.Services.AddScoped<SettlementMatchWorker>();
+builder.Services.AddScoped<CollectionMatchWorker>();
+
+// WHY these are hosted services and why that constrains deployment: each one sweeps every
+// tenant on a timer, and the concurrency guard is an in-process dictionary. Running more
+// than one instance of this API means each replica reconciles every tenant independently.
+// Until that guard is distributed, run exactly one instance, or split these into a single
+// dedicated worker process.
+builder.Services.AddHostedService<BankReconciliationHostedService>();
+builder.Services.AddHostedService<JournalPostingHostedService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
@@ -533,7 +570,14 @@ app.MapPost("/api/auth/login", async (
     var user = await db.Users
         .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-    if (user is null || !user.IsActive || user.Status != UserStatus.Active || !passwordHasher.Verify(request.Password, user.PasswordHash))
+    // PasswordHash is null for accounts that only ever sign in through an external provider.
+    // They fail here with the same generic message as a wrong password — saying "this is a Google
+    // account" would confirm to a stranger that the address is registered.
+    if (user is null
+        || !user.IsActive
+        || user.Status != UserStatus.Active
+        || string.IsNullOrEmpty(user.PasswordHash)
+        || !passwordHasher.Verify(request.Password, user.PasswordHash))
     {
         return Results.BadRequest(new { message = "Invalid email or password." });
     }
@@ -545,6 +589,41 @@ app.MapPost("/api/auth/login", async (
         Email = user.Email,
         FullName = $"{user.FirstName} {user.LastName}".Trim(),
         Token = token
+    });
+});
+
+// Google SSO sign-in. The browser completes the Google flow and posts the resulting ID token
+// here; everything that matters — verifying it, matching the account, issuing our session — is
+// done server-side, because anything the browser asserts about itself is unverifiable.
+app.MapPost("/api/auth/sso/google", async (
+    [FromBody] GoogleSsoLoginRequest request,
+    ISsoAuthenticationService ssoAuthenticationService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await ssoAuthenticationService.SignInWithGoogleAsync(request.IdToken, cancellationToken);
+
+    if (!result.Succeeded)
+    {
+        return Results.BadRequest(new { message = result.Error ?? "Google sign-in failed." });
+    }
+
+    return Results.Ok(new LoginResponse
+    {
+        Email = result.Email!,
+        FullName = result.FullName ?? string.Empty,
+        Token = result.Token!
+    });
+});
+
+// Lets the sign-in screen show or hide the Google button based on whether the server can
+// actually complete the flow, instead of offering a button that always fails.
+app.MapGet("/api/auth/sso/config", (IOptions<GoogleSsoOptions> googleOptions) =>
+{
+    var options = googleOptions.Value;
+    return Results.Ok(new
+    {
+        googleEnabled = !string.IsNullOrWhiteSpace(options.ClientId),
+        googleClientId = options.ClientId
     });
 });
 

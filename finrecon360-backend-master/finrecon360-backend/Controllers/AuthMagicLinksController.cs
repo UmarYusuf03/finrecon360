@@ -203,7 +203,11 @@ namespace finrecon360_backend.Controllers
                 return BadRequest(new { message = "Invalid credentials." });
             }
 
-            if (!_passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
+            // PasswordHash is null for accounts that only ever sign in through an external
+            // provider. There is no current password for them to prove, so this flow does not
+            // apply — refused with the same generic message rather than dereferencing null.
+            if (string.IsNullOrEmpty(user.PasswordHash)
+                || !_passwordHasher.Verify(request.CurrentPassword, user.PasswordHash))
             {
                 return BadRequest(new { message = "Invalid credentials." });
             }

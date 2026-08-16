@@ -229,8 +229,10 @@ public class ReconciliationExecutionServiceTests
         var matchedPos = await db.ImportedNormalizedRecords.SingleAsync(x => x.ImportedNormalizedRecordId == posRecord.ImportedNormalizedRecordId);
         var matchedErp = await db.ImportedNormalizedRecords.SingleAsync(x => x.ImportedNormalizedRecordId == erpRecord.ImportedNormalizedRecordId);
 
-        Assert.Equal("MATCHED", matchedPos.MatchStatus);
-        Assert.Equal("MATCHED", matchedErp.MatchStatus);
+        // Stage 1 proves the staff entry agrees with the POS export — nothing more. MATCHED is
+        // reserved for the end of the pipeline, where a human has confirmed a bank settlement.
+        Assert.Equal("INTERNAL_VERIFIED", matchedPos.MatchStatus);
+        Assert.Equal("INTERNAL_VERIFIED", matchedErp.MatchStatus);
     }
 
     private static TenantDbContext CreateTenantDb()
