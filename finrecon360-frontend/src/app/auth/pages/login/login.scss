@@ -304,6 +304,15 @@
   cursor: pointer;
 }
 
+// Microsoft and Okta are not implemented. Without this they render identically to a
+// working button, so the screen reads as if three sign-in routes exist when only one does.
+.ghost-btn:disabled,
+.ghost-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.5);
+}
+
 .login-card__footer {
   display: grid;
   gap: 10px;
