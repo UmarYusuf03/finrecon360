@@ -111,10 +111,17 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
   /**
    * Where a signed-in user lands. Identical for password and Google sign-in — the route depends
    * on what the account may do, never on how the person proved who they are.
+   *
+   * WHY profile is the fallback: /app/dashboard is itself guarded by ADMIN.DASHBOARD.VIEW, so
+   * sending a user who lacks that permission there guaranteed an immediate bounce to
+   * "Not authorized" — a successful sign-in that looks like a failure. Profile is the one
+   * tenant route with no permission requirement, so it is somewhere a brand-new account can
+   * genuinely go. A fresh SSO account has an identity but no roles yet, and this is the first
+   * sign-in route that produces one.
    */
   private resolveLandingRoute(user: CurrentUser): string {
     if (!user.permissions.includes('ADMIN.DASHBOARD.VIEW')) {
-      return '/app/dashboard';
+      return '/app/profile';
     }
 
     return user.isSystemAdmin ? '/app/system' : '/app/admin';
