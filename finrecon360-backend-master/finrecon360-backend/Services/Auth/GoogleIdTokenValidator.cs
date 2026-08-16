@@ -113,6 +113,16 @@ namespace finrecon360_backend.Services.Auth
             try
             {
                 var handler = new JwtSecurityTokenHandler();
+
+                // WHY this line matters: by default the handler rewrites standard OpenID claim
+                // names into legacy WS-Federation URIs — "sub" becomes
+                // ".../identity/claims/nameidentifier", "email" becomes ".../emailaddress".
+                // Looking up "sub" then silently returns null, and a perfectly valid Google token
+                // fails as if the claims were missing. Clearing the map keeps the claim names
+                // exactly as Google issued them.
+                // Cleared on this instance only, so the app's own JWT handling is unaffected.
+                handler.InboundClaimTypeMap.Clear();
+
                 var principal = handler.ValidateToken(idToken, validationParameters, out _);
 
                 var subject = principal.FindFirst("sub")?.Value;
