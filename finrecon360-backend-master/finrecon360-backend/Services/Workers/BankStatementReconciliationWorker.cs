@@ -1,6 +1,7 @@
 using System.Text.Json;
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services.Reconciliation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -98,19 +99,14 @@ namespace finrecon360_backend.Services.Workers
                 .Where(g => g.MatchLevel == "Level4" && g.MatchMetadataJson != null)
                 .ToListAsync(cancellationToken);
 
-            var existingBankGatewaySessions = new HashSet<string>();
-            foreach (var group in existingMatchGroups)
-            {
-                try
-                {
-                    var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(group.MatchMetadataJson ?? "{}");
-                    if (metadata?.ContainsKey("gatewayBankSession") == true)
-                    {
-                        existingBankGatewaySessions.Add(metadata["gatewayBankSession"].ToString() ?? "");
-                    }
-                }
-                catch { /* Skip malformed metadata */ }
-            }
+            // Transactions that already have a proposed or confirmed Level-4 group must not get a
+            // second one — re-proposing on every five-minute cycle would bury the matcher screen in
+            // duplicates of the same match.
+            var alreadyProposedTransactionIds = existingMatchGroups
+                .Select(g => MatchGroupMetadata.TryParse(g.MatchMetadataJson))
+                .Where(m => m?.TransactionId is not null)
+                .Select(m => m!.TransactionId!.Value)
+                .ToHashSet();
 
             var autoMatched = 0;
             var exceptions = 0;
@@ -119,21 +115,62 @@ namespace finrecon360_backend.Services.Workers
             // 4. Process each NeedsBankMatch transaction
             foreach (var txn in needsBankMatchTxns)
             {
+                if (alreadyProposedTransactionIds.Contains(txn.TransactionId))
+                {
+                    _logger.LogDebug("Transaction {TransactionId} already has a Level-4 match group", txn.TransactionId);
+                    continue;
+                }
+
                 var txnDate = txn.TransactionDate.Date;
                 var txnAmount = txn.Amount;
 
-                // Find matching GATEWAY record(s) by amount + date
-                var linkedGateway = gatewayRecords.FirstOrDefault(r =>
-                    r.TransactionDate.Date == txnDate &&
-                    Math.Abs((r.GrossAmount ?? r.NetAmount) - txnAmount) <= Tolerance);
+                // Find matching GATEWAY record(s). Reference number first — it identifies a specific
+                // payment. Date plus amount is only a fallback, and a weak one: two card cashouts of
+                // the same value on the same day are routine for a retailer.
+                var gatewayCandidates = FindGatewayCandidates(gatewayRecords, txn, txnDate, txnAmount);
 
-                if (linkedGateway == null)
+                if (gatewayCandidates.Count == 0)
                 {
                     _logger.LogDebug("No GATEWAY record found for transaction {TransactionId} on date {Date} amount {Amount}",
                         txn.TransactionId, txnDate, txnAmount);
                     noMatch++;
                     continue;
                 }
+
+                // WHY this is an exception rather than a guess: picking the first of several equally
+                // plausible candidates silently settles a transaction against the wrong payment, and
+                // nothing downstream can detect it. A person resolving an exception is recoverable;
+                // a wrong match posted to the ledger is not.
+                if (gatewayCandidates.Count > 1)
+                {
+                    _logger.LogWarning(
+                        "Ambiguous GATEWAY match for transaction {TransactionId}: {Count} candidates on date {Date} amount {Amount}",
+                        txn.TransactionId, gatewayCandidates.Count, txnDate, txnAmount);
+
+                    tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
+                    {
+                        ReconciliationEventId = Guid.NewGuid(),
+                        ImportBatchId = gatewayCandidates[0].ImportBatchId,
+                        ImportedNormalizedRecordId = gatewayCandidates[0].ImportedNormalizedRecordId,
+                        EventType = "ManualReview",
+                        Stage = "Level4",
+                        SourceType = "GATEWAY",
+                        Status = "RequiresReview",
+                        DetailJson = JsonSerializer.Serialize(new
+                        {
+                            reason = "Multiple gateway records match this transaction on date and amount",
+                            transactionId = txn.TransactionId,
+                            candidateCount = gatewayCandidates.Count,
+                            candidateRecordIds = gatewayCandidates.Select(c => c.ImportedNormalizedRecordId).ToList(),
+                            amount = txnAmount
+                        })
+                    });
+
+                    exceptions++;
+                    continue;
+                }
+
+                var linkedGateway = gatewayCandidates[0];
 
                 // Find matching BANK record(s) by SettlementKey + net total
                 var settlementKey = ResolveSettlementKey(linkedGateway);
@@ -178,7 +215,12 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // 5. High-confidence match found — create match group and update transaction state
+                // 5. High-confidence match found — propose the match group for human confirmation.
+                // WHY not auto-confirm: IsConfirmed is the audit record of a person accepting this
+                // match, and journal posting is gated on it. A worker setting it would mean money
+                // reaches the ledger with nobody having looked, which is the control this product
+                // exists to provide. AutoMatched records that the machine proposed it; a human still
+                // confirms it on the matcher screen.
                 var matchGroupId = Guid.NewGuid();
                 var matchGroup = new ReconciliationMatchGroup
                 {
@@ -186,21 +228,24 @@ namespace finrecon360_backend.Services.Workers
                     ImportBatchId = linkedGateway.ImportBatchId,
                     MatchLevel = "Level4",
                     SettlementKey = settlementKey,
-                    IsConfirmed = true, // Auto-confirmed for cardless settlement
-                    ConfirmedByUserId = null, // Worker automation
-                    ConfirmedAt = DateTime.UtcNow,
+                    IsConfirmed = false,
+                    ConfirmedByUserId = null,
+                    ConfirmedAt = null,
                     IsJournalPosted = false,
-                    MatchMetadataJson = JsonSerializer.Serialize(new
+                    MatchMetadataJson = new MatchGroupMetadata
                     {
-                        transactionId = txn.TransactionId,
-                        gatewayBankSession = $"{linkedGateway.ImportedNormalizedRecordId}_{bankAggregate.Records.First().ImportedNormalizedRecordId}",
-                        gatewayNetAmount = gatewayNetTotal,
-                        bankNetTotal = bankAggregate.NetTotal,
-                        bankFeeTotal = bankAggregate.FeeTotal,
-                        variance = Math.Abs(bankAggregate.NetTotal - gatewayNetTotal),
-                        autoMatchedAt = DateTime.UtcNow,
-                        processingFeeAdjustment = bankAggregate.FeeTotal
-                    }),
+                        TransactionId = txn.TransactionId,
+                        SettlementKey = settlementKey,
+                        GatewayBankSession = $"{linkedGateway.ImportedNormalizedRecordId}_{bankAggregate.Records.First().ImportedNormalizedRecordId}",
+                        GatewayNetTotal = gatewayNetTotal,
+                        BankNetTotal = bankAggregate.NetTotal,
+                        ProcessingFeeTotal = bankAggregate.FeeTotal,
+                        Variance = Math.Abs(bankAggregate.NetTotal - gatewayNetTotal),
+                        AutoMatched = true,
+                        GatewayRecordCount = 1,
+                        BankRecordCount = bankAggregate.Records.Count,
+                        MatchedAt = DateTime.UtcNow
+                    }.Serialize(),
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -240,7 +285,7 @@ namespace finrecon360_backend.Services.Workers
                     Status = "Completed",
                     DetailJson = JsonSerializer.Serialize(new
                     {
-                        reason = "Auto-matched by BankStatementReconciliationWorker",
+                        reason = "Auto-matched by BankStatementReconciliationWorker, awaiting human confirmation",
                         transactionId = txn.TransactionId,
                         settlementKey = settlementKey,
                         bankRecordsCount = bankAggregate.Records.Count,
@@ -249,10 +294,15 @@ namespace finrecon360_backend.Services.Workers
                 };
                 tenantDb.ReconciliationEvents.Add(successEvent);
 
-                // Update transaction to JournalReady (unlock posting)
-                txn.TransactionState = TransactionState.JournalReady;
+                // WHY the transaction stays in NeedsBankMatch: the state now means what it says.
+                // A proposed match is not a settled one. ConfirmMatchGroup moves the transaction to
+                // JournalReady when a person accepts this group, which makes the confirmation click
+                // the real gate rather than a formality after the fact.
+                // (This also removes a latent bug: these transactions are loaded AsNoTracking, so the
+                // previous in-place state assignment here never persisted at all.)
 
-                _logger.LogInformation("Auto-matched transaction {TransactionId} to settlement {SettlementKey}", 
+                _logger.LogInformation(
+                    "Proposed match for transaction {TransactionId} to settlement {SettlementKey}; awaiting confirmation",
                     txn.TransactionId, settlementKey);
                 autoMatched++;
             }
@@ -281,20 +331,43 @@ namespace finrecon360_backend.Services.Workers
                 .Where(r => r.ImportBatch != null
                     && r.ImportBatch.SourceType.ToUpper() == sourceType.ToUpper()
                     && r.ImportBatch.Status == "COMMITTED")
-                .OrderByDescending(r => r.ImportBatch.ImportedAt)
+                .OrderByDescending(r => r.ImportBatch!.ImportedAt)
                 .ToListAsync(ct);
         }
 
-        private static string? ResolveSettlementKey(ImportedNormalizedRecord record)
+        private static string? ResolveSettlementKey(ImportedNormalizedRecord record) =>
+            SettlementKeyResolver.Resolve(record);
+
+        /// <summary>
+        /// Reference number is the strong signal — when the transaction carries one and a gateway
+        /// record agrees, that is the match regardless of how many rows share its amount. Only when
+        /// no reference is available do we fall back to date plus amount, and then every candidate
+        /// is returned so the caller can treat ambiguity as an exception.
+        /// </summary>
+        private static List<ImportedNormalizedRecord> FindGatewayCandidates(
+            List<ImportedNormalizedRecord> gatewayRecords,
+            Transaction txn,
+            DateTime txnDate,
+            decimal txnAmount)
         {
-            // Settlement key is AccountCode + ReferenceNumber (both required for Level-4 matching)
-            var accountCode = record.AccountCode?.Trim();
-            var referenceNumber = record.ReferenceNumber?.Trim();
+            var reference = txn.ReferenceNumber?.Trim();
 
-            if (string.IsNullOrWhiteSpace(accountCode) || string.IsNullOrWhiteSpace(referenceNumber))
-                return null;
+            if (!string.IsNullOrWhiteSpace(reference))
+            {
+                var byReference = gatewayRecords
+                    .Where(r => string.Equals(r.ReferenceNumber?.Trim(), reference, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
-            return $"{accountCode}|{referenceNumber}";
+                if (byReference.Count > 0)
+                {
+                    return byReference;
+                }
+            }
+
+            return gatewayRecords
+                .Where(r => r.TransactionDate.Date == txnDate
+                    && Math.Abs((r.GrossAmount ?? r.NetAmount) - txnAmount) <= Tolerance)
+                .ToList();
         }
     }
 }

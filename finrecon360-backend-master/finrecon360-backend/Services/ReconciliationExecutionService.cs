@@ -1,6 +1,7 @@
 using System.Text.Json;
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services.Reconciliation;
 using Microsoft.EntityFrameworkCore;
 
 namespace finrecon360_backend.Services
@@ -163,6 +164,7 @@ namespace finrecon360_backend.Services
                         })
                     };
                     tenantDb.ReconciliationEvents.Add(varianceEvent);
+                    pos.MatchStatus = MatchStatuses.Exception;
                     exceptions++;
                     continue;
                 }
@@ -243,7 +245,10 @@ namespace finrecon360_backend.Services
                         MatchAmount = bestCandidate.Amount
                     });
 
-                    pos.MatchStatus = "MATCHED";
+                    // WHY INTERNAL_VERIFIED and not MATCHED: MATCHED is the end of the whole pipeline
+                    // and means a human confirmed a bank settlement. Stage 1 only proves the staff
+                    // entry agrees with the POS export, which is what INTERNAL_VERIFIED denotes.
+                    pos.MatchStatus = MatchStatuses.InternalVerified;
 
                     var trackedErpRecord = tenantDb.ChangeTracker.Entries<ImportedNormalizedRecord>()
                         .Select(entry => entry.Entity)
@@ -251,12 +256,12 @@ namespace finrecon360_backend.Services
 
                     if (trackedErpRecord is not null)
                     {
-                        trackedErpRecord.MatchStatus = "MATCHED";
+                        trackedErpRecord.MatchStatus = MatchStatuses.InternalVerified;
                     }
                     else
                     {
                         tenantDb.Attach(bestCandidate.Record);
-                        bestCandidate.Record.MatchStatus = "MATCHED";
+                        bestCandidate.Record.MatchStatus = MatchStatuses.InternalVerified;
                         tenantDb.Entry(bestCandidate.Record).Property(x => x.MatchStatus).IsModified = true;
                     }
                     verified++;
@@ -288,6 +293,7 @@ namespace finrecon360_backend.Services
                         })
                     };
                     tenantDb.ReconciliationEvents.Add(reviewEvent);
+                    pos.MatchStatus = MatchStatuses.Exception;
                     exceptions++;
                     continue;
                 }
@@ -319,6 +325,7 @@ namespace finrecon360_backend.Services
                     })
                 };
                 tenantDb.ReconciliationEvents.Add(varianceOrNoMatchEvent);
+                pos.MatchStatus = MatchStatuses.Exception;
                 exceptions++;
             }
 
@@ -447,6 +454,11 @@ namespace finrecon360_backend.Services
                         MatchAmount = matchedGateway.GrossAmount ?? matchedGateway.NetAmount
                     });
 
+                    // The sale is proven charged: ERP amount agrees with the gateway gross.
+                    erp.MatchStatus = MatchStatuses.SalesVerified;
+                    MarkStatus(tenantDb, matchedGateway, SettlementKeyResolver.HasSettlementId(matchedGateway)
+                        ? MatchStatuses.SalesVerified
+                        : MatchStatuses.Waiting);
                     verified++;
                 }
                 else
@@ -464,6 +476,7 @@ namespace finrecon360_backend.Services
                         DetailJson = $"{{\"erpAmount\":{erpAmount},\"candidates\":{candidates.Count}}}"
                     };
                     tenantDb.ReconciliationEvents.Add(varianceEvent);
+                    erp.MatchStatus = MatchStatuses.Exception;
                     exceptions++;
                 }
             }
@@ -500,26 +513,11 @@ namespace finrecon360_backend.Services
             foreach (var gateway in gatewayRecords)
             {
                 var settlementKey = ResolveSettlementKey(gateway);
-                
-                if (string.IsNullOrWhiteSpace(settlementKey))
-                {
-                    // Create ManualReview event for missing settlement key
-                    var noKeyEvent = new ReconciliationEvent
-                    {
-                        ReconciliationEventId = Guid.NewGuid(),
-                        ImportBatchId = importBatchId,
-                        ImportedNormalizedRecordId = gateway.ImportedNormalizedRecordId,
-                        EventType = "ManualReview",
-                        Stage = "Level3",
-                        SourceType = "GATEWAY",
-                        Status = "RequiresReview",
-                        DetailJson = "{\"reason\":\"Missing settlement key (AccountCode and ReferenceNumber)\"}"
-                    };
-                    tenantDb.ReconciliationEvents.Add(noKeyEvent);
-                    waitingForSettlement++;
-                    continue;
-                }
 
+                // WHY this no longer short-circuits: the rule is that a gateway row missing its
+                // SettlementID can still complete Stage 3 — the sale is provably charged either way —
+                // but must be held out of Stage 4 until the ID arrives in a later import. Skipping
+                // the row entirely lost the sales verification as well as the settlement.
                 if (string.IsNullOrWhiteSpace(gateway.ReferenceNumber))
                 {
                     var noRefEvent = new ReconciliationEvent
@@ -534,6 +532,7 @@ namespace finrecon360_backend.Services
                         DetailJson = "{\"reason\":\"Missing ReferenceNumber\"}"
                     };
                     tenantDb.ReconciliationEvents.Add(noRefEvent);
+                    gateway.MatchStatus = MatchStatuses.Exception;
                     level3Exceptions++;
                     continue;
                 }
@@ -552,6 +551,7 @@ namespace finrecon360_backend.Services
                         DetailJson = $"{{\"referenceNumber\":\"{gateway.ReferenceNumber}\"}}"
                     };
                     tenantDb.ReconciliationEvents.Add(notFoundEvent);
+                    gateway.MatchStatus = MatchStatuses.Exception;
                     level3Exceptions++;
                     continue;
                 }
@@ -612,7 +612,39 @@ namespace finrecon360_backend.Services
                         MatchAmount = ResolveComparableAmount(matchedErp) ?? 0m
                     });
 
+                    MarkStatus(tenantDb, matchedErp, MatchStatuses.SalesVerified);
                     level3Verified++;
+
+                    // Stage 3 is satisfied either way. The SettlementID decides whether the row can
+                    // continue to Stage 4 or has to wait for a person to supply the missing ID.
+                    // WAITING wins over SALES_VERIFIED on the record itself because it is the state
+                    // that needs action — the sales verification is preserved in the match group.
+                    if (!SettlementKeyResolver.HasSettlementId(gateway))
+                    {
+                        tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
+                        {
+                            ReconciliationEventId = Guid.NewGuid(),
+                            ImportBatchId = importBatchId,
+                            ImportedNormalizedRecordId = gateway.ImportedNormalizedRecordId,
+                            EventType = "ManualReview",
+                            Stage = "Level3",
+                            SourceType = "GATEWAY",
+                            Status = "RequiresReview",
+                            DetailJson = JsonSerializer.Serialize(new
+                            {
+                                reason = "Sales verified but SettlementId missing; blocked from Level 4 until attached",
+                                referenceNumber = gateway.ReferenceNumber,
+                                fallbackSettlementKey = settlementKey
+                            })
+                        });
+
+                        gateway.MatchStatus = MatchStatuses.Waiting;
+                        waitingForSettlement++;
+                    }
+                    else
+                    {
+                        gateway.MatchStatus = MatchStatuses.SalesVerified;
+                    }
                 }
                 else
                 {
@@ -628,6 +660,7 @@ namespace finrecon360_backend.Services
                         DetailJson = $"{{\"gatewayGross\":{gatewayGross},\"candidates\":{candidates.Count}}}"
                     };
                     tenantDb.ReconciliationEvents.Add(varianceEvent);
+                    gateway.MatchStatus = MatchStatuses.Exception;
                     level3Exceptions++;
                 }
             }
@@ -725,7 +758,20 @@ namespace finrecon360_backend.Services
                         MatchLevel = "Level4",
                         SettlementKey = settlementKey,
                         PrimaryEventId = eventId,
-                        MatchMetadataJson = $"{{\"gatewayNetTotal\":{aggregate.NetTotal},\"bankTotal\":{bankAggregate.Total},\"feeTotal\":{aggregate.FeeTotal}}}"
+                        // Same contract the posting worker reads. Previously this wrote its own key
+                        // names, so a group created here could never be found or valued by the poster.
+                        MatchMetadataJson = new MatchGroupMetadata
+                        {
+                            SettlementKey = settlementKey,
+                            GatewayNetTotal = aggregate.NetTotal,
+                            BankNetTotal = bankAggregate.Total,
+                            ProcessingFeeTotal = aggregate.FeeTotal,
+                            Variance = Math.Abs(bankAggregate.Total - aggregate.NetTotal),
+                            AutoMatched = true,
+                            GatewayRecordCount = aggregate.Records.Count,
+                            BankRecordCount = bankAggregate.Records.Count,
+                            MatchedAt = DateTime.UtcNow
+                        }.Serialize()
                     };
                     tenantDb.ReconciliationMatchGroups.Add(matchGroup);
 
@@ -908,19 +954,30 @@ namespace finrecon360_backend.Services
             TimeSpan TimeDelta,
             int Score);
 
-        private static string? ResolveSettlementKey(ImportedNormalizedRecord record)
+        private static string? ResolveSettlementKey(ImportedNormalizedRecord record) =>
+            SettlementKeyResolver.Resolve(record);
+
+        /// <summary>
+        /// Sets MatchStatus on a record that may or may not be tracked by the context.
+        /// Records from the batch being committed are tracked; the counterpart records this stage
+        /// matches against are loaded AsNoTracking for speed, so assigning to them directly would
+        /// silently do nothing on save. This attaches and marks only the one column as modified.
+        /// </summary>
+        private static void MarkStatus(TenantDbContext tenantDb, ImportedNormalizedRecord record, string status)
         {
-            if (!string.IsNullOrWhiteSpace(record.AccountCode))
+            var tracked = tenantDb.ChangeTracker.Entries<ImportedNormalizedRecord>()
+                .Select(entry => entry.Entity)
+                .FirstOrDefault(entity => entity.ImportedNormalizedRecordId == record.ImportedNormalizedRecordId);
+
+            if (tracked is not null)
             {
-                return record.AccountCode.Trim();
+                tracked.MatchStatus = status;
+                return;
             }
 
-            if (!string.IsNullOrWhiteSpace(record.ReferenceNumber))
-            {
-                return record.ReferenceNumber.Trim();
-            }
-
-            return null;
+            tenantDb.Attach(record);
+            record.MatchStatus = status;
+            tenantDb.Entry(record).Property(x => x.MatchStatus).IsModified = true;
         }
 
         private static ReconciliationExecutionResult BuildResult(
