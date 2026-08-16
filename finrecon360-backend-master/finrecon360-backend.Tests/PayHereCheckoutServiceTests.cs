@@ -3,7 +3,6 @@ using System.Text;
 using System.Web;
 using finrecon360_backend.Options;
 using finrecon360_backend.Services;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Tests;
@@ -45,7 +44,7 @@ public class PayHereCheckoutServiceTests
             CheckoutBaseUrl = checkoutBaseUrl ?? string.Empty,
             Currency = currency ?? "LKR"
         });
-        return new PayHereCheckoutService(options, NullLogger<PayHereCheckoutService>.Instance);
+        return new PayHereCheckoutService(options);
     }
 
     // ──────────────────────────────────────────────
@@ -103,8 +102,8 @@ public class PayHereCheckoutServiceTests
 
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains($"name=\"notify_url\" value=\"{TestNotifyUrl}\"", html);
+        var encodedNotifyUrl = Uri.EscapeDataString(TestNotifyUrl);
+        Assert.Contains($"notify_url={encodedNotifyUrl}", session.CheckoutUrl);
     }
 
     [Fact]
@@ -114,8 +113,7 @@ public class PayHereCheckoutServiceTests
 
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains($"name=\"merchant_id\" value=\"{TestMerchantId}\"", html);
+        Assert.Contains($"merchant_id={TestMerchantId}", session.CheckoutUrl);
     }
 
     [Fact]
@@ -125,9 +123,8 @@ public class PayHereCheckoutServiceTests
 
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains($"name=\"return_url\" value=\"{TestReturnUrl}\"", html);
-        Assert.Contains($"name=\"cancel_url\" value=\"{TestCancelUrl}\"", html);
+        Assert.Contains($"return_url={Uri.EscapeDataString(TestReturnUrl)}", session.CheckoutUrl);
+        Assert.Contains($"cancel_url={Uri.EscapeDataString(TestCancelUrl)}", session.CheckoutUrl);
     }
 
     [Fact]
@@ -138,8 +135,7 @@ public class PayHereCheckoutServiceTests
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15075, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         // 15075 cents = 150.75
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains("name=\"amount\" value=\"150.75\"", html);
+        Assert.Contains("amount=150.75", session.CheckoutUrl);
     }
 
     [Fact]
@@ -157,12 +153,11 @@ public class PayHereCheckoutServiceTests
         var session = await service.CreateCheckoutSessionAsync("Test Plan", amountCents, Guid.NewGuid(), subscriptionId, Guid.NewGuid());
 
         // Manually compute expected hash
-        var merchantSecretHash = ComputeMd5Hex(NormalizeMerchantSecret(TestMerchantSecret)).ToUpperInvariant();
+        var merchantSecretHash = ComputeMd5Hex(TestMerchantSecret).ToUpperInvariant();
         var hashInput = $"{TestMerchantId}{orderId}{amount}{currency}{merchantSecretHash}";
         var expectedHash = ComputeMd5Hex(hashInput).ToUpperInvariant();
 
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains($"name=\"hash\" value=\"{expectedHash}\"", html);
+        Assert.Contains($"hash={expectedHash}", session.CheckoutUrl);
     }
 
     [Fact]
@@ -173,8 +168,7 @@ public class PayHereCheckoutServiceTests
 
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), userId);
 
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains($"name=\"custom_1\" value=\"{userId}\"", html);
+        Assert.Contains($"custom_1={userId}", session.CheckoutUrl);
     }
 
     [Fact]
@@ -185,8 +179,7 @@ public class PayHereCheckoutServiceTests
 
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, tenantId, Guid.NewGuid(), Guid.NewGuid());
 
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains($"name=\"custom_2\" value=\"{tenantId}\"", html);
+        Assert.Contains($"custom_2={tenantId}", session.CheckoutUrl);
     }
 
     [Fact]
@@ -196,21 +189,7 @@ public class PayHereCheckoutServiceTests
 
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-        Assert.Contains($"action=\"{TestCheckoutBaseUrl}\"", html);
-        Assert.StartsWith("data:text/html;base64,", session.CheckoutUrl);
-    }
-
-    [Fact]
-    public async Task CreateCheckoutSession_uses_auto_submitting_post_form()
-    {
-        var service = CreateService();
-
-        var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        var html = DecodeCheckoutHtml(session.CheckoutUrl);
-
-        Assert.Contains("method=\"post\"", html);
-        Assert.Contains("onload=\"document.getElementById('payhere-form').submit();\"", html);
+        Assert.StartsWith(TestCheckoutBaseUrl, session.CheckoutUrl);
     }
 
     // ──────────────────────────────────────────────
@@ -393,38 +372,9 @@ public class PayHereCheckoutServiceTests
 
     private static string BuildCallbackSignature(string merchantId, string orderId, string amount, string currency, string statusCode, string merchantSecret)
     {
-        var secretHash = ComputeMd5Hex(NormalizeMerchantSecret(merchantSecret)).ToUpperInvariant();
+        var secretHash = ComputeMd5Hex(merchantSecret).ToUpperInvariant();
         var signatureInput = $"{merchantId}{orderId}{amount}{currency}{statusCode}{secretHash}";
         return ComputeMd5Hex(signatureInput).ToUpperInvariant();
-    }
-
-    private static string NormalizeMerchantSecret(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return value;
-        }
-
-        try
-        {
-            if (value.Length % 4 == 0)
-            {
-                return Encoding.UTF8.GetString(Convert.FromBase64String(value));
-            }
-        }
-        catch
-        {
-            // Use the original value if it is not base64.
-        }
-
-        return value;
-    }
-
-    private static string DecodeCheckoutHtml(string checkoutUrl)
-    {
-        Assert.StartsWith("data:text/html;base64,", checkoutUrl);
-        var base64 = checkoutUrl["data:text/html;base64,".Length..];
-        return Encoding.UTF8.GetString(Convert.FromBase64String(base64));
     }
 
     private static string ComputeMd5Hex(string value)

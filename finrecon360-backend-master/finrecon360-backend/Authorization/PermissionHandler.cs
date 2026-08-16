@@ -20,13 +20,6 @@ namespace finrecon360_backend.Authorization
             "ADMIN.ENFORCEMENT.MANAGE"
         };
 
-        /// <summary>
-        /// WHY: The AliasMap implements the "MANAGE→VIEW implication" rule.
-        /// Any mutating permission (CREATE/EDIT/DELETE/COMMIT/CONFIRM/RESOLVE/POST/MANAGE) also satisfies
-        /// a VIEW check for the same module. This is enforced here, centrally, so every endpoint
-        /// that checks VIEW will also pass for users who only have a mutating grant — no per-controller
-        /// logic needed, and no duplicate VIEW grants needed in the role seed.
-        /// </summary>
         private static readonly Dictionary<string, string[]> AliasMap = new(StringComparer.OrdinalIgnoreCase)
         {
             // Legacy aliases (kept for backwards compatibility)
@@ -209,21 +202,6 @@ namespace finrecon360_backend.Authorization
                     .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
                     .Distinct()
                     .ToListAsync();
-
-                if (permissions.Contains(requirement.PermissionCode, StringComparer.OrdinalIgnoreCase))
-                {
-                    context.Succeed(requirement);
-                    return;
-                }
-
-                var isCanonicalTenantAdmin = await tenantDb.TenantUsers
-                    .AsNoTracking()
-                    .AnyAsync(tu => tu.UserId == userId.Value && tu.IsActive && tu.Role == Models.TenantUserRole.TenantAdmin.ToString());
-
-                if (isCanonicalTenantAdmin)
-                {
-                    context.Succeed(requirement);
-                }
                 }
             }
             else

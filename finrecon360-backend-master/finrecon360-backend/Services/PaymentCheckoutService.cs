@@ -11,9 +11,6 @@ namespace finrecon360_backend.Services
             Guid tenantId,
             Guid subscriptionId,
             Guid userId,
-            string companyName,
-            string email,
-            string phone,
             CancellationToken cancellationToken = default);
 
         bool IsConfigured();
@@ -43,9 +40,6 @@ namespace finrecon360_backend.Services
             Guid tenantId,
             Guid subscriptionId,
             Guid userId,
-            string companyName,
-            string email,
-            string phone,
             CancellationToken cancellationToken = default)
         {
             var session = await _payHereCheckoutService.CreateCheckoutSessionAsync(
@@ -54,9 +48,6 @@ namespace finrecon360_backend.Services
                 tenantId,
                 subscriptionId,
                 userId,
-                companyName,
-                email,
-                phone,
                 cancellationToken);
 
             return new PaymentCheckoutSession("PayHere", session.OrderId, null, session.CheckoutUrl);

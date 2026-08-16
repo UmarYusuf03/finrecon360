@@ -67,12 +67,9 @@ export class AdminPermissionsComponent implements OnInit {
   displayedColumns: string[] = ['component'];
   saving = false;
 
-  // WHY: The scoped permissions section is a separate grid (Source Type × Module Action)
-  // that lives outside the standard Component × Action matrix. scopedRows drives the UI
-  // and scopedGranted tracks which codes are toggled for the currently selected role.
   scopedRows: ScopedPermissionRow[] = [];
-  scopedGranted = new Set<string>();
-  originalScopedGranted = new Set<string>();
+  scopedCodes = new Set<string>();
+  originalScopedCodes = new Set<string>();
 
   form!: FormGroup;
 
@@ -83,7 +80,9 @@ export class AdminPermissionsComponent implements OnInit {
     private componentService: AdminComponentService,
     private translate: TranslateService,
     private snackBar: MatSnackBar
-  ) {}
+  ) {
+    this.buildScopedRows();
+  }
 
   ngOnInit(): void {
     this.form = this.fb.group({
@@ -103,11 +102,6 @@ export class AdminPermissionsComponent implements OnInit {
       this.visibleActions = actions.filter((action) => !AdminPermissionsComponent.HiddenActionCodes.has(action.code));
       this.availablePermissionCodes = availableCodes;
       this.displayedColumns = ['component', ...this.visibleActions.map((a) => a.code)];
-
-      // WHY: Build the scoped permission rows once; they don't change per role —
-      // only which ones are checked (scopedGranted) changes per-role load.
-      this.scopedRows = this.permissionService.getScopedPermissionRows()
-        .filter(row => row.actions.some(a => availableCodes.has(a.permissionCode)));
 
       const currentRoleId = this.form.get('roleId')?.value;
       const currentRoleStillExists = roles.some((role) => role.id === currentRoleId);
@@ -212,16 +206,11 @@ export class AdminPermissionsComponent implements OnInit {
     if (!window.confirm(confirmMessage)) return;
 
     this.saving = true;
-    this.permissionService.saveRoleAssignments(
-      roleId,
-      this.assignments,
-      // WHY: Pass the scoped codes alongside standard assignments so the backend
-      // PUT /roles/{id}/permissions replaces ALL permissions in a single atomic call.
-      [...this.scopedGranted],
-    ).subscribe({
+    const scopedArray = Array.from(this.scopedCodes);
+    this.permissionService.saveRoleAssignments(roleId, this.assignments, scopedArray).subscribe({
       next: () => {
         this.originalAssignments = this.assignments.map((a) => ({ ...a }));
-        this.originalScopedGranted = new Set(this.scopedGranted);
+        this.originalScopedCodes = new Set(this.scopedCodes);
         this.saving = false;
         this.snackBar.open('Permissions updated successfully.', 'Close', { duration: 2500 });
       },
@@ -237,26 +226,6 @@ export class AdminPermissionsComponent implements OnInit {
    * highlight the 'Save' button only when true logical changes exist, ignoring toggles 
    * that were flipped and then reverted.
    */
-  /** Whether a specific scoped permission code is granted for the current role. */
-  isScopedGranted(permissionCode: string): boolean {
-    return this.scopedGranted.has(permissionCode);
-  }
-
-  /**
-   * WHY: Toggling a scoped permission also auto-grants the implicit VIEW permission
-   * on the parent module so the user can actually reach the page.
-   * e.g. granting ADMIN.IMPORTS.POS.CREATE also ensures ADMIN.IMPORTS.VIEW is present.
-   */
-  toggleScoped(permissionCode: string): void {
-    if (this.scopedGranted.has(permissionCode)) {
-      this.scopedGranted.delete(permissionCode);
-    } else {
-      this.scopedGranted.add(permissionCode);
-    }
-    // Force change detection on the Set reference
-    this.scopedGranted = new Set(this.scopedGranted);
-  }
-
   get hasChanges(): boolean {
     const current = new Set(this.assignments.map((a) => a.permissionCode));
     const original = new Set(this.originalAssignments.map((a) => a.permissionCode));
@@ -264,11 +233,12 @@ export class AdminPermissionsComponent implements OnInit {
     for (const code of current) {
       if (!original.has(code)) return true;
     }
-    // Also compare scoped state
-    if (this.scopedGranted.size !== this.originalScopedGranted.size) return true;
-    for (const code of this.scopedGranted) {
-      if (!this.originalScopedGranted.has(code)) return true;
+
+    if (this.scopedCodes.size !== this.originalScopedCodes.size) return true;
+    for (const code of this.scopedCodes) {
+      if (!this.originalScopedCodes.has(code)) return true;
     }
+
     return false;
   }
 
@@ -279,19 +249,17 @@ export class AdminPermissionsComponent implements OnInit {
     forkJoin({
       assignments: this.permissionService.getRoleAssignments(roleId),
       rawCodes: this.permissionService.getRolePermissionCodes(roleId),
-    }).subscribe(({ assignments, rawCodes }) => {
+    }).subscribe(({ assignments, rawCodes }: { assignments: PermissionAssignment[], rawCodes: string[] }) => {
       this.assignments = assignments;
-      this.originalAssignments = assignments.map((a) => ({ ...a }));
+      this.originalAssignments = assignments.map((a: PermissionAssignment) => ({ ...a }));
 
-      const allScopedCodes = new Set(
-        this.scopedRows.flatMap((row) => row.actions.map((a) => a.permissionCode))
-      );
-      const granted = new Set<string>();
-      for (const code of allScopedCodes) {
-        if (rawCodes.has(code)) granted.add(code);
-      }
-      this.scopedGranted = granted;
-      this.originalScopedGranted = new Set(granted);
+      this.scopedCodes.clear();
+      rawCodes.forEach(code => {
+        if (AdminPermissionService.SOURCE_TYPES.some(st => code.includes(`.${st}.`))) {
+          this.scopedCodes.add(code);
+        }
+      });
+      this.originalScopedCodes = new Set(this.scopedCodes);
     });
   }
 
@@ -346,5 +314,34 @@ export class AdminPermissionsComponent implements OnInit {
     if (!hasAllRequired) {
       this.setAssignment(roleId, component, 'MANAGE', false);
     }
+  }
+
+  isScopedGranted(permissionCode: string): boolean {
+    return this.scopedCodes.has(permissionCode);
+  }
+
+  toggleScoped(permissionCode: string): void {
+    if (this.scopedCodes.has(permissionCode)) {
+      this.scopedCodes.delete(permissionCode);
+    } else {
+      this.scopedCodes.add(permissionCode);
+    }
+  }
+
+  private buildScopedRows(): void {
+    this.scopedRows = [];
+    AdminPermissionService.SCOPED_MODULES.forEach(mod => {
+      AdminPermissionService.SOURCE_TYPES.forEach(sourceType => {
+        this.scopedRows.push({
+          sourceType,
+          module: mod.module,
+          actions: mod.actions.map(action => ({
+            code: action.code,
+            label: action.label,
+            permissionCode: `${mod.prefix}.${sourceType}.${action.code}`
+          }))
+        });
+      });
+    });
   }
 }
