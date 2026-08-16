@@ -143,6 +143,7 @@ namespace finrecon360_backend.Services
                 TransactionType = transactionType,
                 PostingDate = ReadDate(row, mappings, "PostingDate", errors, required: false),
                 ReferenceNumber = NormalizeText(ReadString(row, mappings, "ReferenceNumber")),
+                SettlementId = NormalizeText(ReadString(row, mappings, "SettlementId")),
                 Description = NormalizeText(ReadString(row, mappings, "Description")),
                 AccountCode = NormalizeAccountCode(ReadString(row, mappings, "AccountCode")),
                 AccountName = NormalizeText(ReadString(row, mappings, "AccountName")),

@@ -68,9 +68,23 @@ namespace finrecon360_backend.Data.Configurations
             builder.Property(u => u.Gender)
                 .HasMaxLength(64);
 
+            // Optional, not required: accounts that sign in only through an external provider
+            // have no password at all. Leaving IsRequired() here made EF reject every SSO-created
+            // account on save, even though the database column itself already allows null.
             builder.Property(u => u.PasswordHash)
-                .HasMaxLength(512)
-                .IsRequired();
+                .HasMaxLength(512);
+
+            builder.Property(u => u.ExternalProvider)
+                .HasMaxLength(64);
+
+            builder.Property(u => u.ExternalProviderId)
+                .HasMaxLength(256);
+
+            // One account per external identity. Filtered so the many password-only accounts,
+            // which leave both columns null, do not collide with one another.
+            builder.HasIndex(u => new { u.ExternalProvider, u.ExternalProviderId })
+                .IsUnique()
+                .HasFilter("[ExternalProvider] IS NOT NULL AND [ExternalProviderId] IS NOT NULL");
 
             builder.Property(u => u.VerificationCode)
                 .HasMaxLength(64);
