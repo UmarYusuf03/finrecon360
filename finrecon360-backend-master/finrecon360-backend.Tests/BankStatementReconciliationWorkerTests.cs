@@ -67,8 +67,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 
@@ -94,8 +94,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "BANK",
             Status = "COMMITTED",
-            FileName = "bank.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "bank.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(bankBatch);
 
@@ -125,16 +125,17 @@ public class BankStatementReconciliationWorkerTests
         Assert.Equal(0, result.ExceptionCount);
         Assert.Equal(0, result.NoMatchCount);
 
-        // 6. Verify transaction moved to JournalReady
+        // 6. Verify transaction remains in NeedsBankMatch — promotion to JournalReady only
+        // happens once a human confirms the match via the confirmation screen.
         var updatedTxn = await tenantDb.Transactions.FirstOrDefaultAsync(x => x.TransactionId == txn.TransactionId);
         Assert.NotNull(updatedTxn);
-        Assert.Equal(TransactionState.JournalReady, updatedTxn.TransactionState);
+        Assert.Equal(TransactionState.NeedsBankMatch, updatedTxn.TransactionState);
 
-        // 7. Verify match group created
+        // 7. Verify match group created but not auto-confirmed
         var matchGroup = await tenantDb.ReconciliationMatchGroups.FirstOrDefaultAsync();
         Assert.NotNull(matchGroup);
         Assert.Equal("Level4", matchGroup.MatchLevel);
-        Assert.True(matchGroup.IsConfirmed);
+        Assert.False(matchGroup.IsConfirmed);
         Assert.Equal("ACCT001|REF001", matchGroup.SettlementKey);
 
         // 8. Verify matched records linked
@@ -176,8 +177,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 
@@ -203,8 +204,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "BANK",
             Status = "COMMITTED",
-            FileName = "bank.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "bank.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(bankBatch);
 
@@ -275,8 +276,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 
@@ -335,8 +336,8 @@ public class BankStatementReconciliationWorkerTests
             ImportBatchId = Guid.NewGuid(),
             SourceType = "GATEWAY",
             Status = "COMMITTED",
-            FileName = "gateway.csv",
-            CreatedAt = DateTime.UtcNow
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
         };
         tenantDb.ImportBatches.Add(gatewayBatch);
 

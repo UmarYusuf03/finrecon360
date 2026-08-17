@@ -114,30 +114,51 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // Find the ReconciliationMatchGroup linked to this transaction
-                var matchGroup = await tenantDb.ReconciliationMatchGroups
-                    .FirstOrDefaultAsync(
-                        g => g.MatchLevel == "Level4" && g.MatchMetadataJson != null &&
-                        g.MatchMetadataJson.Contains(txn.TransactionId.ToString()),
-                        cancellationToken);
+                // Only card cashouts require a confirmed Level-4 bank match before posting;
+                // everything else (cash cashouts, etc.) posts directly on approval.
+                var requiresLevel4Match = txn.TransactionType == TransactionType.CashOut
+                    && txn.PaymentMethod == PaymentMethod.Card;
 
-                if (matchGroup == null)
+                ReconciliationMatchGroup? matchGroup = null;
+                if (requiresLevel4Match)
                 {
-                    _logger.LogWarning("No match group found for transaction {TransactionId}", txn.TransactionId);
-                    noMatch++;
-                    continue;
+                    // Gate: match group must be Level4 and confirmed (manual or auto exact-match
+                    // confirmation) before the settlement can be posted to the GL.
+                    matchGroup = await tenantDb.ReconciliationMatchGroups
+                        .FirstOrDefaultAsync(
+                            g => g.MatchLevel == "Level4" && g.IsConfirmed && g.MatchMetadataJson != null &&
+                            g.MatchMetadataJson.Contains(txn.TransactionId.ToString()),
+                            cancellationToken);
+
+                    if (matchGroup == null)
+                    {
+                        _logger.LogWarning("No confirmed Level4 match group found for card cashout transaction {TransactionId}", txn.TransactionId);
+                        noMatch++;
+                        continue;
+                    }
                 }
 
                 try
                 {
-                    // Extract settlement metadata from match group
-                    var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(
-                        matchGroup.MatchMetadataJson ?? "{}") ?? new();
+                    decimal bankNetTotal;
+                    decimal processingFeeAdjustment;
 
-                    var bankNetTotal = ExtractDecimal(metadata, "bankNetTotal");
-                    var bankFeeTotal = ExtractDecimal(metadata, "bankFeeTotal");
-                    var gatewayNetAmount = ExtractDecimal(metadata, "gatewayNetAmount");
-                    var processingFeeAdjustment = ExtractDecimal(metadata, "processingFeeAdjustment");
+                    if (matchGroup != null)
+                    {
+                        // Extract settlement metadata from match group
+                        var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(
+                            matchGroup.MatchMetadataJson ?? "{}") ?? new();
+
+                        bankNetTotal = ExtractDecimal(metadata, "bankNetTotal");
+                        processingFeeAdjustment = ExtractDecimal(metadata, "processingFeeAdjustment");
+                    }
+                    else
+                    {
+                        // Non-card cashouts post directly on approval using the approved amount;
+                        // there is no bank settlement metadata to reconcile against.
+                        bankNetTotal = txn.Amount;
+                        processingFeeAdjustment = 0m;
+                    }
 
                     _logger.LogDebug(
                         "Creating journal entries for transaction {TransactionId}: net={Net}, fees={Fees}",
@@ -149,13 +170,15 @@ namespace finrecon360_backend.Services.Workers
                     {
                         JournalEntryId = Guid.NewGuid(),
                         TransactionId = txn.TransactionId,
-                        ReconciliationMatchGroupId = matchGroup.ReconciliationMatchGroupId,
+                        ReconciliationMatchGroupId = matchGroup?.ReconciliationMatchGroupId,
                         EntryType = "DebitBank",
                         Amount = bankNetTotal,
                         Currency = "LKR",
                         PostedAt = DateTime.UtcNow,
                         PostedByUserId = null, // Automated posting
-                        Notes = $"Bank settlement for transaction {txn.TransactionId} via Level4 reconciliation"
+                        Notes = matchGroup != null
+                            ? $"Bank settlement for transaction {txn.TransactionId} via Level4 reconciliation"
+                            : $"Direct posting on approval for transaction {txn.TransactionId}"
                     };
                     tenantDb.JournalEntries.Add(entryDebitBank);
 
@@ -163,7 +186,7 @@ namespace finrecon360_backend.Services.Workers
                     {
                         JournalEntryId = Guid.NewGuid(),
                         TransactionId = txn.TransactionId,
-                        ReconciliationMatchGroupId = matchGroup.ReconciliationMatchGroupId,
+                        ReconciliationMatchGroupId = matchGroup?.ReconciliationMatchGroupId,
                         EntryType = "CreditCashOut",
                         Amount = -bankNetTotal, // Negative for credit
                         Currency = "LKR",

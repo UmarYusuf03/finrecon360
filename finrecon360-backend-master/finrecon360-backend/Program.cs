@@ -550,25 +550,6 @@ app.MapPost("/api/auth/login", async (
 
 #endregion
 
-#region Dashboard Endpoint (Protected)
-
-app.MapGet("/api/dashboard/summary", () =>
-{
-    var summary = new DashboardSummary
-    {
-        TotalAccounts = 128,
-        PendingReconciliations = 14,
-        CompletedToday = 32,
-        Alerts = 3,
-        LastUpdatedUtc = DateTime.UtcNow
-    };
-
-    return Results.Ok(summary);
-})
-.RequireAuthorization($"{finrecon360_backend.Authorization.PermissionPolicyProvider.PolicyPrefix}ADMIN.DASHBOARD.VIEW");   // 🔒 tenant permission required
-
-#endregion
-
 app.Run();
 
 public partial class Program { }

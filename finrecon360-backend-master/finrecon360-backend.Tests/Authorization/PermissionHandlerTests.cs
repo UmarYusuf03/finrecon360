@@ -1,92 +1,77 @@
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using finrecon360_backend.Authorization;
 using Xunit;
 
 namespace finrecon360_backend.Tests.Authorization
 {
+    /// <summary>
+    /// PermissionHandler no longer exposes a static ExpandPermissions helper — authorization now
+    /// resolves a required permission against a reverse AliasMap (requirement -> permissions that
+    /// satisfy it) inline in HandleRequirementAsync. These tests exercise that AliasMap directly.
+    /// </summary>
     public class PermissionHandlerTests
     {
-        [Fact]
-        public void ExpandPermissions_WithScopedImportPermission_AddsWorkbenchViewPermission()
+        private static IReadOnlyDictionary<string, string[]> AliasMap
         {
-            // Arrange
-            var permissions = new[] { "ADMIN.IMPORTS.POS.CREATE", "ADMIN.ROLES.VIEW" };
-
-            // Act
-            var expanded = PermissionHandler.ExpandPermissions(permissions);
-
-            // Assert
-            Assert.Contains("ADMIN.IMPORT_WORKBENCH.VIEW", expanded);
-            Assert.Contains("ADMIN.IMPORTS.POS.CREATE", expanded);
-            Assert.Contains("ADMIN.ROLES.VIEW", expanded);
+            get
+            {
+                var field = typeof(PermissionHandler).GetField("AliasMap", BindingFlags.NonPublic | BindingFlags.Static)!;
+                return (IReadOnlyDictionary<string, string[]>)field.GetValue(null)!;
+            }
         }
 
         [Fact]
-        public void ExpandPermissions_WithMultipleScopedImportPermissions_AddsWorkbenchViewPermissionOnce()
+        public void AliasMap_ImportsView_IsSatisfiedByScopedPosCreate()
         {
-            // Arrange
-            var permissions = new[] { "ADMIN.IMPORTS.POS.CREATE", "ADMIN.IMPORTS.ERP.EDIT", "ADMIN.IMPORTS.BANK.COMMIT" };
+            var aliases = AliasMap["ADMIN.IMPORTS.VIEW"];
 
-            // Act
-            var expanded = PermissionHandler.ExpandPermissions(permissions);
-
-            // Assert
-            var workbenchCount = Enumerable.Count(expanded, p => p.Equals("ADMIN.IMPORT_WORKBENCH.VIEW", StringComparison.OrdinalIgnoreCase));
-            Assert.Equal(1, workbenchCount);
-            Assert.Equal(4, expanded.Count); // 3 original + 1 added
+            Assert.Contains("ADMIN.IMPORTS.POS.CREATE", aliases);
         }
 
         [Fact]
-        public void ExpandPermissions_WithoutScopedImportPermission_DoesNotAddWorkbenchView()
+        public void AliasMap_ImportsView_IsSatisfiedByLegacyWorkbenchPermissions()
         {
-            // Arrange
-            var permissions = new[] { "ADMIN.ROLES.VIEW", "ADMIN.USERS.MANAGE" };
+            var aliases = AliasMap["ADMIN.IMPORTS.VIEW"];
 
-            // Act
-            var expanded = PermissionHandler.ExpandPermissions(permissions);
-
-            // Assert
-            Assert.DoesNotContain("ADMIN.IMPORT_WORKBENCH.VIEW", expanded);
-            Assert.Equal(2, expanded.Count);
+            Assert.Contains("ADMIN.IMPORT_WORKBENCH.VIEW", aliases);
+            Assert.Contains("ADMIN.IMPORT_WORKBENCH.MANAGE", aliases);
         }
 
         [Fact]
-        public void ExpandPermissions_WithExistingWorkbenchViewPermission_DoesNotDuplicate()
+        public void AliasMap_ScopedPosCreate_IsSatisfiedByFullImportsCreateOrManage()
         {
-            // Arrange
-            var permissions = new[] { "ADMIN.IMPORTS.POS.CREATE", "ADMIN.IMPORT_WORKBENCH.VIEW" };
+            var aliases = AliasMap["ADMIN.IMPORTS.POS.CREATE"];
 
-            // Act
-            var expanded = PermissionHandler.ExpandPermissions(permissions);
-
-            // Assert
-            var workbenchCount = Enumerable.Count(expanded, p => p.Equals("ADMIN.IMPORT_WORKBENCH.VIEW", StringComparison.OrdinalIgnoreCase));
-            Assert.Equal(1, workbenchCount);
-            Assert.Equal(2, expanded.Count);
+            Assert.Contains("ADMIN.IMPORTS.CREATE", aliases);
+            Assert.Contains("ADMIN.IMPORTS.MANAGE", aliases);
         }
 
         [Fact]
-        public void ExpandPermissions_WithNullInput_ReturnsEmptyList()
+        public void AliasMap_ReconciliationView_IsSatisfiedByScopedResolvePermissions()
         {
-            // Act
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type
-            var expanded = PermissionHandler.ExpandPermissions(null!);
-#pragma warning restore CS8625
+            var aliases = AliasMap["ADMIN.RECONCILIATION.VIEW"];
 
-            // Assert
-            Assert.NotNull(expanded);
-            Assert.Empty(expanded);
+            Assert.Contains("ADMIN.RECONCILIATION.POS.RESOLVE", aliases);
+            Assert.Contains("ADMIN.RECONCILIATION.ERP.RESOLVE", aliases);
+            Assert.Contains("ADMIN.RECONCILIATION.GATEWAY.RESOLVE", aliases);
+            Assert.Contains("ADMIN.RECONCILIATION.BANK.RESOLVE", aliases);
         }
 
         [Fact]
-        public void ExpandPermissions_WithEmptyList_ReturnsEmptyList()
+        public void AliasMap_LegacyRoleManagementAlias_MapsToCurrentPermission()
         {
-            // Act
-            var expanded = PermissionHandler.ExpandPermissions(Array.Empty<string>());
+            var aliases = AliasMap["ROLE_MANAGEMENT"];
 
-            // Assert
-            Assert.NotNull(expanded);
-            Assert.Empty(expanded);
+            Assert.Single(aliases);
+            Assert.Contains("ADMIN.ROLES.MANAGE", aliases);
+        }
+
+        [Fact]
+        public void AliasMap_UnknownPermission_HasNoEntry()
+        {
+            Assert.False(AliasMap.ContainsKey("ADMIN.NOT_A_REAL_PERMISSION"));
         }
     }
 }

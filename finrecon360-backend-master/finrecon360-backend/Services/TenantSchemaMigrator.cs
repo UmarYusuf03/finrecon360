@@ -21,6 +21,8 @@ namespace finrecon360_backend.Services
         private const string MigrationTransactions = "202604230003_TenantTransactions";
         private const string MigrationTransactionPermissions = "202604230004_TenantTransactionPermissions";
         private const string MigrationTransactionApprovalFields = "202604230005_TenantTransactionApprovalFields";
+        private const string MigrationImportedRecordsMatchFields = "202608170001_TenantImportedNormalizedRecordsMatchFields";
+        private const string MigrationReconciliationJournalSchema = "202608170002_TenantReconciliationJournalSchema";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -42,6 +44,8 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactions, BuildTenantTransactionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionPermissions, BuildTenantTransactionPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionApprovalFields, BuildTenantTransactionApprovalFieldsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportedRecordsMatchFields, BuildTenantImportedNormalizedRecordsMatchFieldsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationJournalSchema, BuildTenantReconciliationJournalSchemaSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -817,6 +821,176 @@ namespace finrecon360_backend.Services
                     ALTER TABLE dbo.TransactionStateHistories ADD Note nvarchar(500) NULL;
                 END
             END
+            """;
+
+        // Backfills columns the reconciliation workers depend on (MatchStatus, SettlementKey)
+        // that were never added to the original ImportedNormalizedRecords table definition.
+        // See repair_missing_import_columns.sql — that manual script patched ReferenceNumber/
+        // SettlementId on one failing tenant, but MatchStatus/SettlementKey were still missing
+        // from every tenant DB, including ones already patched.
+        private static string BuildTenantImportedNormalizedRecordsMatchFieldsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'MatchStatus') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ImportedNormalizedRecords
+                    ADD MatchStatus nvarchar(30) NOT NULL CONSTRAINT DF_ImportedNormalizedRecords_MatchStatus DEFAULT (N'PENDING');
+                END
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'SettlementId') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD SettlementId nvarchar(max) NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'SettlementKey') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD SettlementKey nvarchar(200) NULL;
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords') AND name = N'IX_ImportedNormalizedRecords_MatchStatus')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_MatchStatus ON dbo.ImportedNormalizedRecords(MatchStatus);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords') AND name = N'IX_ImportedNormalizedRecords_SettlementKey')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_SettlementKey ON dbo.ImportedNormalizedRecords(SettlementKey);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords') AND name = N'IX_ImportedNormalizedRecords_ReferenceNumber_TransactionDate')
+                BEGIN
+                    CREATE INDEX IX_ImportedNormalizedRecords_ReferenceNumber_TransactionDate ON dbo.ImportedNormalizedRecords(ReferenceNumber, TransactionDate);
+                END
+            END
+            """;
+
+        // Creates the reconciliation match-group/event/journal tables. These DbSets have existed
+        // on TenantDbContext for a while but were never actually created in tenant SQL Server
+        // databases — worker unit tests only passed because they run against EF's InMemory
+        // provider, which fabricates schema from the model regardless of what's really deployed.
+        private static string BuildTenantReconciliationJournalSchemaSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationMatchGroups', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReconciliationMatchGroups (
+                    ReconciliationMatchGroupId uniqueidentifier NOT NULL PRIMARY KEY,
+                    MatchLevel nvarchar(20) NOT NULL,
+                    SettlementKey nvarchar(200) NOT NULL,
+                    IsConfirmed bit NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_IsConfirmed DEFAULT (0),
+                    ConfirmedByUserId uniqueidentifier NULL,
+                    ConfirmedAt datetime2 NULL,
+                    MatchedAmount decimal(18,2) NOT NULL,
+                    Variance decimal(18,2) NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_Variance DEFAULT (0),
+                    Status nvarchar(30) NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_Status DEFAULT (N'Pending'),
+                    ImportBatchId uniqueidentifier NULL,
+                    IsJournalPosted bit NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_IsJournalPosted DEFAULT (0),
+                    UpdatedAt datetime2 NULL,
+                    PrimaryEventId uniqueidentifier NULL,
+                    MatchMetadataJson nvarchar(max) NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationMatchGroups_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT FK_ReconciliationMatchGroups_ImportBatches_ImportBatchId FOREIGN KEY (ImportBatchId) REFERENCES dbo.ImportBatches(ImportBatchId) ON DELETE SET NULL
+                );
+
+                CREATE INDEX IX_ReconciliationMatchGroups_MatchLevel ON dbo.ReconciliationMatchGroups(MatchLevel);
+                CREATE INDEX IX_ReconciliationMatchGroups_SettlementKey ON dbo.ReconciliationMatchGroups(SettlementKey);
+                CREATE INDEX IX_ReconciliationMatchGroups_Status ON dbo.ReconciliationMatchGroups(Status);
+                CREATE INDEX IX_ReconciliationMatchGroups_ImportBatchId ON dbo.ReconciliationMatchGroups(ImportBatchId);
+            END
+
+            IF OBJECT_ID(N'dbo.ReconciliationMatchedRecords', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReconciliationMatchedRecords (
+                    ReconciliationMatchedRecordId uniqueidentifier NOT NULL PRIMARY KEY,
+                    ReconciliationMatchGroupId uniqueidentifier NOT NULL,
+                    ImportedNormalizedRecordId uniqueidentifier NOT NULL,
+                    SourceType nvarchar(100) NOT NULL,
+                    MatchAmount decimal(18,2) NOT NULL CONSTRAINT DF_ReconciliationMatchedRecords_MatchAmount DEFAULT (0),
+                    LinkedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationMatchedRecords_LinkedAt DEFAULT SYSUTCDATETIME(),
+                    CONSTRAINT FK_ReconciliationMatchedRecords_MatchGroups_GroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE CASCADE,
+                    CONSTRAINT FK_ReconciliationMatchedRecords_NormalizedRecords_RecordId FOREIGN KEY (ImportedNormalizedRecordId) REFERENCES dbo.ImportedNormalizedRecords(ImportedNormalizedRecordId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_ReconciliationMatchedRecords_GroupId ON dbo.ReconciliationMatchedRecords(ReconciliationMatchGroupId);
+                CREATE INDEX IX_ReconciliationMatchedRecords_RecordId ON dbo.ReconciliationMatchedRecords(ImportedNormalizedRecordId);
+            END
+
+            IF OBJECT_ID(N'dbo.ReconciliationEvents', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReconciliationEvents (
+                    ReconciliationEventId uniqueidentifier NOT NULL PRIMARY KEY,
+                    ReconciliationMatchGroupId uniqueidentifier NULL,
+                    ImportedNormalizedRecordId uniqueidentifier NULL,
+                    EventType nvarchar(50) NOT NULL,
+                    MatchLevel nvarchar(20) NOT NULL,
+                    Details nvarchar(2000) NULL,
+                    Stage nvarchar(50) NULL,
+                    SourceType nvarchar(100) NULL,
+                    Status nvarchar(30) NULL,
+                    DetailJson nvarchar(max) NULL,
+                    ImportBatchId uniqueidentifier NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationEvents_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    ResolvedAt datetime2 NULL,
+                    CONSTRAINT FK_ReconciliationEvents_MatchGroups_GroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE SET NULL,
+                    CONSTRAINT FK_ReconciliationEvents_NormalizedRecords_RecordId FOREIGN KEY (ImportedNormalizedRecordId) REFERENCES dbo.ImportedNormalizedRecords(ImportedNormalizedRecordId) ON DELETE NO ACTION,
+                    CONSTRAINT FK_ReconciliationEvents_ImportBatches_ImportBatchId FOREIGN KEY (ImportBatchId) REFERENCES dbo.ImportBatches(ImportBatchId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_ReconciliationEvents_EventType ON dbo.ReconciliationEvents(EventType);
+                CREATE INDEX IX_ReconciliationEvents_MatchLevel ON dbo.ReconciliationEvents(MatchLevel);
+                CREATE INDEX IX_ReconciliationEvents_CreatedAt ON dbo.ReconciliationEvents(CreatedAt);
+                CREATE INDEX IX_ReconciliationEvents_GroupId ON dbo.ReconciliationEvents(ReconciliationMatchGroupId);
+            END
+
+            IF OBJECT_ID(N'dbo.JournalEntries', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.JournalEntries (
+                    JournalEntryId uniqueidentifier NOT NULL PRIMARY KEY,
+                    TransactionId uniqueidentifier NULL,
+                    ReconciliationMatchGroupId uniqueidentifier NULL,
+                    EntryType nvarchar(50) NOT NULL,
+                    Amount decimal(18,2) NOT NULL,
+                    Currency nvarchar(3) NOT NULL CONSTRAINT DF_JournalEntries_Currency DEFAULT (N'LKR'),
+                    PostedAt datetime2 NOT NULL CONSTRAINT DF_JournalEntries_PostedAt DEFAULT SYSUTCDATETIME(),
+                    PostedByUserId uniqueidentifier NULL,
+                    Notes nvarchar(500) NULL,
+                    CONSTRAINT FK_JournalEntries_Transactions_TransactionId FOREIGN KEY (TransactionId) REFERENCES dbo.Transactions(TransactionId) ON DELETE NO ACTION,
+                    CONSTRAINT FK_JournalEntries_MatchGroups_GroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_JournalEntries_TransactionId ON dbo.JournalEntries(TransactionId);
+                CREATE INDEX IX_JournalEntries_GroupId ON dbo.JournalEntries(ReconciliationMatchGroupId);
+                CREATE INDEX IX_JournalEntries_PostedAt ON dbo.JournalEntries(PostedAt);
+            END
+
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.RECONCILIATION.VIEW', N'Reconciliation View', N'View reconciliation match groups and events', N'Reconciliation'),
+                (N'ADMIN.RECONCILIATION.CONFIRM', N'Reconciliation Confirm', N'Confirm pending reconciliation matches', N'Reconciliation'),
+                (N'ADMIN.RECONCILIATION.RESOLVE', N'Reconciliation Resolve', N'Resolve reconciliation exceptions', N'Reconciliation'),
+                (N'ADMIN.JOURNAL.VIEW', N'Journal View', N'View posted journal entries', N'Accounting'),
+                (N'ADMIN.JOURNAL.POST', N'Journal Post', N'Post journal entries', N'Accounting')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.RECONCILIATION.VIEW', N'ADMIN.RECONCILIATION.CONFIRM', N'ADMIN.RECONCILIATION.RESOLVE',
+                N'ADMIN.JOURNAL.VIEW', N'ADMIN.JOURNAL.POST')
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
             """;
 
         private static async Task ExecuteNonQueryAsync(

@@ -280,11 +280,17 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.CreditAmount).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.NetAmount).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.Currency).HasMaxLength(3).IsRequired();
+                entity.Property(x => x.MatchStatus).HasMaxLength(30).HasDefaultValue("PENDING");
+                entity.Property(x => x.SettlementId).HasColumnType("nvarchar(max)");
+                entity.Property(x => x.SettlementKey).HasMaxLength(200);
                 entity.Property(x => x.CreatedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasIndex(x => x.ImportBatchId);
                 entity.HasIndex(x => x.TransactionDate);
+                entity.HasIndex(x => x.MatchStatus);
+                entity.HasIndex(x => x.SettlementKey);
+                entity.HasIndex(x => new { x.ReferenceNumber, x.TransactionDate });
 
                 entity.HasOne(x => x.ImportBatch)
                     .WithMany(x => x.NormalizedRecords)
@@ -314,6 +320,111 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
                 entity.HasIndex(x => x.Name).IsUnique();
                 entity.HasIndex(x => new { x.SourceType, x.IsActive });
+            });
+
+            modelBuilder.Entity<ReconciliationMatchGroup>(entity =>
+            {
+                entity.ToTable("ReconciliationMatchGroups");
+                entity.HasKey(x => x.ReconciliationMatchGroupId);
+                entity.Property(x => x.ReconciliationMatchGroupId).ValueGeneratedNever();
+                entity.Property(x => x.MatchLevel).HasMaxLength(20).IsRequired();
+                entity.Property(x => x.SettlementKey).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.MatchedAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.Variance).HasColumnType("decimal(18,2)").HasDefaultValue(0m);
+                entity.Property(x => x.Status).HasMaxLength(30).HasDefaultValue("Pending").IsRequired();
+                entity.Property(x => x.MatchMetadataJson).HasColumnType("nvarchar(max)");
+                entity.Property(x => x.ConfirmedAt).HasColumnType("datetime2");
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.MatchLevel);
+                entity.HasIndex(x => x.SettlementKey);
+                entity.HasIndex(x => x.Status);
+                entity.HasIndex(x => x.ImportBatchId);
+
+                entity.HasOne<ImportBatch>()
+                    .WithMany()
+                    .HasForeignKey(x => x.ImportBatchId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<ReconciliationMatchedRecord>(entity =>
+            {
+                entity.ToTable("ReconciliationMatchedRecords");
+                entity.HasKey(x => x.ReconciliationMatchedRecordId);
+                entity.Property(x => x.ReconciliationMatchedRecordId).ValueGeneratedNever();
+                entity.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.MatchAmount).HasColumnType("decimal(18,2)").HasDefaultValue(0m);
+                entity.Property(x => x.LinkedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.ReconciliationMatchGroupId);
+                entity.HasIndex(x => x.ImportedNormalizedRecordId);
+
+                entity.HasOne(x => x.MatchGroup)
+                    .WithMany(x => x.MatchedRecords)
+                    .HasForeignKey(x => x.ReconciliationMatchGroupId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ImportedNormalizedRecord)
+                    .WithMany()
+                    .HasForeignKey(x => x.ImportedNormalizedRecordId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<ReconciliationEvent>(entity =>
+            {
+                entity.ToTable("ReconciliationEvents");
+                entity.HasKey(x => x.ReconciliationEventId);
+                entity.Property(x => x.ReconciliationEventId).ValueGeneratedNever();
+                entity.Property(x => x.EventType).HasMaxLength(50).IsRequired();
+                entity.Property(x => x.MatchLevel).HasMaxLength(20).IsRequired();
+                entity.Property(x => x.Details).HasMaxLength(2000);
+                entity.Property(x => x.Stage).HasMaxLength(50);
+                entity.Property(x => x.SourceType).HasMaxLength(100);
+                entity.Property(x => x.Status).HasMaxLength(30);
+                entity.Property(x => x.DetailJson).HasColumnType("nvarchar(max)");
+                entity.Property(x => x.ResolvedAt).HasColumnType("datetime2");
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.EventType);
+                entity.HasIndex(x => x.MatchLevel);
+                entity.HasIndex(x => x.CreatedAt);
+                entity.HasIndex(x => x.ReconciliationMatchGroupId);
+
+                entity.HasOne(x => x.MatchGroup)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReconciliationMatchGroupId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<JournalEntry>(entity =>
+            {
+                entity.ToTable("JournalEntries");
+                entity.HasKey(x => x.JournalEntryId);
+                entity.Property(x => x.JournalEntryId).ValueGeneratedNever();
+                entity.Property(x => x.EntryType).HasMaxLength(50).IsRequired();
+                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.Currency).HasMaxLength(3).HasDefaultValue("LKR").IsRequired();
+                entity.Property(x => x.Notes).HasMaxLength(500);
+                entity.Property(x => x.PostedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.TransactionId);
+                entity.HasIndex(x => x.ReconciliationMatchGroupId);
+                entity.HasIndex(x => x.PostedAt);
+
+                entity.HasOne(x => x.Transaction)
+                    .WithMany()
+                    .HasForeignKey(x => x.TransactionId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(x => x.ReconciliationMatchGroup)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReconciliationMatchGroupId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             base.OnModelCreating(modelBuilder);

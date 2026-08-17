@@ -65,7 +65,7 @@ public class ErpGatewaySalesMatchWorkerTests
         var updatedErp = await tenantDb.ImportedNormalizedRecords.FindAsync(erpRecord.ImportedNormalizedRecordId);
         var updatedGw = await tenantDb.ImportedNormalizedRecords.FindAsync(gwRecord.ImportedNormalizedRecordId);
         
-        Assert.Equal("LEVEL3_MATCHED", updatedErp!.MatchStatus);
+        Assert.Equal("SALES_VERIFIED", updatedErp!.MatchStatus);
         Assert.Equal("LEVEL3_MATCHED", updatedGw!.MatchStatus);
     }
 

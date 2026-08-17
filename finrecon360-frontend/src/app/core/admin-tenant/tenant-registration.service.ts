@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api.constants';
-import { TenantRegistrationApprovalResult, TenantRegistrationSummary } from './models';
+import { TenantRegistrationApprovalResult, TenantRegistrationSummary, TenantRegistrationDetail } from './models';
 import { PagedResult } from '../admin-rbac/models';
 
 @Injectable({ providedIn: 'root' })
@@ -16,6 +16,12 @@ export class TenantRegistrationService {
     return this.http
       .get<PagedResult<TenantRegistrationSummary>>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANT_REGISTRATIONS}${query}`)
       .pipe(map((result) => result.items));
+  }
+
+  getRegistration(id: string): Observable<TenantRegistrationDetail> {
+    return this.http.get<TenantRegistrationDetail>(
+      `${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANT_REGISTRATIONS}/${id}`
+    );
   }
 
   approve(id: string, note?: string): Observable<TenantRegistrationApprovalResult> {

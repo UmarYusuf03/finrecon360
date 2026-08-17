@@ -1,3 +1,4 @@
+using System.Text.Json;
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
 using Microsoft.EntityFrameworkCore;
@@ -13,8 +14,10 @@ namespace finrecon360_backend.Services.Workers
     ///   1. A GATEWAY record that represents the card charge (identifies the SettlementKey).
     ///   2. A BANK record that represents the corresponding bank debit (same key, same amount).
     ///
-    /// When both records are found with matching amounts, the match is auto-confirmed and
-    /// the transaction is promoted to <c>JournalReady</c>.
+    /// When both records are found with matching amounts, a pending Level4 match group is
+    /// created and linked to the transaction. The match still requires a human to confirm it
+    /// via the confirmation screen (<see cref="ReconciliationMatchConfirmationService"/>) — only
+    /// confirmation promotes the transaction to <c>JournalReady</c>.
     ///
     /// When there is a variance or ambiguity, the transaction remains in <c>NeedsBankMatch</c>
     /// and an exception is counted so it surfaces in the unmatched queue for manual review.
@@ -61,14 +64,13 @@ namespace finrecon360_backend.Services.Workers
             var bankRecords = await QueryCommittedBySourceAsync(tenantDb, "BANK", ct);
 
             // 4. Build BANK lookup by SettlementKey for O(1) lookups.
-            //    SettlementKey = "AccountCode|ReferenceNumber" (case-insensitive).
+            //    Key is resolved by the shared SettlementKeyResolver (SettlementId first, falling
+            //    back to "AccountCode|ReferenceNumber"), case-insensitive.
             var bankByKey = bankRecords
-                .Where(r => !string.IsNullOrWhiteSpace(r.AccountCode) &&
-                            !string.IsNullOrWhiteSpace(r.ReferenceNumber))
-                .GroupBy(
-                    r => BuildSettlementKey(r.AccountCode!, r.ReferenceNumber!),
-                    StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+                .Select(r => (Record: r, Key: SettlementKeyResolver.Resolve(r)))
+                .Where(x => x.Key != null)
+                .GroupBy(x => x.Key!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Record).ToList(), StringComparer.OrdinalIgnoreCase);
 
             var autoMatched = 0;
             var exceptions = 0;
@@ -120,12 +122,12 @@ namespace finrecon360_backend.Services.Workers
             List<ImportedNormalizedRecord> gatewayRecords,
             Dictionary<string, List<ImportedNormalizedRecord>> bankByKey)
         {
-            // Step 1: Find the GATEWAY record for this transaction (same date + exact amount).
-            var gatewayRecord = gatewayRecords.FirstOrDefault(g =>
+            // Step 1: Find the GATEWAY record(s) for this transaction (same date + exact amount).
+            var gatewayCandidates = gatewayRecords.Where(g =>
                 Math.Abs(g.NetAmount - txn.Amount) < AmountTolerance &&
-                g.TransactionDate.Date == txn.TransactionDate.Date);
+                g.TransactionDate.Date == txn.TransactionDate.Date).ToList();
 
-            if (gatewayRecord == null)
+            if (gatewayCandidates.Count == 0)
             {
                 // No GATEWAY record found at all — the gateway file may not have been imported yet,
                 // or this transaction's date/amount doesn't match any gateway line.
@@ -135,18 +137,31 @@ namespace finrecon360_backend.Services.Workers
                 return MatchOutcome.NoMatch;
             }
 
-            // Step 2: Validate the GATEWAY record has the fields needed to build a settlement key.
-            if (string.IsNullOrWhiteSpace(gatewayRecord.AccountCode) ||
-                string.IsNullOrWhiteSpace(gatewayRecord.ReferenceNumber))
+            if (gatewayCandidates.Count > 1)
             {
-                // Missing settlement key — this is a data quality exception.
+                // Two or more GATEWAY rows share the same date and amount — picking one would risk
+                // matching the wrong record, so this is routed to manual review instead of guessed.
                 _logger.LogWarning(
-                    "GATEWAY record {RecordId} is missing AccountCode or ReferenceNumber — cannot build settlement key",
+                    "Ambiguous GATEWAY match for transaction {TransactionId}: {Count} candidates share amount={Amount}, date={Date}",
+                    txn.TransactionId, gatewayCandidates.Count, txn.Amount, txn.TransactionDate.Date);
+                return MatchOutcome.Exception;
+            }
+
+            var gatewayRecord = gatewayCandidates[0];
+
+            // Step 2: Resolve the settlement key (SettlementId first, falling back to
+            // AccountCode|ReferenceNumber). A GATEWAY record with neither is stuck — flag it
+            // as WAITING so staff can attach a SettlementId manually.
+            var settlementKey = SettlementKeyResolver.Resolve(gatewayRecord);
+            if (settlementKey == null)
+            {
+                gatewayRecord.MatchStatus = "WAITING";
+                _logger.LogWarning(
+                    "GATEWAY record {RecordId} is missing SettlementId/AccountCode/ReferenceNumber — cannot build settlement key, marked WAITING",
                     gatewayRecord.ImportedNormalizedRecordId);
                 return MatchOutcome.Exception;
             }
 
-            var settlementKey = BuildSettlementKey(gatewayRecord.AccountCode, gatewayRecord.ReferenceNumber);
             gatewayRecord.SettlementKey = settlementKey;
 
             // Step 3: Look up the BANK record(s) with the same settlement key.
@@ -175,18 +190,27 @@ namespace finrecon360_backend.Services.Workers
                 return MatchOutcome.Exception;
             }
 
-            // Step 5: Create the Level4 match group and link both records.
+            // Step 5: Create the Level4 match group and link both records. The group is left
+            // unconfirmed — a human must confirm it on the confirmation screen before the
+            // transaction is promoted to JournalReady and can be posted.
+            var matchMetadataJson = JsonSerializer.Serialize(new
+            {
+                transactionId = txn.TransactionId,
+                bankNetTotal = bankRecord.NetAmount,
+                gatewayNetAmount = gatewayRecord.NetAmount,
+                processingFeeAdjustment = gatewayRecord.ProcessingFee ?? 0m,
+            });
+
             var matchGroup = new ReconciliationMatchGroup
             {
                 ReconciliationMatchGroupId = Guid.NewGuid(),
                 MatchLevel = "Level4",
                 SettlementKey = settlementKey,
-                // Exact-match auto-confirmation: no human review needed.
-                IsConfirmed = true,
-                ConfirmedAt = DateTime.UtcNow,
+                IsConfirmed = false,
                 MatchedAmount = txn.Amount,
                 Variance = 0m,
-                Status = "Confirmed",
+                Status = "Pending",
+                MatchMetadataJson = matchMetadataJson,
                 CreatedAt = DateTime.UtcNow,
             };
             tenantDb.ReconciliationMatchGroups.Add(matchGroup);
@@ -213,12 +237,12 @@ namespace finrecon360_backend.Services.Workers
             gatewayRecord.MatchStatus = "MATCHED";
             bankRecord.MatchStatus = "MATCHED";
 
-            // Step 7: Promote the transaction — unlocks journal posting.
-            txn.TransactionState = TransactionState.JournalReady;
-            txn.UpdatedAt = DateTime.UtcNow;
+            // Step 7: The transaction stays in NeedsBankMatch — confirming the match group
+            // (ReconciliationMatchConfirmationService.ConfirmMatchAsync) is what promotes it to
+            // JournalReady.
 
             _logger.LogInformation(
-                "AUTO-MATCHED transaction {TransactionId}: settlement key '{Key}', match group {GroupId}",
+                "MATCHED (pending confirmation) transaction {TransactionId}: settlement key '{Key}', match group {GroupId}",
                 txn.TransactionId, settlementKey, matchGroup.ReconciliationMatchGroupId);
 
             return MatchOutcome.AutoMatched;
@@ -235,9 +259,6 @@ namespace finrecon360_backend.Services.Workers
                 && batch.Status == "COMMITTED"
                 && record.MatchStatus == "PENDING"
              select record).ToListAsync(ct);
-
-        private static string BuildSettlementKey(string accountCode, string referenceNumber) =>
-            $"{accountCode}|{referenceNumber}";
 
         // ── Result types ──────────────────────────────────────────────────────────────
 

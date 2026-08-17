@@ -43,7 +43,7 @@ namespace finrecon360_backend.Services.Workers
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
                 where b.SourceType == "ERP" && b.Status == "COMMITTED"
-                   && r.MatchStatus != "LEVEL3_MATCHED" // idempotency guard
+                   && r.MatchStatus != "SALES_VERIFIED" // idempotency guard
                    && !string.IsNullOrEmpty(r.ReferenceNumber)
                 select r
             ).ToListAsync(ct);
@@ -117,6 +117,7 @@ namespace finrecon360_backend.Services.Workers
                                   $"Possible processing fee deduction or partial refund.",
                         CreatedAt = now,
                     });
+                    erpRecord.MatchStatus = "EXCEPTION";
                     exceptions++;
                     continue;
                 }
@@ -157,7 +158,8 @@ namespace finrecon360_backend.Services.Workers
                 // Mark GATEWAY record — still allows Level4/Level6 to re-use it for expense/settlement matching.
                 gatewayRecord.MatchStatus = "LEVEL3_MATCHED";
                 gatewayRecord.SettlementKey = settlementKey;
-                erpRecord.MatchStatus = "LEVEL3_MATCHED";
+                // ERP side records the Sales Match outcome so the sale shows as verified downstream.
+                erpRecord.MatchStatus = "SALES_VERIFIED";
                 erpRecord.SettlementKey = settlementKey;
 
                 _logger.LogInformation(
