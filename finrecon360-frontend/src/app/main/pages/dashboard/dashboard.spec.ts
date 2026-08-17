@@ -3,6 +3,7 @@ import { of } from 'rxjs';
 
 import { DashboardComponent } from './dashboard';
 import { DashboardService } from '../../services/dashboard.service';
+import { DashboardData } from '../../models/dashboard.models';
 import { AuthService } from '../../../core/auth/auth.service';
 import { CurrentUser } from '../../../core/auth/models';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
@@ -18,12 +19,19 @@ describe('DashboardComponent', () => {
   let fixture: ComponentFixture<DashboardComponent>;
   let component: DashboardComponent;
 
-  const mockData = {
-    matcher: { totalTransactions: 100, matched: 80, exceptions: 5 },
-    balancer: { reconciledAccounts: 8, totalAccounts: 10, pendingReconciliations: 2 },
-    tasks: { openTasks: 3, dueToday: 1, completionPercent: 70 },
-    journal: { pendingApprovals: 2, posted: 10 },
-    analytics: [{ labelKey: 'DASHBOARD.ANALYTICS.CYCLE_TIME', value: '2d' }],
+  const mockData: DashboardData = {
+    totalTransactions: 100,
+    pendingApprovalTransactions: 2,
+    needsBankMatchTransactions: 3,
+    journalReadyTransactions: 80,
+    totalMatchGroups: 50,
+    confirmedMatchGroups: 40,
+    pendingConfirmationMatchGroups: 10,
+    totalEvents: 25,
+    exceptionEvents: 5,
+    totalJournalEntries: 10,
+    totalBankAccounts: 4,
+    lastUpdatedUtc: '2026-01-01T00:00:00Z',
   };
 
   const makeUser = (roles: string[], permissions: string[]): CurrentUser => ({
@@ -62,11 +70,19 @@ describe('DashboardComponent', () => {
   });
 
   it('loads dashboard data on init', () => {
-    expect(component.data).toEqual(mockData as any);
+    expect(component.data).toEqual(mockData);
   });
 
-  it('renders matcher card', () => {
+  it('computes match confirmation percent from real counts', () => {
+    expect(component.matchConfirmationPercent).toBe(80); // 40/50
+  });
+
+  it('computes journal-ready percent from real counts', () => {
+    expect(component.journalReadyPercent).toBe(80); // 80/100
+  });
+
+  it('renders the needs-bank-match panel', () => {
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain('MATCHER');
+    expect(compiled.textContent).toContain('NEEDS_BANK_MATCH');
   });
 });

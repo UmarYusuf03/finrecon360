@@ -60,20 +60,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  get matchedPercent(): number {
-    if (!this.data) return 0;
-    return Math.round((this.data.matcher.matched / this.data.matcher.totalTransactions) * 100);
+  /** Share of match groups that have been confirmed by a reviewer. */
+  get matchConfirmationPercent(): number {
+    if (!this.data || this.data.totalMatchGroups === 0) return 0;
+    return Math.round((this.data.confirmedMatchGroups / this.data.totalMatchGroups) * 100);
   }
 
-  get unmatchedPercent(): number {
-    return 100 - this.matchedPercent;
+  /** Share of reconciliation events that ended in an exception/variance. */
+  get exceptionRatePercent(): number {
+    if (!this.data || this.data.totalEvents === 0) return 0;
+    return Math.round((this.data.exceptionEvents / this.data.totalEvents) * 100);
   }
 
-  get reconciledPercent(): number {
-    if (!this.data) return 0;
-    return Math.round(
-      (this.data.balancer.reconciledAccounts / this.data.balancer.totalAccounts) * 100
-    );
+  /** Share of events that resolved cleanly (inverse of the exception rate). */
+  get cleanRatePercent(): number {
+    return 100 - this.exceptionRatePercent;
   }
 
+  /** Share of transaction volume that has cleared through to JournalReady. */
+  get journalReadyPercent(): number {
+    if (!this.data || this.data.totalTransactions === 0) return 0;
+    return Math.round((this.data.journalReadyTransactions / this.data.totalTransactions) * 100);
+  }
 }

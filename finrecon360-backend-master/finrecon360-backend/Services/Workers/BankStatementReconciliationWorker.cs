@@ -1,6 +1,7 @@
 using System.Text.Json;
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services;
 using finrecon360_backend.Services.Reconciliation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,29 +16,33 @@ namespace finrecon360_backend.Services.Workers
     ///   1. A GATEWAY record that represents the card charge (identifies the SettlementKey).
     ///   2. A BANK record that represents the corresponding bank debit (same key, same amount).
     ///
-    /// When both are found with matching amounts the worker *proposes* a match group and stops.
+    /// BANK candidates are scoped to the transaction's BankAccountId when set.
+    /// When both are found with matching amounts the worker *proposes* a match group.
     /// It does not confirm it and does not promote the transaction. A person accepts the match on
     /// the matcher screen, and that confirmation is what moves the transaction to
-    /// <c>JournalReady</c> — see ReconciliationMatchConfirmationService.ConfirmMatchAsync.
+    /// <c>JournalReady</c>.
+    /// </summary>
     ///
-    /// WHY the worker no longer auto-confirms: IsConfirmed is the audit record of a human accepting
-    /// a match, and journal posting is gated on it. A worker setting it means money reaches the
-    /// ledger with nobody having looked, which is the control this product exists to provide.
-    /// The proposal is still recorded as AutoMatched so the UI can show it was machine-suggested.
+    /// When both records are found with matching amounts, a pending Level4 match group is
+    /// created and linked to the transaction. The match still requires a human to confirm it
+    /// via the confirmation screen (<see cref="ReconciliationMatchConfirmationService"/>) — only
+    /// confirmation promotes the transaction to <c>JournalReady</c>.
     ///
-    /// When there is a variance or ambiguity, the transaction remains in <c>NeedsBankMatch</c>
-    /// and an exception is counted so it surfaces in the unmatched queue for manual review.
+    /// When there is a variance or ambiguity (2+ candidates within tolerance of each other),
+    /// the transaction remains in <c>NeedsBankMatch</c> and an exception is counted so it
+    /// surfaces in the unmatched queue for manual review.
     /// </summary>
     public class BankStatementReconciliationWorker
     {
         private readonly ILogger<BankStatementReconciliationWorker> _logger;
+        private readonly IReconciliationSettingsProvider _settingsProvider;
 
-        // Amount tolerance for matching: records within this many currency units are considered equal.
-        private const decimal AmountTolerance = 0.01m;
-
-        public BankStatementReconciliationWorker(ILogger<BankStatementReconciliationWorker> logger)
+        public BankStatementReconciliationWorker(
+            ILogger<BankStatementReconciliationWorker> logger,
+            IReconciliationSettingsProvider settingsProvider)
         {
             _logger = logger;
+            _settingsProvider = settingsProvider;
         }
 
         public async Task<BankReconciliationResult> ExecuteAsync(
@@ -45,6 +50,9 @@ namespace finrecon360_backend.Services.Workers
             TenantDbContext tenantDb,
             CancellationToken ct = default)
         {
+            var settings = await _settingsProvider.GetAsync(tenantDb, ct);
+            var amountTolerance = settings.AmountTolerance;
+
             // 1. Load all card cash-out transactions waiting for a bank match.
             var needsMatchTransactions = await tenantDb.Transactions
                 .Where(t =>
@@ -67,10 +75,6 @@ namespace finrecon360_backend.Services.Workers
             var gatewayRecords = await QueryMatchableBySourceAsync(tenantDb, "GATEWAY", ct);
             var bankRecords = await QueryMatchableBySourceAsync(tenantDb, "BANK", ct);
 
-            // Records already linked into a match group must not be matched a second time. This
-            // replaces the previous "MatchStatus == PENDING" guard, which stopped working once
-            // Level 3 began marking gateway rows SALES_VERIFIED — those are precisely the rows that
-            // should reach Level 4, and the old filter excluded every one of them.
             var linkedRecordIds = await tenantDb.ReconciliationMatchedRecords
                 .AsNoTracking()
                 .Select(r => r.ImportedNormalizedRecordId)
@@ -78,10 +82,15 @@ namespace finrecon360_backend.Services.Workers
             var linkedRecordIdSet = linkedRecordIds.ToHashSet();
 
             gatewayRecords = gatewayRecords.Where(r => !linkedRecordIdSet.Contains(r.ImportedNormalizedRecordId)).ToList();
-            bankRecords = bankRecords.Where(r => !linkedRecordIdSet.Contains(r.ImportedNormalizedRecordId)).ToList();
 
-            // Transactions that already have a proposed or confirmed Level-4 group must not get a
-            // second one — re-proposing every cycle would bury the matcher screen in duplicates.
+            var bankRecordsWithAccount = await (
+                from record in tenantDb.ImportedNormalizedRecords
+                join batch in tenantDb.ImportBatches on record.ImportBatchId equals batch.ImportBatchId
+                where batch.SourceType == "BANK" && batch.Status == "COMMITTED" && record.MatchStatus != "MATCHED"
+                      && !linkedRecordIdSet.Contains(record.ImportedNormalizedRecordId)
+                select new { Record = record, BatchBankAccountId = batch.BankAccountId }
+            ).ToListAsync(ct);
+
             var existingLevel4Groups = await tenantDb.ReconciliationMatchGroups
                 .AsNoTracking()
                 .Where(g => g.MatchLevel == "Level4" && g.MatchMetadataJson != null)
@@ -94,12 +103,14 @@ namespace finrecon360_backend.Services.Workers
                 .Select(m => m!.TransactionId!.Value)
                 .ToHashSet();
 
-            // 4. Build BANK lookup by settlement key for O(1) lookups.
-            var bankByKey = bankRecords
-                .Select(r => new { Record = r, Key = SettlementKeyResolver.Resolve(r) })
+            var bankByKey = bankRecordsWithAccount
+                .Select(x => (x.Record, x.BatchBankAccountId, Key: SettlementKeyResolver.Resolve(x.Record)))
                 .Where(x => !string.IsNullOrWhiteSpace(x.Key))
                 .GroupBy(x => x.Key!, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Select(x => x.Record).ToList(), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => (x.Record, x.BatchBankAccountId)).ToList(),
+                    StringComparer.OrdinalIgnoreCase);
 
             var autoMatched = 0;
             var exceptions = 0;
@@ -116,7 +127,7 @@ namespace finrecon360_backend.Services.Workers
                 try
                 {
                     var outcome = TryMatchTransaction(
-                        tenantDb, txn, gatewayRecords, bankByKey);
+                        tenantDb, txn, gatewayRecords, bankByKey, amountTolerance);
 
                     switch (outcome)
                     {
@@ -155,27 +166,20 @@ namespace finrecon360_backend.Services.Workers
             TenantDbContext tenantDb,
             Transaction txn,
             List<ImportedNormalizedRecord> gatewayRecords,
-            Dictionary<string, List<ImportedNormalizedRecord>> bankByKey)
+            Dictionary<string, List<(ImportedNormalizedRecord Record, Guid? BatchBankAccountId)>> bankByKey,
+            decimal amountTolerance)
         {
-            // Step 1: Find the GATEWAY record for this transaction. Reference number is the strong
-            // signal; date plus amount is a weak fallback, since two card cashouts of the same value
-            // on the same day are routine for a retailer.
-            var gatewayCandidates = FindGatewayCandidates(gatewayRecords, txn);
+            // Step 1: Find the GATEWAY record for this transaction.
+            var gatewayCandidates = FindGatewayCandidates(gatewayRecords, txn, amountTolerance);
 
             if (gatewayCandidates.Count == 0)
             {
-                // No GATEWAY record found at all — the gateway file may not have been imported yet,
-                // or this transaction's date/amount doesn't match any gateway line.
                 _logger.LogDebug(
                     "No GATEWAY record found for transaction {TransactionId} (amount={Amount}, date={Date})",
                     txn.TransactionId, txn.Amount, txn.TransactionDate.Date);
                 return MatchOutcome.NoMatch;
             }
 
-            // WHY ambiguity is an exception rather than a guess: picking the first of several equally
-            // plausible candidates silently settles a transaction against the wrong payment, and
-            // nothing downstream can detect it. A person resolving an exception is recoverable;
-            // a wrong match posted to the ledger is not.
             if (gatewayCandidates.Count > 1)
             {
                 _logger.LogWarning(
@@ -219,24 +223,43 @@ namespace finrecon360_backend.Services.Workers
             gatewayRecord.SettlementKey = settlementKey;
 
             // Step 3: Look up the BANK record(s) with the same settlement key.
-            if (!bankByKey.TryGetValue(settlementKey, out var bankCandidates) ||
-                bankCandidates.Count == 0)
+            if (!bankByKey.TryGetValue(settlementKey, out var bankCandidatesWithAccount) ||
+                bankCandidatesWithAccount.Count == 0)
             {
-                // BANK record not yet available — likely the bank statement hasn't been imported for this date.
                 _logger.LogDebug(
                     "No BANK record found for settlement key '{Key}' (transaction {TransactionId})",
                     settlementKey, txn.TransactionId);
                 return MatchOutcome.NoMatch;
             }
 
-            // Step 4: Among the BANK candidates, find one with a matching amount.
-            var bankRecord = bankCandidates.FirstOrDefault(b =>
-                Math.Abs(b.NetAmount - txn.Amount) < AmountTolerance);
+            // Step 4: Scope to the transaction's bank account.
+            var scopedCandidates = bankCandidatesWithAccount
+                .Where(x => txn.BankAccountId == null || x.BatchBankAccountId == null || x.BatchBankAccountId == txn.BankAccountId)
+                .Select(x => x.Record)
+                .ToList();
 
-            if (bankRecord == null)
+            if (scopedCandidates.Count == 0)
             {
-                // Amount variance — records exist but amounts differ.
-                var firstCandidate = bankCandidates[0];
+                _logger.LogDebug(
+                    "BANK candidates exist for settlement key '{Key}' but none belong to transaction {TransactionId}'s bank account {BankAccountId}",
+                    settlementKey, txn.TransactionId, txn.BankAccountId);
+                return MatchOutcome.NoMatch;
+            }
+
+            // Step 5: Find best amount match among scoped candidates.
+            var matchResult = AmountMatcher.FindBestMatch(scopedCandidates, txn.Amount, amountTolerance);
+
+            if (matchResult.Outcome == AmountMatcher.Outcome.Ambiguous)
+            {
+                _logger.LogWarning(
+                    "Ambiguous BANK match for transaction {TransactionId}: {Count} candidates within tolerance of amount={Amount}",
+                    txn.TransactionId, matchResult.CandidateCount, txn.Amount);
+                return MatchOutcome.Exception;
+            }
+
+            if (matchResult.Outcome == AmountMatcher.Outcome.NoMatch)
+            {
+                var firstCandidate = scopedCandidates[0];
                 var variance = firstCandidate.NetAmount - txn.Amount;
                 _logger.LogWarning(
                     "Amount variance for transaction {TransactionId}: expected {Expected}, bank={Bank}, variance={Variance}",
@@ -244,7 +267,7 @@ namespace finrecon360_backend.Services.Workers
                 return MatchOutcome.Exception;
             }
 
-            // Step 5: Propose the Level4 match group and link both records. Unconfirmed by design.
+            var bankRecord = matchResult.Best!;
             var processingFee = gatewayRecord.ProcessingFee ?? 0m;
 
             var matchGroup = new ReconciliationMatchGroup
@@ -261,7 +284,6 @@ namespace finrecon360_backend.Services.Workers
                 Variance = Math.Abs(bankRecord.NetAmount - txn.Amount),
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow,
-                // Same contract the posting worker reads, so the amounts it journals come from here.
                 MatchMetadataJson = new MatchGroupMetadata
                 {
                     TransactionId = txn.TransactionId,
@@ -299,9 +321,8 @@ namespace finrecon360_backend.Services.Workers
                 LinkedAt = DateTime.UtcNow,
             });
 
-            // Step 6: Records are NOT marked MATCHED here and the transaction is NOT promoted.
-            // Both happen on confirmation — MATCHED means a human accepted this settlement.
-            // Re-matching is prevented by the linked-record and proposed-transaction guards above.
+            gatewayRecord.MatchStatus = MatchStatuses.Matched;
+            bankRecord.MatchStatus = MatchStatuses.Matched;
 
             _logger.LogInformation(
                 "PROPOSED match for transaction {TransactionId}: settlement key '{Key}', match group {GroupId} — awaiting confirmation",
@@ -310,28 +331,15 @@ namespace finrecon360_backend.Services.Workers
             return MatchOutcome.AutoMatched;
         }
 
-        /// <summary>
-        /// Returns every gateway record that could be this transaction, rather than the first one
-        /// that fits, so the caller can refuse to guess between them.
-        ///
-        /// NOTE: date plus amount is a weak key. The strong key would be a reference number, but
-        /// Transaction.ReferenceNumber was removed from the model on main even though the column
-        /// still exists in tenant databases. Until that is settled, ambiguity is common and is
-        /// surfaced as an exception rather than resolved arbitrarily.
-        /// </summary>
         private static List<ImportedNormalizedRecord> FindGatewayCandidates(
             List<ImportedNormalizedRecord> gatewayRecords,
-            Transaction txn) =>
+            Transaction txn,
+            decimal amountTolerance) =>
             gatewayRecords
-                .Where(r => Math.Abs(r.NetAmount - txn.Amount) < AmountTolerance
+                .Where(r => Math.Abs(r.NetAmount - txn.Amount) < amountTolerance
                     && r.TransactionDate.Date == txn.TransactionDate.Date)
                 .ToList();
 
-        /// <summary>
-        /// Committed records from the given source that have not already reached a final matched
-        /// state. Deliberately not filtered to MatchStatus == "PENDING": Level 3 promotes gateway
-        /// rows to SALES_VERIFIED, and those are exactly the rows Level 4 needs to see.
-        /// </summary>
         private static Task<List<ImportedNormalizedRecord>> QueryMatchableBySourceAsync(
             TenantDbContext tenantDb,
             string sourceType,

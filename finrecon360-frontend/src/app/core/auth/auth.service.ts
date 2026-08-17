@@ -141,6 +141,26 @@ export class AuthService {
     return token;
   }
 
+  allowedImportSourceTypes(): Set<string> | null {
+    const user = this.currentUser;
+    if (!user) return new Set();
+    
+    // If unrestricted, return null
+    if (user.isSystemAdmin || user.roles.includes('ADMIN') || user.roles.includes('MANAGER')) {
+      return null;
+    }
+
+    const allowed = new Set<string>();
+    // For scope-restricted roles like CASHIER, check permissions
+    ['POS', 'ERP', 'GATEWAY', 'BANK'].forEach(src => {
+      if (user.permissions.some(p => p.startsWith(`ADMIN.IMPORTS.${src}`))) {
+        allowed.add(src);
+      }
+    });
+
+    return allowed.size > 0 ? allowed : new Set();
+  }
+
   updateCurrentUser(patch: Partial<CurrentUser>): void {
     const current = this.currentUserSubject.value;
     if (!current) return;

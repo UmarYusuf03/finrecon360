@@ -1,5 +1,6 @@
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -18,18 +19,18 @@ namespace finrecon360_backend.Services.Workers
     ///
     /// On exact match   → ReconciliationMatchGroup(Level1, IsConfirmed=true) + both records linked.
     /// On amount delta  → ReconciliationEvent(Variance) — surfaces in unmatched queue.
+    /// On ambiguous match (2+ POS candidates within tolerance of each other) → ReconciliationEvent(RequiresReview).
     /// On no POS record → ReconciliationEvent(MatchNotFound) — surfaces in unmatched queue.
     /// </summary>
     public class OperationalMatchWorker
     {
         private readonly ILogger<OperationalMatchWorker> _logger;
+        private readonly IReconciliationSettingsProvider _settingsProvider;
 
-        // Amount tolerance: within 0.01 of the currency unit (e.g. 1 fils / paisa).
-        private const decimal AmountTolerance = 0.01m;
-
-        public OperationalMatchWorker(ILogger<OperationalMatchWorker> logger)
+        public OperationalMatchWorker(ILogger<OperationalMatchWorker> logger, IReconciliationSettingsProvider settingsProvider)
         {
             _logger = logger;
+            _settingsProvider = settingsProvider;
         }
 
         public async Task<MatchingRunResult> ExecuteAsync(
@@ -37,6 +38,9 @@ namespace finrecon360_backend.Services.Workers
             TenantDbContext tenantDb,
             CancellationToken ct = default)
         {
+            var settings = await _settingsProvider.GetAsync(tenantDb, ct);
+            var amountTolerance = settings.AmountTolerance;
+
             // 1. Load all JournalReady CashIn transactions that have not yet been Level1-matched.
             //    We identify "not yet matched" by checking whether a Level1 group already links
             //    to a POS record for this transaction's amount + date.
@@ -50,14 +54,14 @@ namespace finrecon360_backend.Services.Workers
 
             if (staffEntries.Count == 0)
             {
-                return MatchingRunResult.Empty("Level1");
+                return MatchingRunResult.Empty(MatchLevels.Level1);
             }
 
             // 2. Load all COMMITTED POS records that are still PENDING.
             var posRecords = await (
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
-                where b.SourceType == "POS" && b.Status == "COMMITTED" && r.MatchStatus == "PENDING"
+                where b.SourceType == "POS" && b.Status == "COMMITTED" && r.MatchStatus == MatchStatuses.Pending
                 select r
             ).ToListAsync(ct);
 
@@ -97,8 +101,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = null,
-                        EventType = "MatchNotFound",
-                        MatchLevel = "Level1",
+                        EventType = ReconciliationEventTypes.MatchNotFound,
+                        MatchLevel = MatchLevels.Level1,
                         Details = $"No POS record found for staff entry {entry.TransactionId} " +
                                   $"(date={entry.TransactionDate:yyyy-MM-dd}, ref={entry.Description}, amount={entry.Amount})",
                         CreatedAt = now,
@@ -107,11 +111,27 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // Find the candidate with a matching amount.
-                var posRecord = candidates.FirstOrDefault(p =>
-                    Math.Abs(p.NetAmount - entry.Amount) < AmountTolerance);
+                // Find the candidate with the closest matching amount; flag ambiguity instead of
+                // silently taking the first one when 2+ candidates are within tolerance of each other.
+                var matchResult = AmountMatcher.FindBestMatch(candidates, entry.Amount, amountTolerance);
 
-                if (posRecord == null)
+                if (matchResult.Outcome == AmountMatcher.Outcome.Ambiguous)
+                {
+                    tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
+                    {
+                        ReconciliationEventId = Guid.NewGuid(),
+                        ImportedNormalizedRecordId = matchResult.Best!.ImportedNormalizedRecordId,
+                        EventType = ReconciliationEventTypes.RequiresReview,
+                        MatchLevel = MatchLevels.Level1,
+                        Details = $"Ambiguous match: {matchResult.CandidateCount} POS records share date+ref " +
+                                  $"and are within tolerance of staff entry {entry.TransactionId} (amount={entry.Amount}).",
+                        CreatedAt = now,
+                    });
+                    exceptions++;
+                    continue;
+                }
+
+                if (matchResult.Outcome == AmountMatcher.Outcome.NoMatch)
                 {
                     // Date+ref matched but amount differs — variance event.
                     var bestCandidate = candidates[0];
@@ -119,8 +139,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = bestCandidate.ImportedNormalizedRecordId,
-                        EventType = "Variance",
-                        MatchLevel = "Level1",
+                        EventType = ReconciliationEventTypes.Variance,
+                        MatchLevel = MatchLevels.Level1,
                         Details = $"Amount variance: staff={entry.Amount}, POS={bestCandidate.NetAmount}, " +
                                   $"delta={Math.Abs(bestCandidate.NetAmount - entry.Amount):F2}",
                         CreatedAt = now,
@@ -129,12 +149,14 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
+                var posRecord = matchResult.Best!;
+
                 // Exact match — create Level1 group.
                 var settlementKey = BuildMatchKey(entry.TransactionDate, entry.Description);
                 var matchGroup = new ReconciliationMatchGroup
                 {
                     ReconciliationMatchGroupId = Guid.NewGuid(),
-                    MatchLevel = "Level1",
+                    MatchLevel = MatchLevels.Level1,
                     SettlementKey = settlementKey,
                     IsConfirmed = true,
                     ConfirmedAt = now,
@@ -154,7 +176,7 @@ namespace finrecon360_backend.Services.Workers
                     LinkedAt = now,
                 });
 
-                posRecord.MatchStatus = "MATCHED";
+                posRecord.MatchStatus = MatchStatuses.Matched;
                 posRecord.SettlementKey = settlementKey;
 
                 _logger.LogInformation(
@@ -170,7 +192,7 @@ namespace finrecon360_backend.Services.Workers
                 "OperationalMatchWorker done — matched={M}, exceptions={E}, noMatch={N}",
                 autoMatched, exceptions, noMatch);
 
-            return new MatchingRunResult("Level1", staffEntries.Count, autoMatched, exceptions, noMatch);
+            return new MatchingRunResult(MatchLevels.Level1, staffEntries.Count, autoMatched, exceptions, noMatch);
         }
 
         private static string BuildMatchKey(DateTime date, string reference) =>

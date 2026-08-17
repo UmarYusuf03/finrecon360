@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { HttpClient } from '@angular/common/http';
+import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 
 import { API_BASE_URL, API_ENDPOINTS } from '../../../core/constants/api.constants';
@@ -21,7 +22,7 @@ interface PublicPlan {
 @Component({
   selector: 'app-onboarding-subscribe',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MatIconModule],
   templateUrl: './subscribe.html',
   styleUrls: ['./subscribe.scss'],
 })

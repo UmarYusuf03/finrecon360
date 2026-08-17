@@ -84,8 +84,64 @@ namespace finrecon360_backend.Data
 
             await SeedComponentsAsync(db, now);
             await SeedActionsAsync(db, now);
+            await SeedPlansAsync(db, now);
 
             await db.SaveChangesAsync();
+        }
+
+        private static async Task SeedPlansAsync(AppDbContext db, DateTime now)
+        {
+            var plans = new List<Plan>
+            {
+                new()
+                {
+                    PlanId = Guid.NewGuid(),
+                    Code = "STARTER",
+                    Name = "Starter",
+                    PriceCents = 4900,
+                    Currency = "USD",
+                    DurationDays = 30,
+                    MaxUsers = 3,
+                    MaxAccounts = 2,
+                    IsActive = true,
+                    CreatedAt = now,
+                },
+                new()
+                {
+                    PlanId = Guid.NewGuid(),
+                    Code = "GROWTH",
+                    Name = "Growth",
+                    PriceCents = 14900,
+                    Currency = "USD",
+                    DurationDays = 30,
+                    MaxUsers = 10,
+                    MaxAccounts = 10,
+                    IsActive = true,
+                    CreatedAt = now,
+                },
+                new()
+                {
+                    PlanId = Guid.NewGuid(),
+                    Code = "ENTERPRISE",
+                    Name = "Enterprise",
+                    PriceCents = 49900,
+                    Currency = "USD",
+                    DurationDays = 30,
+                    MaxUsers = 50,
+                    MaxAccounts = 50,
+                    IsActive = true,
+                    CreatedAt = now,
+                },
+            };
+
+            foreach (var plan in plans)
+            {
+                var exists = await db.Plans.AnyAsync(p => p.Code == plan.Code);
+                if (!exists)
+                {
+                    db.Plans.Add(plan);
+                }
+            }
         }
 
         private static async Task<Role> EnsureRoleAsync(AppDbContext db, string code, string name, string description, bool isSystem, DateTime now)

@@ -161,10 +161,6 @@ export class TransactionService {
           })),
       );
     }
-
-    // The backend returns NeedsBankMatchResponse here — each transaction enriched with its
-    // linked gateway import record and match-group state. Typing it as a plain Transaction
-    // silently discards the columns the queue screen exists to display.
     return this.http.get<NeedsBankMatchRecord[]>(`${this.baseUrl}/needs-bank-match`);
   }
 

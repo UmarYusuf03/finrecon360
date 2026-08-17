@@ -1,4 +1,4 @@
-﻿using finrecon360_backend.Authorization;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.BackgroundServices;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Auth;
@@ -161,28 +161,16 @@ builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationServi
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
 
-// ── Reconciliation workers ───────────────────────────────────────────────────
-// These registrations were lost in the reconciliation rewrite. Without them the two
-// hosted services below resolve nothing and throw on their first cycle, so no matching
-// and no journal posting happened at all.
-builder.Services.AddScoped<BankStatementReconciliationWorker>();
-builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
-
-// The per-level workers are registered so they are resolvable and testable, but nothing
-// drives them on a timer yet. Sequencing the full matrix (L1 → L2 → L3 → L4 → L5/L6) is a
-// deliberate design step, not something to switch on implicitly.
+builder.Services.AddScoped<IReconciliationSettingsProvider, ReconciliationSettingsProvider>();
 builder.Services.AddScoped<OperationalMatchWorker>();
 builder.Services.AddScoped<PosErpSyncAuditWorker>();
 builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
-builder.Services.AddScoped<SettlementMatchWorker>();
+builder.Services.AddScoped<BankStatementReconciliationWorker>();
 builder.Services.AddScoped<CollectionMatchWorker>();
+builder.Services.AddScoped<SettlementMatchWorker>();
+builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
 
-// WHY these are hosted services and why that constrains deployment: each one sweeps every
-// tenant on a timer, and the concurrency guard is an in-process dictionary. Running more
-// than one instance of this API means each replica reconciles every tenant independently.
-// Until that guard is distributed, run exactly one instance, or split these into a single
-// dedicated worker process.
-builder.Services.AddHostedService<BankReconciliationHostedService>();
+builder.Services.AddHostedService<ReconciliationCycleHostedService>();
 builder.Services.AddHostedService<JournalPostingHostedService>();
 
 builder.Services.AddDataProtection()
@@ -626,25 +614,6 @@ app.MapGet("/api/auth/sso/config", (IOptions<GoogleSsoOptions> googleOptions) =>
         googleClientId = options.ClientId
     });
 });
-
-#endregion
-
-#region Dashboard Endpoint (Protected)
-
-app.MapGet("/api/dashboard/summary", () =>
-{
-    var summary = new DashboardSummary
-    {
-        TotalAccounts = 128,
-        PendingReconciliations = 14,
-        CompletedToday = 32,
-        Alerts = 3,
-        LastUpdatedUtc = DateTime.UtcNow
-    };
-
-    return Results.Ok(summary);
-})
-.RequireAuthorization($"{finrecon360_backend.Authorization.PermissionPolicyProvider.PolicyPrefix}ADMIN.DASHBOARD.VIEW");   // 🔒 tenant permission required
 
 #endregion
 

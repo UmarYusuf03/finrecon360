@@ -345,7 +345,9 @@
       "DESCRIPTION": "ප්‍රධාන KPI.",
       "CYCLE_TIME": "සමීප කාලය",
       "MATCH_RATE": "ගැළපුම් අනුපාතය",
-      "RECON_COMPLETION": "සමතුලිත සම්පූර්ණතාව"
+      "RECON_COMPLETION": "සමතුලිත සම්පූර්ණතාව",
+      "TOTAL_EVENTS": "Total events",
+      "BANK_ACCOUNTS": "Bank accounts"
     },
     "ADMIN_WORKSPACE": "Admin workspace",
     "COMPLETION": "Completion",
@@ -365,7 +367,8 @@
     "TOTAL_VOLUME": "Total volume",
     "UNMATCHED_SHARE": "Unmatched share",
     "WELCOME_USER": "නැවත සාදරයෙන් පිළිගනිමු, {{name}}",
-    "WORKSPACE": "Workspace"
+    "WORKSPACE": "Workspace",
+    "TRANSACTIONS_CLEARED": "Transactions journal-ready"
   },
   "PROFILE": {
     "TITLE": "පැතිකඩ",

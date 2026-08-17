@@ -18,7 +18,6 @@ import {
   ImportValidationRow,
   ImportValidationRowsResponse,
   ImportValidateResponse,
-  ReconciliationSummary,
 } from '../../../core/imports/imports.models';
 
 type ValidationSummary = {
@@ -92,7 +91,6 @@ export class ImportsWorkbenchComponent implements OnInit {
   isDragging = false;
 
   commitResult: ImportCommitResponse | null = null;
-  lastCommitSummary: ReconciliationSummary | null = null;
 
   history: ImportHistoryItem[] = [];
   selectedBatch: ImportHistoryItem | null = null;
@@ -407,7 +405,6 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.processing = true;
     this.clearAlerts();
     this.commitResult = null;
-    this.lastCommitSummary = null;
 
     // Capture sourceType before the async call so routing logic is stable.
     const sourceType = this.selectedBatch.sourceType?.toUpperCase() ?? '';
@@ -416,7 +413,6 @@ export class ImportsWorkbenchComponent implements OnInit {
       next: (res) => {
         this.processing = false;
         this.commitResult = res;
-        this.lastCommitSummary = res.reconciliationSummary ?? null;
         this.actionMessage = `Commit complete. ${res.normalizedCount} rows normalised. Routing to reconciliation view…`;
         this.refreshHistory();
 

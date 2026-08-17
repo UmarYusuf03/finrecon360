@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Services;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services.Workers;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ public class ErpGatewaySalesMatchWorkerTests
 
     private static ErpGatewaySalesMatchWorker CreateWorker()
     {
-        return new ErpGatewaySalesMatchWorker(NullLogger<ErpGatewaySalesMatchWorker>.Instance);
+        return new ErpGatewaySalesMatchWorker(NullLogger<ErpGatewaySalesMatchWorker>.Instance, new ReconciliationSettingsProvider());
     }
 
     [Fact]
@@ -65,7 +66,7 @@ public class ErpGatewaySalesMatchWorkerTests
         var updatedErp = await tenantDb.ImportedNormalizedRecords.FindAsync(erpRecord.ImportedNormalizedRecordId);
         var updatedGw = await tenantDb.ImportedNormalizedRecords.FindAsync(gwRecord.ImportedNormalizedRecordId);
         
-        Assert.Equal("LEVEL3_MATCHED", updatedErp!.MatchStatus);
+        Assert.Equal("SALES_VERIFIED", updatedErp!.MatchStatus);
         Assert.Equal("LEVEL3_MATCHED", updatedGw!.MatchStatus);
     }
 

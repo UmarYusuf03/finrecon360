@@ -83,21 +83,6 @@ export class AdminJournalReadyComponent implements OnInit {
     return perms.includes('ADMIN.JOURNAL.POST') || perms.includes('ADMIN.JOURNAL.MANAGE');
   }
 
-  postJournal(transaction: Transaction): void {
-    if (this.postingId || !this.canPostJournal) return;
-    this.postingId = transaction.transactionId;
-    this.reconciliationService.postJournalFromTransaction(transaction.transactionId, {}).subscribe({
-      next: () => {
-        this.postingId = null;
-        this.snackBar.open('Journal entry posted successfully.', 'Close', { duration: 4000 });
-        this.loadJournalReady();
-      },
-      error: (error: unknown) => {
-        this.postingId = null;
-        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
-      },
-    });
-  }
 
   ngOnInit(): void {
     this.loadJournalReady();
@@ -171,17 +156,28 @@ export class AdminJournalReadyComponent implements OnInit {
 
   getStateClass(state: string): string {
     switch (state) {
-      case 'Pending':
-        return 'state-pending';
-      case 'JournalReady':
-        return 'state-journal-ready';
-      case 'NeedsBankMatch':
-        return 'state-needs-bank-match';
-      case 'Rejected':
-        return 'state-rejected';
-      default:
-        return 'state-default';
+      case 'Pending': return 'state-pending';
+      case 'JournalReady': return 'state-journal-ready';
+      case 'NeedsBankMatch': return 'state-needs-bank-match';
+      case 'Rejected': return 'state-rejected';
+      default: return 'state-default';
     }
+  }
+
+  postJournal(transaction: Transaction): void {
+    if (this.postingId || !this.canPostJournal) return;
+    this.postingId = transaction.transactionId;
+    this.reconciliationService.postJournalFromTransaction(transaction.transactionId, {}).subscribe({
+      next: () => {
+        this.postingId = null;
+        this.snackBar.open('Journal entry posted successfully.', 'Close', { duration: 4000 });
+        this.loadJournalReady();
+      },
+      error: (error: unknown) => {
+        this.postingId = null;
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
+    });
   }
 
   private loadJournalReady(): void {

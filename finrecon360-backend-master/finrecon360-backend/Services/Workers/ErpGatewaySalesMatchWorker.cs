@@ -1,5 +1,6 @@
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -19,16 +20,18 @@ namespace finrecon360_backend.Services.Workers
     ///
     /// On exact ref + amount match → ReconciliationMatchGroup(Level3, IsConfirmed=true)
     /// On ref match but amount delta → ReconciliationEvent(Variance) — possible partial payment/refund
+    /// On ambiguous match (2+ GATEWAY candidates within tolerance of each other) → ReconciliationEvent(RequiresReview)
     /// On no Gateway record          → ReconciliationEvent(MatchNotFound) — revenue not collected
     /// </summary>
     public class ErpGatewaySalesMatchWorker
     {
         private readonly ILogger<ErpGatewaySalesMatchWorker> _logger;
-        private const decimal AmountTolerance = 0.01m;
+        private readonly IReconciliationSettingsProvider _settingsProvider;
 
-        public ErpGatewaySalesMatchWorker(ILogger<ErpGatewaySalesMatchWorker> logger)
+        public ErpGatewaySalesMatchWorker(ILogger<ErpGatewaySalesMatchWorker> logger, IReconciliationSettingsProvider settingsProvider)
         {
             _logger = logger;
+            _settingsProvider = settingsProvider;
         }
 
         public async Task<MatchingRunResult> ExecuteAsync(
@@ -36,6 +39,9 @@ namespace finrecon360_backend.Services.Workers
             TenantDbContext tenantDb,
             CancellationToken ct = default)
         {
+            var settings = await _settingsProvider.GetAsync(tenantDb, ct);
+            var amountTolerance = settings.AmountTolerance;
+
             // 1. Load ERP records: those that passed Level2 (MATCHED) or are still PENDING.
             //    Both cases need Level3 matching — we run Level3 regardless of Level2 status
             //    because some tenants may not have POS and skip Level2.
@@ -43,21 +49,21 @@ namespace finrecon360_backend.Services.Workers
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
                 where b.SourceType == "ERP" && b.Status == "COMMITTED"
-                   && r.MatchStatus != "LEVEL3_MATCHED" // idempotency guard
+                   && r.MatchStatus != MatchStatuses.SalesVerified // idempotency guard
                    && !string.IsNullOrEmpty(r.ReferenceNumber)
                 select r
             ).ToListAsync(ct);
 
             if (erpRecords.Count == 0)
             {
-                return MatchingRunResult.Empty("Level3");
+                return MatchingRunResult.Empty(MatchLevels.Level3);
             }
 
             // 2. Load all COMMITTED GATEWAY records that are PENDING a match.
             var gatewayRecords = await (
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
-                where b.SourceType == "GATEWAY" && b.Status == "COMMITTED" && r.MatchStatus == "PENDING"
+                where b.SourceType == "GATEWAY" && b.Status == "COMMITTED" && r.MatchStatus == MatchStatuses.Pending
                    && !string.IsNullOrEmpty(r.ReferenceNumber)
                 select r
             ).ToListAsync(ct);
@@ -87,8 +93,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = erpRecord.ImportedNormalizedRecordId,
-                        EventType = "MatchNotFound",
-                        MatchLevel = "Level3",
+                        EventType = ReconciliationEventTypes.MatchNotFound,
+                        MatchLevel = MatchLevels.Level3,
                         Details = $"ERP record ref={erpRecord.ReferenceNumber} (amount={erpRecord.NetAmount}) " +
                                   $"has no corresponding Payment Gateway charge. Revenue may not have been collected.",
                         CreatedAt = now,
@@ -97,11 +103,29 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // Find GATEWAY candidate with matching amount.
-                var gatewayRecord = gatewayCandidates.FirstOrDefault(g =>
-                    Math.Abs(g.NetAmount - erpRecord.NetAmount) < AmountTolerance);
+                // Find the GATEWAY candidate with the closest matching amount; flag ambiguity
+                // instead of silently taking the first one when 2+ candidates are within
+                // tolerance of each other.
+                var matchResult = AmountMatcher.FindBestMatch(gatewayCandidates, erpRecord.NetAmount, amountTolerance);
 
-                if (gatewayRecord == null)
+                if (matchResult.Outcome == AmountMatcher.Outcome.Ambiguous)
+                {
+                    tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
+                    {
+                        ReconciliationEventId = Guid.NewGuid(),
+                        ImportedNormalizedRecordId = erpRecord.ImportedNormalizedRecordId,
+                        EventType = ReconciliationEventTypes.RequiresReview,
+                        MatchLevel = MatchLevels.Level3,
+                        Details = $"Ambiguous match: ref={erpRecord.ReferenceNumber} has {matchResult.CandidateCount} " +
+                                  $"GATEWAY candidates within tolerance of ERP amount={erpRecord.NetAmount}.",
+                        CreatedAt = now,
+                    });
+                    erpRecord.MatchStatus = MatchStatuses.Exception;
+                    exceptions++;
+                    continue;
+                }
+
+                if (matchResult.Outcome == AmountMatcher.Outcome.NoMatch)
                 {
                     // Reference matches but amount differs — possible processing fee, refund, or partial.
                     var best = gatewayCandidates[0];
@@ -109,24 +133,27 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = erpRecord.ImportedNormalizedRecordId,
-                        EventType = "Variance",
-                        MatchLevel = "Level3",
+                        EventType = ReconciliationEventTypes.Variance,
+                        MatchLevel = MatchLevels.Level3,
                         Details = $"Ref={erpRecord.ReferenceNumber}: ERP amount={erpRecord.NetAmount}, " +
                                   $"Gateway amount={best.NetAmount}, " +
                                   $"delta={Math.Abs(best.NetAmount - erpRecord.NetAmount):F2}. " +
                                   $"Possible processing fee deduction or partial refund.",
                         CreatedAt = now,
                     });
+                    erpRecord.MatchStatus = MatchStatuses.Exception;
                     exceptions++;
                     continue;
                 }
+
+                var gatewayRecord = matchResult.Best!;
 
                 // Exact match — create Level3 group.
                 var settlementKey = $"ERP_GW|{refKey}";
                 var matchGroup = new ReconciliationMatchGroup
                 {
                     ReconciliationMatchGroupId = Guid.NewGuid(),
-                    MatchLevel = "Level3",
+                    MatchLevel = MatchLevels.Level3,
                     SettlementKey = settlementKey,
                     IsConfirmed = true,
                     ConfirmedAt = now,
@@ -155,9 +182,10 @@ namespace finrecon360_backend.Services.Workers
                 });
 
                 // Mark GATEWAY record — still allows Level4/Level6 to re-use it for expense/settlement matching.
-                gatewayRecord.MatchStatus = "LEVEL3_MATCHED";
+                gatewayRecord.MatchStatus = MatchStatuses.Level3Matched;
                 gatewayRecord.SettlementKey = settlementKey;
-                erpRecord.MatchStatus = "LEVEL3_MATCHED";
+                // ERP side records the Sales Match outcome so the sale shows as verified downstream.
+                erpRecord.MatchStatus = MatchStatuses.SalesVerified;
                 erpRecord.SettlementKey = settlementKey;
 
                 _logger.LogInformation(
@@ -173,7 +201,7 @@ namespace finrecon360_backend.Services.Workers
                 "ErpGatewaySalesMatchWorker done — matched={M}, exceptions={E}, noMatch={N}",
                 autoMatched, exceptions, noMatch);
 
-            return new MatchingRunResult("Level3", erpRecords.Count, autoMatched, exceptions, noMatch);
+            return new MatchingRunResult(MatchLevels.Level3, erpRecords.Count, autoMatched, exceptions, noMatch);
         }
     }
 }
