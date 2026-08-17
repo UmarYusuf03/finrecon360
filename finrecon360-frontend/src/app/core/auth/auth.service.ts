@@ -144,7 +144,7 @@ export class AuthService {
   allowedImportSourceTypes(): Set<string> | null {
     const user = this.currentUser;
     if (!user) return new Set();
-    
+
     // If unrestricted, return null
     if (user.isSystemAdmin || user.roles.includes('ADMIN') || user.roles.includes('MANAGER')) {
       return null;
@@ -152,8 +152,8 @@ export class AuthService {
 
     const allowed = new Set<string>();
     // For scope-restricted roles like CASHIER, check permissions
-    ['POS', 'ERP', 'GATEWAY', 'BANK'].forEach(src => {
-      if (user.permissions.some(p => p.startsWith(`ADMIN.IMPORTS.${src}`))) {
+    ['POS', 'ERP', 'GATEWAY', 'BANK'].forEach((src) => {
+      if (user.permissions.some((p) => p.startsWith(`ADMIN.IMPORTS.${src}`))) {
         allowed.add(src);
       }
     });
@@ -167,34 +167,6 @@ export class AuthService {
     const updated = { ...current, ...patch };
     this.currentUserSubject.next(updated);
     this.persist(updated);
-  }
-
-  /**
-   * WHY: Mirrors SourceTypeScope.AllowedSourceTypes() from the backend.
-   * Returns null  → user has full (unscoped) IMPORTS access, no UI restriction needed.
-   * Returns a Set → user may only upload/process files of those source types.
-   * The import workbench uses this to pre-select & lock the sourceType dropdown for CASHIER.
-   */
-  allowedImportSourceTypes(): Set<string> | null {
-    const perms = this.currentUser?.permissions ?? [];
-    const fullActions = ['CREATE', 'EDIT', 'COMMIT', 'DELETE', 'MANAGE'];
-    const hasFullAccess = fullActions.some(a =>
-      perms.includes(`ADMIN.IMPORTS.${a}` as PermissionCode)
-    );
-    if (hasFullAccess) return null;
-
-    const validSourceTypes = ['POS', 'ERP', 'GATEWAY', 'BANK'];
-    const allowed = new Set<string>();
-    for (const src of validSourceTypes) {
-      if (
-        perms.includes(`ADMIN.IMPORTS.${src}.CREATE` as PermissionCode) ||
-        perms.includes(`ADMIN.IMPORTS.${src}.EDIT` as PermissionCode) ||
-        perms.includes(`ADMIN.IMPORTS.${src}.COMMIT` as PermissionCode)
-      ) {
-        allowed.add(src);
-      }
-    }
-    return allowed.size > 0 ? allowed : null;
   }
 
   login(email: string, password: string): Observable<CurrentUser> {
