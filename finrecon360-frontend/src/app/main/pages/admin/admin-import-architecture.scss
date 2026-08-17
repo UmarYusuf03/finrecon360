@@ -24,7 +24,7 @@
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -47,7 +47,7 @@
 }
 
 .architecture-hero h1 {
-  font-size: clamp(1.95rem, 1.7rem + 0.7vw, 2.5rem);
+  font-size: var(--fr-text-display);
 }
 
 .architecture-hero p,
@@ -56,7 +56,7 @@
 .dialog-panel p {
   margin: 6px 0 0;
   color: var(--fr-text-muted);
-  font-size: 0.95rem;
+  font-size: var(--fr-text-base);
   line-height: 1.6;
 }
 
@@ -82,7 +82,7 @@
 
 .stat-label {
   color: var(--fr-text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fr-text-sm);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -90,7 +90,7 @@
 
 .stat-value {
   color: var(--fr-text-primary);
-  font-size: 1.8rem;
+  font-size: var(--fr-text-xl);
   line-height: 1;
 }
 
@@ -115,7 +115,7 @@
 }
 
 .card-heading h2 {
-  font-size: 1.18rem;
+  font-size: var(--fr-text-md);
 }
 
 .templates-layout {
@@ -145,7 +145,7 @@
 .templates-layout .table-shell .mat-mdc-header-cell,
 .templates-layout .table-shell .mat-mdc-cell {
   padding: 8px 10px;
-  font-size: 0.82rem;
+  font-size: var(--fr-text-sm);
   line-height: 1.25;
 }
 
@@ -174,7 +174,7 @@
   min-height: 28px;
   padding: 0 8px;
   line-height: 1.1;
-  font-size: 0.78rem;
+  font-size: var(--fr-text-xs);
 }
 
 .table-actions .template-action--deactivate {
@@ -208,7 +208,7 @@
 }
 
 .canonical-card .mat-mdc-header-cell {
-  font-size: 0.76rem;
+  font-size: var(--fr-text-xs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }

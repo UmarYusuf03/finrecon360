@@ -124,6 +124,14 @@ export class LoginComponent implements AfterViewInit, OnDestroy {
       return '/app/profile';
     }
 
+    // A tenant admin lands on the dashboard, not the administration area. Administration is
+    // configuration work done occasionally; the dashboard is the reason someone opens the
+    // product on a given morning. System admins have no tenant dashboard, so they keep the
+    // control-plane landing.
+    if (!user.isSystemAdmin) {
+      return '/app/dashboard';
+    }
+
     return user.isSystemAdmin ? '/app/system' : '/app/admin';
   }
 

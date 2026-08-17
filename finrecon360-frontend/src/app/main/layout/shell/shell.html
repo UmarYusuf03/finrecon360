@@ -63,11 +63,28 @@
     </div>
 
     <nav class="shell__sidebar-nav" aria-label="Primary">
+      <p class="shell__nav-label">{{ 'NAV.SECTION_WORKSPACE' | translate }}</p>
       <ng-container
         [ngTemplateOutlet]="primaryLinks"
         [ngTemplateOutletContext]="{ linkClass: 'shell__nav-link' }"
       ></ng-container>
     </nav>
+
+    <!--
+      Anchored to the bottom of the rail. The navigation is short, so without something down
+      here the sidebar read as an unfinished column of empty space. Showing who is signed in
+      and which workspace they are in is also the thing most worth having permanently visible
+      in a multi-tenant product — it answers "am I in the right company's books?" at a glance.
+    -->
+    <div class="shell__sidebar-footer" *ngIf="user$ | async as user">
+      <div class="shell__sidebar-account">
+        <span class="shell__sidebar-avatar" aria-hidden="true">{{ getInitials(user.displayName) }}</span>
+        <span class="shell__sidebar-account-text">
+          <span class="shell__sidebar-account-name">{{ user.displayName || user.email }}</span>
+          <span class="shell__sidebar-account-meta" *ngIf="user.tenantName">{{ user.tenantName }}</span>
+        </span>
+      </div>
+    </div>
   </aside>
 
   <div class="shell__workspace">

@@ -17,6 +17,18 @@ namespace finrecon360_backend.Models
         public DateTime? RejectedAt { get; set; }
         public Guid? RejectedByUserId { get; set; }
         public string? RejectionReason { get; set; }
+
+        /// <summary>
+        /// The upstream reference for this payment — gateway reference or bank narrative.
+        ///
+        /// Restored after a merge dropped it from the model while leaving the column in every
+        /// tenant database and the field on the create form, so entered references were silently
+        /// discarded by the model binder. It is also the strongest correlation key the matcher has:
+        /// without it, bank matching falls back to date plus amount, which cannot distinguish two
+        /// payments of the same value on the same day.
+        /// </summary>
+        public string? ReferenceNumber { get; set; }
+
         public string? CardLast4 { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }

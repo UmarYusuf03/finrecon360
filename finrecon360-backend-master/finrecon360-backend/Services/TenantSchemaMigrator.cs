@@ -21,6 +21,8 @@ namespace finrecon360_backend.Services
         private const string MigrationTransactions = "202604230003_TenantTransactions";
         private const string MigrationTransactionPermissions = "202604230004_TenantTransactionPermissions";
         private const string MigrationTransactionApprovalFields = "202604230005_TenantTransactionApprovalFields";
+        private const string MigrationTransactionCardLast4 = "202608160001_TenantTransactionCardLast4";
+        private const string MigrationReconciliationRewriteColumns = "202608160002_TenantReconciliationRewriteColumns";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -42,6 +44,8 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactions, BuildTenantTransactionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionPermissions, BuildTenantTransactionPermissionsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionApprovalFields, BuildTenantTransactionApprovalFieldsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactionCardLast4, BuildTenantTransactionCardLast4Sql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationRewriteColumns, BuildTenantReconciliationRewriteColumnsSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -748,6 +752,80 @@ namespace finrecon360_backend.Services
             """;
 
         // Adds approval metadata without rebuilding tenant transaction tables already in use.
+        /// <summary>
+        /// Adds the columns introduced by the reconciliation rewrite.
+        ///
+        /// WHY these are grouped: the rewrite added five properties across three entities, none of
+        /// which had a corresponding tenant migration. The reconciliation workers query these
+        /// tables on a timer, so every cycle failed with "Invalid column name" and no matching
+        /// could run at all — the feature was unreachable rather than merely incomplete.
+        ///
+        /// Each column is added independently so a database that already has some of them (for
+        /// instance one repaired by hand) upgrades cleanly rather than failing on the first
+        /// duplicate.
+        /// </summary>
+        private static string BuildTenantReconciliationRewriteColumnsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NOT NULL
+            BEGIN
+                -- Denormalised join key between a gateway payout and its bank deposit line.
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'SettlementKey') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD SettlementKey nvarchar(256) NULL;
+                END
+            END
+
+            IF OBJECT_ID(N'dbo.ReconciliationMatchGroups', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ReconciliationMatchGroups', N'MatchedAmount') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationMatchGroups ADD MatchedAmount decimal(18,2) NOT NULL
+                        CONSTRAINT DF_ReconciliationMatchGroups_MatchedAmount DEFAULT (0);
+                END
+
+                IF COL_LENGTH(N'dbo.ReconciliationMatchGroups', N'Variance') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationMatchGroups ADD Variance decimal(18,2) NOT NULL
+                        CONSTRAINT DF_ReconciliationMatchGroups_Variance DEFAULT (0);
+                END
+
+                IF COL_LENGTH(N'dbo.ReconciliationMatchGroups', N'Status') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationMatchGroups ADD Status nvarchar(40) NOT NULL
+                        CONSTRAINT DF_ReconciliationMatchGroups_Status DEFAULT ('Pending');
+                END
+            END
+
+            IF OBJECT_ID(N'dbo.ReconciliationMatchedRecords', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ReconciliationMatchedRecords', N'LinkedAt') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationMatchedRecords ADD LinkedAt datetime2 NOT NULL
+                        CONSTRAINT DF_ReconciliationMatchedRecords_LinkedAt DEFAULT (SYSUTCDATETIME());
+                END
+            END
+            """;
+
+        /// <summary>
+        /// Adds Transactions.CardLast4.
+        ///
+        /// WHY this was needed: the property was added to the Transaction model without a matching
+        /// tenant migration, so EF generated INSERTs naming a column no tenant database had.
+        /// Every transaction creation failed with "Invalid column name 'CardLast4'", and the
+        /// journal posting worker failed on the same query. The control-plane migrations do not
+        /// cover tenant databases — those are provisioned and upgraded here.
+        /// </summary>
+        private static string BuildTenantTransactionCardLast4Sql() =>
+            """
+            IF OBJECT_ID(N'dbo.Transactions', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.Transactions', N'CardLast4') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Transactions ADD CardLast4 nvarchar(4) NULL;
+                END
+            END
+            """;
+
         private static string BuildTenantTransactionApprovalFieldsSql() =>
             """
             IF OBJECT_ID(N'dbo.Transactions', N'U') IS NOT NULL

@@ -23,7 +23,7 @@ $primary-blue-600: color.adjust($primary-blue, $lightness: -4%);
   top: 20px;
   left: 24px;
   font-weight: 800;
-  font-size: 26px;
+  font-size: var(--fr-text-xl);
   letter-spacing: .2px;
   color: $brand-text;
 }
@@ -47,14 +47,14 @@ $primary-blue-600: color.adjust($primary-blue, $lightness: -4%);
 .auth-title {
   margin: 8px 0 4px;
   font-weight: 800;
-  font-size: 28px;
+  font-size: var(--fr-text-xl);
   color: $brand-text;
   text-align: center;
 }
 
 .auth-subtitle {
   margin: 0 0 20px;
-  font-size: 14px;
+  font-size: var(--fr-text-base);
   color: $muted-text;
   text-align: center;
 }
@@ -76,7 +76,7 @@ $primary-blue-600: color.adjust($primary-blue, $lightness: -4%);
 
   > span {
     color: $muted-text;
-    font-size: 12px;
+    font-size: var(--fr-text-xs);
     letter-spacing: .08em;
   }
 }
@@ -84,7 +84,7 @@ $primary-blue-600: color.adjust($primary-blue, $lightness: -4%);
 // Generic helpers
 .full-width { width: 100%; }
 .field-label { font-weight: 700; }
-.auth-helper-text { font-size: 13px; color: $muted-text; }
+.auth-helper-text { font-size: var(--fr-text-sm); color: $muted-text; }
 .auth-helper-text--center { text-align: center; }
 
 .primary-btn {
@@ -160,7 +160,7 @@ $primary-blue-600: color.adjust($primary-blue, $lightness: -4%);
     width: 56px;
     height: 56px;
     text-align: center;
-    font-size: 20px;
+    font-size: var(--fr-text-lg);
     border-radius: 12px;
     border: 1px solid #e5e7eb;
     background: #f9fafb;
@@ -172,4 +172,42 @@ $primary-blue-600: color.adjust($primary-blue, $lightness: -4%);
       background: #fff;
     }
   }
+}
+
+
+// ── Provider sign-in (SSO) ───────────────────────────────────────────────────
+// Shared by the login and register screens: Google renders the same button into both, so
+// the styling lives here rather than being restated per page.
+.sso-slot {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  min-height: 48px;
+}
+
+// Kept in the DOM but visually removed, because Google's script needs the element to exist
+// before it can render into it.
+.sso-slot--hidden {
+  display: none;
+}
+
+.google-button-host {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+
+  // Google controls the button's internal markup; this only constrains its footprint so it
+  // lines up with the fields above it.
+  iframe,
+  > div {
+    max-width: 100% !important;
+  }
+}
+
+.sso-pending {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-size: var(--fr-text-sm);
+  opacity: 0.75;
 }

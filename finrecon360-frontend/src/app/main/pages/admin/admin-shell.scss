@@ -23,7 +23,7 @@
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(255, 255, 255, 0.5);
   color: var(--fr-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--fr-text-sm);
   font-weight: 700;
   letter-spacing: 0.02em;
   text-decoration: none;
@@ -53,4 +53,112 @@
 
 ::ng-deep .admin-shell__nav .mdc-tab-indicator {
   display: none;
+}
+
+// ── Administration overview ──────────────────────────────────────────────────
+// The index of the administration area, shown when no section is open.
+
+.admin-overview {
+  display: grid;
+  gap: var(--fr-space-6);
+  padding: var(--fr-space-2) 0 var(--fr-space-4);
+}
+
+.admin-overview__header {
+  display: grid;
+  gap: var(--fr-space-2);
+}
+
+.admin-overview__title {
+  margin: 0;
+  color: var(--fr-text-primary);
+  font-size: var(--fr-text-2xl);
+  font-weight: var(--fr-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.admin-overview__subtitle {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--fr-text-muted);
+  font-size: var(--fr-text-md);
+  line-height: 1.6;
+}
+
+.admin-overview__grid {
+  display: grid;
+  // auto-fit with a minimum keeps the cards large and square-ish on a wide screen while
+  // collapsing to one column on a phone, without hard-coding a column count that would be
+  // wrong for a system admin who sees a different number of sections.
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--fr-space-4);
+}
+
+.admin-overview__card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--fr-space-2);
+  // A generous min-height is what turns these from list rows into the blocks that fill the
+  // page, which is the whole point of the index.
+  min-height: 160px;
+  padding: var(--fr-space-5);
+  border-radius: var(--fr-radius-lg);
+  border: 1px solid var(--fr-border);
+  background: var(--fr-glass-surface-strong);
+  box-shadow: var(--fr-shadow-soft);
+  color: inherit;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.admin-overview__card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--fr-primary) 38%, var(--fr-border));
+  box-shadow: 0 18px 34px rgba(15, 27, 51, 0.1);
+}
+
+.admin-overview__card:focus-visible {
+  outline: 2px solid var(--fr-primary);
+  outline-offset: 2px;
+}
+
+.admin-overview__card-title {
+  color: var(--fr-text-primary);
+  font-size: var(--fr-text-lg);
+  font-weight: var(--fr-weight-bold);
+}
+
+.admin-overview__card-copy {
+  color: var(--fr-text-muted);
+  font-size: var(--fr-text-sm);
+  line-height: 1.55;
+}
+
+.admin-overview__card-cue {
+  position: absolute;
+  right: var(--fr-space-5);
+  bottom: var(--fr-space-4);
+  color: var(--fr-primary);
+  font-size: var(--fr-text-lg);
+  opacity: 0;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.admin-overview__card:hover .admin-overview__card-cue,
+.admin-overview__card:focus-visible .admin-overview__card-cue {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
+// Movement is decoration here; the hover state still reads through colour and shadow.
+@media (prefers-reduced-motion: reduce) {
+  .admin-overview__card,
+  .admin-overview__card-cue {
+    transition: none;
+  }
+
+  .admin-overview__card:hover {
+    transform: none;
+  }
 }

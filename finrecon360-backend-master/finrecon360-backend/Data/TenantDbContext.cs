@@ -176,6 +176,10 @@ namespace finrecon360_backend.Data
                     .HasDefaultValue(TransactionState.Pending)
                     .IsRequired();
                 entity.Property(x => x.RejectionReason).HasMaxLength(500);
+                // Matches the nvarchar(100) column in the tenant databases. Declaring a longer
+                // length here would let a value through EF that SQL Server then rejects.
+                entity.Property(x => x.ReferenceNumber).HasMaxLength(100);
+                entity.Property(x => x.CardLast4).HasMaxLength(4);
                 entity.Property(x => x.CreatedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");

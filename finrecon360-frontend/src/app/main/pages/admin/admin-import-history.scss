@@ -20,7 +20,7 @@
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -42,7 +42,7 @@
 }
 
 .history-hero h1 {
-  font-size: clamp(1.95rem, 1.7rem + 0.7vw, 2.5rem);
+  font-size: var(--fr-text-display);
 }
 
 .history-hero p,
@@ -50,7 +50,7 @@
 .empty-state p {
   margin: 6px 0 0;
   color: var(--fr-text-muted);
-  font-size: 0.95rem;
+  font-size: var(--fr-text-base);
   line-height: 1.6;
 }
 
@@ -115,7 +115,7 @@ input {
 
 .history-table th {
   color: var(--fr-text-muted);
-  font-size: 0.76rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;

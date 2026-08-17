@@ -44,7 +44,7 @@
   background: rgba(255, 255, 255, 0.56);
   border: 1px solid rgba(255, 255, 255, 0.75);
   color: var(--fr-primary);
-  font-size: 0.76rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -72,7 +72,7 @@
 .auth-title {
   margin: 0;
   color: var(--fr-text-primary);
-  font-size: clamp(2rem, 1.55rem + 1.3vw, 3rem);
+  font-size: var(--fr-text-display);
   font-weight: 800;
   letter-spacing: -0.04em;
   text-align: left;
@@ -82,7 +82,7 @@
   margin: 0;
   max-width: 34rem;
   color: var(--fr-text-muted);
-  font-size: 1rem;
+  font-size: var(--fr-text-md);
   line-height: 1.7;
   text-align: left;
 }
@@ -108,7 +108,7 @@
   display: block;
   margin-bottom: 8px;
   color: var(--fr-text-primary);
-  font-size: 0.88rem;
+  font-size: var(--fr-text-base);
   font-weight: 700;
 }
 
@@ -120,7 +120,7 @@
   border: 1px solid var(--fr-border);
   background: rgba(255, 255, 255, 0.8);
   color: var(--fr-text-primary);
-  font-size: 0.95rem;
+  font-size: var(--fr-text-base);
   outline: none;
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
@@ -138,7 +138,7 @@
 .error-text {
   margin-top: 6px;
   color: #b91c1c;
-  font-size: 0.82rem;
+  font-size: var(--fr-text-sm);
   line-height: 1.45;
 }
 
@@ -179,7 +179,7 @@
 .toggle-btn mat-icon {
   width: 20px;
   height: 20px;
-  font-size: 20px;
+  font-size: var(--fr-text-lg);
 }
 
 .forgot-row {
@@ -190,7 +190,7 @@
 
 .auth-link {
   color: var(--fr-primary);
-  font-size: 0.88rem;
+  font-size: var(--fr-text-base);
   font-weight: 600;
   text-decoration: none;
 }
@@ -207,7 +207,7 @@
   border-radius: 999px;
   background: linear-gradient(135deg, var(--fr-primary), #35b7ff);
   color: #fff;
-  font-size: 0.96rem;
+  font-size: var(--fr-text-base);
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 18px 32px rgba(11, 132, 216, 0.22);
@@ -233,7 +233,7 @@
   gap: 12px;
   margin: 24px 0 18px;
   color: var(--fr-text-muted);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -248,45 +248,13 @@
 
 .social-row {
   display: grid;
-  // Two columns rather than three: Google's rendered button spans the full width on its own
-  // row, leaving the two not-yet-implemented providers to sit evenly beneath it.
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  // Single column: Google is the only provider offered, so it takes the full width rather
+  // than sitting in one half of a grid built for siblings that no longer exist.
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
-.sso-slot {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: center;
-  min-height: 48px;
-}
 
-// Kept in the DOM but visually removed, because Google's script needs the element to exist
-// before it can render into it.
-.sso-slot--hidden {
-  display: none;
-}
-
-.google-button-host {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-
-  // Google controls the button's internal markup; this only constrains its footprint so it
-  // lines up with the fields above it.
-  iframe,
-  > div {
-    max-width: 100% !important;
-  }
-}
-
-.sso-pending {
-  grid-column: 1 / -1;
-  margin: 0;
-  text-align: center;
-  font-size: 13px;
-  opacity: 0.75;
-}
 
 .ghost-btn {
   display: inline-flex;
@@ -299,7 +267,7 @@
   border: 1px solid rgba(148, 163, 184, 0.24);
   background: rgba(255, 255, 255, 0.88);
   color: var(--fr-text-primary);
-  font-size: 0.88rem;
+  font-size: var(--fr-text-base);
   font-weight: 700;
   cursor: pointer;
 }
@@ -324,7 +292,7 @@
 .auth-helper-text {
   margin: 0;
   color: var(--fr-text-muted);
-  font-size: 0.86rem;
+  font-size: var(--fr-text-base);
   line-height: 1.6;
 }
 
