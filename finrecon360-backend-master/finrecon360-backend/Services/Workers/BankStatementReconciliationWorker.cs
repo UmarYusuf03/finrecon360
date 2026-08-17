@@ -321,6 +321,9 @@ namespace finrecon360_backend.Services.Workers
                 LinkedAt = DateTime.UtcNow,
             });
 
+            gatewayRecord.MatchStatus = MatchStatuses.Matched;
+            bankRecord.MatchStatus = MatchStatuses.Matched;
+
             _logger.LogInformation(
                 "PROPOSED match for transaction {TransactionId}: settlement key '{Key}', match group {GroupId} — awaiting confirmation",
                 txn.TransactionId, settlementKey, matchGroup.ReconciliationMatchGroupId);

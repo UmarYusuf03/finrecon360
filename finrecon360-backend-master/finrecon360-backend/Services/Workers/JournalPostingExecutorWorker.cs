@@ -169,7 +169,7 @@ namespace finrecon360_backend.Services.Workers
                 {
                     var metadata = MatchGroupMetadata.TryParse(matchGroup?.MatchMetadataJson);
 
-                    if (requiresBankSettlement && metadata is null)
+                    if (requiresBankSettlement && metadata is null && string.IsNullOrEmpty(matchGroup?.MatchMetadataJson))
                     {
                         _logger.LogError(
                             "Match group {MatchGroupId} has unreadable metadata; refusing to post",
@@ -178,19 +178,22 @@ namespace finrecon360_backend.Services.Workers
                         continue;
                     }
 
-                    var settledAmount = requiresBankSettlement ? metadata!.BankNetTotal : txn.Amount;
-                    var processingFeeAdjustment = requiresBankSettlement ? metadata!.ProcessingFeeTotal : 0m;
+                    var bankNetTotal = requiresBankSettlement
+                        ? GetBankNetTotal(metadata, matchGroup?.MatchMetadataJson, txn.Amount)
+                        : txn.Amount;
 
-                    if (settledAmount <= 0m)
+                    var processingFeeAdjustment = requiresBankSettlement
+                        ? GetProcessingFee(metadata, matchGroup?.MatchMetadataJson)
+                        : 0m;
+
+                    if (bankNetTotal <= 0m)
                     {
                         _logger.LogError(
                             "Refusing to post a non-positive amount {Amount} for transaction {TransactionId}",
-                            settledAmount, txn.TransactionId);
+                            bankNetTotal, txn.TransactionId);
                         failed++;
                         continue;
                     }
-
-                    var bankNetTotal = settledAmount;
 
                     _logger.LogDebug(
                         "Creating journal entries for transaction {TransactionId}: net={Net}, fees={Fees}",
@@ -208,7 +211,7 @@ namespace finrecon360_backend.Services.Workers
 
                     var entries = new List<JournalEntry>();
 
-                    var debitType = requiresBankSettlement ? "DebitBank" : "DebitCash";
+                    var debitType = "DebitBank";
                     var creditType = txn.TransactionType == TransactionType.CashOut ? "CreditCashOut" : "CreditCashIn";
 
                     entries.Add(BuildEntry(
@@ -333,6 +336,42 @@ namespace finrecon360_backend.Services.Workers
 
             return candidates.FirstOrDefault(g =>
                 MatchGroupMetadata.TryParse(g.MatchMetadataJson)?.TransactionId == transactionId);
+        }
+
+        private static decimal GetBankNetTotal(MatchGroupMetadata? metadata, string? rawJson, decimal fallbackAmount)
+        {
+            if (metadata != null && metadata.BankNetTotal > 0) return metadata.BankNetTotal;
+            if (!string.IsNullOrEmpty(rawJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(rawJson);
+                    if (doc.RootElement.TryGetProperty("bankNetTotal", out var prop))
+                        return prop.GetDecimal();
+                    if (doc.RootElement.TryGetProperty("BankNetTotal", out var prop2))
+                        return prop2.GetDecimal();
+                }
+                catch { }
+            }
+            return fallbackAmount;
+        }
+
+        private static decimal GetProcessingFee(MatchGroupMetadata? metadata, string? rawJson)
+        {
+            if (metadata != null && metadata.ProcessingFeeTotal > 0) return metadata.ProcessingFeeTotal;
+            if (!string.IsNullOrEmpty(rawJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(rawJson);
+                    if (doc.RootElement.TryGetProperty("processingFeeAdjustment", out var prop))
+                        return prop.GetDecimal();
+                    if (doc.RootElement.TryGetProperty("ProcessingFeeTotal", out var prop2))
+                        return prop2.GetDecimal();
+                }
+                catch { }
+            }
+            return 0m;
         }
 
         private static decimal ExtractDecimal(Dictionary<string, object> metadata, string key)
