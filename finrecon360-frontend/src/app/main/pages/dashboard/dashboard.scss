@@ -31,7 +31,7 @@
   background: rgba(255, 255, 255, 0.56);
   border: 1px solid rgba(255, 255, 255, 0.66);
   color: var(--fr-primary);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -39,7 +39,7 @@
 
 .dashboard__title {
   margin: 0;
-  font-size: clamp(2rem, 1.6rem + 1.2vw, 3rem);
+  font-size: var(--fr-text-display);
   font-weight: 800;
   letter-spacing: -0.04em;
   color: var(--fr-text-primary);
@@ -49,7 +49,7 @@
   margin: 0;
   max-width: 46rem;
   color: var(--fr-text-muted);
-  font-size: 0.98rem;
+  font-size: var(--fr-text-base);
   line-height: 1.7;
 }
 
@@ -65,7 +65,7 @@
 
 .dashboard__workspace-label {
   color: var(--fr-text-muted);
-  font-size: 0.72rem;
+  font-size: var(--fr-text-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -73,7 +73,7 @@
 
 .dashboard__workspace strong {
   color: var(--fr-text-primary);
-  font-size: 1rem;
+  font-size: var(--fr-text-md);
 }
 
 .dashboard__summary {
@@ -91,7 +91,7 @@
 
 .dashboard-summary-card__label {
   color: var(--fr-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -99,7 +99,7 @@
 
 .dashboard-summary-card strong {
   color: var(--fr-text-primary);
-  font-size: clamp(1.8rem, 1.5rem + 0.6vw, 2.4rem);
+  font-size: var(--fr-text-display);
   line-height: 1;
 }
 
@@ -145,7 +145,7 @@
 .dashboard-panel__icon mat-icon {
   width: 22px;
   height: 22px;
-  font-size: 22px;
+  font-size: var(--fr-text-lg);
 }
 
 .dashboard-panel__icon--emerald {
@@ -198,7 +198,7 @@
 }
 
 .dashboard-feature-value {
-  font-size: clamp(2rem, 1.7rem + 0.7vw, 2.8rem);
+  font-size: var(--fr-text-display);
   line-height: 1;
 }
 
@@ -236,7 +236,7 @@
 .dashboard-mini-stat span,
 .dashboard-signal__label {
   color: var(--fr-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -245,7 +245,7 @@
 .dashboard-mini-stat strong,
 .dashboard-signal strong {
   color: var(--fr-text-primary);
-  font-size: 1.02rem;
+  font-size: var(--fr-text-md);
 }
 
 .dashboard-signal {

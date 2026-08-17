@@ -21,7 +21,7 @@
   h2 {
     margin: 0;
     color: var(--fr-text-primary);
-    font-size: 1.9rem;
+    font-size: var(--fr-text-2xl);
     line-height: 1.08;
     letter-spacing: -0.03em;
   }
@@ -29,7 +29,7 @@
   p {
     margin: 10px 0 0;
     color: var(--fr-text-muted);
-    font-size: 0.95rem;
+    font-size: var(--fr-text-base);
     line-height: 1.6;
   }
 }
@@ -38,7 +38,7 @@
   display: inline-flex;
   margin-bottom: 10px;
   color: var(--fr-primary);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -52,7 +52,7 @@
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -94,7 +94,7 @@
 
   th {
     color: var(--fr-text-muted);
-    font-size: 0.76rem;
+    font-size: var(--fr-text-xs);
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -102,7 +102,7 @@
 
   td {
     color: var(--fr-text-primary);
-    font-size: 0.9rem;
+    font-size: var(--fr-text-base);
   }
 
   tbody tr:last-child td {
@@ -149,7 +149,7 @@
   border-radius: 50%;
   background: rgba(11, 132, 216, 0.12);
   color: var(--fr-primary);
-  font-size: 1rem;
+  font-size: var(--fr-text-md);
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -157,14 +157,14 @@
 .plans-empty h3 {
   margin: 0;
   color: var(--fr-text-primary);
-  font-size: 1rem;
+  font-size: var(--fr-text-md);
 }
 
 .plans-empty p {
   margin: 0;
   max-width: 30rem;
   color: var(--fr-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
   line-height: 1.55;
 }
 
@@ -183,7 +183,7 @@
 .plan-form-header p {
   margin: 6px 0 0;
   color: var(--fr-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--fr-text-base);
 }
 
 .form-grid {
@@ -200,7 +200,7 @@
 
 .form-field label {
   color: var(--fr-text-primary);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
   font-weight: 700;
 }
 
@@ -226,13 +226,13 @@
 
 .field-hint {
   color: var(--fr-text-muted);
-  font-size: 0.8rem;
+  font-size: var(--fr-text-sm);
   line-height: 1.35;
 }
 
 .field-error {
   color: #b91c1c;
-  font-size: 0.8rem;
+  font-size: var(--fr-text-sm);
   line-height: 1.35;
 }
 

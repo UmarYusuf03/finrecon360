@@ -18,6 +18,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -49,12 +51,16 @@ import { AuthService } from '../../../core/auth/auth.service';
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
+    MatDatepickerModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
     RouterLink,
     RouterLinkActive,
     TranslateModule,
   ],
+  // The datepicker needs a date adapter. Native is enough here: the form deals in calendar
+  // days with no locale-specific parsing beyond what the browser already does.
+  providers: [provideNativeDateAdapter()],
   templateUrl: './admin-transactions.html',
   styleUrls: ['./admin-transaction-pages.scss'],
 })
@@ -62,7 +68,11 @@ export class AdminTransactionsComponent implements OnInit {
   displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
   transactions: Transaction[] = [];
   filteredTransactions: Transaction[] = [];
+  /** Active accounts only — what the create/edit form offers as choices. */
   bankAccounts: BankAccount[] = [];
+
+  /** Every account, active or not, so historic transactions still resolve to a readable name. */
+  allBankAccounts: BankAccount[] = [];
   history: TransactionStateHistory[] = [];
   form!: FormGroup;
   rejectForm!: FormGroup;
@@ -81,8 +91,11 @@ export class AdminTransactionsComponent implements OnInit {
   readonly transactionTypes = ['CashIn', 'CashOut'];
   readonly paymentMethods = ['Cash', 'Card'];
   readonly stateFilters = ['All', 'Pending', 'JournalReady', 'NeedsBankMatch', 'Rejected'] as const;
+  // The picker binds to Date objects; the strings remain for the human-readable range hint.
   readonly minTransactionDate = '2000-01-01';
   readonly maxTransactionDate = new Date().toISOString().slice(0, 10);
+  readonly minTransactionDateValue = new Date(2000, 0, 1);
+  readonly maxTransactionDateValue = new Date();
 
   constructor(
     private transactionService: TransactionService,
@@ -96,9 +109,14 @@ export class AdminTransactionsComponent implements OnInit {
   ngOnInit(): void {
     this.form = this.fb.group({
       amount: [null, [Validators.required, Validators.min(0.01)]],
-      transactionDate: ['', [Validators.required, this.transactionDateValidator()]],
-      referenceNumber: ['', [Validators.maxLength(100)]],
+      transactionDate: [null, [Validators.required, this.transactionDateValidator()]],
       description: ['', [Validators.required, Validators.maxLength(500)]],
+      // The template binds this control; without it the dialog throws NG01050 on open.
+      // 100 matches the server DTO and the tenant column.
+      referenceNumber: ['', [Validators.maxLength(100)]],
+      // Card payments only. Four digits identify which card a bank line refers to without
+      // storing anything that could reconstruct a card number.
+      cardLast4: ['', [Validators.pattern(/^\d{4}$/)]],
       transactionType: ['CashIn', Validators.required],
       paymentMethod: ['Cash', Validators.required],
       bankAccountId: [null],
@@ -111,6 +129,11 @@ export class AdminTransactionsComponent implements OnInit {
     this.updateBankAccountValidator();
     this.loadBankAccounts();
     this.loadTransactions();
+  }
+
+  /** Drives whether the card-digits field is offered; cash payments have no card. */
+  get isCardPayment(): boolean {
+    return this.form?.get('paymentMethod')?.value === 'Card';
   }
 
   get canManageTransactions(): boolean {
@@ -138,6 +161,10 @@ export class AdminTransactionsComponent implements OnInit {
 
       const searchable = [
         transaction.description,
+        // The field the search placeholder has always promised. It was absent here because the
+        // reference never survived the round trip to the server, so searching for one silently
+        // returned nothing.
+        transaction.referenceNumber ?? '',
         transaction.transactionType,
         transaction.paymentMethod,
         this.getBankAccountLabel(transaction.bankAccountId),
@@ -187,9 +214,10 @@ export class AdminTransactionsComponent implements OnInit {
     this.form.enable({ emitEvent: false });
     this.form.reset({
       amount: null,
-      transactionDate: '',
-      referenceNumber: '',
+      transactionDate: null,
       description: '',
+      referenceNumber: '',
+      cardLast4: '',
       transactionType: 'CashIn',
       paymentMethod: 'Cash',
       bankAccountId: null,
@@ -210,9 +238,10 @@ export class AdminTransactionsComponent implements OnInit {
     this.form.enable({ emitEvent: false });
     this.form.reset({
       amount: transaction.amount,
-      transactionDate: transaction.transactionDate.slice(0, 10),
-      referenceNumber: transaction.referenceNumber ?? '',
+      transactionDate: this.toDateOnly(transaction.transactionDate),
       description: transaction.description,
+      referenceNumber: transaction.referenceNumber ?? '',
+      cardLast4: transaction.cardLast4 ?? '',
       transactionType: transaction.transactionType,
       paymentMethod: transaction.paymentMethod,
       bankAccountId: transaction.bankAccountId ?? null,
@@ -240,9 +269,10 @@ export class AdminTransactionsComponent implements OnInit {
     const raw = this.form.getRawValue();
     const payload: UpdateTransactionRequest = {
       amount: Number(raw.amount),
-      transactionDate: `${raw.transactionDate}T00:00:00`,
-      referenceNumber: raw.referenceNumber || null,
+      transactionDate: `${this.toIsoDateString(raw.transactionDate)}T00:00:00`,
       description: raw.description,
+      referenceNumber: raw.referenceNumber?.trim() || null,
+      cardLast4: this.isCardPayment ? raw.cardLast4?.trim() || null : null,
       transactionType: raw.transactionType,
       paymentMethod: raw.paymentMethod,
       bankAccountId: raw.bankAccountId || null,
@@ -360,8 +390,17 @@ export class AdminTransactionsComponent implements OnInit {
       return '-';
     }
 
-    const account = this.bankAccounts.find((item) => item.bankAccountId === bankAccountId);
-    return account ? `${account.bankName} - ${account.accountNumber}` : bankAccountId;
+    // Looks through every account, not just the active ones. `bankAccounts` is filtered to
+    // active for the form dropdown, so a transaction booked against an account that was later
+    // deactivated found no match and fell through to printing its raw GUID in the table.
+    const account = this.allBankAccounts.find((item) => item.bankAccountId === bankAccountId);
+    if (account) {
+      return `${account.bankName} - ${account.accountNumber}`;
+    }
+
+    // Still unknown (deleted account, or accounts not loaded yet). A 36-character GUID in a
+    // table cell reads as a bug; this says the same thing in a way a user can act on.
+    return 'Unknown account';
   }
 
   isPending(transaction: Transaction): boolean {
@@ -442,6 +481,7 @@ export class AdminTransactionsComponent implements OnInit {
   private loadBankAccounts(): void {
     this.bankAccountService.getAll().subscribe({
       next: (accounts) => {
+        this.allBankAccounts = accounts;
         this.bankAccounts = accounts.filter((account) => account.isActive);
         this.applyListFilters();
       },
@@ -480,6 +520,34 @@ export class AdminTransactionsComponent implements OnInit {
     this.updateBankAccountValidator();
   }
 
+  /**
+   * Turns the stored enum value into something a finance user would say out loud.
+   * The stored value is unchanged — only the label differs.
+   */
+  getTransactionTypeLabel(type: string): string {
+    return type === 'CashIn' ? 'Cash In' : type === 'CashOut' ? 'Cash Out' : type;
+  }
+
+  /**
+   * Formats a Date as yyyy-MM-dd using its local calendar fields.
+   *
+   * Deliberately not toISOString(), which converts to UTC first: for a user east of Greenwich a
+   * date picked at midnight local time becomes the previous day, so a transaction dated today
+   * would be submitted as yesterday and could fall outside the allowed range.
+   */
+  private toIsoDateString(value: Date | string): string {
+    const date = value instanceof Date ? value : new Date(value);
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+  }
+
+  /** Parses the server's ISO timestamp into a local Date at midnight, for the picker. */
+  private toDateOnly(value: string): Date {
+    const [year, month, day] = value.slice(0, 10).split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
   private transactionDateValidator(): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
       const value = control.value;
@@ -487,20 +555,19 @@ export class AdminTransactionsComponent implements OnInit {
         return null;
       }
 
-      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return { invalidDate: true };
-      }
-
-      const parsed = new Date(`${value}T00:00:00`);
+      // The control now holds a Date from the picker. Typed input can still produce an
+      // Invalid Date, so that is checked before any comparison.
+      const parsed = value instanceof Date ? value : new Date(value);
       if (Number.isNaN(parsed.getTime())) {
         return { invalidDate: true };
       }
 
-      if (value < this.minTransactionDate) {
+      const asIso = this.toIsoDateString(parsed);
+      if (asIso < this.minTransactionDate) {
         return { minDate: true };
       }
 
-      if (value > this.maxTransactionDate) {
+      if (asIso > this.maxTransactionDate) {
         return { maxDate: true };
       }
 

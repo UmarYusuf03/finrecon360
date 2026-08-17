@@ -95,7 +95,7 @@
 
 .workflow-step small {
   margin-top: 4px;
-  font-size: 0.8rem;
+  font-size: var(--fr-text-sm);
 }
 
 .workflow-step.is-active {
@@ -225,7 +225,7 @@
 .source-type-label {
   display: block;
   color: var(--fr-text-primary);
-  font-size: 0.88rem;
+  font-size: var(--fr-text-base);
   font-weight: 700;
 }
 
@@ -278,11 +278,11 @@
 }
 
 .source-type-icon {
-  font-size: 24px;
+  font-size: var(--fr-text-lg);
 }
 
 .source-type-name {
-  font-size: 0.86rem;
+  font-size: var(--fr-text-base);
   font-weight: 700;
 }
 
@@ -300,7 +300,7 @@
 
 .source-type-hint,
 .recon-stat .stat-label {
-  font-size: 0.76rem;
+  font-size: var(--fr-text-xs);
 }
 
 .upload-dropzone {
@@ -330,7 +330,7 @@
 
 .drop-icon {
   margin: 0 auto;
-  font-size: 38px;
+  font-size: var(--fr-text-2xl);
   color: var(--fr-primary);
 }
 
@@ -450,7 +450,7 @@ select {
 .history-table th,
 .validation-table th {
   color: var(--fr-text-muted);
-  font-size: 0.76rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -640,7 +640,7 @@ select {
 .dashboard-card strong,
 .recon-stat .stat-value {
   color: var(--fr-text-primary);
-  font-size: 1.6rem;
+  font-size: var(--fr-text-xl);
   line-height: 1;
 }
 

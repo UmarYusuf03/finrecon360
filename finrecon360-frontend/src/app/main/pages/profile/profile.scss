@@ -30,7 +30,7 @@
   background: rgba(255, 255, 255, 0.56);
   border: 1px solid rgba(255, 255, 255, 0.66);
   color: var(--fr-primary);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -39,7 +39,7 @@
 .profile__hero h1 {
   margin: 0;
   color: var(--fr-text-primary);
-  font-size: clamp(2rem, 1.65rem + 1vw, 2.9rem);
+  font-size: var(--fr-text-display);
   font-weight: 800;
   letter-spacing: -0.04em;
 }
@@ -75,7 +75,7 @@
 .profile-chip span,
 .profile__meta-item dt {
   color: var(--fr-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -111,7 +111,7 @@
 .profile-card__header h2 {
   margin: 0 0 6px;
   color: var(--fr-text-primary);
-  font-size: 1.4rem;
+  font-size: var(--fr-text-lg);
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -162,7 +162,7 @@
 }
 
 .profile__avatar-initials {
-  font-size: 32px;
+  font-size: var(--fr-text-2xl);
   font-weight: 800;
   letter-spacing: -0.04em;
   color: var(--fr-text-primary);
@@ -182,7 +182,7 @@
 }
 
 .profile__avatar-add mat-icon {
-  font-size: 28px;
+  font-size: var(--fr-text-xl);
 }
 
 .profile__avatar-add:hover {
@@ -232,7 +232,7 @@
 .profile__meta-item dd {
   margin-top: 6px;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.88rem;
+  font-size: var(--fr-text-base);
   word-break: break-word;
 }
 
@@ -321,7 +321,7 @@
 }
 
 .profile__status {
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
   color: var(--fr-text-muted);
   line-height: 1.55;
 }

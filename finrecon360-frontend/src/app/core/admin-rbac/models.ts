@@ -142,6 +142,7 @@ export interface Transaction {
   amount: number;
   transactionDate: string;
   referenceNumber?: string | null;
+  cardLast4?: string | null;
   description: string;
   bankAccountId?: string | null;
   transactionType: string;
@@ -189,6 +190,7 @@ export interface NeedsBankMatchRecord {
   importedNormalizedRecordId?: string | null;
   importSourceType?: string | null;
   referenceNumber?: string | null;
+  cardLast4?: string | null;
   accountCode?: string | null;
   grossAmount?: number | null;
   processingFee?: number | null;
@@ -216,6 +218,7 @@ export interface UpdateTransactionRequest {
   amount: number;
   transactionDate: string;
   referenceNumber?: string | null;
+  cardLast4?: string | null;
   description: string;
   bankAccountId?: string | null;
   transactionType: string;
@@ -309,6 +312,7 @@ export interface ReconciliationMatchedRecord {
   matchAmount: number;
   transactionDate?: string;
   referenceNumber?: string;
+  cardLast4?: string | null;
   grossAmount?: number;
   processingFee?: number;
   netAmount: number;
@@ -335,6 +339,7 @@ export interface WaitingRecord {
   importBatchId: string;
   transactionDate: string;
   referenceNumber?: string;
+  cardLast4?: string | null;
   description?: string;
   grossAmount?: number;
   processingFee?: number;

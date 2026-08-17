@@ -91,16 +91,19 @@
     <div *ngIf="!isSubmitted">
       <div class="or-divider"><span>OR</span></div>
 
+      <!--
+        Google renders its own button into this element, so it must exist in the DOM before the
+        script runs; the wrapper is what hides it when SSO is not configured. Signing up with
+        Google and signing in with Google are the same operation server-side — the account is
+        created on first arrival — so this reuses the same flow rather than a separate one.
+        Microsoft and Okta were removed: they were never wired to anything.
+      -->
       <div class="social-row">
-        <button class="ghost-btn social-btn">
-          <span class="social-icon google-g">G</span> Google
-        </button>
-        <button class="ghost-btn social-btn">
-          <span class="social-icon microsoft-m">M</span> Microsoft
-        </button>
-        <button class="ghost-btn social-btn">
-          <span class="social-icon okta-o">O</span> Okta
-        </button>
+        <div class="sso-slot" [class.sso-slot--hidden]="!googleSsoAvailable">
+          <div #googleButton class="google-button-host"></div>
+        </div>
+        <p class="sso-pending" *ngIf="isGoogleSubmitting">Signing you in with Google…</p>
+        <p class="auth-error-text" *ngIf="ssoError">{{ ssoError }}</p>
       </div>
     </div>
 

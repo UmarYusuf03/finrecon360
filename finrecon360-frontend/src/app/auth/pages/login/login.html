@@ -101,15 +101,11 @@
         </p>
 
         <!--
-          Microsoft and Okta are not implemented. Shown disabled rather than as working buttons,
-          so the screen does not advertise sign-in routes that silently do nothing.
+          Microsoft and Okta were removed rather than left disabled. A greyed-out control still
+          advertises a capability and invites the question "why can't I use that?" — where no
+          control at all simply says Google is how you sign in with a provider here. They can
+          come back alongside a working implementation.
         -->
-        <button type="button" class="ghost-btn social-btn" disabled>
-          {{ 'AUTH.LOGIN.SOCIAL_MICROSOFT' | translate }}
-        </button>
-        <button type="button" class="ghost-btn social-btn" disabled>
-          {{ 'AUTH.LOGIN.SOCIAL_OKTA' | translate }}
-        </button>
       </div>
 
       <div class="login-card__footer">

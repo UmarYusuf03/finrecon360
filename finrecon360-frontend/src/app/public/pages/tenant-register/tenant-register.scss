@@ -43,7 +43,7 @@
 
 .field-label {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fr-text-base);
   display: block;
   margin-bottom: 6px;
   color: #0f1419;
@@ -52,7 +52,7 @@
 .field-help {
   margin: 8px 0 0;
   color: #4b5563;
-  font-size: 12px;
+  font-size: var(--fr-text-xs);
   line-height: 1.4;
 }
 
@@ -62,7 +62,7 @@
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  font-size: 14px;
+  font-size: var(--fr-text-base);
   outline: none;
   box-sizing: border-box;
   background: white;
@@ -82,7 +82,7 @@
   border: none;
   font-weight: 600;
   cursor: pointer;
-  font-size: 15px;
+  font-size: var(--fr-text-base);
   margin-top: 8px;
 
   &:hover {

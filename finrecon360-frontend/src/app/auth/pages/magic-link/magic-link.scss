@@ -33,7 +33,7 @@
 }
 
 .auth-card-icon-inner {
-	font-size: 11px;
+	font-size: var(--fr-text-2xs);
 	font-weight: 800;
 	letter-spacing: 0.08em;
 	color: #eef4ff;
@@ -107,7 +107,7 @@
 }
 
 .tenant-pill__label {
-	font-size: 12px;
+	font-size: var(--fr-text-xs);
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	font-weight: 700;

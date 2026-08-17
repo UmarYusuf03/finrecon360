@@ -238,7 +238,8 @@
       "PRICE_REQUIRED": "Price must be 0 or higher."
     },
     "ENFORCEMENT": {
-      "TITLE": "Enforcement"
+      "TITLE": "Enforcement",
+      "COPY": "ටෙනන්ට් සහ ඔවුන්ගේ පරිශීලකයින්ගේ ප්‍රවේශය අත්හිටුවන්න හෝ යථා තත්ත්වයට පත් කරන්න."
     },
     "AUDIT_LOGS": {
       "ACTION": "Action",
@@ -302,7 +303,8 @@
       "TITLE": "ආයාත වැඩබිම"
     },
     "TENANT_AUDIT_LOGS": {
-      "TITLE": "Title"
+      "TITLE": "Title",
+      "COPY": "කවුරුන් කුමක් වෙනස් කළේද, කවදාද යන වාර්තාව."
     }
   },
   "DASHBOARD": {
@@ -415,7 +417,8 @@
     "ADMIN": "පරිපාලක",
     "PROFILE": "පැතිකඩ",
     "SETTINGS": "සැකසීම්",
-    "LOGOUT": "පිටවීම"
+    "LOGOUT": "පිටවීම",
+    "SECTION_WORKSPACE": "වැඩබිම"
   },
   "COMMON": {
     "SAVE": "සුරකින්න",
@@ -532,7 +535,8 @@
     "NOT_SET": "Not set",
     "SAVING": "Saving...",
     "SUBTITLE": "Manage the accounts available for transaction capture and reconciliation.",
-    "TITLE": "බැංකු ගිණුම්"
+    "TITLE": "බැංකු ගිණුම්",
+    "COPY": "කාඩ්පත් ගනුදෙනු පියවනු ලබන බැංකු ගිණුම්."
   },
   "IMPORTS": {
     "HISTORY": {

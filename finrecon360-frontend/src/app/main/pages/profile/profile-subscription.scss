@@ -43,7 +43,7 @@
   }
 
   .alert-icon {
-    font-size: 20px;
+    font-size: var(--fr-text-lg);
     width: 20px;
     height: 20px;
   }
@@ -68,7 +68,7 @@
 
       h3 {
         margin: 0;
-        font-size: 1.25rem;
+        font-size: var(--fr-text-lg);
         font-weight: 600;
         color: #1e293b;
       }
@@ -78,7 +78,7 @@
   .status-badge {
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
-    font-size: 0.75rem;
+    font-size: var(--fr-text-xs);
     font-weight: 600;
     text-transform: uppercase;
 
@@ -115,7 +115,7 @@
       }
 
       .plan-text {
-        font-size: 1.125rem;
+        font-size: var(--fr-text-md);
         font-weight: 500;
         color: #334155;
       }
@@ -132,12 +132,12 @@
       margin-bottom: 0.75rem;
 
       .days-remaining {
-        font-size: 0.875rem;
+        font-size: var(--fr-text-base);
         color: #64748b;
 
         strong {
           color: #059669;
-          font-size: 1.25rem;
+          font-size: var(--fr-text-lg);
         }
 
         &.low-days strong {
@@ -146,7 +146,7 @@
       }
 
       .period-dates {
-        font-size: 0.75rem;
+        font-size: var(--fr-text-xs);
         color: #94a3b8;
       }
     }
@@ -180,7 +180,7 @@
 
   .no-subscription-content {
     .no-sub-icon {
-      font-size: 48px;
+      font-size: var(--fr-text-2xl);
       width: 48px;
       height: 48px;
       color: #94a3b8;
@@ -206,7 +206,7 @@
     align-items: center;
     gap: 0.5rem;
     margin: 0 0 1rem 0;
-    font-size: 1rem;
+    font-size: var(--fr-text-md);
     font-weight: 600;
     color: #334155;
 
@@ -275,7 +275,7 @@
     top: -1px;
     right: -1px;
     padding: 0.25rem 0.5rem;
-    font-size: 0.625rem;
+    font-size: var(--fr-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     border-radius: 0 12px 0 12px;
@@ -301,7 +301,7 @@
 
     .plan-name {
       margin: 0 0 0.5rem 0;
-      font-size: 1rem;
+      font-size: var(--fr-text-md);
       font-weight: 600;
       color: #1e293b;
     }
@@ -312,13 +312,13 @@
       gap: 0.25rem;
 
       .price {
-        font-size: 1.5rem;
+        font-size: var(--fr-text-xl);
         font-weight: 700;
         color: #059669;
       }
 
       .period {
-        font-size: 0.875rem;
+        font-size: var(--fr-text-base);
         color: #64748b;
       }
     }
@@ -331,12 +331,12 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 0.875rem;
+      font-size: var(--fr-text-base);
       color: #64748b;
       margin-bottom: 0.5rem;
 
       mat-icon {
-        font-size: 16px;
+        font-size: var(--fr-text-md);
         width: 16px;
         height: 16px;
         color: #94a3b8;
@@ -355,11 +355,11 @@
     gap: 0.25rem;
     padding-top: 0.75rem;
     border-top: 1px solid #e2e8f0;
-    font-size: 0.875rem;
+    font-size: var(--fr-text-base);
     color: #94a3b8;
 
     .selection-icon {
-      font-size: 20px;
+      font-size: var(--fr-text-lg);
       width: 20px;
       height: 20px;
     }
@@ -387,7 +387,7 @@
 
   .action-help {
     margin-top: 0.75rem;
-    font-size: 0.75rem;
+    font-size: var(--fr-text-xs);
     color: #94a3b8;
   }
 }

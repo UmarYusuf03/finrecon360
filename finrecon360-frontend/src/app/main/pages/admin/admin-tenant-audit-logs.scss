@@ -35,7 +35,7 @@
   display: grid;
   gap: 6px;
   color: #52607a;
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
 }
 
 .filters input {

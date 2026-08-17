@@ -12,14 +12,14 @@
   margin: 0 0 0.35rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   color: #98a7c3;
 }
 
 .hero h2,
 .current-plan strong {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: var(--fr-text-xl);
 }
 
 .lede,
@@ -44,7 +44,7 @@
   border-radius: 999px;
   background: rgba(94, 234, 212, 0.14);
   color: #7ff3df;
-  font-size: 0.78rem;
+  font-size: var(--fr-text-xs);
   font-weight: 600;
 }
 
@@ -72,11 +72,11 @@
 
 .plan-name {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: var(--fr-text-md);
 }
 
 .plan-price {
-  font-size: 1.3rem;
+  font-size: var(--fr-text-lg);
   font-weight: 700;
 }
 

@@ -7,7 +7,7 @@
 
 .admin-card h2 {
   margin: 0 0 8px;
-  font-size: 22px;
+  font-size: var(--fr-text-lg);
   font-weight: 800;
   color: #0f172a;
 }
@@ -32,7 +32,7 @@
 
 .admin-tile h3 {
   margin: 0 0 6px;
-  font-size: 16px;
+  font-size: var(--fr-text-md);
   font-weight: 700;
   color: #111827;
 }
