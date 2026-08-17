@@ -50,7 +50,10 @@ namespace finrecon360_backend.Controllers
 
         [HttpPost]
         [RequestSizeLimit(25 * 1024 * 1024)]
-        public async Task<ActionResult<ImportUploadResponseDto>> Upload([FromForm] IFormFile file, [FromForm] string? sourceType = null)
+        public async Task<ActionResult<ImportUploadResponseDto>> Upload(
+            [FromForm] IFormFile file,
+            [FromForm] string? sourceType = null,
+            [FromForm] Guid? bankAccountId = null)
         {
             var auth = await AuthorizeTenantUserAsync(requireAdmin: false);
             if (auth.Error != null) return auth.Error;
@@ -73,10 +76,22 @@ namespace finrecon360_backend.Controllers
                 ? extension.TrimStart('.').ToUpperInvariant()
                 : sourceType.Trim().ToUpperInvariant();
 
+            if (bankAccountId.HasValue)
+            {
+                var bankAccountExists = await tenantDb.BankAccounts
+                    .AsNoTracking()
+                    .AnyAsync(a => a.BankAccountId == bankAccountId.Value, CancellationToken.None);
+                if (!bankAccountExists)
+                {
+                    return BadRequest(new { message = "The specified bank account was not found for this tenant." });
+                }
+            }
+
             var batch = new ImportBatch
             {
                 ImportBatchId = batchId,
                 SourceType = normalizedSourceType,
+                BankAccountId = bankAccountId,
                 Status = "RECEIVED",
                 ImportedAt = now,
                 UploadedByUserId = _userContext.UserId,

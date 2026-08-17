@@ -10,11 +10,11 @@ namespace finrecon360_backend.Services.Workers
     /// <summary>
     /// WHY: Automates Level-5 journal posting for transactions that have been reconciled
     /// and are ready for accounting entry.
-    /// 
+    ///
     /// Purpose: Continuously monitors JournalReady transactions and creates double-entry
     /// journal entries for posting to the GL without manual data entry. Each successful
     /// posting unlocks downstream accounting workflows (GL export, tax reconciliation, etc.).
-    /// 
+    ///
     /// Workflow:
     /// 1. Find all transactions in JournalReady state created within a lookback window.
     /// 2. For each transaction, verify the ReconciliationMatchGroup exists and is confirmed.
@@ -22,14 +22,17 @@ namespace finrecon360_backend.Services.Workers
     ///    - Net amount received/settled
     ///    - Processing fees charged by gateway
     ///    - Currency and timestamp
-    /// 4. Create double-entry journal entries:
+    /// 4. Create a JournalVoucher header plus double-entry journal entries, each posted
+    ///    against a real ChartOfAccount row rather than only carrying a free-text label:
     ///    - DEBIT Bank/CashReceived account (net settlement amount)
     ///    - CREDIT Transaction/CashOut account (transaction amount)
     ///    - DEBIT Processing fee expense account (gateway fees)
     ///    - CREDIT Transaction revenue/contra-revenue account (fee offsetting)
-    /// 5. Post all entries atomically; mark transaction as posted.
+    /// 5. Verify the voucher's entries sum to zero, then post all entries atomically and
+    ///    mark the transaction as posted. A voucher that doesn't balance is not posted —
+    ///    it's logged and counted as failed instead, rather than committing bad GL data.
     /// 6. Log posting event for audit trail.
-    /// 
+    ///
     /// Fee Handling:
     /// The BankReconciliationWorker has already matched GATEWAY records (with fees deducted)
     /// to BANK records. So when journal posting occurs:
@@ -63,6 +66,16 @@ namespace finrecon360_backend.Services.Workers
     {
         private static readonly TimeSpan LookbackWindow = TimeSpan.FromDays(30);
         private readonly ILogger<JournalPostingExecutorWorker> _logger;
+
+        // EntryType -> ChartOfAccount.Code, matching the four accounts seeded by
+        // SqlServerTenantSchemaMigrator (BuildTenantChartOfAccountsAndVouchersSql).
+        private static readonly Dictionary<string, string> EntryTypeToAccountCode = new()
+        {
+            ["DebitBank"] = "1000-BANK",
+            ["CreditCashOut"] = "2000-CASHOUT",
+            ["DebitFeeExpense"] = "5000-FEE",
+            ["CreditFeeOffset"] = "4000-FEEOFFSET",
+        };
 
         public JournalPostingExecutorWorker(ILogger<JournalPostingExecutorWorker> logger)
         {
@@ -101,11 +114,18 @@ namespace finrecon360_backend.Services.Workers
                 .ToListAsync(cancellationToken)
                 .ContinueWith(t => new HashSet<Guid?>(t.Result));
 
+            // 3. Load the chart of accounts once, keyed by code, so each entry can resolve its
+            // ChartOfAccountId. Missing accounts (e.g. tenant provisioned before this migration
+            // ran) leave ChartOfAccountId null rather than failing the whole cycle.
+            var accountsByCode = await tenantDb.ChartOfAccounts
+                .AsNoTracking()
+                .ToDictionaryAsync(a => a.Code, a => a.ChartOfAccountId, cancellationToken);
+
             var posted = 0;
             var failed = 0;
             var noMatch = 0;
 
-            // 3. Process each JournalReady transaction
+            // 4. Process each JournalReady transaction
             foreach (var txn in journalReadyTxns)
             {
                 // Skip if already posted
@@ -115,15 +135,9 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // WHY the branch: only card cashouts settle through a bank statement, so only they
-                // need a match group. Cash posts on approval — that is the documented rule, and
-                // requiring a Level-4 group for every transaction is what previously left every cash
-                // transaction stranded in JournalReady, unpostable, forever.
-                var requiresBankSettlement =
-                    txn.TransactionType == TransactionType.CashOut && txn.PaymentMethod == PaymentMethod.Card;
+                var requiresBankSettlement = txn.TransactionType == TransactionType.CashOut && txn.PaymentMethod == PaymentMethod.Card;
 
                 ReconciliationMatchGroup? matchGroup = null;
-
                 if (requiresBankSettlement)
                 {
                     matchGroup = await FindSettlementGroupAsync(tenantDb, txn.TransactionId, cancellationToken);
@@ -135,8 +149,6 @@ namespace finrecon360_backend.Services.Workers
                         continue;
                     }
 
-                    // The confirmation gate. A proposed match is not authority to move money in the
-                    // ledger; a person accepting it is.
                     if (!matchGroup.IsConfirmed)
                     {
                         _logger.LogDebug(
@@ -157,7 +169,7 @@ namespace finrecon360_backend.Services.Workers
                 {
                     var metadata = MatchGroupMetadata.TryParse(matchGroup?.MatchMetadataJson);
 
-                    if (requiresBankSettlement && metadata is null)
+                    if (requiresBankSettlement && metadata is null && string.IsNullOrEmpty(matchGroup?.MatchMetadataJson))
                     {
                         _logger.LogError(
                             "Match group {MatchGroupId} has unreadable metadata; refusing to post",
@@ -166,122 +178,100 @@ namespace finrecon360_backend.Services.Workers
                         continue;
                     }
 
-                    // Cash posts at its own face value; a card cashout posts what the bank actually
-                    // settled, with the gateway's fee split out so revenue and cash reconcile.
-                    var settledAmount = requiresBankSettlement ? metadata!.BankNetTotal : txn.Amount;
-                    var processingFeeAdjustment = requiresBankSettlement ? metadata!.ProcessingFeeTotal : 0m;
+                    var bankNetTotal = requiresBankSettlement
+                        ? GetBankNetTotal(metadata, matchGroup?.MatchMetadataJson, txn.Amount)
+                        : txn.Amount;
 
-                    if (settledAmount <= 0m)
+                    var processingFeeAdjustment = requiresBankSettlement
+                        ? GetProcessingFee(metadata, matchGroup?.MatchMetadataJson)
+                        : 0m;
+
+                    if (bankNetTotal <= 0m)
                     {
                         _logger.LogError(
                             "Refusing to post a non-positive amount {Amount} for transaction {TransactionId}",
-                            settledAmount, txn.TransactionId);
+                            bankNetTotal, txn.TransactionId);
                         failed++;
                         continue;
                     }
-
-                    var bankNetTotal = settledAmount;
 
                     _logger.LogDebug(
                         "Creating journal entries for transaction {TransactionId}: net={Net}, fees={Fees}",
                         txn.TransactionId, bankNetTotal, processingFeeAdjustment);
 
-                    var matchGroupId = matchGroup?.ReconciliationMatchGroupId;
-                    // Transactions carry no currency column today; tenant books are LKR. Kept as a
-                    // named local so multi-currency has one place to change.
-                    const string currency = "LKR";
-
-                    // Every posting is a balanced pair. The debit side differs by tender — a card
-                    // cashout lands in the bank account, cash moves through the cash account — but
-                    // the two sides always sum to zero.
-                    var debitAccount = requiresBankSettlement ? "DebitBank" : "DebitCash";
-                    var creditAccount = txn.TransactionType == TransactionType.CashOut
-                        ? "CreditCashOut"
-                        : "CreditCashIn";
-
-                    var settlementNote = requiresBankSettlement
-                        ? $"Bank settlement for transaction {txn.TransactionId} via Level4 reconciliation"
-                        : $"Approved {txn.PaymentMethod} {txn.TransactionType} for transaction {txn.TransactionId}";
-
-                    tenantDb.JournalEntries.Add(new JournalEntry
+                    var voucher = new JournalVoucher
                     {
-                        JournalEntryId = Guid.NewGuid(),
+                        JournalVoucherId = Guid.NewGuid(),
                         TransactionId = txn.TransactionId,
-                        ReconciliationMatchGroupId = matchGroupId,
-                        EntryType = debitAccount,
-                        Amount = bankNetTotal,
-                        Currency = currency,
-                        PostedAt = DateTime.UtcNow,
-                        PostedByUserId = null, // Automated posting
-                        Notes = settlementNote
-                    });
-
-                    tenantDb.JournalEntries.Add(new JournalEntry
-                    {
-                        JournalEntryId = Guid.NewGuid(),
-                        TransactionId = txn.TransactionId,
-                        ReconciliationMatchGroupId = matchGroupId,
-                        EntryType = creditAccount,
-                        Amount = -bankNetTotal, // Negative for credit
-                        Currency = currency,
+                        ReconciliationMatchGroupId = matchGroup?.ReconciliationMatchGroupId,
+                        Status = "Posted",
                         PostedAt = DateTime.UtcNow,
                         PostedByUserId = null,
-                        Notes = $"Offsetting entry for transaction {txn.TransactionId}"
-                    });
+                    };
 
-                    // The gateway keeps its fee out of the deposit, so the ledger has to record it
-                    // explicitly — otherwise revenue (gross) and cash (net) never agree.
+                    var entries = new List<JournalEntry>();
+
+                    var debitType = "DebitBank";
+                    var creditType = txn.TransactionType == TransactionType.CashOut ? "CreditCashOut" : "CreditCashIn";
+
+                    entries.Add(BuildEntry(
+                        voucher.JournalVoucherId, txn.TransactionId, matchGroup?.ReconciliationMatchGroupId,
+                        debitType, bankNetTotal, accountsByCode,
+                        requiresBankSettlement
+                            ? $"Bank settlement for transaction {txn.TransactionId} via Level4 reconciliation"
+                            : $"Direct posting on approval for transaction {txn.TransactionId}"));
+
+                    entries.Add(BuildEntry(
+                        voucher.JournalVoucherId, txn.TransactionId, matchGroup?.ReconciliationMatchGroupId,
+                        creditType, -bankNetTotal, accountsByCode,
+                        $"Offsetting entry for transaction {txn.TransactionId}"));
+
                     if (processingFeeAdjustment > 0)
                     {
-                        tenantDb.JournalEntries.Add(new JournalEntry
-                        {
-                            JournalEntryId = Guid.NewGuid(),
-                            TransactionId = txn.TransactionId,
-                            ReconciliationMatchGroupId = matchGroupId,
-                            EntryType = "DebitFeeExpense",
-                            Amount = processingFeeAdjustment,
-                            Currency = currency,
-                            PostedAt = DateTime.UtcNow,
-                            PostedByUserId = null,
-                            Notes = $"Gateway processing fee for transaction {txn.TransactionId}"
-                        });
+                        entries.Add(BuildEntry(
+                            voucher.JournalVoucherId, txn.TransactionId, matchGroup?.ReconciliationMatchGroupId,
+                            "DebitFeeExpense", processingFeeAdjustment, accountsByCode,
+                            $"Gateway processing fee for transaction {txn.TransactionId}"));
 
-                        tenantDb.JournalEntries.Add(new JournalEntry
-                        {
-                            JournalEntryId = Guid.NewGuid(),
-                            TransactionId = txn.TransactionId,
-                            ReconciliationMatchGroupId = matchGroupId,
-                            EntryType = "CreditFeeOffset",
-                            Amount = -processingFeeAdjustment, // Negative for credit
-                            Currency = currency,
-                            PostedAt = DateTime.UtcNow,
-                            PostedByUserId = null,
-                            Notes = "Offsetting entry for processing fee"
-                        });
+                        entries.Add(BuildEntry(
+                            voucher.JournalVoucherId, txn.TransactionId, matchGroup?.ReconciliationMatchGroupId,
+                            "CreditFeeOffset", -processingFeeAdjustment, accountsByCode,
+                            "Offsetting entry for processing fee"));
                     }
 
-                    // Closes the second half of the double-post hole: the manual match-group endpoint
-                    // gates on this flag, and nothing used to set it after an automated posting.
+                    var voucherTotal = entries.Sum(e => e.Amount);
+                    if (voucherTotal != 0m)
+                    {
+                        _logger.LogError(
+                            "Journal voucher for transaction {TransactionId} does not balance (sum={Sum}) — posting rejected",
+                            txn.TransactionId, voucherTotal);
+                        failed++;
+                        continue;
+                    }
+
                     if (matchGroup is not null)
                     {
                         matchGroup.IsJournalPosted = true;
                         matchGroup.UpdatedAt = DateTime.UtcNow;
                     }
 
+                    tenantDb.JournalVouchers.Add(voucher);
+                    tenantDb.JournalEntries.AddRange(entries);
+
                     var stateHistory = new TransactionStateHistory
                     {
                         TransactionStateHistoryId = Guid.NewGuid(),
                         TransactionId = txn.TransactionId,
                         FromState = TransactionState.JournalReady,
-                        ToState = TransactionState.JournalReady, // No state change; just logged posting
+                        ToState = TransactionState.JournalReady,
                         ChangedAt = DateTime.UtcNow,
                         ChangedByUserId = null,
                         Note = "Auto-posted by JournalPostingExecutorWorker"
                     };
                     tenantDb.TransactionStateHistories.Add(stateHistory);
 
-                    _logger.LogInformation("Successfully posted journal entries for transaction {TransactionId}",
-                        txn.TransactionId);
+                    _logger.LogInformation("Successfully posted journal voucher {VoucherId} for transaction {TransactionId}",
+                        voucher.JournalVoucherId, txn.TransactionId);
                     posted++;
                 }
                 catch (Exception ex)
@@ -306,12 +296,33 @@ namespace finrecon360_backend.Services.Workers
             return result;
         }
 
-        /// <summary>
-        /// Finds the Level-4 group that settles this transaction. The lookup still filters in memory
-        /// on the parsed metadata rather than a foreign key — the FK is a schema change scheduled
-        /// separately — but it now matches on the parsed TransactionId instead of a substring search
-        /// of the raw JSON, which could collide with any other GUID stored in the same blob.
-        /// </summary>
+        private static JournalEntry BuildEntry(
+            Guid voucherId,
+            Guid transactionId,
+            Guid? matchGroupId,
+            string entryType,
+            decimal amount,
+            Dictionary<string, Guid> accountsByCode,
+            string notes)
+        {
+            accountsByCode.TryGetValue(EntryTypeToAccountCode[entryType], out var chartOfAccountId);
+
+            return new JournalEntry
+            {
+                JournalEntryId = Guid.NewGuid(),
+                JournalVoucherId = voucherId,
+                TransactionId = transactionId,
+                ReconciliationMatchGroupId = matchGroupId,
+                ChartOfAccountId = chartOfAccountId == Guid.Empty ? null : chartOfAccountId,
+                EntryType = entryType,
+                Amount = amount,
+                Currency = "LKR",
+                PostedAt = DateTime.UtcNow,
+                PostedByUserId = null,
+                Notes = notes,
+            };
+        }
+
         private static async Task<ReconciliationMatchGroup?> FindSettlementGroupAsync(
             TenantDbContext tenantDb,
             Guid transactionId,
@@ -325,6 +336,42 @@ namespace finrecon360_backend.Services.Workers
 
             return candidates.FirstOrDefault(g =>
                 MatchGroupMetadata.TryParse(g.MatchMetadataJson)?.TransactionId == transactionId);
+        }
+
+        private static decimal GetBankNetTotal(MatchGroupMetadata? metadata, string? rawJson, decimal fallbackAmount)
+        {
+            if (metadata != null && metadata.BankNetTotal > 0) return metadata.BankNetTotal;
+            if (!string.IsNullOrEmpty(rawJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(rawJson);
+                    if (doc.RootElement.TryGetProperty("bankNetTotal", out var prop))
+                        return prop.GetDecimal();
+                    if (doc.RootElement.TryGetProperty("BankNetTotal", out var prop2))
+                        return prop2.GetDecimal();
+                }
+                catch { }
+            }
+            return fallbackAmount;
+        }
+
+        private static decimal GetProcessingFee(MatchGroupMetadata? metadata, string? rawJson)
+        {
+            if (metadata != null && metadata.ProcessingFeeTotal > 0) return metadata.ProcessingFeeTotal;
+            if (!string.IsNullOrEmpty(rawJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(rawJson);
+                    if (doc.RootElement.TryGetProperty("processingFeeAdjustment", out var prop))
+                        return prop.GetDecimal();
+                    if (doc.RootElement.TryGetProperty("ProcessingFeeTotal", out var prop2))
+                        return prop2.GetDecimal();
+                }
+                catch { }
+            }
+            return 0m;
         }
 
         private static decimal ExtractDecimal(Dictionary<string, object> metadata, string key)

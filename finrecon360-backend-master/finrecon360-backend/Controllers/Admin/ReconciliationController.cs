@@ -39,6 +39,80 @@ namespace finrecon360_backend.Controllers.Admin
             _userContext = userContext;
         }
 
+        // ─── Settings ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns this tenant's reconciliation tolerances (amount tolerance, date tolerance
+        /// window). Falls back to the hardcoded defaults (0.01 / 1 day) when no row has been
+        /// seeded yet, mirroring IReconciliationSettingsProvider's fallback used by the workers.
+        /// </summary>
+        [HttpGet("settings")]
+        [RequirePermission("ADMIN.RECONCILIATION.VIEW")]
+        public async Task<ActionResult<ReconciliationSettingsResponse>> GetSettings(CancellationToken cancellationToken = default)
+        {
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var settings = await tenantDb.ReconciliationSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+
+            return Ok(new ReconciliationSettingsResponse
+            {
+                AmountTolerance = settings?.AmountTolerance ?? 0.01m,
+                DateToleranceDays = settings?.DateToleranceDays ?? 1,
+                UpdatedAt = settings?.UpdatedAt,
+            });
+        }
+
+        /// <summary>
+        /// Updates this tenant's reconciliation tolerances. Creates the settings row on first
+        /// write if the tenant schema migration's default row is somehow missing.
+        /// </summary>
+        [HttpPut("settings")]
+        [RequirePermission("ADMIN.RECONCILIATION.MANAGE")]
+        public async Task<ActionResult<ReconciliationSettingsResponse>> UpdateSettings(
+            [FromBody] UpdateReconciliationSettingsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.AmountTolerance < 0)
+                return BadRequest(new { message = "AmountTolerance must be zero or positive." });
+
+            if (request.DateToleranceDays < 0)
+                return BadRequest(new { message = "DateToleranceDays must be zero or positive." });
+
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var settings = await tenantDb.ReconciliationSettings.FirstOrDefaultAsync(cancellationToken);
+            var now = DateTime.UtcNow;
+
+            if (settings is null)
+            {
+                settings = new ReconciliationSettings
+                {
+                    ReconciliationSettingsId = Guid.NewGuid(),
+                    CreatedAt = now,
+                };
+                tenantDb.ReconciliationSettings.Add(settings);
+            }
+
+            settings.AmountTolerance = request.AmountTolerance;
+            settings.DateToleranceDays = request.DateToleranceDays;
+            settings.UpdatedAt = now;
+
+            await tenantDb.SaveChangesAsync(cancellationToken);
+
+            return Ok(new ReconciliationSettingsResponse
+            {
+                AmountTolerance = settings.AmountTolerance,
+                DateToleranceDays = settings.DateToleranceDays,
+                UpdatedAt = settings.UpdatedAt,
+            });
+        }
+
         // ─── Match Groups ────────────────────────────────────────────────────────
 
         /// <summary>
@@ -353,6 +427,41 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         /// <summary>
+        /// Returns a single journal voucher with its balanced set of entries.
+        /// </summary>
+        [HttpGet("journal-vouchers/{id:guid}")]
+        [RequirePermission("ADMIN.JOURNAL.VIEW")]
+        public async Task<ActionResult<JournalVoucherResponse>> GetJournalVoucher(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var voucher = await tenantDb.JournalVouchers
+                .Include(v => v.Entries)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(v => v.JournalVoucherId == id, cancellationToken);
+
+            if (voucher is null)
+                return NotFound();
+
+            return Ok(new JournalVoucherResponse
+            {
+                JournalVoucherId = voucher.JournalVoucherId,
+                TransactionId = voucher.TransactionId,
+                ReconciliationMatchGroupId = voucher.ReconciliationMatchGroupId,
+                Status = voucher.Status,
+                PostedAt = voucher.PostedAt,
+                PostedByUserId = voucher.PostedByUserId,
+                BalanceCheck = voucher.Entries.Sum(e => e.Amount),
+                Entries = voucher.Entries.Select(MapJournalToResponse).ToList(),
+            });
+        }
+
+        /// <summary>
         /// Posts a journal entry for a JournalReady transaction (cashout path).
         /// Gate: transaction must be in JournalReady state.
         /// Idempotent guard: checks if a journal entry already exists for this transaction.
@@ -388,14 +497,21 @@ namespace finrecon360_backend.Controllers.Admin
             if (existing)
                 return Conflict(new { message = "A journal entry has already been posted for this transaction." });
 
-            // WHY a pair: a single row is not a journal entry, it is half of one. This endpoint used
-            // to write one unbalanced row, which is how the two entries currently in the ledger came
-            // to have no offsetting side. Debit and credit are written together or not at all.
+            var voucher = new JournalVoucher
+            {
+                JournalVoucherId = Guid.NewGuid(),
+                TransactionId = transactionId,
+                Status = "Posted",
+                PostedAt = DateTime.UtcNow,
+                PostedByUserId = _userContext.UserId,
+            };
+
             var isCashOut = transaction.TransactionType == TransactionType.CashOut;
 
             var debitEntry = new JournalEntry
             {
                 JournalEntryId = Guid.NewGuid(),
+                JournalVoucherId = voucher.JournalVoucherId,
                 TransactionId = transactionId,
                 EntryType = transaction.PaymentMethod == PaymentMethod.Card ? "DebitBank" : "DebitCash",
                 Amount = transaction.Amount,
@@ -408,6 +524,7 @@ namespace finrecon360_backend.Controllers.Admin
             var creditEntry = new JournalEntry
             {
                 JournalEntryId = Guid.NewGuid(),
+                JournalVoucherId = voucher.JournalVoucherId,
                 TransactionId = transactionId,
                 EntryType = isCashOut ? "CreditCashOut" : "CreditCashIn",
                 Amount = -transaction.Amount,
@@ -417,6 +534,7 @@ namespace finrecon360_backend.Controllers.Admin
                 Notes = request.Notes,
             };
 
+            tenantDb.JournalVouchers.Add(voucher);
             tenantDb.JournalEntries.Add(debitEntry);
             tenantDb.JournalEntries.Add(creditEntry);
             await tenantDb.SaveChangesAsync(cancellationToken);
@@ -469,9 +587,19 @@ namespace finrecon360_backend.Controllers.Admin
             // Net amount = sum of MatchAmount across all members.
             var totalAmount = group.MatchedRecords.Sum(mr => mr.MatchAmount);
 
+            var voucher = new JournalVoucher
+            {
+                JournalVoucherId = Guid.NewGuid(),
+                ReconciliationMatchGroupId = id,
+                Status = "Posted",
+                PostedAt = DateTime.UtcNow,
+                PostedByUserId = _userContext.UserId,
+            };
+
             var entry = new JournalEntry
             {
                 JournalEntryId = Guid.NewGuid(),
+                JournalVoucherId = voucher.JournalVoucherId,
                 ReconciliationMatchGroupId = id,
                 EntryType = "FeeAdjustment",
                 Amount = totalAmount,
@@ -484,6 +612,7 @@ namespace finrecon360_backend.Controllers.Admin
             group.IsJournalPosted = true;
             group.UpdatedAt = DateTime.UtcNow;
 
+            tenantDb.JournalVouchers.Add(voucher);
             tenantDb.JournalEntries.Add(entry);
             await tenantDb.SaveChangesAsync(cancellationToken);
 
@@ -567,6 +696,8 @@ namespace finrecon360_backend.Controllers.Admin
             new()
             {
                 JournalEntryId = j.JournalEntryId,
+                JournalVoucherId = j.JournalVoucherId,
+                ChartOfAccountId = j.ChartOfAccountId,
                 TransactionId = j.TransactionId,
                 ReconciliationMatchGroupId = j.ReconciliationMatchGroupId,
                 EntryType = j.EntryType,

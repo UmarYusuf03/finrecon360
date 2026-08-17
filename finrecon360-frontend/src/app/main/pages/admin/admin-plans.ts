@@ -57,7 +57,10 @@ export class AdminPlansComponent implements OnInit {
   }
 
   save(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     const payload = this.form.value as Omit<PlanSummary, 'id' | 'isActive'>;
 
     if (this.editingId) {

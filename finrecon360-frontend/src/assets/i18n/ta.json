@@ -347,7 +347,9 @@
       "DESCRIPTION": "முக்கிய KPIகள்.",
       "CYCLE_TIME": "மூடும் சுழற்சி நேரம்",
       "MATCH_RATE": "பொருத்து விகிதம்",
-      "RECON_COMPLETION": "சமநிலை நிறைவு"
+      "RECON_COMPLETION": "சமநிலை நிறைவு",
+      "TOTAL_EVENTS": "Total events",
+      "BANK_ACCOUNTS": "Bank accounts"
     },
     "ADMIN_WORKSPACE": "Admin workspace",
     "COMPLETION": "Completion",
@@ -367,7 +369,8 @@
     "TOTAL_VOLUME": "Total volume",
     "UNMATCHED_SHARE": "Unmatched share",
     "WELCOME_USER": "மீண்டும் வரவேற்கிறோம், {{name}}",
-    "WORKSPACE": "Workspace"
+    "WORKSPACE": "Workspace",
+    "TRANSACTIONS_CLEARED": "Transactions journal-ready"
   },
   "PROFILE": {
     "TITLE": "சுயவிவரம்",

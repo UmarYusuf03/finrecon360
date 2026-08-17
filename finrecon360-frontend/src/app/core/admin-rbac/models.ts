@@ -347,3 +347,31 @@ export interface WaitingRecord {
   currency: string;
   matchStatus: string;
 }
+
+export interface NeedsBankMatchRecord {
+  transactionId: string;
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+  transactionState: string;
+  createdByUserId?: string | null;
+  approvedAt?: string | null;
+  createdAt: string;
+  importedNormalizedRecordId?: string | null;
+  importSourceType?: string | null;
+  referenceNumber?: string | null;
+  accountCode?: string | null;
+  grossAmount?: number | null;
+  processingFee?: number | null;
+  netImportAmount: number;
+  settlementId?: string | null;
+  matchStatus: string;
+  reconciliationMatchGroupId?: string | null;
+  matchLevel?: string | null;
+  isConfirmed: boolean;
+  isJournalPosted: boolean;
+  matchMetadataJson?: string | null;
+}

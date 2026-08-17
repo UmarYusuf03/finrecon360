@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { AuthService } from '../../../core/auth/auth.service';
@@ -18,7 +18,6 @@ import {
   ImportValidationRow,
   ImportValidationRowsResponse,
   ImportValidateResponse,
-  ReconciliationSummary,
 } from '../../../core/imports/imports.models';
 
 type ValidationSummary = {
@@ -32,7 +31,7 @@ type ValidationSummary = {
 @Component({
   selector: 'app-imports-workbench',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, RouterLink, TranslateModule],
+  imports: [CommonModule, FormsModule, DragDropModule, TranslateModule],
   templateUrl: './imports-workbench.html',
   styleUrls: ['./imports-workbench.scss'],
 })
@@ -92,12 +91,14 @@ export class ImportsWorkbenchComponent implements OnInit {
   isDragging = false;
 
   commitResult: ImportCommitResponse | null = null;
-  lastCommitSummary: ReconciliationSummary | null = null;
 
   history: ImportHistoryItem[] = [];
   selectedBatch: ImportHistoryItem | null = null;
   search = '';
   statusFilter = '';
+  historyTotal = 0;
+  historyPage = 1;
+  readonly historyPageSize = 5;
 
   parseResult: ImportParseResponse | null = null;
   validateResult: ImportValidateResponse | null = null;
@@ -281,17 +282,57 @@ export class ImportsWorkbenchComponent implements OnInit {
   }
 
   refreshHistory(): void {
+    this.loadHistoryPage(this.historyPage);
+  }
+
+  refreshHistoryFromFirstPage(): void {
+    this.loadHistoryPage(1);
+  }
+
+  goToHistoryPage(page: number): void {
+    const maxPage = this.historyTotalPages;
+    const nextPage = Math.min(Math.max(1, page), maxPage);
+    if (nextPage === this.historyPage && this.history.length > 0) {
+      return;
+    }
+    this.loadHistoryPage(nextPage);
+  }
+
+  previousHistoryPage(): void {
+    this.goToHistoryPage(this.historyPage - 1);
+  }
+
+  nextHistoryPage(): void {
+    this.goToHistoryPage(this.historyPage + 1);
+  }
+
+  get historyTotalPages(): number {
+    return Math.max(1, Math.ceil(this.historyTotal / this.historyPageSize));
+  }
+
+  get historyPageNumbers(): number[] {
+    const pages: number[] = [];
+    for (let page = 1; page <= this.historyTotalPages; page += 1) {
+      pages.push(page);
+    }
+    return pages;
+  }
+
+  private loadHistoryPage(page: number): void {
+    this.historyPage = Math.max(1, page);
     this.loading = true;
     this.importsService
       .getImportHistory({
         search: this.search || undefined,
         status: this.statusFilter || undefined,
-        page: 1,
-        pageSize: 100,
+        page: this.historyPage,
+        pageSize: this.historyPageSize,
       })
       .subscribe({
         next: (res) => {
           this.loading = false;
+          this.historyTotal = res.total;
+          this.historyPage = res.page;
           this.history = res.items;
           if (this.selectedBatch) {
             this.selectedBatch =
@@ -407,7 +448,6 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.processing = true;
     this.clearAlerts();
     this.commitResult = null;
-    this.lastCommitSummary = null;
 
     // Capture sourceType before the async call so routing logic is stable.
     const sourceType = this.selectedBatch.sourceType?.toUpperCase() ?? '';
@@ -416,7 +456,6 @@ export class ImportsWorkbenchComponent implements OnInit {
       next: (res) => {
         this.processing = false;
         this.commitResult = res;
-        this.lastCommitSummary = res.reconciliationSummary ?? null;
         this.actionMessage = `Commit complete. ${res.normalizedCount} rows normalised. Routing to reconciliation view…`;
         this.refreshHistory();
 

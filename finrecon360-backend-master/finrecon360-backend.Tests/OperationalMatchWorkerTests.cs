@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Services;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services.Workers;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ public class OperationalMatchWorkerTests
 
     private static OperationalMatchWorker CreateWorker()
     {
-        return new OperationalMatchWorker(NullLogger<OperationalMatchWorker>.Instance);
+        return new OperationalMatchWorker(NullLogger<OperationalMatchWorker>.Instance, new ReconciliationSettingsProvider());
     }
 
     [Fact]

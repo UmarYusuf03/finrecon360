@@ -26,14 +26,12 @@ Implemented backend areas:
 - journal-ready transaction queue
 - needs-bank-match transaction queue
 - `api/me` tenant resolution and permission hydration
+- six-level reconciliation matching chain (Operational/Sync-Audit/Sales/Expense/Collection/Settlement) running on a background cycle, plus automated journal posting — see `../../WORKER-INTEGRATION.md`
 
 Not yet implemented as finance-operational modules:
 
-- bank statement matching
-- full cash-in and cashout workflow orchestration
-- human-confirmed reconciliation engine
-- journal posting execution workflow
 - reporting snapshot jobs and reporting tables
+- POS-terminal batch settlement matching (POS EOD ↔ BANK); today POS records only reconcile against staff entry (Level1) and ERP (Level2), never directly against the bank — see "Known gap" in `../../WORKER-INTEGRATION.md`
 
 ## Architecture Boundaries In Code
 
@@ -265,7 +263,7 @@ The journal-ready queue is read-only for now:
 
 - `GET /api/admin/transactions/journal-ready`
 
-It returns transactions where `TransactionState == JournalReady`, ordered by transaction date and creation time. Journal posting itself is not implemented yet.
+It returns transactions where `TransactionState == JournalReady`, ordered by transaction date and creation time. Journal posting execution is now automated by `JournalPostingExecutorWorker`/`JournalPostingHostedService` — see `../../WORKER-INTEGRATION.md`.
 
 ### Needs-Bank-Match Queue
 
@@ -273,7 +271,7 @@ The needs-bank-match queue is read-only for now:
 
 - `GET /api/admin/transactions/needs-bank-match`
 
-It returns transactions where `TransactionState == NeedsBankMatch`. This is the handoff point for future matcher/reconciliation work; this module does not confirm matches or move those transactions to `JournalReady`.
+It returns transactions where `TransactionState == NeedsBankMatch`. `BankStatementReconciliationWorker` (Level4) now proposes candidate matches automatically on a background cycle; a human still confirms them via `ReconciliationMatchConfirmationService`/`ReconciliationController` before a transaction moves to `JournalReady` — see `../../WORKER-INTEGRATION.md`.
 
 ### Tenant Admin Vs System Admin
 
@@ -488,7 +486,9 @@ The architecture baseline documents:
 - journal gating
 - reporting snapshots
 
-Bank accounts, basic transaction capture, approval/rejection, transaction history, and a journal-ready queue are present. Bank matching, journal posting execution, reconciliation, and reporting snapshots are still pending.
+Bank accounts, basic transaction capture, approval/rejection, transaction history, a journal-ready queue, bank matching, journal posting execution, and the six-level reconciliation chain are now implemented (see `../../WORKER-INTEGRATION.md`). Reporting snapshots are still pending.
+
+Known gap within the implemented reconciliation chain: there is no level that matches POS EOD records directly against BANK statements (POS-terminal batch settlement). POS records only reconcile against staff manual entry (Level1) and ERP (Level2) today. Real-world bank statement narratives for POS batch settlements (e.g. `"POS SETTLEMENT - TID88552 - BATCH 000452"`) also aren't parseable by the current settlement-key resolver, which only does exact/trimmed/uppercased string comparison — there's no regex/substring-extraction step to pull a batch number out of a narrative description field.
 
 ### 2. Auth Direction Is Mixed
 
@@ -499,11 +499,11 @@ The target narrative describes a magic-link or token-driven direction. The curre
 - Subscription limits: `Plan` now models both `MaxUsers` and `MaxAccounts`, and tenant user creation enforces `MaxUsers`.
 - Global/public separation: `UserType` now classifies identities as `GlobalPublic`, `TenantOperational`, or `SystemAdmin`, and tenant assignment flows enforce these boundaries.
 
-## Target Business Rules Tracked But Not Yet Implemented
+## Target Business Rules Status
 
-- cash cashout target rule: approval should permit journal posting
-- card cashout target rule: approval should require successful bank-statement match before journal posting
-- transaction audit target rule: transition tracking should be modeled through `TransactionState` and `TransactionStateHistory`
+- cash cashout target rule (approval permits journal posting): implemented — `JournalPostingExecutorWorker` posts directly on approval for non-card cashouts.
+- card cashout target rule (approval requires a successful bank-statement match before journal posting): implemented — gated on a confirmed Level4 `ReconciliationMatchGroup`, see `../../WORKER-INTEGRATION.md`.
+- transaction audit target rule (transition tracking via `TransactionState`/`TransactionStateHistory`): implemented.
 
 ## Environment Variables
 
