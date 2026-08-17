@@ -166,7 +166,6 @@ builder.Services.AddScoped<OperationalMatchWorker>();
 builder.Services.AddScoped<PosErpSyncAuditWorker>();
 builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
 builder.Services.AddScoped<BankStatementReconciliationWorker>();
-builder.Services.AddScoped<CollectionMatchWorker>();
 builder.Services.AddScoped<SettlementMatchWorker>();
 builder.Services.AddScoped<PosSettlementMatchWorker>();
 builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();

@@ -180,6 +180,7 @@ namespace finrecon360_backend.Data
                     .HasDefaultValue(TransactionState.Pending)
                     .IsRequired();
                 entity.Property(x => x.RejectionReason).HasMaxLength(500);
+                entity.Property(x => x.CardLast4).HasMaxLength(4);
                 entity.Property(x => x.CreatedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");

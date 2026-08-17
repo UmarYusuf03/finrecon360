@@ -197,7 +197,7 @@ namespace finrecon360_backend.Services
             {
                 // Find any transaction in NeedsBankMatch whose card cashout amount and date
                 // correspond to this match group and promote it.
-                await PromoteLinkedTransactionAsync(db, group, confirmedByUserId, now, ct);
+                await ReconCanon.CardCashoutPromoter.PromoteLinkedTransactionAsync(db, group, confirmedByUserId, now, ct);
             }
 
             await db.SaveChangesAsync(ct);
@@ -384,43 +384,6 @@ namespace finrecon360_backend.Services
         }
 
         // ── Private helpers ───────────────────────────────────────────────────────────
-
-        private static async Task PromoteLinkedTransactionAsync(
-            TenantDbContext db,
-            ReconciliationMatchGroup group,
-            Guid confirmedByUserId,
-            DateTime now,
-            CancellationToken ct)
-        {
-            // Look for a NeedsBankMatch card cashout matching this group's amount.
-            var txn = await db.Transactions
-                .Where(t =>
-                    t.TransactionState == TransactionState.NeedsBankMatch &&
-                    t.TransactionType == TransactionType.CashOut &&
-                    t.PaymentMethod == PaymentMethod.Card &&
-                    Math.Abs(t.Amount - group.MatchedAmount) < 0.01m)
-                .FirstOrDefaultAsync(ct);
-
-            if (txn == null)
-            {
-                return;
-            }
-
-            var fromState = txn.TransactionState;
-            txn.TransactionState = TransactionState.JournalReady;
-            txn.UpdatedAt = now;
-
-            db.TransactionStateHistories.Add(new TransactionStateHistory
-            {
-                TransactionStateHistoryId = Guid.NewGuid(),
-                TransactionId = txn.TransactionId,
-                FromState = fromState,
-                ToState = TransactionState.JournalReady,
-                ChangedByUserId = confirmedByUserId,
-                ChangedAt = now,
-                Note = $"Promoted to JournalReady by match group {group.ReconciliationMatchGroupId} confirmation",
-            });
-        }
 
         /// <summary>
         /// Amount tolerance for hint matching: ±1% of the bank amount.

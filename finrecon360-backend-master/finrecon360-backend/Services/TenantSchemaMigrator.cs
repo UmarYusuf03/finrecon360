@@ -31,6 +31,7 @@ namespace finrecon360_backend.Services
         private const string MigrationBankingHolidays = "202608180002_TenantBankingHolidays";
         private const string MigrationReconciliationSettlementWindow = "202608180003_TenantReconciliationSettlementWindow";
         private const string MigrationPosClearingAccount = "202608180004_TenantPosClearingAccount";
+        private const string MigrationTransactionCardLast4 = "202608180005_TenantTransactionCardLast4";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -62,6 +63,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationBankingHolidays, BuildTenantBankingHolidaysSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationSettlementWindow, BuildTenantReconciliationSettlementWindowSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationPosClearingAccount, BuildTenantPosClearingAccountSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactionCardLast4, BuildTenantTransactionCardLast4Sql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -1249,6 +1251,22 @@ namespace finrecon360_backend.Services
                 INSERT INTO dbo.ChartOfAccounts (ChartOfAccountId, Code, Name, AccountType, IsActive)
                 SELECT NEWID(), N'6000-POSCLEARING', N'POS Clearing', N'Liability', 1
                 WHERE NOT EXISTS (SELECT 1 FROM dbo.ChartOfAccounts a WHERE a.Code = N'6000-POSCLEARING');
+            END
+            """;
+
+        // Fixes another instance of the same gap class as MatchStatus/SettlementKey and
+        // 3000-CASHIN before it: `Transaction.CardLast4` has existed on the C# model (used by
+        // CollectionMatchWorker's Level5 matching) but was never added to dbo.Transactions —
+        // EF Core selects every mapped column on any `tenantDb.Transactions` query by default,
+        // so this broke every query against Transactions in production, including
+        // JournalPostingExecutorWorker's very first query each cycle ("Invalid column name
+        // 'CardLast4'"), not just the Level5 worker that actually reads the value.
+        private static string BuildTenantTransactionCardLast4Sql() =>
+            """
+            IF OBJECT_ID(N'dbo.Transactions', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.Transactions', N'CardLast4') IS NULL
+                    ALTER TABLE dbo.Transactions ADD CardLast4 nvarchar(4) NULL;
             END
             """;
 

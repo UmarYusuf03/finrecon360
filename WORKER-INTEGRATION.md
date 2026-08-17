@@ -14,9 +14,43 @@
    | Level2 | `PosErpSyncAuditWorker` | POS EOD ↔ ERP sales ledger |
    | Level3 | `ErpGatewaySalesMatchWorker` | ERP sales ledger ↔ Payment gateway |
    | Level4 | `BankStatementReconciliationWorker` | Approved card cashout ↔ Bank statement |
-   | Level5 | `CollectionMatchWorker` | Physical card-in ↔ Bank statement |
    | Level6 | `SettlementMatchWorker` | Gateway payout (many records) ↔ Bank statement (one deposit) |
    | Level7 | `PosSettlementMatchWorker` | POS-terminal batch settlement (POS EOD) ↔ Bank statement |
+
+   **Level5 removed** (2026-08-18): `CollectionMatchWorker` matched staff-entered card-in
+   `Transaction` rows against BANK statements. Confirmed with the business that every card-in
+   collection arrives via a POS batch file — Level7's territory — so no `Transaction` row is ever
+   the sole record of a card-in collection; Level5 had no remaining candidates to act on and was
+   deleted (worker, tests, DI registration, cycle step). `MatchLevels.Level5` and any historical
+   `Level5` match-group rows in a tenant database are left alone — this removed the capability to
+   produce *new* Level5 matches, not historical data or the generic confirm/reject read paths.
+
+   **Level4 detail** (2026-08-18 — tiered auto-confirm, replacing "always manual"): a prior fix
+   had disabled auto-confirmation entirely after a bug let *every* match — including ones that
+   shouldn't have been trusted — auto-promote and bypass review unnoticed. That over-corrected the
+   problem instead of fixing what made those matches untrustworthy. Level4 now runs the same
+   tiered-confidence shape Level7 uses, on the final BANK-amount comparison:
+   - **Tier1 (`ExactMatch`)** — `BANK.NetAmount` reconciles with `txn.Amount` directly, within
+     tolerance. Auto-confirms.
+   - **Tier2 (`FeeExplained`)** — only tried when the GATEWAY record's `ProcessingFee > 0` and
+     Tier1 didn't match: `BANK.NetAmount` reconciles once the known fee is subtracted from
+     `txn.Amount`. This is what "change variance for the gateway fees" meant — a fee-explained gap
+     is a known, already-captured deduction, not an unexplained discrepancy, so it's recorded as
+     `Variance = ProcessingFee` (not zero, but not flagged as a mystery either) and auto-confirms.
+   - **Tier3 (`RequiresReview`)** — ambiguous under either basis, or neither basis reconciles.
+     Unchanged from before: `IsConfirmed = false`, routed to
+     `ReconciliationMatchConfirmationService` for a human.
+
+   Auto-confirmation (Tier1/2) also promotes the linked transaction to `JournalReady` — setting
+   `IsConfirmed` alone doesn't move it, something has to run that side effect. Extracted into a
+   shared `Services/Reconciliation/CardCashoutPromoter.cs`, called both from the worker (Tier1/2)
+   and from `ReconciliationMatchConfirmationService.ConfirmMatchAsync` (Tier3, human-confirmed) —
+   same pattern as Level7's `PosSettlementPoster` being shared between its auto- and manual-post
+   paths. The promoter looks the transaction up by the `TransactionId` already recorded in the
+   match group's metadata, not by amount proximity to `group.MatchedAmount` — the original
+   amount-based lookup would have silently failed to find the transaction for every Tier2 match,
+   since a fee-explained `MatchedAmount` (the bank side) is deliberately *not* equal to
+   `txn.Amount` (caught by a failing test while building this, not assumed correct).
 
    **Level7 detail** (2026-08-18 addition — closes the gap this doc used to flag here): matches
    POS EOD batches against BANK deposits using identifiers (`BatchNumber`/`TerminalId`/`MerchantId`)
@@ -58,7 +92,7 @@
 
 4. **ReconciliationCycleHostedService** (new — replaces the old single-worker `BankReconciliationHostedService`)
    - Location: `BackgroundServices/ReconciliationCycleHostedService.cs`
-   - Runs every 5 minutes; for each active tenant, runs all seven matching-level workers in Level1→Level7 order against one `TenantDbContext`
+   - Runs every 5 minutes; for each active tenant, runs the six active matching-level workers in Level1→2→3→4→6→7 order against one `TenantDbContext` (Level5 retired — see the level table above)
    - Each worker runs in its own try/catch so one worker's failure doesn't block the rest of the cycle
    - `BankReconciliationHostedService` (which only ever ran Level4) was deleted — its job is now one step of this cycle
 
@@ -69,7 +103,6 @@
    builder.Services.AddScoped<PosErpSyncAuditWorker>();
    builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
    builder.Services.AddScoped<BankStatementReconciliationWorker>();
-   builder.Services.AddScoped<CollectionMatchWorker>();
    builder.Services.AddScoped<SettlementMatchWorker>();
    builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
 
@@ -90,7 +123,7 @@ However, this now coexists with the pre-existing versions of the same concepts:
 - `Services/SettlementKeyResolver.cs` (namespace `finrecon360_backend.Services`) vs `Services/Reconciliation/ReconciliationContracts.cs`'s `SettlementKeyResolver` (namespace `finrecon360_backend.Services.Reconciliation`) — two classes, same name, same purpose, nearly identical logic.
 - `Services/Workers/ReconciliationConstants.cs`'s `MatchStatuses` (namespace `finrecon360_backend.Services.Workers`, values `Pending/Matched/Waiting/Exception/Level2Matched/Level3Matched/Level6Matched/SalesVerified`) vs `ReconciliationContracts.cs`'s `MatchStatuses` (namespace `finrecon360_backend.Services.Reconciliation`, values `Pending/InternalVerified/SalesVerified/Exception/Waiting/Matched`) — different vocabularies for the same field.
 
-`CollectionMatchWorker`, `ErpGatewaySalesMatchWorker`, `OperationalMatchWorker`, `PosErpSyncAuditWorker`, `SettlementMatchWorker`, and `ReconciliationController` still reference the older `Services`/`Services.Workers` versions; `BankStatementReconciliationWorker` and `JournalPostingExecutorWorker` reference the newer `Services.Reconciliation` versions. The project currently builds and all tests pass because none of these files imports both namespaces in a way that collides — but consolidating onto one vocabulary is real follow-up work, not done here, because the two `MatchStatuses` enums encode different design decisions (per-level granularity vs. a flatter scheme) and migrating the five still-on-the-old-version workers means verifying each level's idempotency-guard semantics (`MatchStatus != X`) still hold under the new values — that's a deliberate design choice for a human to make, not something to silently pick.
+`ErpGatewaySalesMatchWorker`, `OperationalMatchWorker`, `PosErpSyncAuditWorker`, `SettlementMatchWorker`, and `ReconciliationController` still reference the older `Services`/`Services.Workers` versions; `BankStatementReconciliationWorker`, `JournalPostingExecutorWorker`, and the new `CardCashoutPromoter`/`PosSettlementMatchWorker` reference the newer `Services.Reconciliation` versions. The project currently builds and all tests pass because none of these files imports both namespaces in a way that collides — but consolidating onto one vocabulary is real follow-up work, not done here, because the two `MatchStatuses` enums encode different design decisions (per-level granularity vs. a flatter scheme) and migrating the four still-on-the-old-version workers means verifying each level's idempotency-guard semantics (`MatchStatus != X`) still hold under the new values — that's a deliberate design choice for a human to make, not something to silently pick.
 
 ### Workflow Pipeline
 
@@ -116,25 +149,27 @@ Transaction Flow:
           │                 │
           │                 │ (BankStatementReconciliationWorker,
           │                 │  runs on ReconciliationCycleHostedService)
-          │                 │ Level-4 matching:
+          │                 │ Level-4 tiered matching:
           │                 │ - Correlate GATEWAY↔BANK
-          │                 │ - Validate net amounts (net of fees)
-          │                 │ - Create UNCONFIRMED match group
+          │                 │ - Tier1 exact / Tier2 fee-explained
+          │                 │   → auto-confirm + CardCashoutPromoter
+          │                 │ - Tier3 (ambiguous/unexplained)
+          │                 │   → UNCONFIRMED match group
           │                 ▼
-          │          ┌──────────────────────────┐
-          │          │  Still NeedsBankMatch —   │
-          │          │  a human must confirm the │
-          │          │  match group before it    │
-          │          │  promotes the transaction │
-          │          └────────┬─────────────────┘
-          │                   │ (ReconciliationMatchConfirmationService,
-          │                   │  triggered via ReconciliationController)
-          │                   ▼
-          │          ┌──────────────────┐
-          │          │  JournalReady    │
-          │          └────────┬─────────┘
-          │                   │
-          └───────────┬───────┘
+          │          ┌──────────────────────────┐         ┌──────────────────┐
+          │          │  Tier3 only: stays        │ Tier1/2 │  JournalReady    │
+          │          │  NeedsBankMatch — a human │ ───────▶│  (promoted       │
+          │          │  must confirm via         │         │   immediately)   │
+          │          │  ReconciliationController │         └────────┬─────────┘
+          │          └────────┬─────────────────┘                  │
+          │                   │ (ReconciliationMatchConfirmationService,│
+          │                   │  same CardCashoutPromoter)          │
+          │                   ▼                                     │
+          │          ┌──────────────────┐                           │
+          │          │  JournalReady    │                           │
+          │          └────────┬─────────┘                           │
+          │                   │                                     │
+          └───────────┬───────┴─────────────────────────────────────┘
                       │
                       ▼ (JournalPostingExecutorWorker)
               ┌────────────────────────────────┐
@@ -147,7 +182,7 @@ Transaction Flow:
               └────────────────────────────────┘
 ```
 
-This diagram shows only the card-cashout path (Level4 → journal). Levels 1, 2, 3, 5, and 6 run independently on the same cycle, each producing their own `ReconciliationMatchGroup`/`ReconciliationEvent` rows for their respective source pairs — see the level table above.
+This diagram shows only the card-cashout path (Level4 → journal). Levels 1, 2, 3, and 6 run independently on the same cycle, each producing their own `ReconciliationMatchGroup`/`ReconciliationEvent` rows for their respective source pairs — see the level table above.
 
 ---
 
@@ -302,7 +337,7 @@ Settlement Key:  MERCHANT_ACCT|TXN_12345
 
 ## ✅ Test Results
 
-All 129 tests pass (`finrecon360-backend.Tests`), including coverage for all seven matching levels, ambiguous-match detection, tenant-configurable tolerances, bank-account scoping, balanced journal-voucher posting (including the CreditCashIn fix above), identifier extraction against real bank narrative formats, business-day settlement-window arithmetic, and the Level7 waterfall's tier boundaries (1:1, many:1, 1:many, variance, no-match, window-exclusion, idempotency).
+All 128 tests pass (`finrecon360-backend.Tests`), including coverage for all six active matching levels (1/2/3/4/6/7 — Level5 retired), ambiguous-match detection, tenant-configurable tolerances, bank-account scoping, balanced journal-voucher posting (including the CreditCashIn fix above), identifier extraction against real bank narrative formats, business-day settlement-window arithmetic, the Level7 waterfall's tier boundaries (1:1, many:1, 1:many, variance, no-match, window-exclusion, idempotency), and Level4's Tier1/Tier2/Tier3 auto-confirm boundaries (exact match, fee-explained match, ambiguous/unexplained).
 
 ## 🚀 Next Steps / Known Follow-Ups
 
