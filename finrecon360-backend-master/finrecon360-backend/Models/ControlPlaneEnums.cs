@@ -63,4 +63,11 @@ namespace finrecon360_backend.Models
         Suspend = 0,
         Ban = 1
     }
+
+    public enum PaymentAlertStatus
+    {
+        Open = 0,
+        Acknowledged = 1,
+        Resolved = 2
+    }
 }

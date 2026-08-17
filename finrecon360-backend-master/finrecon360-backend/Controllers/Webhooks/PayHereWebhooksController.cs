@@ -85,6 +85,15 @@ namespace finrecon360_backend.Controllers.Webhooks
             subscription.CurrentPeriodStart = DateTime.UtcNow;
             subscription.CurrentPeriodEnd = DateTime.UtcNow.AddDays(subscription.Plan.DurationDays);
 
+            // Payment came in, so any open missed-payment alert for this subscription is stale.
+            var openAlert = await _dbContext.TenantPaymentAlerts
+                .FirstOrDefaultAsync(a => a.SubscriptionId == subscription.SubscriptionId && a.Status == PaymentAlertStatus.Open);
+            if (openAlert != null)
+            {
+                openAlert.Status = PaymentAlertStatus.Resolved;
+                openAlert.ResolvedAt = DateTime.UtcNow;
+            }
+
             var tenant = await _dbContext.Tenants.FirstOrDefaultAsync(t => t.TenantId == payment.TenantId);
             if (tenant != null)
             {

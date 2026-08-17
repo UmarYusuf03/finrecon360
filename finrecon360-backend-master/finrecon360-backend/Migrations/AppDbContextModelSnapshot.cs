@@ -540,6 +540,29 @@ namespace finrecon360_backend.Migrations
                     b.ToTable("Subscriptions", (string)null);
                 });
 
+            modelBuilder.Entity("finrecon360_backend.Models.SystemBillingSettings", b =>
+                {
+                    b.Property<Guid>("SystemBillingSettingsId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PaymentOverdueSuspensionThresholdDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(7);
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("SystemBillingSettingsId");
+
+                    b.ToTable("SystemBillingSettings", (string)null);
+                });
+
             modelBuilder.Entity("finrecon360_backend.Models.Tenant", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -618,6 +641,54 @@ namespace finrecon360_backend.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("TenantDatabases", (string)null);
+                });
+
+            modelBuilder.Entity("finrecon360_backend.Models.TenantPaymentAlert", b =>
+                {
+                    b.Property<Guid>("TenantPaymentAlertId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("AcknowledgedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<int>("DaysOverdue")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PeriodEndAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ResolvedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<Guid>("SubscriptionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TenantPaymentAlertId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("SubscriptionId", "Status");
+
+                    b.ToTable("TenantPaymentAlerts", (string)null);
                 });
 
             modelBuilder.Entity("finrecon360_backend.Models.TenantRegistrationRequest", b =>
@@ -748,6 +819,14 @@ namespace finrecon360_backend.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<string>("ExternalProvider")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ExternalProviderId")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -774,7 +853,6 @@ namespace finrecon360_backend.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
@@ -817,6 +895,10 @@ namespace finrecon360_backend.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("ExternalProvider", "ExternalProviderId")
+                        .IsUnique()
+                        .HasFilter("[ExternalProvider] IS NOT NULL AND [ExternalProviderId] IS NOT NULL");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -949,6 +1031,25 @@ namespace finrecon360_backend.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("finrecon360_backend.Models.TenantPaymentAlert", b =>
+                {
+                    b.HasOne("finrecon360_backend.Models.Subscription", "Subscription")
+                        .WithMany()
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("finrecon360_backend.Models.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Subscription");
 
                     b.Navigation("Tenant");
                 });

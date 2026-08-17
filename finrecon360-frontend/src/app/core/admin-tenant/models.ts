@@ -89,3 +89,26 @@ export interface SubscriptionCheckoutResponse {
   subscriptionId: string;
   checkoutUrl: string;
 }
+
+export interface PaymentAlert {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  subscriptionId: string;
+  planName: string;
+  periodEndAt: string;
+  daysOverdue: number;
+  status: 'Open' | 'Acknowledged' | 'Resolved';
+  createdAt: string;
+  acknowledgedAt?: string | null;
+  resolvedAt?: string | null;
+}
+
+export interface PaymentAlertSummary {
+  openCount: number;
+}
+
+export interface BillingSettings {
+  paymentOverdueSuspensionThresholdDays: number;
+  updatedAt: string;
+}

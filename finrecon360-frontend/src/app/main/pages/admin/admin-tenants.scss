@@ -212,10 +212,65 @@
 }
 
 .admin-box label,
-.enforcement label {
+.enforcement label,
+.admin-list > label {
   color: var(--fr-text-primary);
   font-size: 0.9rem;
   font-weight: 700;
+}
+
+.admin-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.admin-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: var(--fr-radius-lg);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-list__info {
+  display: flex;
+  flex-direction: column;
+  margin-right: auto;
+}
+
+.admin-list__name {
+  color: var(--fr-text-primary);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.admin-list__email {
+  color: var(--fr-text-muted);
+  font-size: 0.78rem;
+}
+
+.admin-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-list__actions button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.78rem;
 }
 
 .actions {

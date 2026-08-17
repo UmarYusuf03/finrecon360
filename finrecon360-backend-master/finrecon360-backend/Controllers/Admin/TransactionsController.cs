@@ -35,7 +35,7 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpPost]
-        [RequirePermission("ADMIN.TRANSACTIONS.MANAGE")]
+        [RequirePermission("ADMIN.TRANSACTIONS.CREATE")]
         public async Task<ActionResult<TransactionResponse>> Create(
             [FromBody] CreateTransactionRequest request,
             CancellationToken ct)

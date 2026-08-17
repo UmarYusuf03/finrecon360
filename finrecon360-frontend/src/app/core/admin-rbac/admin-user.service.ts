@@ -4,7 +4,7 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, tap } from 'rxjs/operators';
 
 import { API_BASE_URL, API_ENDPOINTS, USE_MOCK_API } from '../constants/api.constants';
-import { AdminUserSummary, PagedResult } from './models';
+import { AdminUserSummary, PagedResult, UserCapacity } from './models';
 
 interface AdminUserDto {
   id: string;
@@ -58,6 +58,14 @@ export class AdminUserService {
     }
 
     return this.usersSubject.asObservable();
+  }
+
+  getCapacity(): Observable<UserCapacity> {
+    if (USE_MOCK_API) {
+      return of({ currentUsers: this.usersSubject.value.length, maxUsers: null });
+    }
+
+    return this.http.get<UserCapacity>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.USERS}/capacity`);
   }
 
   /**

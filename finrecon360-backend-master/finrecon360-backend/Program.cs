@@ -9,6 +9,7 @@ using finrecon360_backend.Services.Workers;
 using finrecon360_backend.Options;
 using finrecon360_backend.Services.BankAccounts;
 using finrecon360_backend.Services.Transactions;
+using finrecon360_backend.Services.CashFlow;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -160,6 +161,7 @@ builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<ICashFlowForecastService, CashFlowForecastService>();
 
 builder.Services.AddScoped<IReconciliationSettingsProvider, ReconciliationSettingsProvider>();
 builder.Services.AddScoped<OperationalMatchWorker>();
@@ -172,6 +174,7 @@ builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutor
 
 builder.Services.AddHostedService<ReconciliationCycleHostedService>();
 builder.Services.AddHostedService<JournalPostingHostedService>();
+builder.Services.AddHostedService<SubscriptionOverdueMonitorHostedService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");

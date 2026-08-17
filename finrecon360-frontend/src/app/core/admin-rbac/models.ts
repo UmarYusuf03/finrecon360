@@ -71,6 +71,11 @@ export interface AdminUserSummary {
   roles: RoleCode[];
 }
 
+export interface UserCapacity {
+  currentUsers: number;
+  maxUsers: number | null;
+}
+
 export interface BankAccount {
   bankAccountId: string;
   bankName: string;
@@ -82,11 +87,40 @@ export interface BankAccount {
   updatedAt?: string | null;
 }
 
+export interface BankAccountCapacity {
+  currentAccounts: number;
+  maxAccounts: number | null;
+}
+
+export interface CashFlowHistoryDay {
+  date: string;
+  netAmount: number;
+}
+
+export interface CashFlowForecastDay {
+  date: string;
+  projectedNetFlow: number;
+  cumulativeNetFlow: number;
+  knownPendingAmount: number;
+}
+
+export interface CashFlowForecast {
+  bankAccountId: string | null;
+  bankAccountName: string;
+  generatedAt: string;
+  lookbackDays: number;
+  dailyAverageNetFlow: number;
+  settlementLagDays: number;
+  history: CashFlowHistoryDay[];
+  forecast: CashFlowForecastDay[];
+}
+
 export interface Transaction {
   transactionId: string;
   amount: number;
   transactionDate: string;
   description: string;
+  referenceNumber?: string | null;
   bankAccountId?: string | null;
   transactionType: string;
   paymentMethod: string;
@@ -115,6 +149,7 @@ export interface CreateTransactionRequest {
   amount: number;
   transactionDate: string;
   description: string;
+  referenceNumber?: string | null;
   bankAccountId?: string | null;
   transactionType: string;
   paymentMethod: string;
@@ -124,6 +159,7 @@ export interface UpdateTransactionRequest {
   amount: number;
   transactionDate: string;
   description: string;
+  referenceNumber?: string | null;
   bankAccountId?: string | null;
   transactionType: string;
   paymentMethod: string;
@@ -135,36 +171,6 @@ export interface ApproveTransactionRequest {
 
 export interface RejectTransactionRequest {
   reason: string;
-}
-
-export interface Transaction {
-  transactionId: string;
-  amount: number;
-  transactionDate: string;
-  referenceNumber?: string | null;
-  description: string;
-  bankAccountId?: string | null;
-  transactionType: string;
-  paymentMethod: string;
-  transactionState: string;
-  createdByUserId?: string | null;
-  approvedAt?: string | null;
-  approvedByUserId?: string | null;
-  rejectedAt?: string | null;
-  rejectedByUserId?: string | null;
-  rejectionReason?: string | null;
-  createdAt: string;
-  updatedAt?: string | null;
-}
-
-export interface TransactionStateHistory {
-  transactionStateHistoryId: string;
-  transactionId: string;
-  fromState: string;
-  toState: string;
-  changedByUserId?: string | null;
-  changedAt: string;
-  note?: string | null;
 }
 
 /**

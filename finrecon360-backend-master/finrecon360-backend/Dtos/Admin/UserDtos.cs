@@ -38,4 +38,6 @@ namespace finrecon360_backend.Dtos.Admin
         public IReadOnlyList<Guid>? RoleIds { get; set; }
         public IReadOnlyList<string>? RoleCodes { get; set; }
     }
+
+    public record UserCapacityResponse(int CurrentUsers, int? MaxUsers);
 }

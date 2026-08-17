@@ -59,7 +59,7 @@ import { AuthService } from '../../../core/auth/auth.service';
   styleUrls: ['./admin-transaction-pages.scss'],
 })
 export class AdminTransactionsComponent implements OnInit {
-  displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
+  displayedColumns = ['transactionDate', 'reference', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
   transactions: Transaction[] = [];
   filteredTransactions: Transaction[] = [];
   bankAccounts: BankAccount[] = [];
@@ -117,6 +117,13 @@ export class AdminTransactionsComponent implements OnInit {
     return this.authService.currentUser?.permissions.includes('ADMIN.TRANSACTIONS.MANAGE') ?? false;
   }
 
+  // Cashiers may hold only CREATE (log a transaction) without MANAGE (edit/approve/reject),
+  // so entry stays open to them while approval remains a separate, higher-trust action.
+  get canCreateTransactions(): boolean {
+    const permissions = this.authService.currentUser?.permissions ?? [];
+    return permissions.includes('ADMIN.TRANSACTIONS.CREATE') || permissions.includes('ADMIN.TRANSACTIONS.MANAGE');
+  }
+
   refresh(): void {
     if (this.loading) {
       return;
@@ -138,6 +145,7 @@ export class AdminTransactionsComponent implements OnInit {
 
       const searchable = [
         transaction.description,
+        transaction.referenceNumber,
         transaction.transactionType,
         transaction.paymentMethod,
         this.getBankAccountLabel(transaction.bankAccountId),
@@ -182,6 +190,10 @@ export class AdminTransactionsComponent implements OnInit {
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
+    if (!this.canCreateTransactions) {
+      return;
+    }
+
     this.editingTransaction = null;
     this.saveError = null;
     this.form.enable({ emitEvent: false });
@@ -222,7 +234,8 @@ export class AdminTransactionsComponent implements OnInit {
   }
 
   save(): void {
-    if (!this.canManageTransactions) {
+    const allowed = this.editingTransaction ? this.canManageTransactions : this.canCreateTransactions;
+    if (!allowed) {
       return;
     }
 

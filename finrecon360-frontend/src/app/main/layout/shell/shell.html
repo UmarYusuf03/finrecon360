@@ -83,6 +83,17 @@
           </div>
 
           <ng-container *ngIf="user$ | async as user">
+            <a
+              *ngIf="user.isSystemAdmin && hasAnyPermission(user, ['ADMIN.PAYMENT_ALERTS.VIEW'])"
+              routerLink="/app/system/payment-alerts"
+              class="shell__bell-btn"
+              [attr.aria-label]="'ADMIN.PAYMENT_ALERTS.TITLE' | translate"
+              [matTooltip]="'ADMIN.PAYMENT_ALERTS.TITLE' | translate"
+            >
+              <mat-icon>notifications</mat-icon>
+              <span class="shell__bell-badge" *ngIf="openPaymentAlertCount > 0">{{ openPaymentAlertCount > 99 ? '99+' : openPaymentAlertCount }}</span>
+            </a>
+
             <button mat-icon-button [matMenuTriggerFor]="userMenu" class="shell__avatar-btn">
               <ng-container *ngIf="profileImageUrl; else initials">
                 <img [src]="profileImageUrl" alt="Profile" class="shell__avatar-img" />
@@ -112,6 +123,14 @@
         ></ng-container>
       </nav>
     </header>
+
+    <div class="shell__billing-banner" *ngIf="subscriptionDaysOverdue !== null" role="alert">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ 'BILLING.OVERDUE_BANNER' | translate:{ count: subscriptionDaysOverdue } }}</span>
+      <a routerLink="/app/admin/subscription" class="shell__billing-banner-link">
+        {{ 'BILLING.PAY_NOW' | translate }}
+      </a>
+    </div>
 
     <main class="shell__content">
       <router-outlet></router-outlet>

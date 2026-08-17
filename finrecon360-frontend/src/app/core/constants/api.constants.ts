@@ -104,6 +104,7 @@ export const API_ENDPOINTS = {
     SUBSCRIPTION: '/api/admin/subscription',
     IMPORT_ARCHITECTURE: '/api/admin/import-architecture',
     AUDIT_LOGS: '/api/admin/audit-logs',
+    CASH_FLOW_FORECAST: '/api/admin/cash-flow-forecast',
   },
   SYSTEM: {
     TENANT_REGISTRATIONS: '/api/system/tenant-registrations',
@@ -112,6 +113,8 @@ export const API_ENDPOINTS = {
     TENANT_SUBSCRIPTION: (tenantId: string) => `/api/system/tenants/${tenantId}/subscription`,
     AUDIT_LOGS: '/api/system/audit-logs',
     ENFORCEMENT_USERS: (tenantId: string) => `/api/system/enforcement/tenants/${tenantId}/users`,
+    PAYMENT_ALERTS: '/api/system/payment-alerts',
+    BILLING_SETTINGS: '/api/system/billing-settings',
   },
 } as const;
 

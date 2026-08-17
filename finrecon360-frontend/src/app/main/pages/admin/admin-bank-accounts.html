@@ -22,11 +22,23 @@
         color="primary"
         type="button"
         class="bank-accounts-page__primary"
+        [disabled]="isAccountLimitReached"
+        [matTooltip]="isAccountLimitReached ? ('BANK_ACCOUNTS.LIMIT_REACHED' | translate: { count: capacity?.maxAccounts }) : ''"
         (click)="openAdd(bankAccountDialog)"
       >
         <mat-icon>add</mat-icon>
         <span>{{ 'BANK_ACCOUNTS.ADD' | translate }}</span>
       </button>
+    </div>
+
+    <div class="bank-accounts-page__limit-banner" *ngIf="isAccountLimitReached" role="alert">
+      <span>
+        {{ 'BANK_ACCOUNTS.LIMIT_REACHED' | translate: { count: capacity?.maxAccounts } }}
+        {{ 'BANK_ACCOUNTS.LIMIT_UPGRADE' | translate }}
+      </span>
+      <a mat-flat-button color="primary" routerLink="/app/admin/subscription" class="bank-accounts-page__upgrade-btn">
+        {{ 'COMMON.UPGRADE_NOW' | translate }}
+      </a>
     </div>
   </header>
 

@@ -11,6 +11,9 @@ namespace finrecon360_backend.Dtos.Transactions
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
 
+        [MaxLength(120)]
+        public string? ReferenceNumber { get; set; }
+
         public Guid? BankAccountId { get; set; }
 
         [Required]
@@ -28,6 +31,9 @@ namespace finrecon360_backend.Dtos.Transactions
         [Required]
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
+
+        [MaxLength(120)]
+        public string? ReferenceNumber { get; set; }
 
         public Guid? BankAccountId { get; set; }
 
@@ -56,6 +62,7 @@ namespace finrecon360_backend.Dtos.Transactions
         decimal Amount,
         DateTime TransactionDate,
         string Description,
+        string? ReferenceNumber,
         Guid? BankAccountId,
         string TransactionType,
         string PaymentMethod,

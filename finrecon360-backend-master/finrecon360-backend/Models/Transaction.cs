@@ -6,6 +6,10 @@ namespace finrecon360_backend.Models
         public decimal Amount { get; set; }
         public DateTime TransactionDate { get; set; }
         public string Description { get; set; } = string.Empty;
+        // Order/receipt reference the cashier keys in at entry time. Matches the matcher's
+        // ReferenceNumber convention (see ErpGatewaySalesMatchWorker) so manually-entered
+        // transactions can eventually participate in reference-number-keyed matching too.
+        public string? ReferenceNumber { get; set; }
         public Guid? BankAccountId { get; set; }
         public TransactionType TransactionType { get; set; }
         public PaymentMethod PaymentMethod { get; set; }

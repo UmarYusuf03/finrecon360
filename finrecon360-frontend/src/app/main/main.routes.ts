@@ -11,6 +11,7 @@ import { AdminUsersComponent } from './pages/admin/admin-users';
 import { DashboardComponent } from './pages/dashboard/dashboard';
 import { ImportsShellComponent } from './pages/imports/imports-shell';
 import { MatcherPageComponent } from './pages/matcher/matcher-page';
+import { MatcherShellComponent } from './pages/matcher/matcher-shell';
 import { NotAuthorizedComponent } from './pages/not-authorized/not-authorized';
 import { ProfileComponent } from './pages/profile/profile';
 
@@ -40,6 +41,8 @@ export const mainRoutes: Routes = [
             'ADMIN.PERMISSIONS.VIEW',
             'ADMIN.USERS.VIEW',
             'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+            'ADMIN.SUBSCRIPTIONS.MANAGE',
+            'ADMIN.CASH_FLOW_FORECAST.VIEW',
           ],
         },
         children: [
@@ -66,6 +69,24 @@ export const mainRoutes: Routes = [
               ),
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.BANK_ACCOUNTS.VIEW'] },
+          },
+          {
+            path: 'subscription',
+            loadComponent: () =>
+              import('./pages/admin/admin-subscription').then(
+                (m) => m.AdminSubscriptionComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.SUBSCRIPTIONS.MANAGE'] },
+          },
+          {
+            path: 'cash-flow-forecast',
+            loadComponent: () =>
+              import('./pages/admin/admin-cash-flow-forecast').then(
+                (m) => m.AdminCashFlowForecastComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.CASH_FLOW_FORECAST.VIEW'] },
           },
           {
             path: 'roles',
@@ -133,7 +154,7 @@ export const mainRoutes: Routes = [
             'ADMIN.TENANT_REGISTRATIONS.MANAGE',
             'ADMIN.TENANTS.MANAGE',
             'ADMIN.PLANS.MANAGE',
-            'ADMIN.ENFORCEMENT.MANAGE',
+            'ADMIN.PAYMENT_ALERTS.VIEW',
           ],
         },
         children: [
@@ -161,11 +182,11 @@ export const mainRoutes: Routes = [
             data: { permissions: ['ADMIN.PLANS.MANAGE'] },
           },
           {
-            path: 'enforcement',
+            path: 'payment-alerts',
             loadComponent: () =>
-              import('./pages/admin/admin-enforcement').then((m) => m.AdminEnforcementComponent),
+              import('./pages/admin/admin-payment-alerts').then((m) => m.AdminPaymentAlertsComponent),
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.ENFORCEMENT.MANAGE'] },
+            data: { permissions: ['ADMIN.PAYMENT_ALERTS.VIEW'] },
           },
           {
             path: 'audit-logs',
@@ -208,6 +229,7 @@ export const mainRoutes: Routes = [
       },
       {
         path: 'matcher',
+        component: MatcherShellComponent,
         canActivate: [AccessGuard],
         data: { scope: 'tenant', permissions: ['ADMIN.RECONCILIATION.VIEW'] },
         children: [

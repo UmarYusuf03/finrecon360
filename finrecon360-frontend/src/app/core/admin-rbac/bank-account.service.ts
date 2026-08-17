@@ -4,7 +4,7 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
 import { API_BASE_URL, USE_MOCK_API } from '../constants/api.constants';
-import { BankAccount } from './models';
+import { BankAccount, BankAccountCapacity } from './models';
 
 @Injectable({
   providedIn: 'root',
@@ -37,6 +37,17 @@ export class BankAccountService {
     return this.http.get<BankAccount[]>(this.baseUrl).pipe(
       tap((accounts) => this.accountsSubject.next(accounts)),
     );
+  }
+
+  getCapacity(): Observable<BankAccountCapacity> {
+    if (USE_MOCK_API) {
+      return of({
+        currentAccounts: this.accountsSubject.value.filter((a) => a.isActive).length,
+        maxAccounts: null,
+      });
+    }
+
+    return this.http.get<BankAccountCapacity>(`${this.baseUrl}/capacity`);
   }
 
   getById(id: string): Observable<BankAccount> {

@@ -44,6 +44,17 @@ namespace finrecon360_backend.Controllers.Admin
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
+            var maxAccounts = await GetMaxAccountsAsync(auth.TenantId, ct);
+            if (maxAccounts.HasValue)
+            {
+                var currentAccounts = await tenantDb.BankAccounts.AsNoTracking()
+                    .CountAsync(x => x.IsActive, ct);
+                if (currentAccounts >= maxAccounts.Value)
+                {
+                    return BadRequest(new { message = $"Bank account limit reached ({maxAccounts.Value}). Upgrade the subscription plan to add more." });
+                }
+            }
+
             try
             {
                 var result = await _bankAccountService.CreateAsync(tenantDb, request, ct);
@@ -53,6 +64,20 @@ namespace finrecon360_backend.Controllers.Admin
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [HttpGet("capacity")]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.VIEW")]
+        public async Task<ActionResult<BankAccountCapacityResponse>> GetCapacity(CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantAdminAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var maxAccounts = await GetMaxAccountsAsync(auth.TenantId, ct);
+            var currentAccounts = await tenantDb.BankAccounts.AsNoTracking().CountAsync(x => x.IsActive, ct);
+
+            return Ok(new BankAccountCapacityResponse(currentAccounts, maxAccounts));
         }
 
         [HttpGet]
@@ -128,16 +153,16 @@ namespace finrecon360_backend.Controllers.Admin
             return NoContent();
         }
 
-        private async Task<(TenantDbContext? Db, ActionResult? Error)> AuthorizeTenantAdminAsync(CancellationToken ct)
+        private async Task<(TenantDbContext? Db, Guid TenantId, ActionResult? Error)> AuthorizeTenantAdminAsync(CancellationToken ct)
         {
-            if (_userContext.UserId is not { } userId) return (null, Unauthorized());
+            if (_userContext.UserId is not { } userId) return (null, Guid.Empty, Unauthorized());
 
             var tenant = await _tenantContext.ResolveAsync(ct);
-            if (tenant == null) return (null, Forbid());
+            if (tenant == null) return (null, Guid.Empty, Forbid());
 
             var isTenantMember = await _dbContext.TenantUsers.AsNoTracking()
                 .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId, ct);
-            if (!isTenantMember) return (null, Forbid());
+            if (!isTenantMember) return (null, Guid.Empty, Forbid());
 
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, ct);
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking()
@@ -145,10 +170,19 @@ namespace finrecon360_backend.Controllers.Admin
             if (!isActiveInTenant)
             {
                 await tenantDb.DisposeAsync();
-                return (null, Forbid());
+                return (null, Guid.Empty, Forbid());
             }
 
-            return (tenantDb, null);
+            return (tenantDb, tenant.TenantId, null);
+        }
+
+        private async Task<int?> GetMaxAccountsAsync(Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Tenants
+                .AsNoTracking()
+                .Where(t => t.TenantId == tenantId)
+                .Select(t => t.CurrentSubscription != null ? (int?)t.CurrentSubscription.Plan.MaxAccounts : null)
+                .FirstOrDefaultAsync(ct);
         }
     }
 }

@@ -20,7 +20,7 @@
         color="primary"
         type="button"
         (click)="openAdd(transactionDialog)"
-        [disabled]="!canManageTransactions"
+        [disabled]="!canCreateTransactions"
       >
         <mat-icon>add</mat-icon>
         {{ 'TRANSACTIONS.ADD_TRANSACTION' | translate }}
@@ -86,6 +86,11 @@
       <ng-container matColumnDef="transactionDate">
         <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.DATE' | translate }}</th>
         <td mat-cell *matCellDef="let transaction">{{ transaction.transactionDate | date: 'mediumDate' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="reference">
+        <th mat-header-cell *matHeaderCellDef>{{ 'TRANSACTIONS.REFERENCE_NUMBER' | translate }}</th>
+        <td mat-cell *matCellDef="let transaction">{{ transaction.referenceNumber || '-' }}</td>
       </ng-container>
 
       <ng-container matColumnDef="amount">

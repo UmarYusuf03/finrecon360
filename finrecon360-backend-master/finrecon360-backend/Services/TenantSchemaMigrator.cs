@@ -32,6 +32,11 @@ namespace finrecon360_backend.Services
         private const string MigrationReconciliationSettlementWindow = "202608180003_TenantReconciliationSettlementWindow";
         private const string MigrationPosClearingAccount = "202608180004_TenantPosClearingAccount";
         private const string MigrationTransactionCardLast4 = "202608180005_TenantTransactionCardLast4";
+        private const string MigrationReconciliationEventsMatchGroupFields = "202608180006_TenantReconciliationEventsMatchGroupFields";
+        private const string MigrationTransactionReferenceNumber = "202608180007_TenantTransactionReferenceNumber";
+        private const string MigrationTransactionCreatePermission = "202608180008_TenantTransactionCreatePermission";
+        private const string MigrationSubscriptionsPermission = "202608180009_TenantSubscriptionsPermission";
+        private const string MigrationCashFlowForecastPermission = "202608180010_TenantCashFlowForecastPermission";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -64,6 +69,11 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationSettlementWindow, BuildTenantReconciliationSettlementWindowSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationPosClearingAccount, BuildTenantPosClearingAccountSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionCardLast4, BuildTenantTransactionCardLast4Sql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEventsMatchGroupFields, BuildTenantReconciliationEventsMatchGroupFieldsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactionReferenceNumber, BuildTenantTransactionReferenceNumberSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationTransactionCreatePermission, BuildTenantTransactionCreatePermissionSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationSubscriptionsPermission, BuildTenantSubscriptionsPermissionSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationCashFlowForecastPermission, BuildTenantCashFlowForecastPermissionSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -769,6 +779,76 @@ namespace finrecon360_backend.Services
               );
             """;
 
+        // ADMIN.TRANSACTIONS.CREATE existed only as an AliasMap entry (satisfied by MANAGE) with
+        // no row in dbo.Permissions, so it could never actually be assigned to a role from the
+        // RBAC admin UI. This adds it to the catalog and grants it to ADMIN (who already had it
+        // implicitly via MANAGE), so tenants can now build a cashier-style role that can log
+        // transactions without also holding edit/approve/reject rights.
+        private static string BuildTenantTransactionCreatePermissionSql() =>
+            """
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.TRANSACTIONS.CREATE', N'Transactions Create', N'Log new tenant transactions', N'Admin')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code = N'ADMIN.TRANSACTIONS.CREATE'
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
+        // ADMIN.SUBSCRIPTIONS.MANAGE gates AdminSubscriptionController (api/admin/subscription),
+        // the tenant's own self-serve "view plan / upgrade / pay overdue balance" screen. It was
+        // never seeded into any tenant schema, so no tenant admin could ever reach it — this closes
+        // that gap the same way MigrationTransactionCreatePermission did for ADMIN.TRANSACTIONS.CREATE.
+        private static string BuildTenantSubscriptionsPermissionSql() =>
+            """
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.SUBSCRIPTIONS.MANAGE', N'Subscription Manage', N'View and change the tenant''s own subscription plan', N'Admin')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code = N'ADMIN.SUBSCRIPTIONS.MANAGE'
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
+        // Gates the cash-flow forecasting page (api/admin/cash-flow-forecast).
+        private static string BuildTenantCashFlowForecastPermissionSql() =>
+            """
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.CASH_FLOW_FORECAST.VIEW', N'Cash Flow Forecast View', N'View projected cash flow', N'Admin')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code = N'ADMIN.CASH_FLOW_FORECAST.VIEW'
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
         // Adds approval metadata without rebuilding tenant transaction tables already in use.
         private static string BuildTenantTransactionApprovalFieldsSql() =>
             """
@@ -955,7 +1035,7 @@ namespace finrecon360_backend.Services
                     ImportBatchId uniqueidentifier NULL,
                     CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationEvents_CreatedAt DEFAULT SYSUTCDATETIME(),
                     ResolvedAt datetime2 NULL,
-                    CONSTRAINT FK_ReconciliationEvents_MatchGroups_GroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE SET NULL,
+                    CONSTRAINT FK_ReconciliationEvents_MatchGroups_GroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE NO ACTION,
                     CONSTRAINT FK_ReconciliationEvents_NormalizedRecords_RecordId FOREIGN KEY (ImportedNormalizedRecordId) REFERENCES dbo.ImportedNormalizedRecords(ImportedNormalizedRecordId) ON DELETE NO ACTION,
                     CONSTRAINT FK_ReconciliationEvents_ImportBatches_ImportBatchId FOREIGN KEY (ImportBatchId) REFERENCES dbo.ImportBatches(ImportBatchId) ON DELETE NO ACTION
                 );
@@ -1267,6 +1347,78 @@ namespace finrecon360_backend.Services
             BEGIN
                 IF COL_LENGTH(N'dbo.Transactions', N'CardLast4') IS NULL
                     ALTER TABLE dbo.Transactions ADD CardLast4 nvarchar(4) NULL;
+            END
+            """;
+
+        // Adds the order/receipt reference field cashiers key in on manual entry, matching the
+        // ReferenceNumber convention already used on ImportedNormalizedRecord so these
+        // transactions can eventually be matched by the same key.
+        private static string BuildTenantTransactionReferenceNumberSql() =>
+            """
+            IF OBJECT_ID(N'dbo.Transactions', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.Transactions', N'ReferenceNumber') IS NULL
+                    ALTER TABLE dbo.Transactions ADD ReferenceNumber nvarchar(120) NULL;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.Transactions') AND name = N'IX_Transactions_ReferenceNumber')
+                BEGIN
+                    CREATE INDEX IX_Transactions_ReferenceNumber ON dbo.Transactions (ReferenceNumber);
+                END
+            END
+            """;
+
+        // Another instance of the same gap class as CardLast4: tenant databases that had
+        // dbo.ReconciliationEvents created by an earlier revision of
+        // BuildTenantReconciliationJournalSchemaSql (before ReconciliationMatchGroupId,
+        // MatchLevel and Details were added to that CREATE TABLE) never picked up the extra
+        // columns, because MigrationReconciliationJournalSchema is tracked by name and only
+        // runs once. That broke every worker that writes a ReconciliationEvent, e.g.
+        // ErpGatewaySalesMatchWorker's Level3 run ("Invalid column name 'Details'/'MatchLevel'/
+        // 'ReconciliationMatchGroupId'").
+        private static string BuildTenantReconciliationEventsMatchGroupFieldsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationEvents', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'ReconciliationMatchGroupId') IS NULL
+                    ALTER TABLE dbo.ReconciliationEvents ADD ReconciliationMatchGroupId uniqueidentifier NULL;
+
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'MatchLevel') IS NULL
+                    ALTER TABLE dbo.ReconciliationEvents ADD MatchLevel nvarchar(20) NOT NULL CONSTRAINT DF_ReconciliationEvents_MatchLevel DEFAULT (N'');
+
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'Details') IS NULL
+                    ALTER TABLE dbo.ReconciliationEvents ADD Details nvarchar(2000) NULL;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ReconciliationEvents') AND name = N'IX_ReconciliationEvents_MatchLevel')
+                BEGIN
+                    CREATE INDEX IX_ReconciliationEvents_MatchLevel ON dbo.ReconciliationEvents(MatchLevel);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ReconciliationEvents') AND name = N'IX_ReconciliationEvents_GroupId')
+                BEGIN
+                    CREATE INDEX IX_ReconciliationEvents_GroupId ON dbo.ReconciliationEvents(ReconciliationMatchGroupId);
+                END
+
+                IF OBJECT_ID(N'dbo.ReconciliationMatchGroups', N'U') IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM sys.foreign_keys
+                    WHERE name = N'FK_ReconciliationEvents_MatchGroups_GroupId')
+                BEGIN
+                    -- NO ACTION, not SET NULL: ImportBatches already cascades into
+                    -- ReconciliationMatchGroups (ON DELETE SET NULL), which combined with a
+                    -- second cascading path here makes SQL Server reject the constraint with
+                    -- "may cause cycles or multiple cascade paths". Matches the NO ACTION used
+                    -- by the other MatchGroups FKs (JournalEntries, JournalVouchers).
+                    ALTER TABLE dbo.ReconciliationEvents
+                    ADD CONSTRAINT FK_ReconciliationEvents_MatchGroups_GroupId
+                        FOREIGN KEY (ReconciliationMatchGroupId)
+                        REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId)
+                        ON DELETE NO ACTION;
+                END
             END
             """;
 

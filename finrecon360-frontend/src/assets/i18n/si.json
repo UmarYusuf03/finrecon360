@@ -1,4 +1,30 @@
 {
+  "BILLING": {
+    "OVERDUE_BANNER": "Your subscription payment is {{count}} day(s) overdue. Pay now to avoid your account being suspended.",
+    "PAY_NOW": "Pay now"
+  },
+  "CASH_FLOW": {
+    "EYEBROW": "Forecasting",
+    "TITLE": "Cash Flow Forecast",
+    "COPY": "A projection of your net cash position, built from your confirmed transaction trend and known pending settlements — not a guarantee, but a planning tool.",
+    "BANK_ACCOUNT": "Bank account",
+    "ALL_ACCOUNTS": "All active bank accounts",
+    "HORIZON": "Forecast horizon",
+    "DAYS_OPTION": "{{count}} days",
+    "LOADING": "Building your forecast...",
+    "DAILY_AVERAGE": "Average daily net flow",
+    "DAILY_AVERAGE_COPY": "Weighted toward your most recent activity.",
+    "PROJECTED_CHANGE": "Projected {{count}}-day change",
+    "PROJECTED_CHANGE_COPY": "Expected net change in cash position over the horizon.",
+    "SETTLEMENT_LAG": "Typical settlement lag",
+    "SETTLEMENT_LAG_COPY": "How long card cash-outs usually take to clear, based on your history.",
+    "LEGEND_HISTORY": "Actual (last 90 days)",
+    "LEGEND_FORECAST": "Projected",
+    "AXIS_PAST": "{{count}} days ago",
+    "AXIS_TODAY": "Today",
+    "AXIS_FUTURE": "+{{count}} days",
+    "DISCLAIMER": "This forecast is a weighted moving average of your confirmed transaction history plus known pending settlements — it is a planning estimate, not an accounting figure or a guarantee of future cash position."
+  },
   "AUTH": {
     "LOGIN": {
       "TITLE": "නැවත සාදරයෙන් පිළිගනිමු",
@@ -153,7 +179,9 @@
       "COUNT": "{{count}} users",
       "EMPTY_COPY": "Create a tenant user to start assigning roles.",
       "EMPTY_TITLE": "No users yet",
-      "EYEBROW": "Identity administration"
+      "EYEBROW": "Identity administration",
+      "LIMIT_REACHED": "User limit reached ({{count}}).",
+      "LIMIT_UPGRADE": "Upgrade the subscription package to add more users."
     },
     "TENANT_REGISTRATIONS": {
       "TITLE": "Tenant Registrations",
@@ -183,6 +211,7 @@
     "TENANTS": {
       "TITLE": "Tenants",
       "BAN": "Ban",
+      "ADMIN_ACCOUNTS": "Admin accounts",
       "COPY": "Review tenant status, subscriptions, admins, and enforcement controls.",
       "DELETE_COPY": "You are about to permanently remove {{name}}.",
       "DELETE_NOTE": "This action cannot be undone.",
@@ -211,9 +240,11 @@
       "COPY": "Manage plan tiers, limits, and activation status for onboarding.",
       "COUNT": "{{count}} plans",
       "CREATE_PLAN": "Create New Plan",
-      "CURRENCY_HINT": "3-letter code such as USD.",
+      "CURRENCY_HINT": "3-letter code such as LKR.",
       "CURRENCY_REQUIRED": "Currency is required.",
       "DAYS": "{{count}} days",
+      "DELETE_CONFIRM": "Delete this plan permanently? This cannot be undone.",
+      "DELETE_IN_USE": "This plan has tenant subscriptions attached and cannot be deleted. Deactivate it instead.",
       "DURATION": "Duration",
       "DURATION_DAYS": "Duration (Days)",
       "DURATION_HINT": "Active period for each cycle.",
@@ -239,6 +270,36 @@
     },
     "ENFORCEMENT": {
       "TITLE": "Enforcement"
+    },
+    "PAYMENT_ALERTS": {
+      "TITLE": "Payment Alerts",
+      "EYEBROW": "Billing oversight",
+      "COPY": "Tenants whose subscription payment is overdue. An alert is raised the moment a subscription lapses; the tenant is automatically suspended if it is still unpaid once the grace period below elapses.",
+      "COUNT": "{{count}} alerts",
+      "THRESHOLD_LABEL": "Auto-suspend grace period",
+      "THRESHOLD_COPY": "Tenants are automatically suspended once a subscription has been unpaid for more than this many days. Paying reactivates them immediately.",
+      "THRESHOLD_VALUE": "{{count}} days",
+      "DAYS": "days",
+      "FILTER_ARIA": "Filter alerts by status",
+      "FILTERS": {
+        "OPEN": "Open",
+        "ACKNOWLEDGED": "Acknowledged",
+        "RESOLVED": "Resolved",
+        "ALL": "All"
+      },
+      "STATUS": {
+        "OPEN": "Open",
+        "ACKNOWLEDGED": "Acknowledged",
+        "RESOLVED": "Resolved"
+      },
+      "DUE": "due",
+      "DAYS_OVERDUE": "days overdue",
+      "VIEW_TENANT": "View tenant",
+      "ACKNOWLEDGE": "Acknowledge",
+      "RESOLVE": "Resolve",
+      "LOADING": "Loading alerts...",
+      "EMPTY_TITLE": "No alerts here",
+      "EMPTY_COPY": "Tenants past the payment threshold will show up in this list."
     },
     "AUDIT_LOGS": {
       "ACTION": "Action",
@@ -372,6 +433,11 @@
   },
   "PROFILE": {
     "TITLE": "පැතිකඩ",
+    "BILLING": {
+      "TITLE": "Billing & Subscription",
+      "COPY": "View your plan, usage limits, and change or renew your subscription.",
+      "MANAGE_LINK": "Manage subscription"
+    },
     "MY_PROFILE": "මගේ පැතිකඩ",
     "EDIT_PROFILE": "පැතිකඩ සංස්කරණය කරන්න",
     "PERSONAL_INFO": "පෞද්ගලික තොරතුරු",
@@ -418,7 +484,10 @@
     "LOGOUT": "පිටවීම"
   },
   "COMMON": {
+    "REQUEST_FAILED": "Request failed. Please try again.",
     "SAVE": "සුරකින්න",
+    "SAVING": "Saving...",
+    "UPGRADE_NOW": "Upgrade now",
     "CANCEL": "අවලංගු කරන්න",
     "SUBMIT": "ඉදිරිපත් කරන්න",
     "DELETE": "මකන්න",
@@ -517,6 +586,8 @@
     },
     "EMPTY_COPY": "Add a bank account to use it in transaction capture and matching.",
     "EMPTY_TITLE": "No bank accounts configured",
+    "LIMIT_REACHED": "Bank account limit reached ({{count}}).",
+    "LIMIT_UPGRADE": "Upgrade the subscription package to add more bank accounts.",
     "ERRORS": {
       "ACCOUNT_NAME_MAX": "Account name cannot exceed 200 characters.",
       "ACCOUNT_NAME_REQUIRED": "Account name is required.",
@@ -869,9 +940,9 @@
       "VIEW_WAITING_QUEUE": "View waiting queue"
     },
     "PAYMENT_METHOD": "Payment method",
-    "REFERENCE_HINT": "Use the upstream reference when available.",
-    "REFERENCE_NUMBER": "Reference number",
-    "REFERENCE_PLACEHOLDER": "Gateway reference or bank narrative",
+    "REFERENCE_HINT": "Ties this entry to its order, receipt, or gateway reference for later matching.",
+    "REFERENCE_NUMBER": "Order ID / Reference #",
+    "REFERENCE_PLACEHOLDER": "e.g. Order #10293, receipt or gateway reference",
     "REJECT_DIALOG": {
       "HELPER": "Capture a clear reason for audit and follow-up.",
       "REASON": "Reason",
@@ -880,7 +951,7 @@
     },
     "REQUIRE_BANK_ACCOUNT": "Require a linked bank account",
     "SEARCH_ARIA": "Search transactions",
-    "SEARCH_PLACEHOLDER": "Search by description or reference",
+    "SEARCH_PLACEHOLDER": "Search by description, order ID, or reference",
     "STATE": "State",
     "STATS": {
       "JOURNAL_READY": "Journal Ready",
