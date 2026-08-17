@@ -1,0 +1,11 @@
+Transaction Date,Posting Date,Reference Number,Description,Account Code,Account Name,Debit,Credit,Net,Currency
+32/04/2026,10/04/2026,REF-2001,Invalid date sample,4001,Service Revenue,100.00,,100.00,USD
+10/04/2026,10/04/2026,,Missing reference,4001,Service Revenue,250.00,,250.00,USD
+09/04/2026,09/04/2026,REF-2003,Text in amount,6002,Office Expense,ABC,,100.00,LKR
+08/04/2026,08/04/2026,REF-2004,Both debit and credit filled,6005,Bank Charges,50.00,50.00,0.00,LKR
+07/04/2026,07/04/2026,REF-2005,Net mismatch example,6008,Utilities Expense,200.00,0.00,150.00,LKR
+06/04/2026,06/04/2026,REF-2006,Missing currency,4001,Service Revenue,300.00,,300.00,
+05/04/2026,05/04/2026,REF-2007,Only credit column,4001,Service Revenue,,450.00,-450.00,USD
+04/04/2026,04/04/2026,REF-2008,Missing date,6001,Misc Expense,75.00,,75.00,LKR
+03/04/2026,03/04/2026,REF-2009,Extra whitespace, 1001 , Cash on Hand , 125.00 , , 125.00 , lkr
+02/04/2026,02/04/2026,REF-2010,Net only row,4001,Service Revenue,,, -600.00 ,USD

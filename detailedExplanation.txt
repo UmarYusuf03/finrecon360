@@ -1,0 +1,103 @@
+PHASE 1 - Identity, onboarding, tenant setup, and access control (foundation layer)
+
+Phase 1 establishes the entire "who you are, which tenant you belong to, and what you can do" foundation. It includes:
+
+- Authentication and account lifecycle
+  - Login, email verification, password reset/change via magic links.
+  - Safe credential recovery and rotation without manual admin work.
+
+- Tenant onboarding
+  - Public tenant registration form for new customers.
+  - Admin review/approval workflow that provisions a tenant database and creates the first tenant admin.
+  - Tenant admin onboarding to set a password and choose a subscription plan (Stripe checkout or fallback if Stripe is not configured).
+
+- Tenant model and isolation
+  - A shared control-plane database tracks tenants, subscriptions, users, and tenant database connection metadata.
+  - Each tenant's data is isolated in its own tenant database, created at onboarding.
+
+- Role-based access control (RBAC)
+  - Roles, permissions, components, and actions are tenant-scoped.
+  - Admin UI and endpoints to create roles, grant permissions, and manage users.
+
+- System admin operations
+  - System admins can manage tenants, approve registrations, enforce bans/suspensions, and manage plans.
+
+- Audit logging
+  - System actions and sensitive auth operations are recorded in audit logs for accountability.
+
+Why this phase matters
+- It is the backbone that makes multi-tenant data isolation, safe onboarding, and secure admin control possible. Everything in later phases depends on this layer.
+
+
+PHASE 2 - Import pipeline (core ingestion flow)
+
+Phase 2 builds the end-to-end ingestion pipeline that takes a raw file and turns it into structured tenant data.
+
+- Upload and batch creation
+  - Users upload CSV/XLSX files.
+  - Each upload becomes an import batch with metadata (source type, file name, timestamps, status).
+
+- Parse
+  - The backend parses the file into row-level raw records stored in the tenant database.
+  - A sample of rows and headers is returned for mapping.
+
+- Mapping
+  - Users map source columns to the system's canonical schema fields.
+  - Mapping is stored in the batch (and optionally as a reusable template).
+
+- Validation
+  - Each raw row is validated against canonical rules (required fields, date/amount formats, debit/credit consistency, etc.).
+  - The batch receives a validation status with counts of valid/invalid rows.
+
+- Commit
+  - Only valid rows can be committed.
+  - Committed data is normalized into canonical tables in the tenant database.
+
+- History
+  - Users can see status history and reprocess or delete failed/obsolete batches.
+
+Why this phase matters
+- It turns messy real-world files into structured, tenant-isolated data reliably, with guardrails before anything hits canonical tables.
+
+
+PHASE 3 - Normalization and validation depth (data quality hardening)
+
+Phase 3 strengthens the correctness and auditability of the data pipeline rather than adding brand-new UI flows.
+
+- Row-level normalization logic
+  - Enforces canonical field rules such as date parsing, amount formatting, currency normalization, and debit/credit reconciliation.
+
+- Error detail surfaced to users
+  - Validation reports are not just pass/fail; they expose which row and which rule failed.
+
+- Strict commit gating
+  - Commit only proceeds if every row is validated, preventing partial or corrupted ingestion.
+
+Why this phase matters
+- It turns parsed data into trustworthy, accounting-grade data and reduces downstream reconciliation errors.
+
+
+PHASE 4 - Workbench enhancements, templates, and audit visibility (operational maturity)
+
+Phase 4 turns the import experience into a high-productivity workbench and adds administrative observability.
+
+- Import workbench UX
+  - Drag-and-drop upload, guided steps, and clear status indicators.
+  - Inline editing of invalid rows so users can correct errors without reuploading.
+
+- Validation review table
+  - Shows invalid rows, errors per row, and allows field-level edits.
+  - Users can filter by valid/invalid and re-validate instantly.
+
+- Reusable mapping templates
+  - Create, rename, reuse, activate/deactivate templates.
+  - Active template auto-suggests mappings for new batches of the same source type.
+
+- Admin import history
+  - Admin-level view of import activity across tenant members, including who uploaded and when.
+
+- Tenant audit logs
+  - Tenant admins can see audit events for their tenant (imports, template changes, user actions).
+
+Why this phase matters
+- It moves from "the pipeline works" to "the pipeline is productive and maintainable," giving admins visibility and users tools to fix issues faster.

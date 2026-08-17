@@ -98,9 +98,22 @@
   font-size: 0.8rem;
 }
 
-.workflow-step.is-active,
-.history-table tbody tr.active {
+.workflow-step.is-active {
   background: rgba(14, 165, 233, 0.1);
+}
+
+.history-table tbody tr.active td,
+.history-table tbody tr.active:hover td {
+  background: #1e4fa8;
+  color: #fff;
+}
+
+.history-table tbody tr.active td .status-pill,
+.history-table tbody tr.active td .source-pill,
+.history-table tbody tr.active td .batch-pill,
+.history-table tbody tr.active td .summary-pill {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .workflow-step.is-active {
@@ -381,6 +394,24 @@
   margin-bottom: 8px;
 }
 
+.history-pagination,
+.history-pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-pagination {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.history-pagination .ghost-btn.active {
+  background: #1e4fa8;
+  color: #fff;
+  border-color: #1e4fa8;
+}
+
 .history-table th,
 .history-table td {
   padding: 14px 12px;
@@ -583,6 +614,27 @@ select {
 .validation-table th,
 .validation-table td {
   padding: 14px 12px;
+}
+
+.validation-table-shell {
+  width: 100%;
+  overflow-x: scroll !important;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+}
+
+.validation-table-shell::-webkit-scrollbar {
+  height: 10px;
+}
+
+.validation-table-shell::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.55);
+  border-radius: 999px;
+}
+
+.validation-table {
+  width: max-content;
+  min-width: 100%;
 }
 
 .dashboard-card strong,
