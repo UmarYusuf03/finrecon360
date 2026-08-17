@@ -1,47 +1,44 @@
 namespace finrecon360_backend.Models
 {
     /// <summary>
-    /// Represents a reconciliation event in the Ironclad workflow.
-    /// Events are triggered during import commit and record the outcome of matching attempts.
-    /// Supports the 6-event rule matrix: MatchFound, MatchNotFound, PartialMatch, Variance, ProcessingFeeAdjustment, ManualReview.
+    /// Represents an event logged by the reconciliation engine during a matching run.
+    /// Events are append-only and are used for debugging, exception handling, and audit.
+    ///
+    /// EventType values:
+    ///   MatchFound        — a bilateral match was established successfully
+    ///   MatchNotFound     — no corresponding record exists in the partner source
+    ///   Variance          — records exist in both sources but amounts/dates differ beyond tolerance
+    ///   RequiresReview    — ambiguous match (multiple candidates); routed to manual confirmation queue
     /// </summary>
     public class ReconciliationEvent
     {
         public Guid ReconciliationEventId { get; set; }
-        public Guid ImportBatchId { get; set; }
-        public Guid ImportedNormalizedRecordId { get; set; }
 
-        /// <summary>
-        /// Event type from Ironclad 6-event matrix:
-        /// MatchFound, MatchNotFound, PartialMatch, Variance, ProcessingFeeAdjustment, ManualReview.
-        /// </summary>
-        public string EventType { get; set; } = null!;
+        // Set when the event relates to a confirmed or pending match group.
+        public Guid? ReconciliationMatchGroupId { get; set; }
 
-        /// <summary>
-        /// Ironclad stage where this event occurred: 'Level3' or 'Level4'.
-        /// </summary>
-        public string Stage { get; set; } = null!;
+        // The imported record that caused this event (Source A side).
+        public Guid? ImportedNormalizedRecordId { get; set; }
 
-        /// <summary>
-        /// Source type of the record that triggered this event: 'ERP', 'Gateway', 'Bank', or 'POS'.
-        /// </summary>
-        public string SourceType { get; set; } = null!;
+        // MatchFound | MatchNotFound | Variance | RequiresReview
+        public string EventType { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Event status: 'Pending', 'Completed', 'RequiresReview', 'Resolved'.
-        /// </summary>
-        public string Status { get; set; } = "Pending";
+        // Level1..Level6 — which rule was running when the event occurred.
+        public string MatchLevel { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Event-specific details (e.g., matched record IDs, variance amount, manual review reason).
-        /// Stored as JSON for flexibility.
-        /// </summary>
+        // Human-readable detail: variance amount, candidate counts, etc.
+        public string? Details { get; set; }
+
+        public string? Stage { get; set; }
+        public string? SourceType { get; set; }
+        public string? Status { get; set; }
         public string? DetailJson { get; set; }
+        public Guid? ImportBatchId { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ResolvedAt { get; set; }
 
-        public ImportBatch? ImportBatch { get; set; }
-        public ImportedNormalizedRecord? ImportedNormalizedRecord { get; set; }
+        // Navigation
+        public ReconciliationMatchGroup? MatchGroup { get; set; }
     }
 }

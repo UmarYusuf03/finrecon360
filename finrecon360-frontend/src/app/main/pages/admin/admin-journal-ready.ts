@@ -83,6 +83,7 @@ export class AdminJournalReadyComponent implements OnInit {
     return perms.includes('ADMIN.JOURNAL.POST') || perms.includes('ADMIN.JOURNAL.MANAGE');
   }
 
+
   ngOnInit(): void {
     this.loadJournalReady();
   }

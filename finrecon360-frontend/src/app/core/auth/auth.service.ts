@@ -97,22 +97,6 @@ export class AuthService {
       token: 'mock-user-token',
       isSystemAdmin: false,
     },
-    {
-      // WHY: CASHIER mock account used for local RBAC smoke-testing of POS source-type scope.
-      // This user can only upload/process POS files and resolve POS reconciliation exceptions.
-      email: 'cashier@finrecon.local',
-      password: 'Cashier123!',
-      displayName: 'POS Cashier',
-      roles: ['CASHIER'],
-      permissions: [
-        'ADMIN.IMPORTS.POS.CREATE',
-        'ADMIN.IMPORTS.POS.EDIT',
-        'ADMIN.IMPORTS.POS.COMMIT',
-        'ADMIN.RECONCILIATION.POS.RESOLVE',
-      ],
-      token: 'mock-cashier-token',
-      isSystemAdmin: false,
-    },
   ];
 
   private currentUserSubject = new BehaviorSubject<CurrentUser | null>(this.loadFromStorage());
@@ -157,6 +141,34 @@ export class AuthService {
     return token;
   }
 
+  allowedImportSourceTypes(): Set<string> | null {
+    const user = this.currentUser;
+    if (!user) return new Set();
+    
+    // If unrestricted, return null
+    if (user.isSystemAdmin || user.roles.includes('ADMIN') || user.roles.includes('MANAGER')) {
+      return null;
+    }
+
+    const allowed = new Set<string>();
+    // For scope-restricted roles like CASHIER, check permissions
+    ['POS', 'ERP', 'GATEWAY', 'BANK'].forEach(src => {
+      if (user.permissions.some(p => p.startsWith(`ADMIN.IMPORTS.${src}`))) {
+        allowed.add(src);
+      }
+    });
+
+    return allowed.size > 0 ? allowed : new Set();
+  }
+
+  updateCurrentUser(patch: Partial<CurrentUser>): void {
+    const current = this.currentUserSubject.value;
+    if (!current) return;
+    const updated = { ...current, ...patch };
+    this.currentUserSubject.next(updated);
+    this.persist(updated);
+  }
+
   /**
    * WHY: Mirrors SourceTypeScope.AllowedSourceTypes() from the backend.
    * Returns null  → user has full (unscoped) IMPORTS access, no UI restriction needed.
@@ -183,37 +195,6 @@ export class AuthService {
       }
     }
     return allowed.size > 0 ? allowed : null;
-  }
-
-  /**
-   * WHY: Mirrors SourceTypeScope.AllowedSourceTypes() for RECONCILIATION.
-   * Returns null  → user sees all reconciliation events.
-   * Returns a Set → user sees only the scoped source types (e.g. POS for CASHIER).
-   */
-  allowedReconciliationSourceTypes(): Set<string> | null {
-    const perms = this.currentUser?.permissions ?? [];
-    const hasFullAccess =
-      perms.includes('ADMIN.RECONCILIATION.RESOLVE' as PermissionCode) ||
-      perms.includes('ADMIN.RECONCILIATION.CONFIRM' as PermissionCode) ||
-      perms.includes('ADMIN.RECONCILIATION.MANAGE' as PermissionCode);
-    if (hasFullAccess) return null;
-
-    const validSourceTypes = ['POS', 'ERP', 'GATEWAY', 'BANK'];
-    const allowed = new Set<string>();
-    for (const src of validSourceTypes) {
-      if (perms.includes(`ADMIN.RECONCILIATION.${src}.RESOLVE` as PermissionCode)) {
-        allowed.add(src);
-      }
-    }
-    return allowed.size > 0 ? allowed : null;
-  }
-
-  updateCurrentUser(patch: Partial<CurrentUser>): void {
-    const current = this.currentUserSubject.value;
-    if (!current) return;
-    const updated = { ...current, ...patch };
-    this.currentUserSubject.next(updated);
-    this.persist(updated);
   }
 
   login(email: string, password: string): Observable<CurrentUser> {
@@ -250,51 +231,71 @@ export class AuthService {
         email,
         password,
       })
-      .pipe(
-        switchMap((loginResponse) => {
-          const previousUser = this.currentUserSubject.value;
-          const canReuseTenantContext =
-            !!previousUser &&
-            previousUser.email.toLowerCase() === loginResponse.email.toLowerCase() &&
-            !!previousUser.tenantId;
+      .pipe(switchMap((loginResponse) => this.establishSession(loginResponse)));
+  }
 
-          const bootstrapUser: CurrentUser = {
-            id: '',
-            email: loginResponse.email,
-            displayName: loginResponse.fullName,
-            isSystemAdmin: false,
-            tenantId: canReuseTenantContext ? (previousUser?.tenantId ?? null) : null,
-            tenantName: canReuseTenantContext ? (previousUser?.tenantName ?? null) : null,
-            tenantStatus: canReuseTenantContext ? (previousUser?.tenantStatus ?? null) : null,
-            roles: [],
-            permissions: [],
-            token: loginResponse.token,
-          };
-          this.currentUserSubject.next(bootstrapUser);
-          this.persist(bootstrapUser);
+  /**
+   * Signs in with a Google ID token obtained in the browser by Google Identity Services.
+   *
+   * The token is only an assertion until the backend verifies it, so nothing here inspects or
+   * trusts its contents — it is posted straight through, and the session that comes back is the
+   * same shape a password login produces.
+   */
+  loginWithGoogle(idToken: string): Observable<CurrentUser> {
+    return this.http
+      .post<LoginResponse>(`${API_BASE_URL}${API_ENDPOINTS.AUTH.SSO_GOOGLE}`, { idToken })
+      .pipe(switchMap((loginResponse) => this.establishSession(loginResponse)));
+  }
 
-          return this.fetchMe().pipe(
-            map((me) => {
-              const updated: CurrentUser = {
-                id: me.userId,
-                email: me.email,
-                displayName: me.displayName ?? loginResponse.fullName,
-                status: me.status,
-                isSystemAdmin: me.isSystemAdmin,
-                tenantId: me.tenantId ?? null,
-                tenantName: me.tenantName ?? null,
-                tenantStatus: me.tenantStatus ?? null,
-                roles: me.roles,
-                permissions: me.permissions,
-                token: loginResponse.token,
-              };
-              this.currentUserSubject.next(updated);
-              this.persist(updated);
-              return updated;
-            }),
-          );
-        }),
-      );
+  /**
+   * Shared post-authentication bootstrap for every sign-in route.
+   *
+   * Kept in one place deliberately: the token alone says nothing about roles, permissions or
+   * tenant, so every route has to follow up with /api/me. A second copy of this for SSO would be
+   * a second place for that follow-up to drift or be forgotten.
+   */
+  private establishSession(loginResponse: LoginResponse): Observable<CurrentUser> {
+    const previousUser = this.currentUserSubject.value;
+    const canReuseTenantContext =
+      !!previousUser &&
+      previousUser.email.toLowerCase() === loginResponse.email.toLowerCase() &&
+      !!previousUser.tenantId;
+
+    const bootstrapUser: CurrentUser = {
+      id: '',
+      email: loginResponse.email,
+      displayName: loginResponse.fullName,
+      isSystemAdmin: false,
+      tenantId: canReuseTenantContext ? (previousUser?.tenantId ?? null) : null,
+      tenantName: canReuseTenantContext ? (previousUser?.tenantName ?? null) : null,
+      tenantStatus: canReuseTenantContext ? (previousUser?.tenantStatus ?? null) : null,
+      roles: [],
+      permissions: [],
+      token: loginResponse.token,
+    };
+    this.currentUserSubject.next(bootstrapUser);
+    this.persist(bootstrapUser);
+
+    return this.fetchMe().pipe(
+      map((me) => {
+        const updated: CurrentUser = {
+          id: me.userId,
+          email: me.email,
+          displayName: me.displayName ?? loginResponse.fullName,
+          status: me.status,
+          isSystemAdmin: me.isSystemAdmin,
+          tenantId: me.tenantId ?? null,
+          tenantName: me.tenantName ?? null,
+          tenantStatus: me.tenantStatus ?? null,
+          roles: me.roles,
+          permissions: me.permissions,
+          token: loginResponse.token,
+        };
+        this.currentUserSubject.next(updated);
+        this.persist(updated);
+        return updated;
+      }),
+    );
   }
 
   registerTenant(payload: {
@@ -316,17 +317,16 @@ export class AuthService {
 
   verifyOnboardingMagicLink(
     token: string,
-  ): Observable<{ onboardingToken: string; email: string; tenantName: string; requestedBankAccounts: number | null }> {
+  ): Observable<{ onboardingToken: string; email: string; tenantName: string }> {
     if (USE_MOCK_API) {
       return of({
         onboardingToken: 'mock',
         email: 'mock@finrecon.local',
         tenantName: 'Mock Tenant',
-        requestedBankAccounts: null,
       }).pipe(delay(200));
     }
 
-    return this.http.post<{ onboardingToken: string; email: string; tenantName: string; requestedBankAccounts: number | null }>(
+    return this.http.post<{ onboardingToken: string; email: string; tenantName: string }>(
       `${API_BASE_URL}${API_ENDPOINTS.ONBOARDING.VERIFY_MAGIC_LINK}`,
       { token },
     );
@@ -486,7 +486,6 @@ export class AuthService {
     localStorage.removeItem(this.storageKey);
     sessionStorage.removeItem('fr360_onboarding_token');
     sessionStorage.removeItem('fr360_onboarding_tenant');
-    sessionStorage.removeItem('fr360_onboarding_requested_bank_accounts');
   }
 
   private fetchMe(): Observable<MeResponse> {

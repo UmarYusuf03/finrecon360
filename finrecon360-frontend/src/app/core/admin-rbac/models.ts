@@ -71,10 +71,6 @@ export interface AdminUserSummary {
   roles: RoleCode[];
 }
 
-/**
- * WHY: Standardized wrapper for paginated endpoints to ensure uniform client-side handling 
- * of infinite scrolling or standard pagination UI components across all admin tables.
- */
 export interface BankAccount {
   bankAccountId: string;
   bankName: string;
@@ -84,6 +80,61 @@ export interface BankAccount {
   isActive: boolean;
   createdAt: string;
   updatedAt?: string | null;
+}
+
+export interface Transaction {
+  transactionId: string;
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+  transactionState: string;
+  createdByUserId?: string | null;
+  approvedAt?: string | null;
+  approvedByUserId?: string | null;
+  rejectedAt?: string | null;
+  rejectedByUserId?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface TransactionStateHistory {
+  transactionStateHistoryId: string;
+  transactionId: string;
+  fromState: string;
+  toState: string;
+  changedByUserId?: string | null;
+  changedAt: string;
+  note?: string | null;
+}
+
+export interface CreateTransactionRequest {
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+}
+
+export interface UpdateTransactionRequest {
+  amount: number;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+}
+
+export interface ApproveTransactionRequest {
+  note?: string | null;
+}
+
+export interface RejectTransactionRequest {
+  reason: string;
 }
 
 export interface Transaction {
@@ -185,10 +236,6 @@ export interface PagedResult<T> {
   pageSize: number;
 }
 
-/**
- * WHY: Describes an individual field within the internal normalization target (Canonical).
- * Essential for the data mapping engine to know data types and validation requirements.
- */
 export interface CanonicalField {
   field: string;
   dataType: string;
@@ -196,19 +243,11 @@ export interface CanonicalField {
   description: string;
 }
 
-/**
- * WHY: The root definition of the canonical format for a given version. Data imports must ultimately
- * map to this schema version to be ingested successfully by downstream reconciliation logic.
- */
 export interface CanonicalSchema {
   version: string;
   fields: CanonicalField[];
 }
 
-/**
- * WHY: A high-level metric view used by the admin dashboard to give quick insights into 
- * data processing health, throughput, and the current state of mappings.
- */
 export interface ImportArchitectureOverview {
   totalImportBatches: number;
   totalRawRecords: number;
@@ -218,10 +257,6 @@ export interface ImportArchitectureOverview {
   canonicalSchema: CanonicalSchema;
 }
 
-/**
- * WHY: Represents explicit rules for how raw ingestion sources map fields to the `CanonicalSchema`. 
- * Versioning allows historical tracking and safe rollback of template changes.
- */
 export interface ImportMappingTemplate {
   id: string;
   name: string;
@@ -234,86 +269,104 @@ export interface ImportMappingTemplate {
   updatedAt?: string | null;
 }
 
-// ─── Reconciliation Domain ───────────────────────────────────────────────────
+export interface AttachSettlementIdRequest {
+  settlementId: string;
+}
 
-export type MatchStatus =
-  | 'PENDING'
-  | 'INTERNAL_VERIFIED'
-  | 'SALES_VERIFIED'
-  | 'EXCEPTION'
-  | 'WAITING'
-  | 'MATCHED';
+export interface PostJournalRequest {
+  notes?: string;
+}
+
+export interface JournalEntry {
+  journalEntryId: string;
+  transactionId?: string;
+  reconciliationMatchGroupId?: string;
+  entryType: string;
+  amount: number;
+  currency: string;
+  postedAt: string;
+  postedByUserId?: string;
+  notes?: string;
+}
+
+export interface ReconciliationEvent {
+  reconciliationEventId: string;
+  importBatchId?: string;
+  importedNormalizedRecordId?: string;
+  eventType: string;
+  stage: string;
+  sourceType: string;
+  status: string;
+  detailJson?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
 
 export interface ReconciliationMatchedRecord {
   reconciliationMatchedRecordId: string;
   importedNormalizedRecordId: string;
   sourceType: string;
   matchAmount: number;
-  transactionDate?: string | null;
-  referenceNumber?: string | null;
-  grossAmount?: number | null;
-  processingFee?: number | null;
+  transactionDate?: string;
+  referenceNumber?: string;
+  grossAmount?: number;
+  processingFee?: number;
   netAmount: number;
   currency: string;
-  matchStatus: MatchStatus;
+  matchStatus: string;
 }
 
 export interface ReconciliationMatchGroup {
   reconciliationMatchGroupId: string;
-  importBatchId: string;
+  importBatchId?: string;
   matchLevel: string;
-  settlementKey?: string | null;
+  settlementKey?: string;
   isConfirmed: boolean;
-  confirmedByUserId?: string | null;
-  confirmedAt?: string | null;
+  confirmedByUserId?: string;
+  confirmedAt?: string;
   isJournalPosted: boolean;
   createdAt: string;
-  updatedAt?: string | null;
+  updatedAt?: string;
   matchedRecords: ReconciliationMatchedRecord[];
-}
-
-export interface ReconciliationEvent {
-  reconciliationEventId: string;
-  importBatchId: string;
-  importedNormalizedRecordId: string;
-  eventType: string;
-  stage: string;
-  sourceType: string;
-  status: string;
-  detailJson?: string | null;
-  createdAt: string;
-  resolvedAt?: string | null;
 }
 
 export interface WaitingRecord {
   importedNormalizedRecordId: string;
   importBatchId: string;
   transactionDate: string;
-  referenceNumber?: string | null;
-  description?: string | null;
-  grossAmount?: number | null;
-  processingFee?: number | null;
+  referenceNumber?: string;
+  description?: string;
+  grossAmount?: number;
+  processingFee?: number;
   netAmount: number;
   currency: string;
-  matchStatus: MatchStatus;
+  matchStatus: string;
 }
 
-export interface JournalEntry {
-  journalEntryId: string;
-  transactionId?: string | null;
-  reconciliationMatchGroupId?: string | null;
-  entryType: string;
+export interface NeedsBankMatchRecord {
+  transactionId: string;
   amount: number;
-  currency: string;
-  postedAt: string;
-  postedByUserId?: string | null;
-  notes?: string | null;
-}
-
-export interface AttachSettlementIdRequest {
-  settlementId: string;
-}
-
-export interface PostJournalRequest {
-  notes?: string | null;
+  transactionDate: string;
+  description: string;
+  bankAccountId?: string | null;
+  transactionType: string;
+  paymentMethod: string;
+  transactionState: string;
+  createdByUserId?: string | null;
+  approvedAt?: string | null;
+  createdAt: string;
+  importedNormalizedRecordId?: string | null;
+  importSourceType?: string | null;
+  referenceNumber?: string | null;
+  accountCode?: string | null;
+  grossAmount?: number | null;
+  processingFee?: number | null;
+  netImportAmount: number;
+  settlementId?: string | null;
+  matchStatus: string;
+  reconciliationMatchGroupId?: string | null;
+  matchLevel?: string | null;
+  isConfirmed: boolean;
+  isJournalPosted: boolean;
+  matchMetadataJson?: string | null;
 }

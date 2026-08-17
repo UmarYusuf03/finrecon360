@@ -114,25 +114,7 @@
         <td mat-cell *matCellDef="let transaction">{{ transaction.createdAt | date: 'short' }}</td>
       </ng-container>
 
-      <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.ACTIONS' | translate }}</th>
-        <td mat-cell *matCellDef="let transaction" class="transaction-table__actions-cell">
-          <div class="transaction-table__actions">
-            <button
-              *ngIf="canPostJournal"
-              mat-flat-button
-              color="primary"
-              type="button"
-              [attr.id]="'post-journal-' + transaction.transactionId"
-              [disabled]="postingId === transaction.transactionId"
-              (click)="postJournal(transaction)">
-              <mat-spinner *ngIf="postingId === transaction.transactionId" diameter="16"></mat-spinner>
-              <mat-icon *ngIf="postingId !== transaction.transactionId">receipt_long</mat-icon>
-              <span>{{ 'TRANSACTIONS.JOURNAL_READY.POST_TO_JOURNAL' | translate }}</span>
-            </button>
-          </div>
-        </td>
-      </ng-container>
+
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
       <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>

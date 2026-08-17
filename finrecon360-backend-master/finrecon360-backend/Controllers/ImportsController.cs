@@ -1,5 +1,4 @@
 using System.Text.Json;
-using finrecon360_backend.Authorization;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Imports;
 using finrecon360_backend.Models;
@@ -22,54 +21,41 @@ namespace finrecon360_backend.Controllers
             ".csv", ".xlsx"
         };
 
-        /// <summary>
-        /// WHY: The reconciliation engine routes entirely on SourceType.
-        /// Any unknown value causes a silent no-op in ReconciliationExecutionService.
-        /// Enforcing at the boundary prevents silent reconciliation failures.
-        /// </summary>
-        private static readonly HashSet<string> ValidSourceTypes = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "ERP", "GATEWAY", "BANK", "POS"
-        };
 
-
+        private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
         private readonly IUserContext _userContext;
         private readonly IImportFileParser _importFileParser;
         private readonly IImportNormalizationService _normalizationService;
-        private readonly IReconciliationOrchestrator _reconciliationOrchestrator;
-        private readonly IReconciliationExecutionService _reconciliationExecutionService;
         private readonly IAuditLogger _auditLogger;
 
         public ImportsController(
+            AppDbContext dbContext,
             ITenantContext tenantContext,
             ITenantDbContextFactory tenantDbContextFactory,
             IUserContext userContext,
             IImportFileParser importFileParser,
             IImportNormalizationService normalizationService,
-            IReconciliationOrchestrator reconciliationOrchestrator,
-            IReconciliationExecutionService reconciliationExecutionService,
             IAuditLogger auditLogger)
         {
-            // Wire required services for import lifecycle operations.
+            _dbContext = dbContext;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
             _importFileParser = importFileParser;
             _normalizationService = normalizationService;
-            _reconciliationOrchestrator = reconciliationOrchestrator;
-            _reconciliationExecutionService = reconciliationExecutionService;
             _auditLogger = auditLogger;
         }
 
         [HttpPost]
         [RequestSizeLimit(25 * 1024 * 1024)]
-        // WHY: Upload requires CREATE — a MANAGER can upload without needing COMMIT or DELETE.
-        [RequirePermission("ADMIN.IMPORTS.CREATE")]
-        public async Task<ActionResult<ImportUploadResponseDto>> Upload([FromForm] IFormFile file, [FromForm] string? sourceType = null)
+        public async Task<ActionResult<ImportUploadResponseDto>> Upload(
+            [FromForm] IFormFile file,
+            [FromForm] string? sourceType = null,
+            [FromForm] Guid? bankAccountId = null)
         {
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: false);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -87,31 +73,25 @@ namespace finrecon360_backend.Controllers
             var batchId = Guid.NewGuid();
             var now = DateTime.UtcNow;
             var normalizedSourceType = string.IsNullOrWhiteSpace(sourceType)
-                ? null
+                ? extension.TrimStart('.').ToUpperInvariant()
                 : sourceType.Trim().ToUpperInvariant();
 
-            if (normalizedSourceType == null)
+            if (bankAccountId.HasValue)
             {
-                return BadRequest(new { message = "SourceType is required. Must be one of: ERP, GATEWAY, BANK, POS." });
-            }
-
-            if (!ValidSourceTypes.Contains(normalizedSourceType))
-            {
-                return BadRequest(new { message = $"Invalid SourceType '{normalizedSourceType}'. Must be one of: ERP, GATEWAY, BANK, POS." });
-            }
-
-            // WHY: Source-type scope check — CASHIER may only upload POS files.
-            // PermissionHandler already passed ADMIN.IMPORTS.CREATE; now verify the scoped sub-permission.
-            var userPerms = await GetUserPermissionsAsync(tenantDb);
-            if (!SourceTypeScope.IsAllowed(userPerms, "IMPORTS", "CREATE", normalizedSourceType))
-            {
-                return Forbid();
+                var bankAccountExists = await tenantDb.BankAccounts
+                    .AsNoTracking()
+                    .AnyAsync(a => a.BankAccountId == bankAccountId.Value, CancellationToken.None);
+                if (!bankAccountExists)
+                {
+                    return BadRequest(new { message = "The specified bank account was not found for this tenant." });
+                }
             }
 
             var batch = new ImportBatch
             {
                 ImportBatchId = batchId,
                 SourceType = normalizedSourceType,
+                BankAccountId = bankAccountId,
                 Status = "RECEIVED",
                 ImportedAt = now,
                 UploadedByUserId = _userContext.UserId,
@@ -124,7 +104,6 @@ namespace finrecon360_backend.Controllers
             tenantDb.ImportBatches.Add(batch);
             await tenantDb.SaveChangesAsync();
 
-            // Store the raw file under a tenant-specific import directory.
             var tenantImportDir = Path.Combine(
                 Directory.GetCurrentDirectory(),
                 "App_Data",
@@ -147,17 +126,13 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpGet]
-        // WHY: View history is readable by MANAGER and REVIEWER — no mutation needed.
-        // Source-type scope is enforced here: a CASHIER with only POS.CREATE only sees POS batches.
-        [RequirePermission("ADMIN.IMPORTS.VIEW")]
         public async Task<ActionResult<ImportHistoryResponseDto>> GetHistory(
             [FromQuery] string? search = null,
             [FromQuery] string? status = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            // List import batches with optional filters and paging.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: false);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -165,17 +140,6 @@ namespace finrecon360_backend.Controllers
             pageSize = Math.Clamp(pageSize, 1, 200);
 
             var query = tenantDb.ImportBatches.AsNoTracking();
-
-            // WHY: Resolve which source types this user may see. null = unrestricted (ADMIN/MANAGER).
-            // CASHIER with POS.CREATE will only receive POS rows; other rows are invisible.
-            var userPerms = await GetUserPermissionsAsync(tenantDb);
-            var allowedTypes = SourceTypeScope.AllowedSourceTypes(userPerms, "IMPORTS", "CREATE")
-                           ?? SourceTypeScope.AllowedSourceTypes(userPerms, "IMPORTS", "EDIT");
-            if (allowedTypes != null && allowedTypes.Count > 0)
-            {
-                var typeList = allowedTypes.ToList();
-                query = query.Where(x => typeList.Contains(x.SourceType));
-            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -218,14 +182,11 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpGet("{id:guid}/validation-rows")]
-        // WHY: Reading validation rows is a VIEW action — no mutation occurs here.
-        [RequirePermission("ADMIN.IMPORTS.VIEW")]
         public async Task<ActionResult<ImportValidationRowsResponseDto>> GetValidationRows(
             Guid id,
             [FromQuery] string? status = null)
         {
-            // Return validation status and raw payloads for a batch.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -295,15 +256,12 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpPut("{id:guid}/raw-records/{rawRecordId:guid}")]
-        // WHY: Editing a raw row is a data-correction mutation — requires EDIT permission.
-        [RequirePermission("ADMIN.IMPORTS.EDIT")]
         public async Task<ActionResult<ImportValidationRowDto>> UpdateRawRecord(
             Guid id,
             Guid rawRecordId,
             [FromBody] ImportUpdateRawRecordRequest request)
         {
-            // Apply a correction to a single row and recompute validation.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -373,12 +331,9 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpGet("active-template")]
-        // WHY: Reading the active template requires only VIEW — it's a read-only discovery call.
-        [RequirePermission("ADMIN.IMPORTS.VIEW")]
         public async Task<ActionResult<ImportMappingTemplateSummaryDto>> GetActiveTemplate([FromQuery] string? sourceType)
         {
-            // Fetch the most recent active template for the source type.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -412,22 +367,17 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpPost("{id:guid}/parse")]
-        // WHY: Parse + mapping + validate are EDIT-level operations (they mutate batch state).
-        [RequirePermission("ADMIN.IMPORTS.EDIT")]
         public async Task<ActionResult<ImportParseResponseDto>> Parse(Guid id)
         {
-            // Parse the stored file and create raw records.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
             var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
-            if (batch == null) return NotFound();
-
-            // WHY: Verify source-type scope — a CASHIER may only parse their own POS batches.
-            var parsePerms = await GetUserPermissionsAsync(tenantDb);
-            if (!SourceTypeScope.IsAllowed(parsePerms, "IMPORTS", "EDIT", batch.SourceType))
-                return Forbid();
+            if (batch == null)
+            {
+                return NotFound();
+            }
 
             var filePath = ResolveStoredFilePath(auth.TenantId!.Value, id);
             if (filePath == null)
@@ -450,15 +400,9 @@ namespace finrecon360_backend.Controllers
 
             var existingRaw = tenantDb.ImportedRawRecords.Where(x => x.ImportBatchId == id);
             tenantDb.ImportedRawRecords.RemoveRange(existingRaw);
-            // Clear reconciliation artifacts tied to this batch before deleting normalized records.
-            var existingEvents = tenantDb.ReconciliationEvents.Where(x => x.ImportBatchId == id);
-            tenantDb.ReconciliationEvents.RemoveRange(existingEvents);
-            var existingMatchGroups = tenantDb.ReconciliationMatchGroups.Where(x => x.ImportBatchId == id);
-            tenantDb.ReconciliationMatchGroups.RemoveRange(existingMatchGroups);
             var existingNormalized = tenantDb.ImportedNormalizedRecords.Where(x => x.ImportBatchId == id);
             tenantDb.ImportedNormalizedRecords.RemoveRange(existingNormalized);
 
-            // Persist parsed rows as raw records with pending validation status.
             var now = DateTime.UtcNow;
             for (var i = 0; i < parsed.Rows.Count; i++)
             {
@@ -490,21 +434,17 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpPost("{id:guid}/mapping")]
-        [RequirePermission("ADMIN.IMPORTS.EDIT")]
         public async Task<ActionResult<ImportMappingSavedResponseDto>> SaveMapping(Guid id, [FromBody] SaveImportMappingRequest request)
         {
-            // Save field mappings and attach them to the batch.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
             var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
-            if (batch == null) return NotFound();
-
-            // WHY: Source-type scope — mapping is part of the EDIT action chain.
-            var mapPerms = await GetUserPermissionsAsync(tenantDb);
-            if (!SourceTypeScope.IsAllowed(mapPerms, "IMPORTS", "EDIT", batch.SourceType))
-                return Forbid();
+            if (batch == null)
+            {
+                return NotFound();
+            }
 
             if (request.FieldMappings == null || request.FieldMappings.Count == 0)
             {
@@ -569,21 +509,17 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpPost("{id:guid}/validate")]
-        [RequirePermission("ADMIN.IMPORTS.EDIT")]
         public async Task<ActionResult<ImportValidateResponseDto>> Validate(Guid id)
         {
-            // Validate all raw records for the batch.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
             var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
-            if (batch == null) return NotFound();
-
-            // WHY: Source-type scope — validate is part of the EDIT action chain.
-            var valPerms = await GetUserPermissionsAsync(tenantDb);
-            if (!SourceTypeScope.IsAllowed(valPerms, "IMPORTS", "EDIT", batch.SourceType))
-                return Forbid();
+            if (batch == null)
+            {
+                return NotFound();
+            }
 
             if (!batch.MappingTemplateId.HasValue)
             {
@@ -645,23 +581,17 @@ namespace finrecon360_backend.Controllers
         }
 
         [HttpPost("{id:guid}/commit")]
-        // WHY: Commit is an irreversible, high-stakes action — its own permission lets ADMIN
-        // grant upload+edit to MANAGER while retaining exclusive commit authority for ADMIN only.
-        [RequirePermission("ADMIN.IMPORTS.COMMIT")]
         public async Task<ActionResult<ImportCommitResponseDto>> Commit(Guid id)
         {
-            // Commit normalized records and trigger reconciliation.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
             var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
-            if (batch == null) return NotFound();
-
-            // WHY: Source-type scope — CASHIER may commit POS batches if granted POS.COMMIT.
-            var commitPerms = await GetUserPermissionsAsync(tenantDb);
-            if (!SourceTypeScope.IsAllowed(commitPerms, "IMPORTS", "COMMIT", batch.SourceType))
-                return Forbid();
+            if (batch == null)
+            {
+                return NotFound();
+            }
 
             if (!batch.MappingTemplateId.HasValue)
             {
@@ -700,7 +630,6 @@ namespace finrecon360_backend.Controllers
             foreach (var raw in rawRecords)
             {
                 var row = DeserializeRowPayload(raw.SourcePayloadJson);
-                // Normalize raw payload into canonical fields using the saved mappings.
                 var result = _normalizationService.Normalize(id, raw.ImportedRawRecordId, row, mappings);
                 if (result.Errors.Count > 0)
                 {
@@ -715,17 +644,6 @@ namespace finrecon360_backend.Controllers
             batch.ErrorMessage = null;
 
             await tenantDb.SaveChangesAsync();
-
-            var execution = await _reconciliationExecutionService.ExecuteOnCommitAsync(
-                tenantDb,
-                batch,
-                normalizedRecords,
-                HttpContext?.RequestAborted ?? CancellationToken.None);
-
-            // Persist the latest workflow summary on the batch for quick operational visibility.
-            batch.ErrorMessage = execution.Summary;
-            await tenantDb.SaveChangesAsync();
-
             await transaction.CommitAsync();
 
             await _auditLogger.LogAsync(
@@ -733,33 +651,19 @@ namespace finrecon360_backend.Controllers
                 "ImportCommit",
                 "ImportBatch",
                 id.ToString(),
-                $"normalizedCount={normalizedRecords.Count};sourceType={batch.SourceType};workflowRoute={_reconciliationOrchestrator.DescribeRouting(batch.SourceType)};level3Verified={execution.Level3VerifiedCount};level3Exceptions={execution.Level3ExceptionCount};level4Matched={execution.Level4MatchedCount};level4Exceptions={execution.Level4ExceptionCount};waitingForSettlement={execution.WaitingForSettlementCount};feeAdjustmentTotal={execution.FeeAdjustmentTotal:0.##}");
+                $"normalizedCount={normalizedRecords.Count};sourceType={batch.SourceType}");
 
             return Ok(new ImportCommitResponseDto(
                 id,
                 batch.Status,
                 normalizedRecords.Count,
-                DateTime.UtcNow,
-                new ReconciliationSummaryDto(
-                    execution.SourceType,
-                    _reconciliationOrchestrator.DescribeRouting(batch.SourceType),
-                    execution.Level3VerifiedCount,
-                    execution.Level3ExceptionCount,
-                    execution.Level4MatchedCount,
-                    execution.Level4ExceptionCount,
-                    execution.WaitingForSettlementCount,
-                    execution.FeeAdjustmentTotal,
-                    execution.Summary)));
+                DateTime.UtcNow));
         }
 
         [HttpDelete("{id:guid}")]
-        // WHY: Delete is the most destructive action — exclusively for ADMIN.
-        // MANAGE grants also satisfy this via the AliasMap implication.
-        [RequirePermission("ADMIN.IMPORTS.DELETE")]
         public async Task<ActionResult<ImportDeleteResponseDto>> Delete(Guid id)
         {
-            // Delete batch data and remove stored file if present.
-            var auth = await AuthorizeTenantUserAsync();
+            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -800,13 +704,7 @@ namespace finrecon360_backend.Controllers
             return Ok(new ImportDeleteResponseDto(id, fileDeleted, DateTime.UtcNow));
         }
 
-        /// <summary>
-        /// WHY: The inner auth helper now only validates tenant membership and active status.
-        /// Permission enforcement (CREATE/EDIT/COMMIT/DELETE/VIEW) is handled declaratively
-        /// via [RequirePermission] attributes, which flow through PermissionHandler and support
-        /// the full AliasMap implication chain (e.g. COMMIT implies VIEW).
-        /// </summary>
-        private async Task<(TenantDbContext? Db, Guid? TenantId, ActionResult? Error)> AuthorizeTenantUserAsync()
+        private async Task<(TenantDbContext? Db, Guid? TenantId, ActionResult? Error)> AuthorizeTenantUserAsync(bool requireAdmin)
         {
             if (_userContext.UserId is not { } userId)
             {
@@ -824,8 +722,21 @@ namespace finrecon360_backend.Controllers
                 return (null, null, Forbid());
             }
 
+            var tenantMembership = await _dbContext.TenantUsers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId);
+
+            if (tenantMembership == null)
+            {
+                return (null, null, Forbid());
+            }
+
+            if (requireAdmin && tenantMembership.Role != TenantUserRole.TenantAdmin)
+            {
+                return (null, null, Forbid());
+            }
+
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
-            // Validate active tenant membership before allowing import operations.
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking().AnyAsync(tu => tu.UserId == userId && tu.IsActive);
             if (!isActiveInTenant)
             {
@@ -836,28 +747,8 @@ namespace finrecon360_backend.Controllers
             return (tenantDb, tenant.TenantId, null);
         }
 
-        /// <summary>
-        /// WHY: Loads the flat permission code list for the current user from the tenant DB.
-        /// This is needed by SourceTypeScope to check source-type–scoped sub-permissions
-        /// AFTER the coarse [RequirePermission] attribute has already passed.
-        /// </summary>
-        private async Task<IReadOnlyList<string>> GetUserPermissionsAsync(TenantDbContext tenantDb)
-        {
-            // Load permission codes for the current user from tenant roles.
-            if (_userContext.UserId is not { } userId)
-                return Array.Empty<string>();
-
-            return await tenantDb.UserRoles
-                .AsNoTracking()
-                .Where(ur => ur.UserId == userId && ur.Role.IsActive)
-                .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
-                .Distinct()
-                .ToListAsync();
-        }
-
         private static Dictionary<string, string> DeserializeMappings(string json)
         {
-            // Normalize mappings to a case-insensitive lookup.
             var map = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             return new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase);
@@ -865,7 +756,6 @@ namespace finrecon360_backend.Controllers
 
         private static Dictionary<string, string?> DeserializeRowPayload(string json)
         {
-            // Deserialize a raw row payload into a case-insensitive dictionary.
             var row = JsonSerializer.Deserialize<Dictionary<string, string?>>(json)
                 ?? new Dictionary<string, string?>();
             return new Dictionary<string, string?>(row, StringComparer.OrdinalIgnoreCase);
@@ -873,7 +763,6 @@ namespace finrecon360_backend.Controllers
 
         private static async Task UpdateBatchValidationStatusAsync(TenantDbContext tenantDb, ImportBatch batch)
         {
-            // Update the batch status based on current validation results.
             var total = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId);
             var valid = await tenantDb.ImportedRawRecords.CountAsync(x => x.ImportBatchId == batch.ImportBatchId && x.NormalizationStatus == "VALID");
             var invalid = total - valid;
@@ -885,7 +774,6 @@ namespace finrecon360_backend.Controllers
 
         private static string? ResolveStoredFilePath(Guid tenantId, Guid batchId)
         {
-            // Locate the stored import file for the tenant and batch.
             var dir = Path.Combine(Directory.GetCurrentDirectory(), "App_Data", "imports", tenantId.ToString("N"));
             if (!Directory.Exists(dir))
             {

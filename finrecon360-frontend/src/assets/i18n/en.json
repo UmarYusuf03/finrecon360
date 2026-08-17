@@ -79,6 +79,7 @@
       "SOCIAL_GOOGLE": "Google",
       "SOCIAL_MICROSOFT": "Microsoft",
       "SOCIAL_OKTA": "Okta",
+      "SSO_SIGNING_IN": "Signing you in with Google…",
       "NO_ACCOUNT": "Don't have an account?",
       "SIGN_UP_LINK": "Sign Up",
       "NEED_TENANT_ACCOUNT": "Need a tenant account?",
@@ -128,7 +129,9 @@
       "DESCRIPTION": "Key close KPIs.",
       "CYCLE_TIME": "Close cycle time",
       "MATCH_RATE": "Match rate",
-      "RECON_COMPLETION": "Reconciliation completion"
+      "RECON_COMPLETION": "Reconciliation completion",
+      "TOTAL_EVENTS": "Total events",
+      "BANK_ACCOUNTS": "Bank accounts"
     },
     "ADMIN_WORKSPACE": "Admin workspace",
     "COMPLETION": "Completion",
@@ -148,7 +151,8 @@
     "TOTAL_VOLUME": "Total volume",
     "UNMATCHED_SHARE": "Unmatched share",
     "WELCOME_USER": "Welcome back, {{name}}",
-    "WORKSPACE": "Workspace"
+    "WORKSPACE": "Workspace",
+    "TRANSACTIONS_CLEARED": "Transactions journal-ready"
   },
   "ADMIN": {
     "OVERVIEW": "Admin dashboard",

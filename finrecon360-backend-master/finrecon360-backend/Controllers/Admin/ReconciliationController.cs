@@ -3,6 +3,7 @@ using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Reconciliation;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Reconciliation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,80 @@ namespace finrecon360_backend.Controllers.Admin
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
+        }
+
+        // ─── Settings ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns this tenant's reconciliation tolerances (amount tolerance, date tolerance
+        /// window). Falls back to the hardcoded defaults (0.01 / 1 day) when no row has been
+        /// seeded yet, mirroring IReconciliationSettingsProvider's fallback used by the workers.
+        /// </summary>
+        [HttpGet("settings")]
+        [RequirePermission("ADMIN.RECONCILIATION.VIEW")]
+        public async Task<ActionResult<ReconciliationSettingsResponse>> GetSettings(CancellationToken cancellationToken = default)
+        {
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var settings = await tenantDb.ReconciliationSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+
+            return Ok(new ReconciliationSettingsResponse
+            {
+                AmountTolerance = settings?.AmountTolerance ?? 0.01m,
+                DateToleranceDays = settings?.DateToleranceDays ?? 1,
+                UpdatedAt = settings?.UpdatedAt,
+            });
+        }
+
+        /// <summary>
+        /// Updates this tenant's reconciliation tolerances. Creates the settings row on first
+        /// write if the tenant schema migration's default row is somehow missing.
+        /// </summary>
+        [HttpPut("settings")]
+        [RequirePermission("ADMIN.RECONCILIATION.MANAGE")]
+        public async Task<ActionResult<ReconciliationSettingsResponse>> UpdateSettings(
+            [FromBody] UpdateReconciliationSettingsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.AmountTolerance < 0)
+                return BadRequest(new { message = "AmountTolerance must be zero or positive." });
+
+            if (request.DateToleranceDays < 0)
+                return BadRequest(new { message = "DateToleranceDays must be zero or positive." });
+
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var settings = await tenantDb.ReconciliationSettings.FirstOrDefaultAsync(cancellationToken);
+            var now = DateTime.UtcNow;
+
+            if (settings is null)
+            {
+                settings = new ReconciliationSettings
+                {
+                    ReconciliationSettingsId = Guid.NewGuid(),
+                    CreatedAt = now,
+                };
+                tenantDb.ReconciliationSettings.Add(settings);
+            }
+
+            settings.AmountTolerance = request.AmountTolerance;
+            settings.DateToleranceDays = request.DateToleranceDays;
+            settings.UpdatedAt = now;
+
+            await tenantDb.SaveChangesAsync(cancellationToken);
+
+            return Ok(new ReconciliationSettingsResponse
+            {
+                AmountTolerance = settings.AmountTolerance,
+                DateToleranceDays = settings.DateToleranceDays,
+                UpdatedAt = settings.UpdatedAt,
+            });
         }
 
         // ─── Match Groups ────────────────────────────────────────────────────────
@@ -144,9 +219,15 @@ namespace finrecon360_backend.Controllers.Admin
                 {
                     if (member.ImportedNormalizedRecord is not null)
                     {
-                        member.ImportedNormalizedRecord.MatchStatus = "MATCHED";
+                        member.ImportedNormalizedRecord.MatchStatus = MatchStatuses.Matched;
                     }
                 }
+
+                // WHY the state moves here: the reconciliation worker proposes a match but leaves the
+                // transaction in NeedsBankMatch, because a proposal is not a settlement. This click is
+                // the moment a person accepts it, so this is where the transaction becomes eligible
+                // for journal posting — and the history row records who did it.
+                await AdvanceSettledTransactionAsync(tenantDb, group, cancellationToken);
 
                 await tenantDb.SaveChangesAsync(cancellationToken);
             }
@@ -306,7 +387,9 @@ namespace finrecon360_backend.Controllers.Admin
                 return Conflict(new { message = $"Record is not in WAITING status (current: {record.MatchStatus})." });
 
             record.SettlementId = request.SettlementId;
-            record.MatchStatus = "PENDING"; // requeue for Level-4 re-run
+            // Back to SALES_VERIFIED rather than PENDING: this record already passed Stage 3, it was
+            // only ever held back for the missing ID. PENDING would claim nothing had happened to it.
+            record.MatchStatus = MatchStatuses.SalesVerified;
 
             await tenantDb.SaveChangesAsync(cancellationToken);
             return NoContent();
@@ -341,6 +424,41 @@ namespace finrecon360_backend.Controllers.Admin
             var entries = await query.OrderByDescending(j => j.PostedAt).ToListAsync(cancellationToken);
 
             return Ok(entries.Select(MapJournalToResponse).ToList());
+        }
+
+        /// <summary>
+        /// Returns a single journal voucher with its balanced set of entries.
+        /// </summary>
+        [HttpGet("journal-vouchers/{id:guid}")]
+        [RequirePermission("ADMIN.JOURNAL.VIEW")]
+        public async Task<ActionResult<JournalVoucherResponse>> GetJournalVoucher(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var voucher = await tenantDb.JournalVouchers
+                .Include(v => v.Entries)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(v => v.JournalVoucherId == id, cancellationToken);
+
+            if (voucher is null)
+                return NotFound();
+
+            return Ok(new JournalVoucherResponse
+            {
+                JournalVoucherId = voucher.JournalVoucherId,
+                TransactionId = voucher.TransactionId,
+                ReconciliationMatchGroupId = voucher.ReconciliationMatchGroupId,
+                Status = voucher.Status,
+                PostedAt = voucher.PostedAt,
+                PostedByUserId = voucher.PostedByUserId,
+                BalanceCheck = voucher.Entries.Sum(e => e.Amount),
+                Entries = voucher.Entries.Select(MapJournalToResponse).ToList(),
+            });
         }
 
         /// <summary>
@@ -379,11 +497,23 @@ namespace finrecon360_backend.Controllers.Admin
             if (existing)
                 return Conflict(new { message = "A journal entry has already been posted for this transaction." });
 
-            var entry = new JournalEntry
+            var voucher = new JournalVoucher
+            {
+                JournalVoucherId = Guid.NewGuid(),
+                TransactionId = transactionId,
+                Status = "Posted",
+                PostedAt = DateTime.UtcNow,
+                PostedByUserId = _userContext.UserId,
+            };
+
+            var isCashOut = transaction.TransactionType == TransactionType.CashOut;
+
+            var debitEntry = new JournalEntry
             {
                 JournalEntryId = Guid.NewGuid(),
+                JournalVoucherId = voucher.JournalVoucherId,
                 TransactionId = transactionId,
-                EntryType = transaction.TransactionType == TransactionType.CashOut ? "CashOut" : "CashIn",
+                EntryType = transaction.PaymentMethod == PaymentMethod.Card ? "DebitBank" : "DebitCash",
                 Amount = transaction.Amount,
                 Currency = "LKR",
                 PostedAt = DateTime.UtcNow,
@@ -391,13 +521,28 @@ namespace finrecon360_backend.Controllers.Admin
                 Notes = request.Notes,
             };
 
-            tenantDb.JournalEntries.Add(entry);
+            var creditEntry = new JournalEntry
+            {
+                JournalEntryId = Guid.NewGuid(),
+                JournalVoucherId = voucher.JournalVoucherId,
+                TransactionId = transactionId,
+                EntryType = isCashOut ? "CreditCashOut" : "CreditCashIn",
+                Amount = -transaction.Amount,
+                Currency = "LKR",
+                PostedAt = DateTime.UtcNow,
+                PostedByUserId = _userContext.UserId,
+                Notes = request.Notes,
+            };
+
+            tenantDb.JournalVouchers.Add(voucher);
+            tenantDb.JournalEntries.Add(debitEntry);
+            tenantDb.JournalEntries.Add(creditEntry);
             await tenantDb.SaveChangesAsync(cancellationToken);
 
             return CreatedAtAction(
                 nameof(GetJournalEntries),
                 new { transactionId = transactionId },
-                MapJournalToResponse(entry));
+                MapJournalToResponse(debitEntry));
         }
 
         /// <summary>
@@ -429,12 +574,32 @@ namespace finrecon360_backend.Controllers.Admin
             if (group.IsJournalPosted)
                 return Conflict(new { message = "A journal entry has already been posted for this match group." });
 
+            // Belt and braces: the flag above is the intended guard, but checking the ledger itself
+            // means a group posted by the worker before the flag was maintained still cannot be
+            // double-posted from here.
+            var alreadyPosted = await tenantDb.JournalEntries
+                .AsNoTracking()
+                .AnyAsync(j => j.ReconciliationMatchGroupId == id, cancellationToken);
+
+            if (alreadyPosted)
+                return Conflict(new { message = "Journal entries already exist for this match group." });
+
             // Net amount = sum of MatchAmount across all members.
             var totalAmount = group.MatchedRecords.Sum(mr => mr.MatchAmount);
+
+            var voucher = new JournalVoucher
+            {
+                JournalVoucherId = Guid.NewGuid(),
+                ReconciliationMatchGroupId = id,
+                Status = "Posted",
+                PostedAt = DateTime.UtcNow,
+                PostedByUserId = _userContext.UserId,
+            };
 
             var entry = new JournalEntry
             {
                 JournalEntryId = Guid.NewGuid(),
+                JournalVoucherId = voucher.JournalVoucherId,
                 ReconciliationMatchGroupId = id,
                 EntryType = "FeeAdjustment",
                 Amount = totalAmount,
@@ -447,6 +612,7 @@ namespace finrecon360_backend.Controllers.Admin
             group.IsJournalPosted = true;
             group.UpdatedAt = DateTime.UtcNow;
 
+            tenantDb.JournalVouchers.Add(voucher);
             tenantDb.JournalEntries.Add(entry);
             await tenantDb.SaveChangesAsync(cancellationToken);
 
@@ -454,6 +620,45 @@ namespace finrecon360_backend.Controllers.Admin
                 nameof(GetJournalEntries),
                 new { matchGroupId = id },
                 MapJournalToResponse(entry));
+        }
+
+        /// <summary>
+        /// Moves the transaction this match group settles from NeedsBankMatch to JournalReady.
+        /// No-op for groups that do not name a transaction (Level 1 and 3 groups describe record-to-
+        /// record matches, not settlements) or for transactions that have already moved on.
+        /// </summary>
+        private async Task AdvanceSettledTransactionAsync(
+            TenantDbContext tenantDb,
+            ReconciliationMatchGroup group,
+            CancellationToken cancellationToken)
+        {
+            var metadata = MatchGroupMetadata.TryParse(group.MatchMetadataJson);
+            if (metadata?.TransactionId is not Guid transactionId)
+            {
+                return;
+            }
+
+            var transaction = await tenantDb.Transactions
+                .FirstOrDefaultAsync(t => t.TransactionId == transactionId, cancellationToken);
+
+            if (transaction is null || transaction.TransactionState != TransactionState.NeedsBankMatch)
+            {
+                return;
+            }
+
+            transaction.TransactionState = TransactionState.JournalReady;
+            transaction.UpdatedAt = DateTime.UtcNow;
+
+            tenantDb.TransactionStateHistories.Add(new TransactionStateHistory
+            {
+                TransactionStateHistoryId = Guid.NewGuid(),
+                TransactionId = transactionId,
+                FromState = TransactionState.NeedsBankMatch,
+                ToState = TransactionState.JournalReady,
+                ChangedAt = DateTime.UtcNow,
+                ChangedByUserId = _userContext.UserId,
+                Note = $"Bank match confirmed (group {group.ReconciliationMatchGroupId})"
+            });
         }
 
         // ─── Private Mappers ─────────────────────────────────────────────────────
@@ -491,6 +696,8 @@ namespace finrecon360_backend.Controllers.Admin
             new()
             {
                 JournalEntryId = j.JournalEntryId,
+                JournalVoucherId = j.JournalVoucherId,
+                ChartOfAccountId = j.ChartOfAccountId,
                 TransactionId = j.TransactionId,
                 ReconciliationMatchGroupId = j.ReconciliationMatchGroupId,
                 EntryType = j.EntryType,

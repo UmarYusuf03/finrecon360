@@ -1,300 +1,373 @@
 using System.Text.Json;
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services;
+using finrecon360_backend.Services.Reconciliation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace finrecon360_backend.Services.Workers
 {
     /// <summary>
-    /// WHY: Automates Level-4 bank statement reconciliation for card cashouts.
-    /// 
-    /// Purpose: Continuously monitors the NeedsBankMatch queue and correlates
-    /// GATEWAY transaction records (payment gateway imports) with BANK statement records
-    /// (bank statement imports) to unlock journal posting without manual confirmation required 
-    /// for high-confidence matches. Ambiguous matches surface as exceptions for human review.
-    /// 
-    /// Workflow:
-    /// 1. Find all transactions in NeedsBankMatch state created within a lookback window (e.g., 14 days).
-    /// 2. For each transaction, find matching GATEWAY import records (by amount + date correlation).
-    /// 3. For each GATEWAY record, find matching BANK records (by SettlementKey + net total).
-    /// 4. If match is high-confidence (exact amount match, settlement key clear):
-    ///    - Create ReconciliationMatchGroup linking GATEWAY + BANK
-    ///    - Update transaction state to JournalReady (unlocks journal posting)
-    ///    - Log as "AutoMatched"
-    /// 5. If match is ambiguous (multiple candidates, amount variance):
-    ///    - Create ReconciliationEvent with status "RequiresReview"
-    ///    - Leave transaction in NeedsBankMatch for manual confirmation
-    /// 6. If no bank match exists:
-    ///    - Create ReconciliationEvent with status "Pending"
-    ///    - Remain in NeedsBankMatch until bank records arrive
+    /// Implements Expense Match (Rule 4): Approved Card Cashout ↔ Bank Statement.
+    ///
+    /// For each transaction in the <c>NeedsBankMatch</c> state (approved card cash-outs),
+    /// the worker attempts to find a matching pair of imported records:
+    ///   1. A GATEWAY record that represents the card charge (identifies the SettlementKey).
+    ///   2. A BANK record that represents the corresponding bank debit (same key, same amount).
+    ///
+    /// BANK candidates are scoped to the transaction's BankAccountId when set.
+    /// When both are found with matching amounts the worker *proposes* a match group.
+    /// It does not confirm it and does not promote the transaction. A person accepts the match on
+    /// the matcher screen, and that confirmation is what moves the transaction to
+    /// <c>JournalReady</c>.
     /// </summary>
-    public interface IBankStatementReconciliationWorker
+    ///
+    /// When both records are found with matching amounts, a pending Level4 match group is
+    /// created and linked to the transaction. The match still requires a human to confirm it
+    /// via the confirmation screen (<see cref="ReconciliationMatchConfirmationService"/>) — only
+    /// confirmation promotes the transaction to <c>JournalReady</c>.
+    ///
+    /// When there is a variance or ambiguity (2+ candidates within tolerance of each other),
+    /// the transaction remains in <c>NeedsBankMatch</c> and an exception is counted so it
+    /// surfaces in the unmatched queue for manual review.
+    /// </summary>
+    public class BankStatementReconciliationWorker
     {
-        /// <summary>
-        /// Execute one cycle of bank statement reconciliation for the given tenant.
-        /// Safe to call repeatedly; idempotent on already-processed transactions.
-        /// </summary>
-        Task<BankReconciliationResult> ExecuteAsync(
-            Guid tenantId,
-            TenantDbContext tenantDb,
-            CancellationToken cancellationToken = default);
-    }
-
-    public record BankReconciliationResult(
-        int NeedsBankMatchCount,
-        int AutoMatchedCount,
-        int ExceptionCount,
-        int NoMatchCount,
-        string Summary);
-
-    public class BankStatementReconciliationWorker : IBankStatementReconciliationWorker
-    {
-        private const decimal Tolerance = 0.01m;
-        private static readonly TimeSpan LookbackWindow = TimeSpan.FromDays(14);
-
         private readonly ILogger<BankStatementReconciliationWorker> _logger;
+        private readonly IReconciliationSettingsProvider _settingsProvider;
 
-        public BankStatementReconciliationWorker(ILogger<BankStatementReconciliationWorker> logger)
+        public BankStatementReconciliationWorker(
+            ILogger<BankStatementReconciliationWorker> logger,
+            IReconciliationSettingsProvider settingsProvider)
         {
             _logger = logger;
+            _settingsProvider = settingsProvider;
         }
 
         public async Task<BankReconciliationResult> ExecuteAsync(
             Guid tenantId,
             TenantDbContext tenantDb,
-            CancellationToken cancellationToken = default)
+            CancellationToken ct = default)
         {
-            _logger.LogInformation("Bank reconciliation cycle started for tenant {TenantId}", tenantId);
+            var settings = await _settingsProvider.GetAsync(tenantDb, ct);
+            var amountTolerance = settings.AmountTolerance;
 
-            // 1. Find all NeedsBankMatch transactions created within the lookback window
-            var cutoffDate = DateTime.UtcNow.Subtract(LookbackWindow);
-            var needsBankMatchTxns = await tenantDb.Transactions
-                .AsNoTracking()
-                .Where(x => x.TransactionState == TransactionState.NeedsBankMatch 
-                    && x.CreatedAt >= cutoffDate)
-                .OrderBy(x => x.TransactionDate)
-                .ThenBy(x => x.CreatedAt)
-                .ToListAsync(cancellationToken);
+            // 1. Load all card cash-out transactions waiting for a bank match.
+            var needsMatchTransactions = await tenantDb.Transactions
+                .Where(t =>
+                    t.TransactionState == TransactionState.NeedsBankMatch &&
+                    t.TransactionType == TransactionType.CashOut &&
+                    t.PaymentMethod == PaymentMethod.Card)
+                .ToListAsync(ct);
 
-            _logger.LogInformation("Found {Count} transactions in NeedsBankMatch state for tenant {TenantId}", 
-                needsBankMatchTxns.Count, tenantId);
-
-            if (needsBankMatchTxns.Count == 0)
+            var totalCount = needsMatchTransactions.Count;
+            if (totalCount == 0)
             {
-                return new BankReconciliationResult(0, 0, 0, 0, "No NeedsBankMatch transactions to process");
+                return new BankReconciliationResult(0, 0, 0, 0);
             }
 
-            // 2. Load all committed GATEWAY and BANK records for correlation
-            var gatewayRecords = await QueryCommittedBySourceType(tenantDb, "GATEWAY", cancellationToken);
-            var bankRecords = await QueryCommittedBySourceType(tenantDb, "BANK", cancellationToken);
+            _logger.LogInformation(
+                "BankStatementReconciliationWorker: tenant {TenantId} — {Count} transactions in NeedsBankMatch",
+                tenantId, totalCount);
 
-            _logger.LogInformation("Loaded {GatewayCount} GATEWAY records and {BankCount} BANK records", 
-                gatewayRecords.Count, bankRecords.Count);
+            // 2/3. Load COMMITTED GATEWAY and BANK records still eligible for a Level-4 match.
+            var gatewayRecords = await QueryMatchableBySourceAsync(tenantDb, "GATEWAY", ct);
+            var bankRecords = await QueryMatchableBySourceAsync(tenantDb, "BANK", ct);
 
-            // 3. Load existing match groups to avoid duplicate matching
-            var existingMatchGroups = await tenantDb.ReconciliationMatchGroups
+            var linkedRecordIds = await tenantDb.ReconciliationMatchedRecords
+                .AsNoTracking()
+                .Select(r => r.ImportedNormalizedRecordId)
+                .ToListAsync(ct);
+            var linkedRecordIdSet = linkedRecordIds.ToHashSet();
+
+            gatewayRecords = gatewayRecords.Where(r => !linkedRecordIdSet.Contains(r.ImportedNormalizedRecordId)).ToList();
+
+            var bankRecordsWithAccount = await (
+                from record in tenantDb.ImportedNormalizedRecords
+                join batch in tenantDb.ImportBatches on record.ImportBatchId equals batch.ImportBatchId
+                where batch.SourceType == "BANK" && batch.Status == "COMMITTED" && record.MatchStatus != "MATCHED"
+                      && !linkedRecordIdSet.Contains(record.ImportedNormalizedRecordId)
+                select new { Record = record, BatchBankAccountId = batch.BankAccountId }
+            ).ToListAsync(ct);
+
+            var existingLevel4Groups = await tenantDb.ReconciliationMatchGroups
                 .AsNoTracking()
                 .Where(g => g.MatchLevel == "Level4" && g.MatchMetadataJson != null)
-                .ToListAsync(cancellationToken);
+                .Select(g => g.MatchMetadataJson!)
+                .ToListAsync(ct);
 
-            var existingBankGatewaySessions = new HashSet<string>();
-            foreach (var group in existingMatchGroups)
-            {
-                try
-                {
-                    var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(group.MatchMetadataJson ?? "{}");
-                    if (metadata?.ContainsKey("gatewayBankSession") == true)
-                    {
-                        existingBankGatewaySessions.Add(metadata["gatewayBankSession"].ToString() ?? "");
-                    }
-                }
-                catch { /* Skip malformed metadata */ }
-            }
+            var alreadyProposedTransactionIds = existingLevel4Groups
+                .Select(MatchGroupMetadata.TryParse)
+                .Where(m => m?.TransactionId is not null)
+                .Select(m => m!.TransactionId!.Value)
+                .ToHashSet();
+
+            var bankByKey = bankRecordsWithAccount
+                .Select(x => (x.Record, x.BatchBankAccountId, Key: SettlementKeyResolver.Resolve(x.Record)))
+                .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+                .GroupBy(x => x.Key!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => (x.Record, x.BatchBankAccountId)).ToList(),
+                    StringComparer.OrdinalIgnoreCase);
 
             var autoMatched = 0;
             var exceptions = 0;
             var noMatch = 0;
 
-            // 4. Process each NeedsBankMatch transaction
-            foreach (var txn in needsBankMatchTxns)
+            foreach (var txn in needsMatchTransactions)
             {
-                var txnDate = txn.TransactionDate.Date;
-                var txnAmount = txn.Amount;
-
-                // Find matching GATEWAY record(s) by amount + date
-                var linkedGateway = gatewayRecords.FirstOrDefault(r =>
-                    r.TransactionDate.Date == txnDate &&
-                    Math.Abs((r.GrossAmount ?? r.NetAmount) - txnAmount) <= Tolerance);
-
-                if (linkedGateway == null)
+                if (alreadyProposedTransactionIds.Contains(txn.TransactionId))
                 {
-                    _logger.LogDebug("No GATEWAY record found for transaction {TransactionId} on date {Date} amount {Amount}",
-                        txn.TransactionId, txnDate, txnAmount);
-                    noMatch++;
+                    _logger.LogDebug("Transaction {TransactionId} already has a Level-4 match group", txn.TransactionId);
                     continue;
                 }
 
-                // Find matching BANK record(s) by SettlementKey + net total
-                var settlementKey = ResolveSettlementKey(linkedGateway);
-                if (string.IsNullOrWhiteSpace(settlementKey))
+                try
                 {
-                    _logger.LogDebug("GATEWAY record {RecordId} missing SettlementKey", linkedGateway.ImportedNormalizedRecordId);
+                    var outcome = TryMatchTransaction(
+                        tenantDb, txn, gatewayRecords, bankByKey, amountTolerance);
+
+                    switch (outcome)
+                    {
+                        case MatchOutcome.AutoMatched:
+                            autoMatched++;
+                            break;
+                        case MatchOutcome.Exception:
+                            exceptions++;
+                            break;
+                        case MatchOutcome.NoMatch:
+                            noMatch++;
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "BankStatementReconciliationWorker: unhandled error matching transaction {TransactionId}",
+                        txn.TransactionId);
                     exceptions++;
-                    continue;
                 }
-
-                var matchingBankRecords = bankRecords
-                    .Where(br => ResolveSettlementKey(br) == settlementKey)
-                    .ToList();
-
-                if (matchingBankRecords.Count == 0)
-                {
-                    _logger.LogDebug("No BANK records found for settlement key {SettlementKey}", settlementKey);
-                    noMatch++;
-                    continue;
-                }
-
-                // Aggregate bank records by settlement key to compare net totals
-                var bankAggregate = matchingBankRecords
-                    .Aggregate(
-                        new { NetTotal = 0m, FeeTotal = 0m, Records = new List<ImportedNormalizedRecord>() },
-                        (acc, br) => new
-                        {
-                            NetTotal = acc.NetTotal + br.NetAmount,
-                            FeeTotal = acc.FeeTotal + (br.ProcessingFee ?? 0m),
-                            Records = new List<ImportedNormalizedRecord>(acc.Records) { br }
-                        });
-
-                var gatewayNetTotal = linkedGateway.NetAmount;
-
-                // Check for amount match
-                if (Math.Abs(bankAggregate.NetTotal - gatewayNetTotal) > Tolerance)
-                {
-                    _logger.LogWarning(
-                        "Amount variance for transaction {TransactionId}: GATEWAY net={GatewayNet}, BANK total={BankTotal}",
-                        txn.TransactionId, gatewayNetTotal, bankAggregate.NetTotal);
-                    exceptions++;
-                    continue;
-                }
-
-                // 5. High-confidence match found — create match group and update transaction state
-                var matchGroupId = Guid.NewGuid();
-                var matchGroup = new ReconciliationMatchGroup
-                {
-                    ReconciliationMatchGroupId = matchGroupId,
-                    ImportBatchId = linkedGateway.ImportBatchId,
-                    MatchLevel = "Level4",
-                    SettlementKey = settlementKey,
-                    IsConfirmed = true, // Auto-confirmed for cardless settlement
-                    ConfirmedByUserId = null, // Worker automation
-                    ConfirmedAt = DateTime.UtcNow,
-                    IsJournalPosted = false,
-                    MatchMetadataJson = JsonSerializer.Serialize(new
-                    {
-                        transactionId = txn.TransactionId,
-                        gatewayBankSession = $"{linkedGateway.ImportedNormalizedRecordId}_{bankAggregate.Records.First().ImportedNormalizedRecordId}",
-                        gatewayNetAmount = gatewayNetTotal,
-                        bankNetTotal = bankAggregate.NetTotal,
-                        bankFeeTotal = bankAggregate.FeeTotal,
-                        variance = Math.Abs(bankAggregate.NetTotal - gatewayNetTotal),
-                        autoMatchedAt = DateTime.UtcNow,
-                        processingFeeAdjustment = bankAggregate.FeeTotal
-                    }),
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                tenantDb.ReconciliationMatchGroups.Add(matchGroup);
-
-                // Add matched record links
-                tenantDb.ReconciliationMatchedRecords.Add(new ReconciliationMatchedRecord
-                {
-                    ReconciliationMatchedRecordId = Guid.NewGuid(),
-                    ReconciliationMatchGroupId = matchGroupId,
-                    ImportedNormalizedRecordId = linkedGateway.ImportedNormalizedRecordId,
-                    SourceType = "GATEWAY",
-                    MatchAmount = gatewayNetTotal
-                });
-
-                foreach (var bank in bankAggregate.Records)
-                {
-                    tenantDb.ReconciliationMatchedRecords.Add(new ReconciliationMatchedRecord
-                    {
-                        ReconciliationMatchedRecordId = Guid.NewGuid(),
-                        ReconciliationMatchGroupId = matchGroupId,
-                        ImportedNormalizedRecordId = bank.ImportedNormalizedRecordId,
-                        SourceType = "BANK",
-                        MatchAmount = bank.NetAmount
-                    });
-                }
-
-                // Log success event
-                var successEvent = new ReconciliationEvent
-                {
-                    ReconciliationEventId = Guid.NewGuid(),
-                    ImportBatchId = linkedGateway.ImportBatchId,
-                    ImportedNormalizedRecordId = linkedGateway.ImportedNormalizedRecordId,
-                    EventType = "MatchFound",
-                    Stage = "Level4",
-                    SourceType = "BANK",
-                    Status = "Completed",
-                    DetailJson = JsonSerializer.Serialize(new
-                    {
-                        reason = "Auto-matched by BankStatementReconciliationWorker",
-                        transactionId = txn.TransactionId,
-                        settlementKey = settlementKey,
-                        bankRecordsCount = bankAggregate.Records.Count,
-                        matchGroupId = matchGroupId
-                    })
-                };
-                tenantDb.ReconciliationEvents.Add(successEvent);
-
-                // Update transaction to JournalReady (unlock posting)
-                txn.TransactionState = TransactionState.JournalReady;
-
-                _logger.LogInformation("Auto-matched transaction {TransactionId} to settlement {SettlementKey}", 
-                    txn.TransactionId, settlementKey);
-                autoMatched++;
             }
 
-            await tenantDb.SaveChangesAsync(cancellationToken);
+            await tenantDb.SaveChangesAsync(ct);
 
-            var result = new BankReconciliationResult(
-                needsBankMatchTxns.Count,
-                autoMatched,
-                exceptions,
-                noMatch,
-                $"Level4 Bank reconciliation completed: autoMatched={autoMatched}; exceptions={exceptions}; noMatch={noMatch}");
+            _logger.LogInformation(
+                "BankStatementReconciliationWorker: tenant {TenantId} — proposed={Matched}, exceptions={Exceptions}, noMatch={NoMatch}",
+                tenantId, autoMatched, exceptions, noMatch);
 
-            _logger.LogInformation("Bank reconciliation cycle completed for tenant {TenantId}: {Summary}", tenantId, result.Summary);
-            return result;
+            return new BankReconciliationResult(totalCount, autoMatched, exceptions, noMatch);
         }
 
-        private static async Task<List<ImportedNormalizedRecord>> QueryCommittedBySourceType(
+        // ── Private helpers ───────────────────────────────────────────────────────────
+
+        private MatchOutcome TryMatchTransaction(
+            TenantDbContext tenantDb,
+            Transaction txn,
+            List<ImportedNormalizedRecord> gatewayRecords,
+            Dictionary<string, List<(ImportedNormalizedRecord Record, Guid? BatchBankAccountId)>> bankByKey,
+            decimal amountTolerance)
+        {
+            // Step 1: Find the GATEWAY record for this transaction.
+            var gatewayCandidates = FindGatewayCandidates(gatewayRecords, txn, amountTolerance);
+
+            if (gatewayCandidates.Count == 0)
+            {
+                _logger.LogDebug(
+                    "No GATEWAY record found for transaction {TransactionId} (amount={Amount}, date={Date})",
+                    txn.TransactionId, txn.Amount, txn.TransactionDate.Date);
+                return MatchOutcome.NoMatch;
+            }
+
+            if (gatewayCandidates.Count > 1)
+            {
+                _logger.LogWarning(
+                    "Ambiguous GATEWAY match for transaction {TransactionId}: {Count} candidates",
+                    txn.TransactionId, gatewayCandidates.Count);
+
+                tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
+                {
+                    ReconciliationEventId = Guid.NewGuid(),
+                    ImportBatchId = gatewayCandidates[0].ImportBatchId,
+                    ImportedNormalizedRecordId = gatewayCandidates[0].ImportedNormalizedRecordId,
+                    EventType = "ManualReview",
+                    Stage = "Level4",
+                    SourceType = "GATEWAY",
+                    Status = "RequiresReview",
+                    DetailJson = JsonSerializer.Serialize(new
+                    {
+                        reason = "Multiple gateway records match this transaction",
+                        transactionId = txn.TransactionId,
+                        candidateCount = gatewayCandidates.Count,
+                        candidateRecordIds = gatewayCandidates.Select(c => c.ImportedNormalizedRecordId).ToList(),
+                        amount = txn.Amount
+                    })
+                });
+
+                return MatchOutcome.Exception;
+            }
+
+            var gatewayRecord = gatewayCandidates[0];
+
+            // Step 2: Validate the GATEWAY record can produce a settlement key.
+            var settlementKey = SettlementKeyResolver.Resolve(gatewayRecord);
+            if (string.IsNullOrWhiteSpace(settlementKey))
+            {
+                _logger.LogWarning(
+                    "GATEWAY record {RecordId} has no SettlementId, AccountCode or ReferenceNumber — cannot build settlement key",
+                    gatewayRecord.ImportedNormalizedRecordId);
+                return MatchOutcome.Exception;
+            }
+
+            gatewayRecord.SettlementKey = settlementKey;
+
+            // Step 3: Look up the BANK record(s) with the same settlement key.
+            if (!bankByKey.TryGetValue(settlementKey, out var bankCandidatesWithAccount) ||
+                bankCandidatesWithAccount.Count == 0)
+            {
+                _logger.LogDebug(
+                    "No BANK record found for settlement key '{Key}' (transaction {TransactionId})",
+                    settlementKey, txn.TransactionId);
+                return MatchOutcome.NoMatch;
+            }
+
+            // Step 4: Scope to the transaction's bank account.
+            var scopedCandidates = bankCandidatesWithAccount
+                .Where(x => txn.BankAccountId == null || x.BatchBankAccountId == null || x.BatchBankAccountId == txn.BankAccountId)
+                .Select(x => x.Record)
+                .ToList();
+
+            if (scopedCandidates.Count == 0)
+            {
+                _logger.LogDebug(
+                    "BANK candidates exist for settlement key '{Key}' but none belong to transaction {TransactionId}'s bank account {BankAccountId}",
+                    settlementKey, txn.TransactionId, txn.BankAccountId);
+                return MatchOutcome.NoMatch;
+            }
+
+            // Step 5: Find best amount match among scoped candidates.
+            var matchResult = AmountMatcher.FindBestMatch(scopedCandidates, txn.Amount, amountTolerance);
+
+            if (matchResult.Outcome == AmountMatcher.Outcome.Ambiguous)
+            {
+                _logger.LogWarning(
+                    "Ambiguous BANK match for transaction {TransactionId}: {Count} candidates within tolerance of amount={Amount}",
+                    txn.TransactionId, matchResult.CandidateCount, txn.Amount);
+                return MatchOutcome.Exception;
+            }
+
+            if (matchResult.Outcome == AmountMatcher.Outcome.NoMatch)
+            {
+                var firstCandidate = scopedCandidates[0];
+                var variance = firstCandidate.NetAmount - txn.Amount;
+                _logger.LogWarning(
+                    "Amount variance for transaction {TransactionId}: expected {Expected}, bank={Bank}, variance={Variance}",
+                    txn.TransactionId, txn.Amount, firstCandidate.NetAmount, variance);
+                return MatchOutcome.Exception;
+            }
+
+            var bankRecord = matchResult.Best!;
+            var processingFee = gatewayRecord.ProcessingFee ?? 0m;
+
+            var matchGroup = new ReconciliationMatchGroup
+            {
+                ReconciliationMatchGroupId = Guid.NewGuid(),
+                ImportBatchId = gatewayRecord.ImportBatchId,
+                MatchLevel = "Level4",
+                SettlementKey = settlementKey,
+                IsConfirmed = false,
+                ConfirmedByUserId = null,
+                ConfirmedAt = null,
+                IsJournalPosted = false,
+                MatchedAmount = bankRecord.NetAmount,
+                Variance = Math.Abs(bankRecord.NetAmount - txn.Amount),
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow,
+                MatchMetadataJson = new MatchGroupMetadata
+                {
+                    TransactionId = txn.TransactionId,
+                    SettlementKey = settlementKey,
+                    GatewayBankSession = $"{gatewayRecord.ImportedNormalizedRecordId}_{bankRecord.ImportedNormalizedRecordId}",
+                    GatewayNetTotal = gatewayRecord.NetAmount,
+                    BankNetTotal = bankRecord.NetAmount,
+                    ProcessingFeeTotal = processingFee,
+                    Variance = Math.Abs(bankRecord.NetAmount - txn.Amount),
+                    AutoMatched = true,
+                    GatewayRecordCount = 1,
+                    BankRecordCount = 1,
+                    MatchedAt = DateTime.UtcNow
+                }.Serialize()
+            };
+            tenantDb.ReconciliationMatchGroups.Add(matchGroup);
+
+            tenantDb.ReconciliationMatchedRecords.Add(new ReconciliationMatchedRecord
+            {
+                ReconciliationMatchedRecordId = Guid.NewGuid(),
+                ReconciliationMatchGroupId = matchGroup.ReconciliationMatchGroupId,
+                ImportedNormalizedRecordId = gatewayRecord.ImportedNormalizedRecordId,
+                SourceType = "GATEWAY",
+                MatchAmount = gatewayRecord.NetAmount,
+                LinkedAt = DateTime.UtcNow,
+            });
+
+            tenantDb.ReconciliationMatchedRecords.Add(new ReconciliationMatchedRecord
+            {
+                ReconciliationMatchedRecordId = Guid.NewGuid(),
+                ReconciliationMatchGroupId = matchGroup.ReconciliationMatchGroupId,
+                ImportedNormalizedRecordId = bankRecord.ImportedNormalizedRecordId,
+                SourceType = "BANK",
+                MatchAmount = bankRecord.NetAmount,
+                LinkedAt = DateTime.UtcNow,
+            });
+
+            gatewayRecord.MatchStatus = MatchStatuses.Matched;
+            bankRecord.MatchStatus = MatchStatuses.Matched;
+
+            _logger.LogInformation(
+                "PROPOSED match for transaction {TransactionId}: settlement key '{Key}', match group {GroupId} — awaiting confirmation",
+                txn.TransactionId, settlementKey, matchGroup.ReconciliationMatchGroupId);
+
+            return MatchOutcome.AutoMatched;
+        }
+
+        private static List<ImportedNormalizedRecord> FindGatewayCandidates(
+            List<ImportedNormalizedRecord> gatewayRecords,
+            Transaction txn,
+            decimal amountTolerance) =>
+            gatewayRecords
+                .Where(r => Math.Abs(r.NetAmount - txn.Amount) < amountTolerance
+                    && r.TransactionDate.Date == txn.TransactionDate.Date)
+                .ToList();
+
+        private static Task<List<ImportedNormalizedRecord>> QueryMatchableBySourceAsync(
             TenantDbContext tenantDb,
             string sourceType,
-            CancellationToken ct)
+            CancellationToken ct) =>
+            (from record in tenantDb.ImportedNormalizedRecords
+             join batch in tenantDb.ImportBatches
+                 on record.ImportBatchId equals batch.ImportBatchId
+             where batch.SourceType == sourceType
+                && batch.Status == "COMMITTED"
+                && record.MatchStatus != "MATCHED"
+             select record).ToListAsync(ct);
+
+        // ── Result types ──────────────────────────────────────────────────────────────
+
+        private enum MatchOutcome
         {
-            return await tenantDb.ImportedNormalizedRecords
-                .AsNoTracking()
-                .Include(r => r.ImportBatch)
-                .Where(r => r.ImportBatch != null
-                    && r.ImportBatch.SourceType.ToUpper() == sourceType.ToUpper()
-                    && r.ImportBatch.Status == "COMMITTED")
-                .OrderByDescending(r => r.ImportBatch.ImportedAt)
-                .ToListAsync(ct);
-        }
-
-        private static string? ResolveSettlementKey(ImportedNormalizedRecord record)
-        {
-            // Settlement key is AccountCode + ReferenceNumber (both required for Level-4 matching)
-            var accountCode = record.AccountCode?.Trim();
-            var referenceNumber = record.ReferenceNumber?.Trim();
-
-            if (string.IsNullOrWhiteSpace(accountCode) || string.IsNullOrWhiteSpace(referenceNumber))
-                return null;
-
-            return $"{accountCode}|{referenceNumber}";
+            AutoMatched,
+            Exception,
+            NoMatch,
         }
     }
+
+    /// <summary>
+    /// Summary counters returned by <see cref="BankStatementReconciliationWorker.ExecuteAsync"/>.
+    /// </summary>
+    public record BankReconciliationResult(
+        int NeedsBankMatchCount,
+        int AutoMatchedCount,
+        int ExceptionCount,
+        int NoMatchCount);
 }

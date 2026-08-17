@@ -31,6 +31,8 @@ export const API_ENDPOINTS = {
     CONFIRM_PASSWORD_RESET_LINK: '/api/auth/confirm-password-reset-link',
     REQUEST_CHANGE_PASSWORD_LINK: '/api/auth/request-change-password-link',
     CONFIRM_CHANGE_PASSWORD_LINK: '/api/auth/confirm-change-password-link',
+    SSO_GOOGLE: '/api/auth/sso/google',
+    SSO_CONFIG: '/api/auth/sso/config',
   },
   PUBLIC: {
     TENANT_REGISTRATIONS: '/api/public/tenant-registrations',
@@ -55,6 +57,7 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/api/imports/${id}`,
   },
   ME: '/api/me',
+  ME_SUBSCRIPTION: '/api/me/subscription',
   USERS: {
     BASE: '/api/users',
     BY_ID: (id: string) => `/api/users/${id}`,
@@ -98,6 +101,7 @@ export const API_ENDPOINTS = {
     ACTIONS: '/api/admin/actions',
     COMPONENTS: '/api/admin/components',
     USERS: '/api/admin/users',
+    SUBSCRIPTION: '/api/admin/subscription',
     IMPORT_ARCHITECTURE: '/api/admin/import-architecture',
     AUDIT_LOGS: '/api/admin/audit-logs',
   },
@@ -105,6 +109,7 @@ export const API_ENDPOINTS = {
     TENANT_REGISTRATIONS: '/api/system/tenant-registrations',
     TENANTS: '/api/system/tenants',
     PLANS: '/api/system/plans',
+    TENANT_SUBSCRIPTION: (tenantId: string) => `/api/system/tenants/${tenantId}/subscription`,
     AUDIT_LOGS: '/api/system/audit-logs',
     ENFORCEMENT_USERS: (tenantId: string) => `/api/system/enforcement/tenants/${tenantId}/users`,
   },

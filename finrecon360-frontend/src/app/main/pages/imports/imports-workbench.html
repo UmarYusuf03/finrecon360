@@ -42,8 +42,8 @@
       </li>
       <li
         class="workflow-step"
-        [class.is-active]="!!validateResult && !lastCommitSummary"
-        [class.is-complete]="!!lastCommitSummary"
+        [class.is-active]="!!validateResult && !commitResult"
+        [class.is-complete]="!!commitResult"
       >
         <span class="workflow-step__count">4</span>
         <div>
@@ -602,104 +602,7 @@
     </ng-template>
   </div>
 
-  <section class="panel recon-result-panel fr-glass-panel" *ngIf="lastCommitSummary as r">
-    <div class="recon-result-header">
-      <span class="material-icons recon-result-icon">account_tree</span>
-      <div>
-        <h3>{{ 'IMPORTS.WORKBENCH.RECONCILIATION_COMPLETE' | translate }}</h3>
-        <p class="recon-route">{{ r.workflowRoute }}</p>
-      </div>
-      <span class="source-pill" [attr.data-source]="(r.sourceType || '').toLowerCase()">
-        {{ r.sourceType }}
-      </span>
-    </div>
 
-    <div class="recon-stats-grid">
-      <div class="recon-stat verified">
-        <span class="stat-value">{{ r.level3VerifiedCount }}</span>
-        <span class="stat-label">
-          {{ r.sourceType === 'POS' ? 'Level 1 Verified (POS to ERP)' : 'Level 3 Verified' }}
-        </span>
-      </div>
-      <div class="recon-stat exception">
-        <span class="stat-value">{{ r.level3ExceptionCount }}</span>
-        <span class="stat-label">
-          {{ r.sourceType === 'POS' ? 'Level 1 Exceptions' : 'Level 3 Exceptions' }}
-        </span>
-      </div>
-      <div class="recon-stat matched">
-        <span class="stat-value">{{ r.level4MatchedCount }}</span>
-        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.LEVEL4_MATCHED' | translate }}</span>
-      </div>
-      <div class="recon-stat exception">
-        <span class="stat-value">{{ r.level4ExceptionCount }}</span>
-        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.LEVEL4_EXCEPTIONS' | translate }}</span>
-      </div>
-      <div class="recon-stat waiting" [class.has-value]="r.waitingForSettlementCount > 0">
-        <span class="stat-value">{{ r.waitingForSettlementCount }}</span>
-        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.WAITING_FOR_SETTLEMENT' | translate }}</span>
-      </div>
-      <div class="recon-stat fee">
-        <span class="stat-value">{{ r.feeAdjustmentTotal | number: '1.2-2' }}</span>
-        <span class="stat-label">{{ 'IMPORTS.WORKBENCH.FEE_ADJUSTMENT_TOTAL' | translate }}</span>
-      </div>
-    </div>
-
-    <div
-      class="gateway-fee-notice"
-      *ngIf="r.sourceType === 'GATEWAY' && r.feeAdjustmentTotal !== 0"
-    >
-      <span class="material-icons">info_outline</span>
-      <span>
-        Gateway records contain <strong>GrossAmount</strong>, <strong>ProcessingFee</strong>, and
-        <strong>NetAmount</strong> fields. A total fee deduction of
-        <strong>{{ r.feeAdjustmentTotal | number: '1.2-2' }}</strong> was detected across matched
-        records. Review individual records in <strong>Matcher -> Sales Verification</strong> for the
-        full gross to net breakdown.
-      </span>
-    </div>
-
-    <p class="recon-summary-text">{{ r.summary }}</p>
-
-    <div class="recon-result-actions">
-      <a
-        [routerLink]="resolvePostCommitRoute(r.sourceType)"
-        class="primary-btn recon-nav-btn"
-        id="go-to-matcher-btn"
-      >
-        <span class="material-icons">compare_arrows</span>
-        {{
-          r.sourceType === 'POS'
-            ? ('IMPORTS.WORKBENCH.REVIEW_POS_EXCEPTIONS' | translate)
-            : r.sourceType === 'ERP'
-              ? ('IMPORTS.WORKBENCH.VIEW_EVENTS_TIMELINE' | translate)
-              : ('IMPORTS.WORKBENCH.VIEW_IN_MATCHER' | translate)
-        }}
-      </a>
-      <a
-        *ngIf="r.waitingForSettlementCount > 0"
-        routerLink="/app/matcher/waiting"
-        class="warning-btn recon-nav-btn"
-        id="go-to-waiting-btn"
-      >
-        <span class="material-icons">hourglass_empty</span>
-        {{
-          'IMPORTS.WORKBENCH.RESOLVE_WAITING' | translate: { count: r.waitingForSettlementCount }
-        }}
-      </a>
-      <a
-        *ngIf="r.level3ExceptionCount > 0 && r.sourceType !== 'POS'"
-        routerLink="/app/matcher/sales-verification"
-        class="warning-btn recon-nav-btn"
-        id="go-to-sales-verify-btn"
-      >
-        <span class="material-icons">fact_check</span>
-        {{
-          'IMPORTS.WORKBENCH.REVIEW_SALES_EXCEPTIONS' | translate: { count: r.level3ExceptionCount }
-        }}
-      </a>
-    </div>
-  </section>
 
   <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
     <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">

@@ -1,35 +1,47 @@
 <div class="onboarding-page">
-  <div class="onboarding-card">
-    <h1>Choose a Subscription</h1>
-    <p class="subtitle" *ngIf="tenantName">Tenant: {{ tenantName }}</p>
-    <p class="requirement" *ngIf="requestedBankAccounts">
-      Your registration requested <strong>{{ requestedBankAccounts }}</strong> bank accounts. Please select a plan with at least this limit.
-    </p>
-
-    <div *ngIf="loading && !redirecting" class="loading">Loading plans...</div>
-    <div *ngIf="redirecting" class="loading">Redirecting to secure payment portal...</div>
-    <div *ngIf="error" class="error">{{ error }}</div>
-
-    <div class="plans" *ngIf="!loading && !error">
-      <div class="plan" *ngFor="let plan of plans" [class.plan--ineligible]="!isPlanEligible(plan)">
-        <h3>{{ plan.name }}</h3>
-        <div class="price">
-          {{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}
-        </div>
-        <div class="meta">
-          Duration: {{ plan.durationDays }} days
-        </div>
-        <div class="meta">
-          Max users: {{ plan.maxUsers }}
-        </div>
-        <div class="meta">
-          Max accounts: {{ plan.maxAccounts }}
-        </div>
-        <p class="plan-note" *ngIf="!isPlanEligible(plan)">
-          Not eligible for your requested account count.
-        </p>
-        <button class="primary-btn" (click)="selectPlan(plan)" [disabled]="!isPlanEligible(plan)">Select</button>
+  <section class="onboarding-card fr-glass-panel">
+    <div class="onboarding-card__intro">
+      <span class="eyebrow">FinRecon360</span>
+      <h1 class="onboarding-title">Choose a subscription</h1>
+      <p class="onboarding-subtitle">
+        Pick the plan that fits your team. You can change this later from your workspace settings.
+      </p>
+      <div class="onboarding-workspace" *ngIf="tenantName">
+        <span class="onboarding-workspace__label">Workspace</span>
+        <strong>{{ tenantName }}</strong>
       </div>
     </div>
-  </div>
+
+    <div *ngIf="loading" class="onboarding-status">Please wait…</div>
+    <div *ngIf="error" class="onboarding-status onboarding-status--error">{{ error }}</div>
+
+    <div class="plans" *ngIf="!loading && !error">
+      <article class="plan-card" *ngFor="let plan of plans">
+        <div class="plan-card__header">
+          <h3>{{ plan.name }}</h3>
+          <span class="summary-pill">{{ plan.code }}</span>
+        </div>
+
+        <div class="plan-card__price">
+          <strong>{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</strong>
+          <span>/ {{ plan.durationDays }} days</span>
+        </div>
+
+        <ul class="plan-card__features">
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            <span>Up to {{ plan.maxUsers }} users</span>
+          </li>
+          <li>
+            <mat-icon>check_circle</mat-icon>
+            <span>Up to {{ plan.maxAccounts }} bank accounts</span>
+          </li>
+        </ul>
+
+        <button class="primary-btn plan-card__cta" (click)="selectPlan(plan)">
+          Select {{ plan.name }}
+        </button>
+      </article>
+    </div>
+  </section>
 </div>

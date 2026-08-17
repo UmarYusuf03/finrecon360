@@ -161,7 +161,6 @@ export class TransactionService {
           })),
       );
     }
-
     return this.http.get<NeedsBankMatchRecord[]>(`${this.baseUrl}/needs-bank-match`);
   }
 
