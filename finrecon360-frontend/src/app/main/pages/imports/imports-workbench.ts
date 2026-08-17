@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { AuthService } from '../../../core/auth/auth.service';
@@ -31,7 +31,7 @@ type ValidationSummary = {
 @Component({
   selector: 'app-imports-workbench',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, RouterLink, TranslateModule],
+  imports: [CommonModule, FormsModule, DragDropModule, TranslateModule],
   templateUrl: './imports-workbench.html',
   styleUrls: ['./imports-workbench.scss'],
 })

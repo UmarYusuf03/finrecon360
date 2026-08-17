@@ -1,0 +1,116 @@
+Phase 1 - Auth, onboarding, tenant setup, RBAC, system admin
+
+Endpoint | Purpose
+POST /api/auth/verify-email-link | Verifies email via magic link token.
+POST /api/auth/request-password-reset-link | Sends password reset magic link if account exists.
+POST /api/auth/confirm-password-reset-link | Consumes reset token and updates password.
+POST /api/auth/request-change-password-link | Sends change-password magic link to logged-in user.
+POST /api/auth/confirm-change-password-link | Validates token + current password, updates password.
+POST /api/onboarding/magic-link/verify | Validates onboarding token and issues short-lived onboarding session token.
+POST /api/onboarding/set-password | Sets tenant admin password and activates user.
+POST /api/onboarding/subscriptions/checkout | Creates Stripe checkout (or local fallback activation).
+POST /api/public/tenant-registrations | Submits tenant registration request for review.
+GET /api/public/plans | Lists public subscription plans.
+GET /api/me | Returns current user profile + roles + permissions + tenant context.
+GET /api/users/profile | Returns current user profile details.
+PUT /api/users/profile | Updates current user profile fields.
+POST /api/users/profile/photo | Uploads profile image.
+GET /api/users/profile/photo | Downloads profile image.
+DELETE /api/users/profile/photo | Deletes profile image.
+POST /api/users/profile/delete | Deactivates the current user account.
+GET /api/admin/users | Lists tenant users (paged, searchable).
+GET /api/admin/users/{userId} | Fetches tenant user detail + roles.
+POST /api/admin/users | Creates a tenant user.
+PUT /api/admin/users/{userId} | Updates tenant user profile info.
+PUT /api/admin/users/{userId}/roles | Replaces tenant user role assignments.
+POST /api/admin/users/{userId}/deactivate | Deactivates tenant user.
+POST /api/admin/users/{userId}/activate | Reactivates tenant user.
+GET /api/admin/roles | Lists tenant roles (paged, searchable).
+GET /api/admin/roles/{roleId} | Gets role detail + permissions.
+POST /api/admin/roles | Creates a tenant role.
+PUT /api/admin/roles/{roleId} | Updates a tenant role.
+DELETE /api/admin/roles/{roleId} | Deletes a non-system role (if unassigned).
+POST /api/admin/roles/{roleId}/deactivate | Deactivates a role.
+POST /api/admin/roles/{roleId}/activate | Reactivates a role.
+PUT /api/admin/roles/{roleId}/permissions | Replaces role permissions set.
+POST /api/admin/roles/{roleId}/permissions/{permissionId} | Adds a permission to a role.
+DELETE /api/admin/roles/{roleId}/permissions/{permissionId} | Removes a permission from a role.
+GET /api/admin/permissions | Lists permissions (paged, searchable).
+GET /api/admin/permissions/{permissionId} | Gets permission detail.
+POST /api/admin/permissions | Creates a permission.
+PUT /api/admin/permissions/{permissionId} | Updates a permission.
+DELETE /api/admin/permissions/{permissionId} | Deletes a permission.
+GET /api/admin/components | Lists UI components for access control.
+GET /api/admin/components/{componentId} | Gets component detail.
+POST /api/admin/components | Creates a component.
+PUT /api/admin/components/{componentId} | Updates a component.
+POST /api/admin/components/{componentId}/deactivate | Deactivates a component.
+POST /api/admin/components/{componentId}/activate | Reactivates a component.
+GET /api/admin/actions | Lists permission actions.
+GET /api/admin/actions/{actionId} | Gets action detail.
+POST /api/admin/actions | Creates an action.
+PUT /api/admin/actions/{actionId} | Updates an action.
+POST /api/admin/actions/{actionId}/deactivate | Deactivates an action.
+POST /api/admin/actions/{actionId}/activate | Reactivates an action.
+GET /api/system/tenant-registrations | Lists tenant registration requests.
+GET /api/system/tenant-registrations/{requestId} | Gets registration request detail.
+POST /api/system/tenant-registrations/{requestId}/approve | Approves request, provisions tenant + emails onboarding link.
+POST /api/system/tenant-registrations/{requestId}/reject | Rejects request with optional note.
+GET /api/system/tenants | Lists tenants (paged, filterable).
+GET /api/system/tenants/{tenantId} | Gets tenant detail + admins + subscription.
+PUT /api/system/tenants/{tenantId}/admins | Replaces tenant admin list.
+POST /api/system/tenants/{tenantId}/suspend | Suspends tenant (enforcement).
+POST /api/system/tenants/{tenantId}/ban | Bans tenant (enforcement).
+POST /api/system/tenants/{tenantId}/reinstate | Reinstates suspended tenant.
+DELETE /api/system/tenants/{tenantId} | Deletes tenant and attempts DB cleanup.
+GET /api/system/plans | Lists all plans.
+POST /api/system/plans | Creates a plan.
+PUT /api/system/plans/{planId} | Updates a plan.
+POST /api/system/plans/{planId}/deactivate | Deactivates a plan.
+POST /api/system/plans/{planId}/activate | Reactivates a plan.
+POST /api/system/enforcement/tenants/{tenantId}/users/{userId}/suspend | Suspends a user in tenant context.
+POST /api/system/enforcement/tenants/{tenantId}/users/{userId}/ban | Bans a user in tenant context.
+POST /api/system/enforcement/tenants/{tenantId}/users/{userId}/reinstate | Reinstates a suspended user.
+POST /api/webhooks/stripe | Stripe webhook for checkout session events.
+
+Phase 2 - Import pipeline (upload -> parse -> map -> validate -> commit -> delete + history)
+
+Endpoint | Purpose
+POST /api/imports | Uploads CSV/XLSX file and creates a batch.
+GET /api/imports | Lists import history with paging and filters.
+POST /api/imports/{id}/parse | Parses file into raw rows (resets prior parse).
+POST /api/imports/{id}/mapping | Saves field mapping for a batch.
+POST /api/imports/{id}/validate | Validates rows using mapping rules.
+POST /api/imports/{id}/commit | Normalizes and commits validated rows.
+DELETE /api/imports/{id} | Deletes batch + raw/normalized records + file.
+
+Phase 3 - Validation/normalization enhancements
+
+Endpoint | Purpose
+POST /api/imports/{id}/validate | Adds row-level normalization errors and validity status.
+POST /api/imports/{id}/commit | Enforces "all rows VALID" and normalizes before insert.
+
+Phase 4 - Import workbench + templates + audit visibility
+
+Endpoint | Purpose
+GET /api/imports/{id}/validation-rows | Returns raw rows with validation status and errors.
+PUT /api/imports/{id}/raw-records/{rawRecordId} | Saves inline corrections and re-validates row.
+GET /api/imports/active-template?sourceType=... | Returns most recent active mapping template for a source type.
+GET /api/admin/import-architecture/overview | Dashboard summary for import architecture.
+GET /api/admin/import-architecture/canonical-schema | Returns canonical schema definition.
+GET /api/admin/import-architecture/mapping-templates | Lists mapping templates (filterable).
+POST /api/admin/import-architecture/mapping-templates | Creates mapping template.
+PUT /api/admin/import-architecture/mapping-templates/{templateId} | Updates mapping template (rename/reuse/version bump).
+DELETE /api/admin/import-architecture/mapping-templates/{templateId} | Deactivates mapping template.
+DELETE /api/admin/import-architecture/mapping-templates/{templateId}/hard | Hard deletes template (clears batch link).
+POST /api/admin/import-architecture/batches | Creates a batch directly (admin tooling).
+GET /api/admin/import-architecture/batches/{batchId} | Gets batch details.
+POST /api/admin/import-architecture/batches/{batchId}/raw-records | Adds a raw record (admin tooling).
+POST /api/admin/import-architecture/batches/{batchId}/normalized-records | Adds a normalized record (admin tooling).
+GET /api/admin/audit-logs | Tenant-scoped audit log list (filters + paging).
+
+Tenant identification
+
+- The backend resolves the tenant from the authenticated user and an optional X-Tenant-Id header.
+- If X-Tenant-Id is present, it must belong to the user; otherwise a deterministic fallback picks an active/admin tenant.
+- All Phase 2-4 endpoints use this tenant resolution to open the correct tenant database and isolate data.
