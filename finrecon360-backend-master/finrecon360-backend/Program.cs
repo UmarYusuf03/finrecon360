@@ -148,6 +148,18 @@ builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationServi
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
 
+builder.Services.AddScoped<IReconciliationSettingsProvider, ReconciliationSettingsProvider>();
+builder.Services.AddScoped<OperationalMatchWorker>();
+builder.Services.AddScoped<PosErpSyncAuditWorker>();
+builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
+builder.Services.AddScoped<BankStatementReconciliationWorker>();
+builder.Services.AddScoped<CollectionMatchWorker>();
+builder.Services.AddScoped<SettlementMatchWorker>();
+builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+
+builder.Services.AddHostedService<ReconciliationCycleHostedService>();
+builder.Services.AddHostedService<JournalPostingHostedService>();
+
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");
 

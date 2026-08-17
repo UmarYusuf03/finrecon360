@@ -1,26 +1,59 @@
-# Worker Integration Summary: Bank Reconciliation → Journal Posting Pipeline
+# Worker Integration Summary: Six-Level Reconciliation → Journal Posting Pipeline
 
-## ✅ Integration Complete
+## ✅ Integration Complete (2026-08-17 update)
 
-### Components Added
+**Status change from the original version of this doc**: the workers below were previously implemented but never actually running — nothing was registered in DI, so `BankReconciliationHostedService` (the only hosted service that existed at the time) and every worker class sat unused. Five of the six matching levels (Operational, Sync-Audit, Sales, Collection, Settlement) had no hosted service driving them at all. This has been fixed: all seven workers are now registered in `Program.cs`, and a single `ReconciliationCycleHostedService` drives all six matching levels in order every cycle. See "DI Wiring" below for what changed and why.
 
-1. **JournalPostingExecutorWorker**
+### Components
+
+1. **The six matching-level workers** (`Services/Workers/*.cs`), all sharing the signature `Task<TResult> ExecuteAsync(Guid tenantId, TenantDbContext tenantDb, CancellationToken ct)`:
+
+   | Level | Worker | Matches |
+   |---|---|---|
+   | Level1 | `OperationalMatchWorker` | Staff manual entry ↔ POS EOD |
+   | Level2 | `PosErpSyncAuditWorker` | POS EOD ↔ ERP sales ledger |
+   | Level3 | `ErpGatewaySalesMatchWorker` | ERP sales ledger ↔ Payment gateway |
+   | Level4 | `BankStatementReconciliationWorker` | Approved card cashout ↔ Bank statement |
+   | Level5 | `CollectionMatchWorker` | Physical card-in ↔ Bank statement |
+   | Level6 | `SettlementMatchWorker` | Gateway payout (many records) ↔ Bank statement (one deposit) |
+
+   **Known gap**: there is no level that matches POS EOD directly against BANK statements (POS-terminal batch settlement — e.g. a bank line like `"POS SETTLEMENT - TID88552 - BATCH 000452"`). POS records only ever reconcile against Level1 (staff) and Level2 (ERP) today. Real bank narrative formats for batch settlements also aren't parseable by `SettlementKeyResolver`, which only does exact/trimmed/uppercased string comparison — there's no regex/substring-extraction step, and the canonical schema has no `BatchNumber`/`TerminalId`/`MerchantId` fields. If this is needed, it would look like a seventh level mirroring `SettlementMatchWorker`'s group-and-sum pattern but for `SourceType == "POS"`, keyed on a batch number extracted from the bank narrative per-mapping-template (batch number is the one identifier present across differently-formatted bank/acquirer narratives — TID and MID are not).
+
+2. **JournalPostingExecutorWorker**
    - Location: `Services/Workers/JournalPostingExecutorWorker.cs`
-   - Finds JournalReady transactions and creates double-entry GL journal entries
+   - Finds JournalReady transactions and creates a `JournalVoucher` + double-entry `JournalEntry` rows, each posted against a real `ChartOfAccount` row
+   - Verifies the voucher's entries sum to zero before posting — rejects (logs + counts as failed) rather than committing an unbalanced voucher
    - Automatically posts after bank reconciliation confirms matches
    - Handles gateway processing fees with separate GL entries
 
-2. **JournalPostingHostedService**
+3. **JournalPostingHostedService**
    - Location: `BackgroundServices/JournalPostingHostedService.cs`
-   - Runs every 5 minutes (30-second startup delay for sequencing)
+   - Runs every 5 minutes (30-second startup delay so it runs after a reconciliation cycle)
    - Iterates through all active tenants
    - Safe concurrent execution with tenant-level locking
 
-3. **Program.cs Registration**
+4. **ReconciliationCycleHostedService** (new — replaces the old single-worker `BankReconciliationHostedService`)
+   - Location: `BackgroundServices/ReconciliationCycleHostedService.cs`
+   - Runs every 5 minutes; for each active tenant, runs all six matching-level workers in Level1→Level6 order against one `TenantDbContext`
+   - Each worker runs in its own try/catch so one worker's failure doesn't block the rest of the cycle
+   - `BankReconciliationHostedService` (which only ever ran Level4) was deleted — its job is now one step of this cycle
+
+5. **DI Wiring** (`Program.cs`) — this is what was actually missing before:
    ```csharp
+   builder.Services.AddScoped<IReconciliationSettingsProvider, ReconciliationSettingsProvider>();
+   builder.Services.AddScoped<OperationalMatchWorker>();
+   builder.Services.AddScoped<PosErpSyncAuditWorker>();
+   builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
+   builder.Services.AddScoped<BankStatementReconciliationWorker>();
+   builder.Services.AddScoped<CollectionMatchWorker>();
+   builder.Services.AddScoped<SettlementMatchWorker>();
    builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+
+   builder.Services.AddHostedService<ReconciliationCycleHostedService>();
    builder.Services.AddHostedService<JournalPostingHostedService>();
    ```
+
+6. **Schema**: `ReconciliationMatchGroups`, `ReconciliationMatchedRecords`, `ReconciliationEvents`, `JournalEntries` were declared on `TenantDbContext` but were never actually created in tenant SQL Server databases — the hand-rolled `SqlServerTenantSchemaMigrator` (tenant DBs don't use EF Core migrations) had no `CREATE TABLE` for any of them. Worker unit tests only ever passed because they run against EF's InMemory provider, which fabricates schema regardless of what's deployed. This is now fixed with real migrations in `Services/TenantSchemaMigrator.cs`, along with two columns (`MatchStatus`, `SettlementKey`) that every worker queries but that were also missing from `ImportedNormalizedRecords`.
 
 ### Workflow Pipeline
 

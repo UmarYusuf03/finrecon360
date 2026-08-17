@@ -1,4 +1,5 @@
 using finrecon360_backend.Data;
+using finrecon360_backend.Services;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services.Workers;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ public class BankStatementReconciliationWorkerTests
 
     private static BankStatementReconciliationWorker CreateWorker()
     {
-        return new BankStatementReconciliationWorker(NullLogger<BankStatementReconciliationWorker>.Instance);
+        return new BankStatementReconciliationWorker(NullLogger<BankStatementReconciliationWorker>.Instance, new ReconciliationSettingsProvider());
     }
 
     [Fact]
@@ -406,5 +407,116 @@ public class BankStatementReconciliationWorkerTests
         // 3. Verify results — transaction is not counted
         Assert.Equal(0, result.NeedsBankMatchCount);
         Assert.Equal(0, result.AutoMatchedCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_scopes_BANK_candidates_to_the_transactions_bank_account()
+    {
+        using var tenantDb = CreateTenantDb();
+        var worker = CreateWorker();
+
+        var tenantId = Guid.NewGuid();
+        var txnDate = DateTime.UtcNow.Date;
+        var accountA = Guid.NewGuid();
+        var accountB = Guid.NewGuid();
+
+        // Card cashout tied to accountA.
+        var txn = new Transaction
+        {
+            TransactionId = Guid.NewGuid(),
+            Amount = 1000m,
+            TransactionDate = txnDate,
+            TransactionState = TransactionState.NeedsBankMatch,
+            TransactionType = TransactionType.CashOut,
+            PaymentMethod = PaymentMethod.Card,
+            BankAccountId = accountA,
+            Description = "Card cashout scoped to account A",
+            CreatedAt = DateTime.UtcNow,
+            ApprovedAt = DateTime.UtcNow,
+        };
+        tenantDb.Transactions.Add(txn);
+
+        var gatewayBatch = new ImportBatch
+        {
+            ImportBatchId = Guid.NewGuid(),
+            SourceType = "GATEWAY",
+            Status = "COMMITTED",
+            ImportedAt = DateTime.UtcNow,
+        };
+        tenantDb.ImportBatches.Add(gatewayBatch);
+
+        var gatewayRecord = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = gatewayBatch.ImportBatchId,
+            TransactionDate = txnDate,
+            NetAmount = 1000m,
+            Currency = "LKR",
+            AccountCode = "ACCT001",
+            ReferenceNumber = "REF001",
+            MatchStatus = "PENDING",
+            CreatedAt = DateTime.UtcNow,
+        };
+        tenantDb.ImportedNormalizedRecords.Add(gatewayRecord);
+
+        // Two BANK batches — one per physical account — both containing a record with the same
+        // settlement key and amount. Without account scoping these would collide as ambiguous.
+        var bankBatchA = new ImportBatch
+        {
+            ImportBatchId = Guid.NewGuid(),
+            SourceType = "BANK",
+            Status = "COMMITTED",
+            BankAccountId = accountA,
+            ImportedAt = DateTime.UtcNow,
+        };
+        var bankBatchB = new ImportBatch
+        {
+            ImportBatchId = Guid.NewGuid(),
+            SourceType = "BANK",
+            Status = "COMMITTED",
+            BankAccountId = accountB,
+            ImportedAt = DateTime.UtcNow,
+        };
+        tenantDb.ImportBatches.AddRange(bankBatchA, bankBatchB);
+
+        var bankRecordA = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = bankBatchA.ImportBatchId,
+            TransactionDate = txnDate,
+            NetAmount = 1000m,
+            Currency = "LKR",
+            AccountCode = "ACCT001",
+            ReferenceNumber = "REF001",
+            MatchStatus = "PENDING",
+            CreatedAt = DateTime.UtcNow,
+        };
+        var bankRecordB = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = bankBatchB.ImportBatchId,
+            TransactionDate = txnDate,
+            NetAmount = 1000m,
+            Currency = "LKR",
+            AccountCode = "ACCT001",
+            ReferenceNumber = "REF001",
+            MatchStatus = "PENDING",
+            CreatedAt = DateTime.UtcNow,
+        };
+        tenantDb.ImportedNormalizedRecords.AddRange(bankRecordA, bankRecordB);
+
+        await tenantDb.SaveChangesAsync();
+
+        var result = await worker.ExecuteAsync(tenantId, tenantDb);
+
+        // Scoping to accountA leaves exactly one eligible candidate, so this is a clean match
+        // rather than an ambiguous one.
+        Assert.Equal(1, result.AutoMatchedCount);
+        Assert.Equal(0, result.ExceptionCount);
+
+        var updatedA = await tenantDb.ImportedNormalizedRecords.FindAsync(bankRecordA.ImportedNormalizedRecordId);
+        var updatedB = await tenantDb.ImportedNormalizedRecords.FindAsync(bankRecordB.ImportedNormalizedRecordId);
+        Assert.Equal("MATCHED", updatedA!.MatchStatus);
+        Assert.Equal("PENDING", updatedB!.MatchStatus); // untouched — wrong account
     }
 }

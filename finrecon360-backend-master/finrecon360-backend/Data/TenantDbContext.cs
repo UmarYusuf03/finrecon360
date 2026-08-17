@@ -33,6 +33,9 @@ namespace finrecon360_backend.Data
         public DbSet<ReconciliationMatchGroup> ReconciliationMatchGroups => Set<ReconciliationMatchGroup>();
         public DbSet<ReconciliationMatchedRecord> ReconciliationMatchedRecords => Set<ReconciliationMatchedRecord>();
         public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
+        public DbSet<ReconciliationSettings> ReconciliationSettings => Set<ReconciliationSettings>();
+        public DbSet<ChartOfAccount> ChartOfAccounts => Set<ChartOfAccount>();
+        public DbSet<JournalVoucher> JournalVouchers => Set<JournalVoucher>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -237,10 +240,16 @@ namespace finrecon360_backend.Data
                 entity.HasIndex(x => x.ImportedAt);
                 entity.HasIndex(x => new { x.SourceType, x.Status });
                 entity.HasIndex(x => x.MappingTemplateId);
+                entity.HasIndex(x => x.BankAccountId);
 
                 entity.HasOne(x => x.MappingTemplate)
                     .WithMany(x => x.Batches)
                     .HasForeignKey(x => x.MappingTemplateId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.BankAccount)
+                    .WithMany()
+                    .HasForeignKey(x => x.BankAccountId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
@@ -415,6 +424,8 @@ namespace finrecon360_backend.Data
                 entity.HasIndex(x => x.TransactionId);
                 entity.HasIndex(x => x.ReconciliationMatchGroupId);
                 entity.HasIndex(x => x.PostedAt);
+                entity.HasIndex(x => x.JournalVoucherId);
+                entity.HasIndex(x => x.ChartOfAccountId);
 
                 entity.HasOne(x => x.Transaction)
                     .WithMany()
@@ -425,6 +436,57 @@ namespace finrecon360_backend.Data
                     .WithMany()
                     .HasForeignKey(x => x.ReconciliationMatchGroupId)
                     .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(x => x.JournalVoucher)
+                    .WithMany(x => x.Entries)
+                    .HasForeignKey(x => x.JournalVoucherId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(x => x.ChartOfAccount)
+                    .WithMany()
+                    .HasForeignKey(x => x.ChartOfAccountId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            modelBuilder.Entity<ChartOfAccount>(entity =>
+            {
+                entity.ToTable("ChartOfAccounts");
+                entity.HasKey(x => x.ChartOfAccountId);
+                entity.Property(x => x.ChartOfAccountId).ValueGeneratedNever();
+                entity.Property(x => x.Code).HasMaxLength(30).IsRequired();
+                entity.Property(x => x.Name).HasMaxLength(150).IsRequired();
+                entity.Property(x => x.AccountType).HasConversion<string>().HasMaxLength(20).IsRequired();
+                entity.Property(x => x.IsActive).HasDefaultValue(true);
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.Code).IsUnique();
+            });
+
+            modelBuilder.Entity<JournalVoucher>(entity =>
+            {
+                entity.ToTable("JournalVouchers");
+                entity.HasKey(x => x.JournalVoucherId);
+                entity.Property(x => x.JournalVoucherId).ValueGeneratedNever();
+                entity.Property(x => x.Status).HasMaxLength(20).HasDefaultValue("Posted").IsRequired();
+                entity.Property(x => x.PostedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.TransactionId);
+                entity.HasIndex(x => x.ReconciliationMatchGroupId);
+            });
+
+            modelBuilder.Entity<ReconciliationSettings>(entity =>
+            {
+                entity.ToTable("ReconciliationSettings");
+                entity.HasKey(x => x.ReconciliationSettingsId);
+                entity.Property(x => x.ReconciliationSettingsId).ValueGeneratedNever();
+                entity.Property(x => x.AmountTolerance).HasColumnType("decimal(18,4)").HasDefaultValue(0.01m);
+                entity.Property(x => x.DateToleranceDays).HasDefaultValue(1);
+                entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
             });
 
             base.OnModelCreating(modelBuilder);

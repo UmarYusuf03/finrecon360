@@ -23,6 +23,9 @@ namespace finrecon360_backend.Services
         private const string MigrationTransactionApprovalFields = "202604230005_TenantTransactionApprovalFields";
         private const string MigrationImportedRecordsMatchFields = "202608170001_TenantImportedNormalizedRecordsMatchFields";
         private const string MigrationReconciliationJournalSchema = "202608170002_TenantReconciliationJournalSchema";
+        private const string MigrationReconciliationSettings = "202608170003_TenantReconciliationSettings";
+        private const string MigrationImportBatchBankAccountLink = "202608170004_TenantImportBatchBankAccountLink";
+        private const string MigrationChartOfAccountsAndVouchers = "202608170005_TenantChartOfAccountsAndVouchers";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -46,6 +49,9 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationTransactionApprovalFields, BuildTenantTransactionApprovalFieldsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportedRecordsMatchFields, BuildTenantImportedNormalizedRecordsMatchFieldsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationJournalSchema, BuildTenantReconciliationJournalSchemaSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationSettings, BuildTenantReconciliationSettingsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportBatchBankAccountLink, BuildTenantImportBatchBankAccountLinkSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationChartOfAccountsAndVouchers, BuildTenantChartOfAccountsAndVouchersSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -975,6 +981,7 @@ namespace finrecon360_backend.Services
                 (N'ADMIN.RECONCILIATION.VIEW', N'Reconciliation View', N'View reconciliation match groups and events', N'Reconciliation'),
                 (N'ADMIN.RECONCILIATION.CONFIRM', N'Reconciliation Confirm', N'Confirm pending reconciliation matches', N'Reconciliation'),
                 (N'ADMIN.RECONCILIATION.RESOLVE', N'Reconciliation Resolve', N'Resolve reconciliation exceptions', N'Reconciliation'),
+                (N'ADMIN.RECONCILIATION.MANAGE', N'Reconciliation Manage', N'Manage reconciliation tolerance settings', N'Reconciliation'),
                 (N'ADMIN.JOURNAL.VIEW', N'Journal View', N'View posted journal entries', N'Accounting'),
                 (N'ADMIN.JOURNAL.POST', N'Journal Post', N'Post journal entries', N'Accounting')
             ) v(Code, Name, Description, Module)
@@ -985,12 +992,160 @@ namespace finrecon360_backend.Services
             FROM dbo.Roles r
             INNER JOIN dbo.Permissions p ON p.Code IN (
                 N'ADMIN.RECONCILIATION.VIEW', N'ADMIN.RECONCILIATION.CONFIRM', N'ADMIN.RECONCILIATION.RESOLVE',
-                N'ADMIN.JOURNAL.VIEW', N'ADMIN.JOURNAL.POST')
+                N'ADMIN.RECONCILIATION.MANAGE', N'ADMIN.JOURNAL.VIEW', N'ADMIN.JOURNAL.POST')
             WHERE r.Code = N'ADMIN'
               AND NOT EXISTS (
                   SELECT 1 FROM dbo.RolePermissions rp
                   WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
               );
+            """;
+
+        // Single-row-per-tenant tolerance settings, replacing the seven independently
+        // hardcoded `AmountTolerance = 0.01m` consts previously duplicated across the
+        // matching workers.
+        private static string BuildTenantReconciliationSettingsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationSettings', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ReconciliationSettings (
+                    ReconciliationSettingsId uniqueidentifier NOT NULL PRIMARY KEY,
+                    AmountTolerance decimal(18,4) NOT NULL CONSTRAINT DF_ReconciliationSettings_AmountTolerance DEFAULT (0.01),
+                    DateToleranceDays int NOT NULL CONSTRAINT DF_ReconciliationSettings_DateToleranceDays DEFAULT (1),
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ReconciliationSettings_CreatedAt DEFAULT SYSUTCDATETIME(),
+                    UpdatedAt datetime2 NULL
+                );
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM dbo.ReconciliationSettings)
+            BEGIN
+                INSERT INTO dbo.ReconciliationSettings (ReconciliationSettingsId, AmountTolerance, DateToleranceDays)
+                VALUES (NEWID(), 0.01, 1);
+            END
+            """;
+
+        // Links an ImportBatch to the specific BankAccount a BANK-source file was uploaded
+        // for, so reconciliation matching can be scoped per account instead of pooling every
+        // BANK record tenant-wide regardless of which account it belongs to.
+        private static string BuildTenantImportBatchBankAccountLinkSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportBatches', N'U') IS NULL OR OBJECT_ID(N'dbo.BankAccounts', N'U') IS NULL
+            BEGIN
+                RETURN;
+            END
+
+            IF COL_LENGTH(N'dbo.ImportBatches', N'BankAccountId') IS NULL
+            BEGIN
+                ALTER TABLE dbo.ImportBatches ADD BankAccountId uniqueidentifier NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.indexes
+                WHERE object_id = OBJECT_ID(N'dbo.ImportBatches') AND name = N'IX_ImportBatches_BankAccountId')
+            BEGIN
+                CREATE INDEX IX_ImportBatches_BankAccountId ON dbo.ImportBatches(BankAccountId);
+            END
+
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.foreign_keys
+                WHERE name = N'FK_ImportBatches_BankAccounts_BankAccountId')
+            BEGIN
+                ALTER TABLE dbo.ImportBatches
+                ADD CONSTRAINT FK_ImportBatches_BankAccounts_BankAccountId
+                    FOREIGN KEY (BankAccountId)
+                    REFERENCES dbo.BankAccounts(BankAccountId)
+                    ON DELETE SET NULL;
+            END
+            """;
+
+        // Minimal chart of accounts + journal voucher grouping so "posting to the journal"
+        // resolves to real GL accounts and a balanced set of entries, instead of flat
+        // JournalEntry rows tagged only with a free-text EntryType string.
+        private static string BuildTenantChartOfAccountsAndVouchersSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ChartOfAccounts', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.ChartOfAccounts (
+                    ChartOfAccountId uniqueidentifier NOT NULL PRIMARY KEY,
+                    Code nvarchar(30) NOT NULL,
+                    Name nvarchar(150) NOT NULL,
+                    AccountType nvarchar(20) NOT NULL,
+                    IsActive bit NOT NULL CONSTRAINT DF_ChartOfAccounts_IsActive DEFAULT (1),
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_ChartOfAccounts_CreatedAt DEFAULT SYSUTCDATETIME()
+                );
+
+                CREATE UNIQUE INDEX IX_ChartOfAccounts_Code ON dbo.ChartOfAccounts(Code);
+            END
+
+            IF OBJECT_ID(N'dbo.JournalVouchers', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.JournalVouchers (
+                    JournalVoucherId uniqueidentifier NOT NULL PRIMARY KEY,
+                    TransactionId uniqueidentifier NULL,
+                    ReconciliationMatchGroupId uniqueidentifier NULL,
+                    Status nvarchar(20) NOT NULL CONSTRAINT DF_JournalVouchers_Status DEFAULT (N'Posted'),
+                    PostedAt datetime2 NOT NULL CONSTRAINT DF_JournalVouchers_PostedAt DEFAULT SYSUTCDATETIME(),
+                    PostedByUserId uniqueidentifier NULL,
+                    CONSTRAINT FK_JournalVouchers_Transactions_TransactionId FOREIGN KEY (TransactionId) REFERENCES dbo.Transactions(TransactionId) ON DELETE NO ACTION,
+                    CONSTRAINT FK_JournalVouchers_MatchGroups_GroupId FOREIGN KEY (ReconciliationMatchGroupId) REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId) ON DELETE NO ACTION
+                );
+
+                CREATE INDEX IX_JournalVouchers_TransactionId ON dbo.JournalVouchers(TransactionId);
+                CREATE INDEX IX_JournalVouchers_GroupId ON dbo.JournalVouchers(ReconciliationMatchGroupId);
+            END
+
+            IF OBJECT_ID(N'dbo.JournalEntries', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.JournalEntries', N'JournalVoucherId') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.JournalEntries ADD JournalVoucherId uniqueidentifier NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.JournalEntries', N'ChartOfAccountId') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.JournalEntries ADD ChartOfAccountId uniqueidentifier NULL;
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.JournalEntries') AND name = N'IX_JournalEntries_JournalVoucherId')
+                BEGIN
+                    CREATE INDEX IX_JournalEntries_JournalVoucherId ON dbo.JournalEntries(JournalVoucherId);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.JournalEntries') AND name = N'IX_JournalEntries_ChartOfAccountId')
+                BEGIN
+                    CREATE INDEX IX_JournalEntries_ChartOfAccountId ON dbo.JournalEntries(ChartOfAccountId);
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_JournalEntries_JournalVouchers_JournalVoucherId')
+                BEGIN
+                    ALTER TABLE dbo.JournalEntries
+                    ADD CONSTRAINT FK_JournalEntries_JournalVouchers_JournalVoucherId
+                        FOREIGN KEY (JournalVoucherId) REFERENCES dbo.JournalVouchers(JournalVoucherId) ON DELETE NO ACTION;
+                END
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_JournalEntries_ChartOfAccounts_ChartOfAccountId')
+                BEGIN
+                    ALTER TABLE dbo.JournalEntries
+                    ADD CONSTRAINT FK_JournalEntries_ChartOfAccounts_ChartOfAccountId
+                        FOREIGN KEY (ChartOfAccountId) REFERENCES dbo.ChartOfAccounts(ChartOfAccountId) ON DELETE NO ACTION;
+                END
+            END
+
+            -- Seed the four accounts JournalPostingExecutorWorker's entry types map to.
+            INSERT INTO dbo.ChartOfAccounts (ChartOfAccountId, Code, Name, AccountType, IsActive)
+            SELECT NEWID(), v.Code, v.Name, v.AccountType, 1
+            FROM (VALUES
+                (N'1000-BANK', N'Bank / Cash Received', N'Asset'),
+                (N'2000-CASHOUT', N'Cash-Out Clearing', N'Liability'),
+                (N'5000-FEE', N'Processing Fee Expense', N'Expense'),
+                (N'4000-FEEOFFSET', N'Fee Offset Revenue', N'Revenue')
+            ) v(Code, Name, AccountType)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.ChartOfAccounts a WHERE a.Code = v.Code);
             """;
 
         private static async Task ExecuteNonQueryAsync(

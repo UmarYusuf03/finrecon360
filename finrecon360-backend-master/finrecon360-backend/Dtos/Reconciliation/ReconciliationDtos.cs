@@ -65,6 +65,8 @@ namespace finrecon360_backend.Dtos.Reconciliation
     public class JournalEntryResponse
     {
         public Guid JournalEntryId { get; set; }
+        public Guid? JournalVoucherId { get; set; }
+        public Guid? ChartOfAccountId { get; set; }
         public Guid? TransactionId { get; set; }
         public Guid? ReconciliationMatchGroupId { get; set; }
         public string EntryType { get; set; } = null!;
@@ -73,6 +75,25 @@ namespace finrecon360_backend.Dtos.Reconciliation
         public DateTime PostedAt { get; set; }
         public Guid? PostedByUserId { get; set; }
         public string? Notes { get; set; }
+    }
+
+    public class JournalVoucherResponse
+    {
+        public Guid JournalVoucherId { get; set; }
+        public Guid? TransactionId { get; set; }
+        public Guid? ReconciliationMatchGroupId { get; set; }
+        public string Status { get; set; } = null!;
+        public DateTime PostedAt { get; set; }
+        public Guid? PostedByUserId { get; set; }
+        public decimal BalanceCheck { get; set; }
+        public List<JournalEntryResponse> Entries { get; set; } = new();
+    }
+
+    public class ReconciliationSettingsResponse
+    {
+        public decimal AmountTolerance { get; set; }
+        public int DateToleranceDays { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 
     // ─── Request DTOs ───────────────────────────────────────────────────────────
@@ -85,5 +106,11 @@ namespace finrecon360_backend.Dtos.Reconciliation
     public class PostJournalRequest
     {
         public string? Notes { get; set; }
+    }
+
+    public class UpdateReconciliationSettingsRequest
+    {
+        public decimal AmountTolerance { get; set; }
+        public int DateToleranceDays { get; set; }
     }
 }

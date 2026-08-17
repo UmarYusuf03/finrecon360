@@ -1,5 +1,6 @@
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -17,23 +18,31 @@ namespace finrecon360_backend.Services.Workers
     /// Source A (Internal): ImportedNormalizedRecords from GATEWAY grouped by SettlementId
     /// Source B (External): ImportedNormalizedRecords from BANK where Reference = SettlementId
     ///
+    /// NOTE on bank-account scoping: unlike Level4/Level5, a GATEWAY settlement record has no
+    /// field identifying which of the tenant's bank accounts it should land in — the settlement
+    /// reference is the only anchor. Matching here therefore still searches BANK records
+    /// tenant-wide; scoping would require the gateway source to carry an account hint, which it
+    /// doesn't today.
+    ///
     /// Match logic:
     ///   - Group GATEWAY records (that haven't been settled yet) by SettlementId.
     ///   - Sum the NetAmount of the group (this represents the expected payout).
     ///   - Find a BANK record whose ReferenceNumber matches the SettlementId.
     ///
     /// On exact match → ReconciliationMatchGroup(Level6, IsConfirmed=true) linking all gateway records to the 1 bank record.
+    /// On ambiguous match (2+ BANK candidates within tolerance of each other) → ReconciliationEvent(RequiresReview).
     /// On variance    → ReconciliationEvent(Variance) — e.g. unexpected settlement fees.
     /// On no match    → ReconciliationEvent(MatchNotFound) — payout hasn't hit the bank yet.
     /// </summary>
     public class SettlementMatchWorker
     {
         private readonly ILogger<SettlementMatchWorker> _logger;
-        private const decimal AmountTolerance = 0.01m;
+        private readonly IReconciliationSettingsProvider _settingsProvider;
 
-        public SettlementMatchWorker(ILogger<SettlementMatchWorker> logger)
+        public SettlementMatchWorker(ILogger<SettlementMatchWorker> logger, IReconciliationSettingsProvider settingsProvider)
         {
             _logger = logger;
+            _settingsProvider = settingsProvider;
         }
 
         public async Task<MatchingRunResult> ExecuteAsync(
@@ -41,20 +50,23 @@ namespace finrecon360_backend.Services.Workers
             TenantDbContext tenantDb,
             CancellationToken ct = default)
         {
+            var settings = await _settingsProvider.GetAsync(tenantDb, ct);
+            var amountTolerance = settings.AmountTolerance;
+
             // 1. Load all GATEWAY records that have a SettlementId but are not yet Level6 matched.
             // (They might be Level3 matched to ERP, but they still need Level6 to clear the bank).
             var gatewayRecords = await (
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
                 where b.SourceType == "GATEWAY" && b.Status == "COMMITTED"
-                   && r.MatchStatus != "LEVEL6_MATCHED"
+                   && r.MatchStatus != MatchStatuses.Level6Matched
                    && !string.IsNullOrEmpty(r.SettlementId)
                 select r
             ).ToListAsync(ct);
 
             if (gatewayRecords.Count == 0)
             {
-                return MatchingRunResult.Empty("Level6");
+                return MatchingRunResult.Empty(MatchLevels.Level6);
             }
 
             // Group by SettlementId to calculate expected bulk payout amounts.
@@ -66,7 +78,7 @@ namespace finrecon360_backend.Services.Workers
             var bankRecords = await (
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
-                where b.SourceType == "BANK" && b.Status == "COMMITTED" && r.MatchStatus == "PENDING"
+                where b.SourceType == "BANK" && b.Status == "COMMITTED" && r.MatchStatus == MatchStatuses.Pending
                 select r
             ).ToListAsync(ct);
 
@@ -99,8 +111,8 @@ namespace finrecon360_backend.Services.Workers
                     tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
                     {
                         ReconciliationEventId = Guid.NewGuid(),
-                        EventType = "MatchNotFound",
-                        MatchLevel = "Level6",
+                        EventType = ReconciliationEventTypes.MatchNotFound,
+                        MatchLevel = MatchLevels.Level6,
                         Details = $"Settlement {settlementId} (expected {expectedPayout:F2} from {groupRecords.Count} records) " +
                                   $"not yet found on Bank Statement.",
                         CreatedAt = now,
@@ -109,19 +121,37 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // Find the bank deposit that matches the expected payout sum.
-                var matchedBankRecord = bankCandidates.FirstOrDefault(b =>
-                    Math.Abs(b.NetAmount - expectedPayout) < AmountTolerance);
+                // Find the bank deposit closest to the expected payout sum; flag ambiguity
+                // instead of silently taking the first one when 2+ candidates are within
+                // tolerance of each other.
+                var matchResult = AmountMatcher.FindBestMatch(bankCandidates, expectedPayout, amountTolerance);
 
-                if (matchedBankRecord == null)
+                if (matchResult.Outcome == AmountMatcher.Outcome.Ambiguous)
                 {
-                    // Bank deposit found with matching Settlement ID, but amount differs.
-                    var best = bankCandidates[0];
                     tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
                     {
                         ReconciliationEventId = Guid.NewGuid(),
-                        EventType = "Variance",
-                        MatchLevel = "Level6",
+                        EventType = ReconciliationEventTypes.RequiresReview,
+                        MatchLevel = MatchLevels.Level6,
+                        Details = $"Settlement {settlementId}: {matchResult.CandidateCount} BANK deposits with this " +
+                                  $"reference are within tolerance of the expected payout ({expectedPayout:F2}).",
+                        CreatedAt = now,
+                    });
+                    exceptions++;
+                    continue;
+                }
+
+                if (matchResult.Outcome == AmountMatcher.Outcome.NoMatch)
+                {
+                    // Bank deposit found with matching Settlement ID, but amount differs.
+                    var best = bankCandidates
+                        .OrderBy(b => Math.Abs(b.NetAmount - expectedPayout))
+                        .First();
+                    tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
+                    {
+                        ReconciliationEventId = Guid.NewGuid(),
+                        EventType = ReconciliationEventTypes.Variance,
+                        MatchLevel = MatchLevels.Level6,
                         Details = $"Settlement {settlementId}: Gateway expects {expectedPayout:F2}, " +
                                   $"but Bank received {best.NetAmount:F2} (delta {Math.Abs(best.NetAmount - expectedPayout):F2}). " +
                                   $"Possible undisclosed settlement fees.",
@@ -131,12 +161,14 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
+                var matchedBankRecord = matchResult.Best!;
+
                 // Exact match — create Level6 group linking ALL gateway records + the 1 bank record.
                 var settlementKey = $"SETTLEMENT|{settlementId}";
                 var matchGroup = new ReconciliationMatchGroup
                 {
                     ReconciliationMatchGroupId = Guid.NewGuid(),
-                    MatchLevel = "Level6",
+                    MatchLevel = MatchLevels.Level6,
                     SettlementKey = settlementKey,
                     IsConfirmed = true,
                     ConfirmedAt = now,
@@ -157,7 +189,7 @@ namespace finrecon360_backend.Services.Workers
                     LinkedAt = now,
                 });
 
-                matchedBankRecord.MatchStatus = "MATCHED";
+                matchedBankRecord.MatchStatus = MatchStatuses.Matched;
                 matchedBankRecord.SettlementKey = settlementKey;
 
                 // Link all Gateway Records
@@ -172,7 +204,7 @@ namespace finrecon360_backend.Services.Workers
                         LinkedAt = now,
                     });
 
-                    gw.MatchStatus = "LEVEL6_MATCHED";
+                    gw.MatchStatus = MatchStatuses.Level6Matched;
                     gw.SettlementKey = settlementKey;
                 }
 
@@ -189,7 +221,7 @@ namespace finrecon360_backend.Services.Workers
                 "SettlementMatchWorker done — matched={M} groups, exceptions={E}, noMatch={N}",
                 autoMatched, exceptions, noMatch);
 
-            return new MatchingRunResult("Level6", gatewayBySettlement.Count, autoMatched, exceptions, noMatch);
+            return new MatchingRunResult(MatchLevels.Level6, gatewayBySettlement.Count, autoMatched, exceptions, noMatch);
         }
     }
 }

@@ -23,8 +23,22 @@ namespace finrecon360_backend.Models
         public Guid? ReconciliationMatchGroupId { get; set; }
 
         /// <summary>
+        /// The voucher this entry belongs to. All entries in a voucher must sum to zero —
+        /// enforced by JournalPostingExecutorWorker/ReconciliationController before posting,
+        /// not by a database constraint (SQL Server can't easily check a cross-row aggregate).
+        /// </summary>
+        public Guid? JournalVoucherId { get; set; }
+
+        /// <summary>
+        /// The GL account this entry posts against. Nullable so pre-existing entries and any
+        /// entry type without a seeded chart-of-accounts mapping don't fail to save.
+        /// </summary>
+        public Guid? ChartOfAccountId { get; set; }
+
+        /// <summary>
         /// Type of journal entry:
-        /// 'Revenue' | 'Expense' | 'FeeAdjustment' | 'CashOut' | 'CashIn'
+        /// 'Revenue' | 'Expense' | 'FeeAdjustment' | 'CashOut' | 'CashIn' |
+        /// 'DebitBank' | 'CreditCashOut' | 'DebitFeeExpense' | 'CreditFeeOffset'
         /// </summary>
         public string EntryType { get; set; } = null!;
 
@@ -43,5 +57,7 @@ namespace finrecon360_backend.Models
         // Navigation
         public Transaction? Transaction { get; set; }
         public ReconciliationMatchGroup? ReconciliationMatchGroup { get; set; }
+        public JournalVoucher? JournalVoucher { get; set; }
+        public ChartOfAccount? ChartOfAccount { get; set; }
     }
 }

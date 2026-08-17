@@ -1,5 +1,6 @@
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -19,16 +20,18 @@ namespace finrecon360_backend.Services.Workers
     ///
     /// On exact ref match + amount match → ReconciliationMatchGroup(Level2, IsConfirmed=true)
     /// On ref match but amount delta      → ReconciliationEvent(Variance) — requires review
+    /// On ambiguous match (2+ ERP candidates within tolerance of each other) → ReconciliationEvent(RequiresReview)
     /// On no ERP record for ref           → ReconciliationEvent(MatchNotFound) — sync gap
     /// </summary>
     public class PosErpSyncAuditWorker
     {
         private readonly ILogger<PosErpSyncAuditWorker> _logger;
-        private const decimal AmountTolerance = 0.01m;
+        private readonly IReconciliationSettingsProvider _settingsProvider;
 
-        public PosErpSyncAuditWorker(ILogger<PosErpSyncAuditWorker> logger)
+        public PosErpSyncAuditWorker(ILogger<PosErpSyncAuditWorker> logger, IReconciliationSettingsProvider settingsProvider)
         {
             _logger = logger;
+            _settingsProvider = settingsProvider;
         }
 
         public async Task<MatchingRunResult> ExecuteAsync(
@@ -36,27 +39,30 @@ namespace finrecon360_backend.Services.Workers
             TenantDbContext tenantDb,
             CancellationToken ct = default)
         {
+            var settings = await _settingsProvider.GetAsync(tenantDb, ct);
+            var amountTolerance = settings.AmountTolerance;
+
             // 1. Load all COMMITTED POS records (regardless of Level1 match state).
             //    These are the "source of truth" from the POS that should appear in ERP.
             var posRecords = await (
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
                 where b.SourceType == "POS" && b.Status == "COMMITTED"
-                   && r.MatchStatus != "LEVEL2_MATCHED" // skip already Level2-matched
+                   && r.MatchStatus != MatchStatuses.Level2Matched // skip already Level2-matched
                    && !string.IsNullOrEmpty(r.ReferenceNumber)
                 select r
             ).ToListAsync(ct);
 
             if (posRecords.Count == 0)
             {
-                return MatchingRunResult.Empty("Level2");
+                return MatchingRunResult.Empty(MatchLevels.Level2);
             }
 
             // 2. Load all COMMITTED ERP records that are PENDING a Level2 match.
             var erpRecords = await (
                 from r in tenantDb.ImportedNormalizedRecords
                 join b in tenantDb.ImportBatches on r.ImportBatchId equals b.ImportBatchId
-                where b.SourceType == "ERP" && b.Status == "COMMITTED" && r.MatchStatus == "PENDING"
+                where b.SourceType == "ERP" && b.Status == "COMMITTED" && r.MatchStatus == MatchStatuses.Pending
                    && !string.IsNullOrEmpty(r.ReferenceNumber)
                 select r
             ).ToListAsync(ct);
@@ -86,8 +92,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = posRecord.ImportedNormalizedRecordId,
-                        EventType = "MatchNotFound",
-                        MatchLevel = "Level2",
+                        EventType = ReconciliationEventTypes.MatchNotFound,
+                        MatchLevel = MatchLevels.Level2,
                         Details = $"POS record ref={posRecord.ReferenceNumber} (amount={posRecord.NetAmount}) " +
                                   $"has no corresponding ERP Sales Ledger entry. Possible sync gap.",
                         CreatedAt = now,
@@ -96,11 +102,27 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // Find ERP candidate with matching amount.
-                var erpRecord = erpCandidates.FirstOrDefault(e =>
-                    Math.Abs(e.NetAmount - posRecord.NetAmount) < AmountTolerance);
+                // Find the ERP candidate with the closest matching amount; flag ambiguity instead
+                // of silently taking the first one when 2+ candidates are within tolerance of each other.
+                var matchResult = AmountMatcher.FindBestMatch(erpCandidates, posRecord.NetAmount, amountTolerance);
 
-                if (erpRecord == null)
+                if (matchResult.Outcome == AmountMatcher.Outcome.Ambiguous)
+                {
+                    tenantDb.ReconciliationEvents.Add(new ReconciliationEvent
+                    {
+                        ReconciliationEventId = Guid.NewGuid(),
+                        ImportedNormalizedRecordId = posRecord.ImportedNormalizedRecordId,
+                        EventType = ReconciliationEventTypes.RequiresReview,
+                        MatchLevel = MatchLevels.Level2,
+                        Details = $"Ambiguous match: ref={posRecord.ReferenceNumber} has {matchResult.CandidateCount} " +
+                                  $"ERP candidates within tolerance of POS amount={posRecord.NetAmount}.",
+                        CreatedAt = now,
+                    });
+                    exceptions++;
+                    continue;
+                }
+
+                if (matchResult.Outcome == AmountMatcher.Outcome.NoMatch)
                 {
                     // Reference matches but amount is different — possible rounding or discount.
                     var bestCandidate = erpCandidates[0];
@@ -108,8 +130,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = posRecord.ImportedNormalizedRecordId,
-                        EventType = "Variance",
-                        MatchLevel = "Level2",
+                        EventType = ReconciliationEventTypes.Variance,
+                        MatchLevel = MatchLevels.Level2,
                         Details = $"Ref={posRecord.ReferenceNumber}: POS amount={posRecord.NetAmount}, " +
                                   $"ERP amount={bestCandidate.NetAmount}, " +
                                   $"delta={Math.Abs(bestCandidate.NetAmount - posRecord.NetAmount):F2}",
@@ -119,12 +141,14 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
+                var erpRecord = matchResult.Best!;
+
                 // Exact match — create Level2 group.
                 var settlementKey = $"POS_ERP|{refKey}";
                 var matchGroup = new ReconciliationMatchGroup
                 {
                     ReconciliationMatchGroupId = Guid.NewGuid(),
-                    MatchLevel = "Level2",
+                    MatchLevel = MatchLevels.Level2,
                     SettlementKey = settlementKey,
                     IsConfirmed = true,
                     ConfirmedAt = now,
@@ -153,10 +177,10 @@ namespace finrecon360_backend.Services.Workers
                 });
 
                 // Use a distinct status so Level3 worker can pick up ERP records that passed Level2.
-                erpRecord.MatchStatus = "MATCHED";
+                erpRecord.MatchStatus = MatchStatuses.Matched;
                 erpRecord.SettlementKey = settlementKey;
                 // POS record gets a level-specific status so it doesn't get re-processed.
-                posRecord.MatchStatus = "LEVEL2_MATCHED";
+                posRecord.MatchStatus = MatchStatuses.Level2Matched;
                 posRecord.SettlementKey = settlementKey;
 
                 _logger.LogInformation(
@@ -172,7 +196,7 @@ namespace finrecon360_backend.Services.Workers
                 "PosErpSyncAuditWorker done — matched={M}, exceptions={E}, noMatch={N}",
                 autoMatched, exceptions, noMatch);
 
-            return new MatchingRunResult("Level2", posRecords.Count, autoMatched, exceptions, noMatch);
+            return new MatchingRunResult(MatchLevels.Level2, posRecords.Count, autoMatched, exceptions, noMatch);
         }
     }
 }
