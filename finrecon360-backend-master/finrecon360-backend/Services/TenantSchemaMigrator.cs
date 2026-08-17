@@ -26,6 +26,11 @@ namespace finrecon360_backend.Services
         private const string MigrationReconciliationSettings = "202608170003_TenantReconciliationSettings";
         private const string MigrationImportBatchBankAccountLink = "202608170004_TenantImportBatchBankAccountLink";
         private const string MigrationChartOfAccountsAndVouchers = "202608170005_TenantChartOfAccountsAndVouchers";
+        private const string MigrationChartOfAccountsCashInSeed = "202608170006_TenantChartOfAccountsCashInSeed";
+        private const string MigrationPosSettlementIdentifierFields = "202608180001_TenantPosSettlementIdentifierFields";
+        private const string MigrationBankingHolidays = "202608180002_TenantBankingHolidays";
+        private const string MigrationReconciliationSettlementWindow = "202608180003_TenantReconciliationSettlementWindow";
+        private const string MigrationPosClearingAccount = "202608180004_TenantPosClearingAccount";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -52,6 +57,11 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationSettings, BuildTenantReconciliationSettingsSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationImportBatchBankAccountLink, BuildTenantImportBatchBankAccountLinkSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationChartOfAccountsAndVouchers, BuildTenantChartOfAccountsAndVouchersSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationChartOfAccountsCashInSeed, BuildTenantChartOfAccountsCashInSeedSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationPosSettlementIdentifierFields, BuildTenantPosSettlementIdentifierFieldsSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationBankingHolidays, BuildTenantBankingHolidaysSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationSettlementWindow, BuildTenantReconciliationSettlementWindowSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationPosClearingAccount, BuildTenantPosClearingAccountSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -1146,6 +1156,100 @@ namespace finrecon360_backend.Services
                 (N'4000-FEEOFFSET', N'Fee Offset Revenue', N'Revenue')
             ) v(Code, Name, AccountType)
             WHERE NOT EXISTS (SELECT 1 FROM dbo.ChartOfAccounts a WHERE a.Code = v.Code);
+            """;
+
+        // Fixes a gap in the original four-account seed: JournalPostingExecutorWorker posts a
+        // CreditCashIn entry for direct (non-card) CashIn transactions, but no account existed
+        // for it — every CashIn transaction's journal posting threw KeyNotFoundException and
+        // silently failed. Mirrors 2000-CASHOUT's role for the opposite cash direction.
+        private static string BuildTenantChartOfAccountsCashInSeedSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ChartOfAccounts', N'U') IS NOT NULL
+            BEGIN
+                INSERT INTO dbo.ChartOfAccounts (ChartOfAccountId, Code, Name, AccountType, IsActive)
+                SELECT NEWID(), N'3000-CASHIN', N'Cash-In Clearing', N'Liability', 1
+                WHERE NOT EXISTS (SELECT 1 FROM dbo.ChartOfAccounts a WHERE a.Code = N'3000-CASHIN');
+            END
+            """;
+
+        // Adds the BatchNumber/TerminalId/MerchantId columns PosIdentifierExtractor populates at
+        // import-commit time, plus ExtractionPatternsJson on the mapping template that drives it,
+        // for Level7 (PosSettlementMatchWorker) POS-terminal batch settlement matching.
+        private static string BuildTenantPosSettlementIdentifierFieldsSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ImportedNormalizedRecords', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'BatchNumber') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD BatchNumber nvarchar(50) NULL;
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'TerminalId') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD TerminalId nvarchar(50) NULL;
+
+                IF COL_LENGTH(N'dbo.ImportedNormalizedRecords', N'MerchantId') IS NULL
+                    ALTER TABLE dbo.ImportedNormalizedRecords ADD MerchantId nvarchar(50) NULL;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords') AND name = N'IX_ImportedNormalizedRecords_BatchNumber')
+                    CREATE INDEX IX_ImportedNormalizedRecords_BatchNumber ON dbo.ImportedNormalizedRecords(BatchNumber);
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords') AND name = N'IX_ImportedNormalizedRecords_TerminalId_TransactionDate')
+                    CREATE INDEX IX_ImportedNormalizedRecords_TerminalId_TransactionDate ON dbo.ImportedNormalizedRecords(TerminalId, TransactionDate);
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE object_id = OBJECT_ID(N'dbo.ImportedNormalizedRecords') AND name = N'IX_ImportedNormalizedRecords_MerchantId_TransactionDate')
+                    CREATE INDEX IX_ImportedNormalizedRecords_MerchantId_TransactionDate ON dbo.ImportedNormalizedRecords(MerchantId, TransactionDate);
+            END
+
+            IF OBJECT_ID(N'dbo.ImportMappingTemplates', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ImportMappingTemplates', N'ExtractionPatternsJson') IS NULL
+                    ALTER TABLE dbo.ImportMappingTemplates ADD ExtractionPatternsJson nvarchar(max) NULL;
+            END
+            """;
+
+        // Per-tenant, admin-maintained non-business-day list used by BusinessDayCalculator for
+        // Level7's T+N settlement date window.
+        private static string BuildTenantBankingHolidaysSql() =>
+            """
+            IF OBJECT_ID(N'dbo.BankingHolidays', N'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.BankingHolidays (
+                    BankingHolidayId uniqueidentifier NOT NULL PRIMARY KEY,
+                    [Date] date NOT NULL,
+                    Description nvarchar(200) NOT NULL,
+                    CreatedAt datetime2 NOT NULL CONSTRAINT DF_BankingHolidays_CreatedAt DEFAULT SYSUTCDATETIME()
+                );
+
+                CREATE UNIQUE INDEX IX_BankingHolidays_Date ON dbo.BankingHolidays([Date]);
+            END
+            """;
+
+        // T+N business-day settlement window, separate from the existing +/- DateToleranceDays
+        // fuzzy-match window (that's symmetric same-day-ish tolerance; this is a directional
+        // "the bank deposit lands N business days later" expectation).
+        private static string BuildTenantReconciliationSettlementWindowSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationSettings', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ReconciliationSettings', N'SettlementDateWindowDays') IS NULL
+                    ALTER TABLE dbo.ReconciliationSettings ADD SettlementDateWindowDays int NOT NULL CONSTRAINT DF_ReconciliationSettings_SettlementDateWindowDays DEFAULT (3);
+            END
+            """;
+
+        // Seeds the POS Clearing liability account Level7's split postings credit (Gross amount),
+        // alongside the existing 1000-BANK (net) and 5000-FEE (MDR fee) accounts it reuses.
+        private static string BuildTenantPosClearingAccountSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ChartOfAccounts', N'U') IS NOT NULL
+            BEGIN
+                INSERT INTO dbo.ChartOfAccounts (ChartOfAccountId, Code, Name, AccountType, IsActive)
+                SELECT NEWID(), N'6000-POSCLEARING', N'POS Clearing', N'Liability', 1
+                WHERE NOT EXISTS (SELECT 1 FROM dbo.ChartOfAccounts a WHERE a.Code = N'6000-POSCLEARING');
+            END
             """;
 
         private static async Task ExecuteNonQueryAsync(

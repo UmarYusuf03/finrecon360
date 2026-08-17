@@ -1,5 +1,25 @@
 # Database Schema Mismatch: Missing ReferenceNumber Column
 
+> **✅ Resolved (2026-08-17), root cause fixed at the source.** The manual repair script below
+> patched one tenant. The actual root cause — `SqlServerTenantSchemaMigrator` never had a
+> `CREATE TABLE`/`ALTER TABLE` step for several columns and tables the reconciliation workers
+> depend on — is now fixed with proper idempotent migrations in `Services/TenantSchemaMigrator.cs`:
+>
+> - `MatchStatus` and `SettlementKey` (queried by every matching worker) were *also* missing from
+>   `ImportedNormalizedRecords` — this manual script only ever added `ReferenceNumber`/`SettlementId`,
+>   so tenants patched with it were still broken the moment a worker actually ran. Fixed by
+>   migration `202608170001_TenantImportedNormalizedRecordsMatchFields`.
+> - `ReconciliationMatchGroups`, `ReconciliationMatchedRecords`, `ReconciliationEvents`, and
+>   `JournalEntries` were never created in any tenant database at all — they existed only as
+>   `DbSet`s on `TenantDbContext`, so every tenant (not just the one this doc names) would have
+>   hit "Invalid object name" the moment reconciliation actually ran. Fixed by migration
+>   `202608170002_TenantReconciliationJournalSchema`.
+>
+> These migrations run automatically for every tenant on `TenantDbContextFactory.CreateAsync`
+> (every request) and during tenant provisioning — no manual repair script should be needed for
+> new schema gaps going forward. See `../../WORKER-INTEGRATION.md` for the full picture. The
+> content below is kept for historical context on how this specific symptom was diagnosed.
+
 ## Error Analysis
 
 ### Error Message

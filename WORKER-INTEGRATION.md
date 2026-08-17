@@ -16,8 +16,32 @@
    | Level4 | `BankStatementReconciliationWorker` | Approved card cashout ↔ Bank statement |
    | Level5 | `CollectionMatchWorker` | Physical card-in ↔ Bank statement |
    | Level6 | `SettlementMatchWorker` | Gateway payout (many records) ↔ Bank statement (one deposit) |
+   | Level7 | `PosSettlementMatchWorker` | POS-terminal batch settlement (POS EOD) ↔ Bank statement |
 
-   **Known gap**: there is no level that matches POS EOD directly against BANK statements (POS-terminal batch settlement — e.g. a bank line like `"POS SETTLEMENT - TID88552 - BATCH 000452"`). POS records only ever reconcile against Level1 (staff) and Level2 (ERP) today. Real bank narrative formats for batch settlements also aren't parseable by `SettlementKeyResolver`, which only does exact/trimmed/uppercased string comparison — there's no regex/substring-extraction step, and the canonical schema has no `BatchNumber`/`TerminalId`/`MerchantId` fields. If this is needed, it would look like a seventh level mirroring `SettlementMatchWorker`'s group-and-sum pattern but for `SourceType == "POS"`, keyed on a batch number extracted from the bank narrative per-mapping-template (batch number is the one identifier present across differently-formatted bank/acquirer narratives — TID and MID are not).
+   **Level7 detail** (2026-08-18 addition — closes the gap this doc used to flag here): matches
+   POS EOD batches against BANK deposits using identifiers (`BatchNumber`/`TerminalId`/`MerchantId`)
+   extracted from narrative bank descriptions at import time by `Services/Reconciliation/PosIdentifierExtractor.cs`
+   (regex per `ImportMappingTemplate.ExtractionPatternsJson`, since raw bank narratives — e.g.
+   `"POS SETTLEMENT - TID88552 - BATCH 000452"` — aren't parseable by exact-string comparison).
+   Runs as a four-tier waterfall, each tier a grouped-sum comparison that naturally produces 1:1,
+   many:1 (consolidated), or 1:many (split-network settlement, e.g. Amex separate from Visa/MC)
+   depending on how many records land on each side of a shared key:
+   - **Tier1** — `BatchNumber`, exact. Auto-confirms.
+   - **Tier2** — `TerminalId` + calendar date (POS side only — BANK's date won't align due to
+     settlement lag, reconciled via a T+N business-day window instead,
+     `Services/Reconciliation/BusinessDayCalculator.cs`, admin-maintained holiday list in
+     `BankingHolidays`). Auto-confirms.
+   - **Tier3** — `MerchantId` + calendar date, same asymmetric shape as Tier2 but broader (the
+     last-resort tier). Never auto-confirms — always requires human review via the existing
+     `ReconciliationMatchConfirmationService` confirm flow.
+   - **Tier4** — anything left gets a `MatchNotFound` event, same as every other level.
+
+   A key match whose amounts don't reconcile within tolerance is a distinct `Variance`/`Exception`
+   for that specific batch, not something a looser tier is allowed to retry — blending it into a
+   broader aggregate would risk masking a real discrepancy. Confirmed/auto-confirmed matches post
+   a 3-line balanced voucher (`Services/Reconciliation/PosSettlementPoster.cs`: DEBIT Bank net,
+   DEBIT MDR fee, CREDIT POS Clearing gross) against three `ChartOfAccount` rows, one of them
+   (`6000-POSCLEARING`) newly seeded for this level.
 
 2. **JournalPostingExecutorWorker**
    - Location: `Services/Workers/JournalPostingExecutorWorker.cs`
@@ -34,7 +58,7 @@
 
 4. **ReconciliationCycleHostedService** (new — replaces the old single-worker `BankReconciliationHostedService`)
    - Location: `BackgroundServices/ReconciliationCycleHostedService.cs`
-   - Runs every 5 minutes; for each active tenant, runs all six matching-level workers in Level1→Level6 order against one `TenantDbContext`
+   - Runs every 5 minutes; for each active tenant, runs all seven matching-level workers in Level1→Level7 order against one `TenantDbContext`
    - Each worker runs in its own try/catch so one worker's failure doesn't block the rest of the cycle
    - `BankReconciliationHostedService` (which only ever ran Level4) was deleted — its job is now one step of this cycle
 
@@ -54,6 +78,19 @@
    ```
 
 6. **Schema**: `ReconciliationMatchGroups`, `ReconciliationMatchedRecords`, `ReconciliationEvents`, `JournalEntries` were declared on `TenantDbContext` but were never actually created in tenant SQL Server databases — the hand-rolled `SqlServerTenantSchemaMigrator` (tenant DBs don't use EF Core migrations) had no `CREATE TABLE` for any of them. Worker unit tests only ever passed because they run against EF's InMemory provider, which fabricates schema regardless of what's deployed. This is now fixed with real migrations in `Services/TenantSchemaMigrator.cs`, along with two columns (`MatchStatus`, `SettlementKey`) that every worker queries but that were also missing from `ImportedNormalizedRecords`.
+
+7. **Chart of accounts seed gap, found and fixed**: `JournalPostingExecutorWorker` posts a `CreditCashIn` entry for direct (non-card) CashIn transactions, but the original four-account seed only covered `DebitBank`/`CreditCashOut`/`DebitFeeExpense`/`CreditFeeOffset` — there was no account for `CreditCashIn`. Every CashIn transaction's journal posting threw `KeyNotFoundException` inside the worker's try/catch and silently counted as `failed`, forever. Fixed by seeding a fifth account (`3000-CASHIN`, "Cash-In Clearing", mirroring `2000-CASHOUT`'s role for the opposite cash direction) via a new migration (`202608170006_TenantChartOfAccountsCashInSeed`), and by making the entry-type→account lookup use `TryGetValue` instead of an indexer so a future gap like this fails safe (null `ChartOfAccountId`) instead of throwing. Covered by a new test, `ExecuteAsync_posts_balanced_voucher_for_direct_cash_cashin`.
+
+### Known duplication to clean up (introduced by merging with `upstream/main`)
+
+A parallel branch (merged into this one via `Merge remote-tracking branch 'upstream/main' into umair`) independently built its own canonical settlement-key resolver and match-status vocabulary in `Services/Reconciliation/ReconciliationContracts.cs` (namespace `finrecon360_backend.Services.Reconciliation`), including a `MatchGroupMetadata` record that replaces ad-hoc anonymous-object JSON for match-group metadata. This is a real improvement — `BankStatementReconciliationWorker` and `JournalPostingExecutorWorker` now use it, and it fixed a genuine metadata-shape mismatch that used to exist between the import path and the posting worker.
+
+However, this now coexists with the pre-existing versions of the same concepts:
+
+- `Services/SettlementKeyResolver.cs` (namespace `finrecon360_backend.Services`) vs `Services/Reconciliation/ReconciliationContracts.cs`'s `SettlementKeyResolver` (namespace `finrecon360_backend.Services.Reconciliation`) — two classes, same name, same purpose, nearly identical logic.
+- `Services/Workers/ReconciliationConstants.cs`'s `MatchStatuses` (namespace `finrecon360_backend.Services.Workers`, values `Pending/Matched/Waiting/Exception/Level2Matched/Level3Matched/Level6Matched/SalesVerified`) vs `ReconciliationContracts.cs`'s `MatchStatuses` (namespace `finrecon360_backend.Services.Reconciliation`, values `Pending/InternalVerified/SalesVerified/Exception/Waiting/Matched`) — different vocabularies for the same field.
+
+`CollectionMatchWorker`, `ErpGatewaySalesMatchWorker`, `OperationalMatchWorker`, `PosErpSyncAuditWorker`, `SettlementMatchWorker`, and `ReconciliationController` still reference the older `Services`/`Services.Workers` versions; `BankStatementReconciliationWorker` and `JournalPostingExecutorWorker` reference the newer `Services.Reconciliation` versions. The project currently builds and all tests pass because none of these files imports both namespaces in a way that collides — but consolidating onto one vocabulary is real follow-up work, not done here, because the two `MatchStatuses` enums encode different design decisions (per-level granularity vs. a flatter scheme) and migrating the five still-on-the-old-version workers means verifying each level's idempotency-guard semantics (`MatchStatus != X`) still hold under the new values — that's a deliberate design choice for a human to make, not something to silently pick.
 
 ### Workflow Pipeline
 
@@ -265,23 +302,18 @@ Settlement Key:  MERCHANT_ACCT|TXN_12345
 
 ## ✅ Test Results
 
-All 68 existing tests pass with new worker integration:
-- No regressions
-- Full backward compatibility
-- Ready for production deployment
+All 129 tests pass (`finrecon360-backend.Tests`), including coverage for all seven matching levels, ambiguous-match detection, tenant-configurable tolerances, bank-account scoping, balanced journal-voucher posting (including the CreditCashIn fix above), identifier extraction against real bank narrative formats, business-day settlement-window arithmetic, and the Level7 waterfall's tier boundaries (1:1, many:1, 1:many, variance, no-match, window-exclusion, idempotency).
 
-## 🚀 Next Steps
+## 🚀 Next Steps / Known Follow-Ups
 
-1. **Configure Worker Intervals** (if needed):
-   - BankReconciliation: 5 min (line 51 in BankReconciliationHostedService)
-   - JournalPosting: 5 min (line 20 in JournalPostingHostedService)
-
-2. **Monitor Posting Events**:
+1. **Consolidate the duplicate `SettlementKeyResolver`/`MatchStatuses` classes** — see "Known duplication to clean up" above. Still not done as of the Level7 addition; new Level7 code deliberately builds on the canonical `Services.Reconciliation` versions to avoid making this worse.
+2. **Level7 admin UI** — the backend (matching, `ExtractionPatternsJson` on mapping templates, `banking-holidays` CRUD, `SettlementDateWindowDays` setting) is done; no frontend surfaces it yet.
+3. **Configure worker intervals** (if needed): both `ReconciliationCycleHostedService` and `JournalPostingHostedService` currently hardcode a 5-minute `RunInterval` (a `static readonly TimeSpan` at the top of each class) — not yet tenant-configurable.
+4. **Monitor Posting Events**:
    - Check transaction state transitions
    - Verify GL entries created
    - Monitor journal posting latency
-
-3. **Set Up GL Export**:
+5. **Set Up GL Export**:
    - Export journal entries to accounting system
    - Map GL account codes per tenant
    - Handle multi-currency settlements

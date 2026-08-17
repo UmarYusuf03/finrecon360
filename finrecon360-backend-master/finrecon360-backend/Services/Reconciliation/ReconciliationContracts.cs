@@ -97,6 +97,33 @@ namespace finrecon360_backend.Services.Reconciliation
 
         public DateTime MatchedAt { get; init; } = DateTime.UtcNow;
 
+        // ── Level7 (PosSettlementMatchWorker) fields ──────────────────────────────────
+        // Kept distinct from the gateway-named fields above rather than reused, so a reader
+        // of a Level7 group's metadata isn't left wondering why "GatewayNetTotal" appears on a
+        // POS↔BANK match.
+
+        /// <summary>Gross POS sales total for the matched group (before MDR fee deduction).</summary>
+        public decimal PosGrossTotal { get; init; }
+
+        /// <summary>Net POS sales total for the matched group (Gross - MDR fee) — this is what
+        /// was actually compared against the bank side, per the "match Net, not Gross" rule.</summary>
+        public decimal PosNetTotal { get; init; }
+
+        /// <summary>MDR (merchant discount rate) fee total for the matched group.</summary>
+        public decimal PosFeeTotal { get; init; }
+
+        /// <summary>Which waterfall tier produced this match — the audit-trail "rule triggered".</summary>
+        public string? RuleTriggered { get; init; }
+
+        /// <summary>The exact normalized identifiers the match was keyed on, for audit purposes.</summary>
+        public List<string>? MatchedBatchNumbers { get; init; }
+        public List<string>? MatchedTerminalIds { get; init; }
+        public List<string>? MatchedMerchantIds { get; init; }
+
+        /// <summary>POS-side record count for the group (named distinctly from GatewayRecordCount
+        /// since Level7 groups aren't gateway-sourced).</summary>
+        public int PosRecordCount { get; init; }
+
         private static readonly JsonSerializerOptions SerializerOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

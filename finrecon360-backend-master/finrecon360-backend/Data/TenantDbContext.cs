@@ -36,6 +36,7 @@ namespace finrecon360_backend.Data
         public DbSet<ReconciliationSettings> ReconciliationSettings => Set<ReconciliationSettings>();
         public DbSet<ChartOfAccount> ChartOfAccounts => Set<ChartOfAccount>();
         public DbSet<JournalVoucher> JournalVouchers => Set<JournalVoucher>();
+        public DbSet<BankingHoliday> BankingHolidays => Set<BankingHoliday>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -292,6 +293,9 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.MatchStatus).HasMaxLength(30).HasDefaultValue("PENDING");
                 entity.Property(x => x.SettlementId).HasColumnType("nvarchar(max)");
                 entity.Property(x => x.SettlementKey).HasMaxLength(200);
+                entity.Property(x => x.BatchNumber).HasMaxLength(50);
+                entity.Property(x => x.TerminalId).HasMaxLength(50);
+                entity.Property(x => x.MerchantId).HasMaxLength(50);
                 entity.Property(x => x.CreatedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");
@@ -300,6 +304,9 @@ namespace finrecon360_backend.Data
                 entity.HasIndex(x => x.MatchStatus);
                 entity.HasIndex(x => x.SettlementKey);
                 entity.HasIndex(x => new { x.ReferenceNumber, x.TransactionDate });
+                entity.HasIndex(x => x.BatchNumber);
+                entity.HasIndex(x => new { x.TerminalId, x.TransactionDate });
+                entity.HasIndex(x => new { x.MerchantId, x.TransactionDate });
 
                 entity.HasOne(x => x.ImportBatch)
                     .WithMany(x => x.NormalizedRecords)
@@ -321,6 +328,7 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.SourceType).HasMaxLength(100).IsRequired();
                 entity.Property(x => x.CanonicalSchemaVersion).HasMaxLength(30).IsRequired();
                 entity.Property(x => x.MappingJson).HasColumnType("nvarchar(max)").IsRequired();
+                entity.Property(x => x.ExtractionPatternsJson).HasColumnType("nvarchar(max)");
                 entity.Property(x => x.Version).HasDefaultValue(1);
                 entity.Property(x => x.IsActive).HasDefaultValue(true);
                 entity.Property(x => x.CreatedAt)
@@ -483,10 +491,24 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.ReconciliationSettingsId).ValueGeneratedNever();
                 entity.Property(x => x.AmountTolerance).HasColumnType("decimal(18,4)").HasDefaultValue(0.01m);
                 entity.Property(x => x.DateToleranceDays).HasDefaultValue(1);
+                entity.Property(x => x.SettlementDateWindowDays).HasDefaultValue(3);
                 entity.Property(x => x.UpdatedAt).HasColumnType("datetime2");
                 entity.Property(x => x.CreatedAt)
                     .HasColumnType("datetime2")
                     .HasDefaultValueSql("SYSUTCDATETIME()");
+            });
+
+            modelBuilder.Entity<BankingHoliday>(entity =>
+            {
+                entity.ToTable("BankingHolidays");
+                entity.HasKey(x => x.BankingHolidayId);
+                entity.Property(x => x.BankingHolidayId).ValueGeneratedNever();
+                entity.Property(x => x.Date).HasColumnType("date").IsRequired();
+                entity.Property(x => x.Description).HasMaxLength(200).IsRequired();
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime2")
+                    .HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.HasIndex(x => x.Date).IsUnique();
             });
 
             base.OnModelCreating(modelBuilder);

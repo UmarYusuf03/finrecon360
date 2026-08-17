@@ -97,7 +97,8 @@ namespace finrecon360_backend.Controllers.Admin
                     x.IsActive,
                     x.MappingJson,
                     x.CreatedAt,
-                    x.UpdatedAt))
+                    x.UpdatedAt,
+                    x.ExtractionPatternsJson))
                 .ToListAsync();
 
             return Ok(templates);
@@ -120,6 +121,11 @@ namespace finrecon360_backend.Controllers.Admin
                 return BadRequest(new { message = "MappingJson must be valid JSON." });
             }
 
+            if (!string.IsNullOrWhiteSpace(request.ExtractionPatternsJson) && !IsValidJson(request.ExtractionPatternsJson))
+            {
+                return BadRequest(new { message = "ExtractionPatternsJson must be valid JSON." });
+            }
+
             var duplicate = await tenantDb.ImportMappingTemplates.AnyAsync(x => x.Name == name);
             if (duplicate)
             {
@@ -134,6 +140,7 @@ namespace finrecon360_backend.Controllers.Admin
                 SourceType = sourceType,
                 CanonicalSchemaVersion = schemaVersion,
                 MappingJson = request.MappingJson,
+                ExtractionPatternsJson = request.ExtractionPatternsJson,
                 Version = 1,
                 IsActive = true,
                 CreatedAt = now,
@@ -160,7 +167,8 @@ namespace finrecon360_backend.Controllers.Admin
                 template.IsActive,
                 template.MappingJson,
                 template.CreatedAt,
-                template.UpdatedAt);
+                template.UpdatedAt,
+                template.ExtractionPatternsJson);
 
             return CreatedAtAction(nameof(GetMappingTemplates), new { sourceType = template.SourceType }, response);
         }
@@ -184,6 +192,11 @@ namespace finrecon360_backend.Controllers.Admin
                 return BadRequest(new { message = "MappingJson must be valid JSON." });
             }
 
+            if (!string.IsNullOrWhiteSpace(request.ExtractionPatternsJson) && !IsValidJson(request.ExtractionPatternsJson))
+            {
+                return BadRequest(new { message = "ExtractionPatternsJson must be valid JSON." });
+            }
+
             var newName = request.Name.Trim();
             var duplicate = await tenantDb.ImportMappingTemplates.AnyAsync(x => x.ImportMappingTemplateId != templateId && x.Name == newName);
             if (duplicate)
@@ -195,6 +208,7 @@ namespace finrecon360_backend.Controllers.Admin
             template.SourceType = request.SourceType.Trim();
             template.CanonicalSchemaVersion = request.CanonicalSchemaVersion.Trim();
             template.MappingJson = request.MappingJson;
+            template.ExtractionPatternsJson = request.ExtractionPatternsJson;
             template.IsActive = request.IsActive;
             template.Version += 1;
             template.UpdatedAt = DateTime.UtcNow;
@@ -217,7 +231,8 @@ namespace finrecon360_backend.Controllers.Admin
                 template.IsActive,
                 template.MappingJson,
                 template.CreatedAt,
-                template.UpdatedAt));
+                template.UpdatedAt,
+                template.ExtractionPatternsJson));
         }
 
         [HttpDelete("mapping-templates/{templateId:guid}")]

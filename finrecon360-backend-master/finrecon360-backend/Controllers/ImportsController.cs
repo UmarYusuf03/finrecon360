@@ -3,6 +3,7 @@ using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Imports;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Reconciliation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -606,6 +607,7 @@ namespace finrecon360_backend.Controllers
             }
 
             var mappings = DeserializeMappings(mappingTemplate.MappingJson);
+            var extractionPatterns = DeserializeExtractionPatterns(mappingTemplate.ExtractionPatternsJson);
             var rawRecords = await tenantDb.ImportedRawRecords
                 .Where(x => x.ImportBatchId == id)
                 .OrderBy(x => x.RowNumber)
@@ -635,6 +637,15 @@ namespace finrecon360_backend.Controllers
                 {
                     return BadRequest(new { message = "Normalization errors detected. Re-run validation." });
                 }
+
+                if (extractionPatterns.Count > 0)
+                {
+                    var identifiers = PosIdentifierExtractor.Extract(result.Normalized.Description, extractionPatterns);
+                    result.Normalized.BatchNumber = identifiers.BatchNumber;
+                    result.Normalized.TerminalId = identifiers.TerminalId;
+                    result.Normalized.MerchantId = identifiers.MerchantId;
+                }
+
                 normalizedRecords.Add(result.Normalized);
             }
 
@@ -752,6 +763,27 @@ namespace finrecon360_backend.Controllers
             var map = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             return new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static Dictionary<string, string> DeserializeExtractionPatterns(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            try
+            {
+                var map = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+                    ?? new Dictionary<string, string>();
+                return new Dictionary<string, string>(map, StringComparer.OrdinalIgnoreCase);
+            }
+            catch (JsonException)
+            {
+                // Malformed ExtractionPatternsJson shouldn't block a commit — identifiers just
+                // won't populate for this batch, same as if no patterns were configured at all.
+                return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
         }
 
         private static Dictionary<string, string?> DeserializeRowPayload(string json)

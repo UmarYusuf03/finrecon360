@@ -131,6 +131,16 @@ namespace finrecon360_backend.BackgroundServices
                 await RunWorkerAsync(scope, tenantId, tenantDb, "Level6",
                     w => w.GetRequiredService<SettlementMatchWorker>().ExecuteAsync(tenantId, tenantDb, cancellationToken),
                     cancellationToken);
+
+                await RunWorkerAsync(scope, tenantId, tenantDb, "Level7",
+                    async w =>
+                    {
+                        var result = await w.GetRequiredService<PosSettlementMatchWorker>()
+                            .ExecuteAsync(tenantId, tenantDb, cancellationToken);
+                        var totalMatched = result.Tier1Matched + result.Tier2Matched + result.Tier3Matched;
+                        return new MatchingRunResult("Level7", result.TotalCandidates, totalMatched, result.ExceptionCount, result.NoMatchCount);
+                    },
+                    cancellationToken);
             }
             catch (Exception ex)
             {

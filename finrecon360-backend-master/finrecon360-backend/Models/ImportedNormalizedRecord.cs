@@ -25,6 +25,14 @@ namespace finrecon360_backend.Models
         public string? SettlementId { get; set; }
         public string? SettlementKey { get; set; }
 
+        // Identifiers extracted from a bank narrative/description by PosIdentifierExtractor at
+        // commit time (per ImportMappingTemplate.ExtractionPatternsJson), normalized (trimmed,
+        // uppercased, leading zeros stripped from BatchNumber) so they're clean grouping keys
+        // for PosSettlementMatchWorker (Level7) rather than raw substrings.
+        public string? BatchNumber { get; set; }
+        public string? TerminalId { get; set; }
+        public string? MerchantId { get; set; }
+
         public ImportBatch? ImportBatch { get; set; }
         public ImportedRawRecord? SourceRawRecord { get; set; }
     }
