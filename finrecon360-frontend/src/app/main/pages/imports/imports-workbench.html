@@ -176,7 +176,7 @@
           [(ngModel)]="statusFilter"
           [placeholder]="'IMPORTS.HISTORY.STATUS_PLACEHOLDER' | translate"
         />
-        <button class="ghost-btn" type="button" (click)="refreshHistory()">
+        <button class="ghost-btn" type="button" (click)="refreshHistoryFromFirstPage()">
           {{ 'COMMON.REFRESH' | translate }}
         </button>
       </div>
@@ -239,6 +239,38 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="history-pagination" *ngIf="!loading && historyTotal > historyPageSize">
+        <button
+          class="ghost-btn small"
+          type="button"
+          [disabled]="historyPage <= 1"
+          (click)="previousHistoryPage()"
+        >
+          Previous
+        </button>
+
+        <div class="history-pagination__pages">
+          <button
+            *ngFor="let page of historyPageNumbers"
+            class="ghost-btn small"
+            type="button"
+            [class.active]="historyPage === page"
+            (click)="goToHistoryPage(page)"
+          >
+            {{ page }}
+          </button>
+        </div>
+
+        <button
+          class="ghost-btn small"
+          type="button"
+          [disabled]="historyPage >= historyTotalPages"
+          (click)="nextHistoryPage()"
+        >
+          Next
+        </button>
       </div>
     </section>
 
@@ -507,7 +539,10 @@
             </button>
           </div>
 
-          <div class="table-shell" *ngIf="validationRows.length > 0 && parseResult as parsed">
+          <div
+            class="table-shell validation-table-shell"
+            *ngIf="validationRows.length > 0 && parseResult as parsed"
+          >
             <table class="validation-table">
               <thead>
                 <tr>
