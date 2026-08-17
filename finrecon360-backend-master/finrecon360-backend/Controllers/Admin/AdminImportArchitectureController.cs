@@ -425,7 +425,7 @@ namespace finrecon360_backend.Controllers.Admin
                     new("TransactionType", "string", false, "Debit or credit indicator (e.g., DR/CR)."),
                     new("PostingDate", "date", false, "Ledger posting date when available."),
                     new("ReferenceNumber", "string", false, "External document or reference number."),
-                    new("SettlementId", "string", false, "External settlement/payout identifier used to resolve the settlement key."),
+                    new("SettlementId", "string", false, "Gateway settlement or payout batch identifier. The Level-4 bank match key."),
                     new("Description", "string", false, "Narration or description from source."),
                     new("AccountCode", "string", false, "Chart-of-accounts code."),
                     new("AccountName", "string", false, "Chart-of-accounts display name."),

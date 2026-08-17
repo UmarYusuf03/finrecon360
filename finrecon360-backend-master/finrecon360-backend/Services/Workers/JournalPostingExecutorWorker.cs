@@ -1,6 +1,7 @@
 using System.Text.Json;
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
+using finrecon360_backend.Services.Reconciliation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -134,51 +135,62 @@ namespace finrecon360_backend.Services.Workers
                     continue;
                 }
 
-                // Only card cashouts require a confirmed Level-4 bank match before posting;
-                // everything else (cash cashouts, etc.) posts directly on approval.
-                var requiresLevel4Match = txn.TransactionType == TransactionType.CashOut
-                    && txn.PaymentMethod == PaymentMethod.Card;
+                var requiresBankSettlement = txn.TransactionType == TransactionType.CashOut && txn.PaymentMethod == PaymentMethod.Card;
 
                 ReconciliationMatchGroup? matchGroup = null;
-                if (requiresLevel4Match)
+                if (requiresBankSettlement)
                 {
-                    // Gate: match group must be Level4 and confirmed (manual or auto exact-match
-                    // confirmation) before the settlement can be posted to the GL.
-                    matchGroup = await tenantDb.ReconciliationMatchGroups
-                        .FirstOrDefaultAsync(
-                            g => g.MatchLevel == "Level4" && g.IsConfirmed && g.MatchMetadataJson != null &&
-                            g.MatchMetadataJson.Contains(txn.TransactionId.ToString()),
-                            cancellationToken);
+                    matchGroup = await FindSettlementGroupAsync(tenantDb, txn.TransactionId, cancellationToken);
 
                     if (matchGroup == null)
                     {
-                        _logger.LogWarning("No confirmed Level4 match group found for card cashout transaction {TransactionId}", txn.TransactionId);
+                        _logger.LogWarning("No match group found for card cashout {TransactionId}", txn.TransactionId);
                         noMatch++;
+                        continue;
+                    }
+
+                    if (!matchGroup.IsConfirmed)
+                    {
+                        _logger.LogDebug(
+                            "Match group {MatchGroupId} for transaction {TransactionId} is not confirmed yet",
+                            matchGroup.ReconciliationMatchGroupId, txn.TransactionId);
+                        noMatch++;
+                        continue;
+                    }
+
+                    if (matchGroup.IsJournalPosted)
+                    {
+                        _logger.LogDebug("Match group {MatchGroupId} already posted", matchGroup.ReconciliationMatchGroupId);
                         continue;
                     }
                 }
 
                 try
                 {
-                    decimal bankNetTotal;
-                    decimal processingFeeAdjustment;
+                    var metadata = MatchGroupMetadata.TryParse(matchGroup?.MatchMetadataJson);
 
-                    if (matchGroup != null)
+                    if (requiresBankSettlement && metadata is null)
                     {
-                        // Extract settlement metadata from match group
-                        var metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(
-                            matchGroup.MatchMetadataJson ?? "{}") ?? new();
+                        _logger.LogError(
+                            "Match group {MatchGroupId} has unreadable metadata; refusing to post",
+                            matchGroup!.ReconciliationMatchGroupId);
+                        failed++;
+                        continue;
+                    }
 
-                        bankNetTotal = ExtractDecimal(metadata, "bankNetTotal");
-                        processingFeeAdjustment = ExtractDecimal(metadata, "processingFeeAdjustment");
-                    }
-                    else
+                    var settledAmount = requiresBankSettlement ? metadata!.BankNetTotal : txn.Amount;
+                    var processingFeeAdjustment = requiresBankSettlement ? metadata!.ProcessingFeeTotal : 0m;
+
+                    if (settledAmount <= 0m)
                     {
-                        // Non-card cashouts post directly on approval using the approved amount;
-                        // there is no bank settlement metadata to reconcile against.
-                        bankNetTotal = txn.Amount;
-                        processingFeeAdjustment = 0m;
+                        _logger.LogError(
+                            "Refusing to post a non-positive amount {Amount} for transaction {TransactionId}",
+                            settledAmount, txn.TransactionId);
+                        failed++;
+                        continue;
                     }
+
+                    var bankNetTotal = settledAmount;
 
                     _logger.LogDebug(
                         "Creating journal entries for transaction {TransactionId}: net={Net}, fees={Fees}",
@@ -196,20 +208,21 @@ namespace finrecon360_backend.Services.Workers
 
                     var entries = new List<JournalEntry>();
 
-                    // Entry 1: DEBIT Bank/CashReceived (net settlement), CREDIT CashOut transaction
+                    var debitType = requiresBankSettlement ? "DebitBank" : "DebitCash";
+                    var creditType = txn.TransactionType == TransactionType.CashOut ? "CreditCashOut" : "CreditCashIn";
+
                     entries.Add(BuildEntry(
                         voucher.JournalVoucherId, txn.TransactionId, matchGroup?.ReconciliationMatchGroupId,
-                        "DebitBank", bankNetTotal, accountsByCode,
-                        matchGroup != null
+                        debitType, bankNetTotal, accountsByCode,
+                        requiresBankSettlement
                             ? $"Bank settlement for transaction {txn.TransactionId} via Level4 reconciliation"
                             : $"Direct posting on approval for transaction {txn.TransactionId}"));
 
                     entries.Add(BuildEntry(
                         voucher.JournalVoucherId, txn.TransactionId, matchGroup?.ReconciliationMatchGroupId,
-                        "CreditCashOut", -bankNetTotal, accountsByCode,
-                        $"Offsetting entry for cash-out transaction {txn.TransactionId}"));
+                        creditType, -bankNetTotal, accountsByCode,
+                        $"Offsetting entry for transaction {txn.TransactionId}"));
 
-                    // Entry 2: If fees exist, create fee entries
                     if (processingFeeAdjustment > 0)
                     {
                         entries.Add(BuildEntry(
@@ -223,8 +236,6 @@ namespace finrecon360_backend.Services.Workers
                             "Offsetting entry for processing fee"));
                     }
 
-                    // A voucher that doesn't sum to zero is not real double-entry accounting —
-                    // reject the posting instead of committing bad GL data.
                     var voucherTotal = entries.Sum(e => e.Amount);
                     if (voucherTotal != 0m)
                     {
@@ -235,16 +246,21 @@ namespace finrecon360_backend.Services.Workers
                         continue;
                     }
 
+                    if (matchGroup is not null)
+                    {
+                        matchGroup.IsJournalPosted = true;
+                        matchGroup.UpdatedAt = DateTime.UtcNow;
+                    }
+
                     tenantDb.JournalVouchers.Add(voucher);
                     tenantDb.JournalEntries.AddRange(entries);
 
-                    // Mark transaction as posted by creating a state history entry
                     var stateHistory = new TransactionStateHistory
                     {
                         TransactionStateHistoryId = Guid.NewGuid(),
                         TransactionId = txn.TransactionId,
                         FromState = TransactionState.JournalReady,
-                        ToState = TransactionState.JournalReady, // No state change; just logged posting
+                        ToState = TransactionState.JournalReady,
                         ChangedAt = DateTime.UtcNow,
                         ChangedByUserId = null,
                         Note = "Auto-posted by JournalPostingExecutorWorker"
@@ -302,6 +318,21 @@ namespace finrecon360_backend.Services.Workers
                 PostedByUserId = null,
                 Notes = notes,
             };
+        }
+
+        private static async Task<ReconciliationMatchGroup?> FindSettlementGroupAsync(
+            TenantDbContext tenantDb,
+            Guid transactionId,
+            CancellationToken cancellationToken)
+        {
+            var candidates = await tenantDb.ReconciliationMatchGroups
+                .Where(g => g.MatchLevel == "Level4"
+                    && g.MatchMetadataJson != null
+                    && g.MatchMetadataJson.Contains(transactionId.ToString()))
+                .ToListAsync(cancellationToken);
+
+            return candidates.FirstOrDefault(g =>
+                MatchGroupMetadata.TryParse(g.MatchMetadataJson)?.TransactionId == transactionId);
         }
 
         private static decimal ExtractDecimal(Dictionary<string, object> metadata, string key)

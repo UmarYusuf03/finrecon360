@@ -93,11 +93,24 @@ export interface ImportUpdateRawRecordRequest {
   payload: Record<string, string | null>;
 }
 
+export interface ReconciliationSummary {
+  sourceType: string;
+  workflowRoute: string;
+  level3VerifiedCount: number;
+  level3ExceptionCount: number;
+  level4MatchedCount: number;
+  level4ExceptionCount: number;
+  waitingForSettlementCount: number;
+  feeAdjustmentTotal: number;
+  summary: string;
+}
+
 export interface ImportCommitResponse {
   batchId: string;
   status: string;
   normalizedCount: number;
   committedAt: string;
+  reconciliationSummary: ReconciliationSummary;
 }
 
 export interface ImportDeleteResponse {

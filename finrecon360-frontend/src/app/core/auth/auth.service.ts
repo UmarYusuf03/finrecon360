@@ -169,6 +169,34 @@ export class AuthService {
     this.persist(updated);
   }
 
+  /**
+   * WHY: Mirrors SourceTypeScope.AllowedSourceTypes() from the backend.
+   * Returns null  → user has full (unscoped) IMPORTS access, no UI restriction needed.
+   * Returns a Set → user may only upload/process files of those source types.
+   * The import workbench uses this to pre-select & lock the sourceType dropdown for CASHIER.
+   */
+  allowedImportSourceTypes(): Set<string> | null {
+    const perms = this.currentUser?.permissions ?? [];
+    const fullActions = ['CREATE', 'EDIT', 'COMMIT', 'DELETE', 'MANAGE'];
+    const hasFullAccess = fullActions.some(a =>
+      perms.includes(`ADMIN.IMPORTS.${a}` as PermissionCode)
+    );
+    if (hasFullAccess) return null;
+
+    const validSourceTypes = ['POS', 'ERP', 'GATEWAY', 'BANK'];
+    const allowed = new Set<string>();
+    for (const src of validSourceTypes) {
+      if (
+        perms.includes(`ADMIN.IMPORTS.${src}.CREATE` as PermissionCode) ||
+        perms.includes(`ADMIN.IMPORTS.${src}.EDIT` as PermissionCode) ||
+        perms.includes(`ADMIN.IMPORTS.${src}.COMMIT` as PermissionCode)
+      ) {
+        allowed.add(src);
+      }
+    }
+    return allowed.size > 0 ? allowed : null;
+  }
+
   login(email: string, password: string): Observable<CurrentUser> {
     if (USE_MOCK_API) {
       const account = this.mockAccounts.find(
@@ -203,51 +231,71 @@ export class AuthService {
         email,
         password,
       })
-      .pipe(
-        switchMap((loginResponse) => {
-          const previousUser = this.currentUserSubject.value;
-          const canReuseTenantContext =
-            !!previousUser &&
-            previousUser.email.toLowerCase() === loginResponse.email.toLowerCase() &&
-            !!previousUser.tenantId;
+      .pipe(switchMap((loginResponse) => this.establishSession(loginResponse)));
+  }
 
-          const bootstrapUser: CurrentUser = {
-            id: '',
-            email: loginResponse.email,
-            displayName: loginResponse.fullName,
-            isSystemAdmin: false,
-            tenantId: canReuseTenantContext ? (previousUser?.tenantId ?? null) : null,
-            tenantName: canReuseTenantContext ? (previousUser?.tenantName ?? null) : null,
-            tenantStatus: canReuseTenantContext ? (previousUser?.tenantStatus ?? null) : null,
-            roles: [],
-            permissions: [],
-            token: loginResponse.token,
-          };
-          this.currentUserSubject.next(bootstrapUser);
-          this.persist(bootstrapUser);
+  /**
+   * Signs in with a Google ID token obtained in the browser by Google Identity Services.
+   *
+   * The token is only an assertion until the backend verifies it, so nothing here inspects or
+   * trusts its contents — it is posted straight through, and the session that comes back is the
+   * same shape a password login produces.
+   */
+  loginWithGoogle(idToken: string): Observable<CurrentUser> {
+    return this.http
+      .post<LoginResponse>(`${API_BASE_URL}${API_ENDPOINTS.AUTH.SSO_GOOGLE}`, { idToken })
+      .pipe(switchMap((loginResponse) => this.establishSession(loginResponse)));
+  }
 
-          return this.fetchMe().pipe(
-            map((me) => {
-              const updated: CurrentUser = {
-                id: me.userId,
-                email: me.email,
-                displayName: me.displayName ?? loginResponse.fullName,
-                status: me.status,
-                isSystemAdmin: me.isSystemAdmin,
-                tenantId: me.tenantId ?? null,
-                tenantName: me.tenantName ?? null,
-                tenantStatus: me.tenantStatus ?? null,
-                roles: me.roles,
-                permissions: me.permissions,
-                token: loginResponse.token,
-              };
-              this.currentUserSubject.next(updated);
-              this.persist(updated);
-              return updated;
-            }),
-          );
-        }),
-      );
+  /**
+   * Shared post-authentication bootstrap for every sign-in route.
+   *
+   * Kept in one place deliberately: the token alone says nothing about roles, permissions or
+   * tenant, so every route has to follow up with /api/me. A second copy of this for SSO would be
+   * a second place for that follow-up to drift or be forgotten.
+   */
+  private establishSession(loginResponse: LoginResponse): Observable<CurrentUser> {
+    const previousUser = this.currentUserSubject.value;
+    const canReuseTenantContext =
+      !!previousUser &&
+      previousUser.email.toLowerCase() === loginResponse.email.toLowerCase() &&
+      !!previousUser.tenantId;
+
+    const bootstrapUser: CurrentUser = {
+      id: '',
+      email: loginResponse.email,
+      displayName: loginResponse.fullName,
+      isSystemAdmin: false,
+      tenantId: canReuseTenantContext ? (previousUser?.tenantId ?? null) : null,
+      tenantName: canReuseTenantContext ? (previousUser?.tenantName ?? null) : null,
+      tenantStatus: canReuseTenantContext ? (previousUser?.tenantStatus ?? null) : null,
+      roles: [],
+      permissions: [],
+      token: loginResponse.token,
+    };
+    this.currentUserSubject.next(bootstrapUser);
+    this.persist(bootstrapUser);
+
+    return this.fetchMe().pipe(
+      map((me) => {
+        const updated: CurrentUser = {
+          id: me.userId,
+          email: me.email,
+          displayName: me.displayName ?? loginResponse.fullName,
+          status: me.status,
+          isSystemAdmin: me.isSystemAdmin,
+          tenantId: me.tenantId ?? null,
+          tenantName: me.tenantName ?? null,
+          tenantStatus: me.tenantStatus ?? null,
+          roles: me.roles,
+          permissions: me.permissions,
+          token: loginResponse.token,
+        };
+        this.currentUserSubject.next(updated);
+        this.persist(updated);
+        return updated;
+      }),
+    );
   }
 
   registerTenant(payload: {

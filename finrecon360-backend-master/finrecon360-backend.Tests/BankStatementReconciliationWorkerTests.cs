@@ -126,18 +126,27 @@ public class BankStatementReconciliationWorkerTests
         Assert.Equal(0, result.ExceptionCount);
         Assert.Equal(0, result.NoMatchCount);
 
-        // 6. Verify transaction remains in NeedsBankMatch — promotion to JournalReady only
-        // happens once a human confirms the match via the confirmation screen.
+        // 6. The transaction must NOT move on its own. The worker proposes a match; a person
+        // confirms it, and that confirmation is what promotes the transaction.
         var updatedTxn = await tenantDb.Transactions.FirstOrDefaultAsync(x => x.TransactionId == txn.TransactionId);
         Assert.NotNull(updatedTxn);
         Assert.Equal(TransactionState.NeedsBankMatch, updatedTxn.TransactionState);
 
-        // 7. Verify match group created but not auto-confirmed
+        // 7. Verify match group is proposed but unconfirmed
         var matchGroup = await tenantDb.ReconciliationMatchGroups.FirstOrDefaultAsync();
         Assert.NotNull(matchGroup);
         Assert.Equal("Level4", matchGroup.MatchLevel);
         Assert.False(matchGroup.IsConfirmed);
+        Assert.Null(matchGroup.ConfirmedAt);
         Assert.Equal("ACCT001|REF001", matchGroup.SettlementKey);
+
+        // The proposal records that a machine suggested it, so the UI can distinguish
+        // auto-proposed matches from ones a person built by hand.
+        var metadata = finrecon360_backend.Services.Reconciliation.MatchGroupMetadata
+            .TryParse(matchGroup.MatchMetadataJson);
+        Assert.NotNull(metadata);
+        Assert.True(metadata.AutoMatched);
+        Assert.Equal(txn.TransactionId, metadata.TransactionId);
 
         // 8. Verify matched records linked
         var matchedRecords = await tenantDb.ReconciliationMatchedRecords

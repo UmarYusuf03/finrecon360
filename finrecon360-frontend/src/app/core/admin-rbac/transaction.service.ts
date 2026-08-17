@@ -144,7 +144,7 @@ export class TransactionService {
 
   getNeedsBankMatch(): Observable<NeedsBankMatchRecord[]> {
     if (USE_MOCK_API) {
-      // Mirrors the backend handoff queue for future matcher/reconciliation work.
+      // Mirrors the backend handoff queue. Mock returns basic shape with empty import context.
       return of(
         this.transactionsSubject.value
           .filter((item) => item.transactionState === 'NeedsBankMatch')
@@ -152,16 +152,15 @@ export class TransactionService {
             left.transactionDate.localeCompare(right.transactionDate) ||
             left.createdAt.localeCompare(right.createdAt),
           )
-          .map(t => ({
-             ...t,
-             netImportAmount: t.amount,
-             matchStatus: 'WAITING',
-             isConfirmed: false,
-             isJournalPosted: false
-          }))
+          .map((t): NeedsBankMatchRecord => ({
+            ...t,
+            netImportAmount: t.amount,
+            matchStatus: 'PENDING',
+            isConfirmed: false,
+            isJournalPosted: false,
+          })),
       );
     }
-
     return this.http.get<NeedsBankMatchRecord[]>(`${this.baseUrl}/needs-bank-match`);
   }
 

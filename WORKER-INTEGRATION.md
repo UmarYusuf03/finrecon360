@@ -77,28 +77,40 @@ Transaction Flow:
    │ immediately) │  │ statement match)     │
    └──────────────┘  └──────┬───────────────┘
           │                 │
-          │                 │ (BankReconciliationWorker)
+          │                 │ (BankStatementReconciliationWorker,
+          │                 │  runs on ReconciliationCycleHostedService)
           │                 │ Level-4 matching:
           │                 │ - Correlate GATEWAY↔BANK
           │                 │ - Validate net amounts (net of fees)
-          │                 │ - Confirm settlement key
+          │                 │ - Create UNCONFIRMED match group
           │                 ▼
+          │          ┌──────────────────────────┐
+          │          │  Still NeedsBankMatch —   │
+          │          │  a human must confirm the │
+          │          │  match group before it    │
+          │          │  promotes the transaction │
+          │          └────────┬─────────────────┘
+          │                   │ (ReconciliationMatchConfirmationService,
+          │                   │  triggered via ReconciliationController)
+          │                   ▼
           │          ┌──────────────────┐
           │          │  JournalReady    │
-          │          │(unlock posting)  │
           │          └────────┬─────────┘
           │                   │
           └───────────┬───────┘
                       │
                       ▼ (JournalPostingExecutorWorker)
-              ┌───────────────────────┐
-              │ Journal Entries (GL)  │
-              │ - DebitBank           │
-              │ - CreditCashOut       │
-              │ - DebitFeeExpense()   │
-              │ - CreditFeeOffset()   │
-              └───────────────────────┘
+              ┌────────────────────────────────┐
+              │ JournalVoucher + JournalEntries │
+              │ (verified to sum to zero)       │
+              │ - DebitBank      → ChartOfAccount│
+              │ - CreditCashOut  → ChartOfAccount│
+              │ - DebitFeeExpense()              │
+              │ - CreditFeeOffset()              │
+              └────────────────────────────────┘
 ```
+
+This diagram shows only the card-cashout path (Level4 → journal). Levels 1, 2, 3, 5, and 6 run independently on the same cycle, each producing their own `ReconciliationMatchGroup`/`ReconciliationEvent` rows for their respective source pairs — see the level table above.
 
 ---
 

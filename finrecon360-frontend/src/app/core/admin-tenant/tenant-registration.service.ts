@@ -4,7 +4,11 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api.constants';
-import { TenantRegistrationApprovalResult, TenantRegistrationSummary, TenantRegistrationDetail } from './models';
+import {
+  TenantRegistrationApprovalResult,
+  TenantRegistrationDetail,
+  TenantRegistrationSummary,
+} from './models';
 import { PagedResult } from '../admin-rbac/models';
 
 @Injectable({ providedIn: 'root' })
