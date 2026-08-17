@@ -98,6 +98,9 @@ export class ImportsWorkbenchComponent implements OnInit {
   selectedBatch: ImportHistoryItem | null = null;
   search = '';
   statusFilter = '';
+  historyTotal = 0;
+  historyPage = 1;
+  readonly historyPageSize = 5;
 
   parseResult: ImportParseResponse | null = null;
   validateResult: ImportValidateResponse | null = null;
@@ -281,17 +284,57 @@ export class ImportsWorkbenchComponent implements OnInit {
   }
 
   refreshHistory(): void {
+    this.loadHistoryPage(this.historyPage);
+  }
+
+  refreshHistoryFromFirstPage(): void {
+    this.loadHistoryPage(1);
+  }
+
+  goToHistoryPage(page: number): void {
+    const maxPage = this.historyTotalPages;
+    const nextPage = Math.min(Math.max(1, page), maxPage);
+    if (nextPage === this.historyPage && this.history.length > 0) {
+      return;
+    }
+    this.loadHistoryPage(nextPage);
+  }
+
+  previousHistoryPage(): void {
+    this.goToHistoryPage(this.historyPage - 1);
+  }
+
+  nextHistoryPage(): void {
+    this.goToHistoryPage(this.historyPage + 1);
+  }
+
+  get historyTotalPages(): number {
+    return Math.max(1, Math.ceil(this.historyTotal / this.historyPageSize));
+  }
+
+  get historyPageNumbers(): number[] {
+    const pages: number[] = [];
+    for (let page = 1; page <= this.historyTotalPages; page += 1) {
+      pages.push(page);
+    }
+    return pages;
+  }
+
+  private loadHistoryPage(page: number): void {
+    this.historyPage = Math.max(1, page);
     this.loading = true;
     this.importsService
       .getImportHistory({
         search: this.search || undefined,
         status: this.statusFilter || undefined,
-        page: 1,
-        pageSize: 100,
+        page: this.historyPage,
+        pageSize: this.historyPageSize,
       })
       .subscribe({
         next: (res) => {
           this.loading = false;
+          this.historyTotal = res.total;
+          this.historyPage = res.page;
           this.history = res.items;
           if (this.selectedBatch) {
             this.selectedBatch =
