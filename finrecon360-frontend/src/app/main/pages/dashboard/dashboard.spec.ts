@@ -40,7 +40,7 @@ describe('DashboardComponent', () => {
     dashboardSpy.getDashboardData.and.returnValue(of(mockData));
 
     const authSpy = jasmine.createSpyObj<AuthService>('AuthService', [], {
-      currentUser$: of(makeUser(['ADMIN'], ['ADMIN.DASHBOARD.VIEW', 'MATCHER.VIEW', 'BALANCER.VIEW', 'TASKS.VIEW', 'JOURNAL.VIEW', 'ANALYTICS.VIEW'])),
+      currentUser$: of(makeUser(['ADMIN'], ['ADMIN.DASHBOARD.VIEW', 'ADMIN.RECONCILIATION.VIEW', 'BALANCER.VIEW', 'TASKS.VIEW', 'JOURNAL.VIEW', 'ANALYTICS.VIEW'])),
     });
 
     await TestBed.configureTestingModule({
@@ -68,5 +68,9 @@ describe('DashboardComponent', () => {
   it('renders matcher card', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('MATCHER');
+  });
+
+  it('enables matcher access for reconciliation permission', () => {
+    expect(component.canViewMatcher).toBeTrue();
   });
 });

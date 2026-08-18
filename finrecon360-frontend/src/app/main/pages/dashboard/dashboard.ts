@@ -43,7 +43,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .subscribe((user) => {
         this.isAdmin = !!user?.roles.includes('ADMIN');
         const permissions = user?.permissions ?? [];
-        this.canViewMatcher = permissions.includes('MATCHER.VIEW');
+        this.canViewMatcher = this.hasMatcherAccess(permissions);
         this.canViewBalancer = permissions.includes('BALANCER.VIEW');
         this.canViewTasks = permissions.includes('TASKS.VIEW');
         this.canViewJournal = permissions.includes('JOURNAL.VIEW') || this.isAdmin;
@@ -70,5 +70,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return Math.round(
       (this.data.balancer.reconciledAccounts / this.data.balancer.totalAccounts) * 100
     );
+  }
+
+  private hasMatcherAccess(permissions: string[]): boolean {
+    return [
+      'ADMIN.RECONCILIATION.VIEW',
+      'MATCHER.VIEW',
+      'MATCHER.MANAGE',
+    ].some((permission) => this.hasPermission(permissions, permission));
+  }
+
+  private hasPermission(grantedPermissions: string[], requiredPermission: string): boolean {
+    if (grantedPermissions.includes(requiredPermission)) {
+      return true;
+    }
+
+    const separatorIndex = requiredPermission.lastIndexOf('.');
+    if (separatorIndex <= 0) {
+      return false;
+    }
+
+    const manageCode = `${requiredPermission.slice(0, separatorIndex)}.MANAGE`;
+    return grantedPermissions.includes(manageCode);
   }
 }

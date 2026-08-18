@@ -42,7 +42,7 @@ describe('ShellComponent', () => {
         email: 'user@example.com',
         displayName: 'User',
         roles: [],
-        permissions: [],
+        permissions: ['ADMIN.RECONCILIATION.VIEW'],
         token: null,
       }),
       logout: jasmine.createSpy('logout'),
@@ -69,5 +69,10 @@ describe('ShellComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('shows the matcher link for reconciliation access', () => {
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('a[routerlink="/app/matcher"]')).toBeTruthy();
   });
 });

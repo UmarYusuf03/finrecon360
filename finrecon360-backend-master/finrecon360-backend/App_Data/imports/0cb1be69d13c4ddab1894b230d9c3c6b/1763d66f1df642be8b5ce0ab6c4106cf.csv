@@ -1,0 +1,4 @@
+Transaction Date,Posting Date,Reference Number,Description,Account Code,Account Name,Debit,Credit,Net,Currency
+18/08/2026,18/08/2026,POS-ORDER-1001,POS Sales Order 1001,,POS Terminal 1,,150.00,150.00,LKR
+18/08/2026,18/08/2026,POS-ORDER-1002,POS Sales Order 1002,,POS Terminal 1,,240.00,240.00,LKR
+18/08/2026,18/08/2026,POS-ORDER-1003,POS Sales Order 1003,,POS Terminal 1,,320.00,320.00,LKR

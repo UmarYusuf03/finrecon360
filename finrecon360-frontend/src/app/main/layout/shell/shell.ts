@@ -8,7 +8,6 @@ import { TranslateModule } from '@ngx-translate/core';
 import { Observable, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileService } from '../../services/profile.service';
 import { CurrentUser } from '../../../core/auth/models';
@@ -24,7 +23,6 @@ import { LanguageSwitcherComponent } from '../../../shared/components/language-s
     RouterLinkActive,
     LanguageSwitcherComponent,
     TranslateModule,
-    HasPermissionDirective,
     MatMenuModule,
     MatButtonModule,
     MatIconModule,
@@ -40,6 +38,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.COMPONENTS.VIEW',
     'ADMIN.PERMISSIONS.VIEW',
     'ADMIN.AUDIT_LOGS.VIEW',
+    'ADMIN.BANK_ACCOUNTS.VIEW',
+    'ADMIN.TRANSACTIONS.VIEW',
     'ADMIN.TENANT_REGISTRATIONS.MANAGE',
     'ADMIN.TENANTS.MANAGE',
     'ADMIN.PLANS.MANAGE',
@@ -50,6 +50,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.IMPORT_WORKBENCH.VIEW',
     'ADMIN.IMPORT_ARCHITECTURE.VIEW',
   ];
+
+  readonly transactionEntryPermissions: string[] = ['ADMIN.TRANSACTIONS.VIEW'];
 
   user$: Observable<CurrentUser | null>;
   profileImageUrl: string | null = null;
@@ -110,6 +112,32 @@ export class ShellComponent implements OnInit, OnDestroy {
     }
 
     return permissions.some((permission) => user.permissions.includes(permission));
+  }
+
+  canViewMatcher(user: CurrentUser | null): boolean {
+    if (!user) {
+      return false;
+    }
+
+    return [
+      'ADMIN.RECONCILIATION.VIEW',
+      'MATCHER.VIEW',
+      'MATCHER.MANAGE',
+    ].some((permission) => this.hasPermission(user.permissions, permission));
+  }
+
+  hasPermission(grantedPermissions: string[], requiredPermission: string): boolean {
+    if (grantedPermissions.includes(requiredPermission)) {
+      return true;
+    }
+
+    const separatorIndex = requiredPermission.lastIndexOf('.');
+    if (separatorIndex <= 0) {
+      return false;
+    }
+
+    const manageCode = `${requiredPermission.slice(0, separatorIndex)}.MANAGE`;
+    return grantedPermissions.includes(manageCode);
   }
 
   getAdminRoot(user: CurrentUser | null): string {
