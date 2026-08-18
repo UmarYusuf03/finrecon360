@@ -21,7 +21,7 @@
   h2 {
     margin: 0;
     color: var(--fr-text-primary);
-    font-size: 1.9rem;
+    font-size: var(--fr-text-2xl);
     line-height: 1.08;
     letter-spacing: -0.03em;
   }
@@ -29,7 +29,7 @@
   p {
     margin: 10px 0 0;
     color: var(--fr-text-muted);
-    font-size: 0.95rem;
+    font-size: var(--fr-text-base);
     line-height: 1.6;
   }
 }
@@ -38,7 +38,7 @@
   display: inline-flex;
   margin-bottom: 10px;
   color: var(--fr-primary);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -119,7 +119,7 @@
   p {
     margin: 6px 0 0;
     color: var(--fr-text-muted);
-    font-size: 0.9rem;
+    font-size: var(--fr-text-base);
   }
 }
 
@@ -132,7 +132,7 @@
   border-radius: 999px;
   background: rgba(220, 252, 231, 0.92);
   color: #166534;
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -155,7 +155,7 @@
 
 .panel__state {
   color: var(--fr-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
 }
 
 .list ul {
@@ -195,13 +195,13 @@
 
 .meta {
   color: var(--fr-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--fr-text-sm);
 }
 
 .detail__subscription {
   margin: 0 0 12px;
   color: var(--fr-text-muted);
-  font-size: 0.92rem;
+  font-size: var(--fr-text-base);
 }
 
 .admin-box,
@@ -215,7 +215,7 @@
 .enforcement label,
 .admin-list > label {
   color: var(--fr-text-primary);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
   font-weight: 700;
 }
 
@@ -336,7 +336,7 @@
   border-radius: 50%;
   background: rgba(11, 132, 216, 0.12);
   color: var(--fr-primary);
-  font-size: 1rem;
+  font-size: var(--fr-text-md);
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -344,14 +344,14 @@
 .detail-empty h3 {
   margin: 0;
   color: var(--fr-text-primary);
-  font-size: 1rem;
+  font-size: var(--fr-text-md);
 }
 
 .detail-empty p {
   margin: 0;
   max-width: 24rem;
   color: var(--fr-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
   line-height: 1.55;
 }
 

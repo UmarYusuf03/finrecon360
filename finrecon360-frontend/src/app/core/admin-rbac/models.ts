@@ -121,6 +121,7 @@ export interface Transaction {
   transactionDate: string;
   description: string;
   referenceNumber?: string | null;
+  cardLast4?: string | null;
   bankAccountId?: string | null;
   transactionType: string;
   paymentMethod: string;
@@ -172,7 +173,6 @@ export interface ApproveTransactionRequest {
 export interface RejectTransactionRequest {
   reason: string;
 }
-
 /**
  * WHY: Enriched NeedsBankMatch row — combines core transaction fields with matched
  * GATEWAY import record context and any existing ReconciliationMatchGroup so the
@@ -195,6 +195,7 @@ export interface NeedsBankMatchRecord {
   importedNormalizedRecordId?: string | null;
   importSourceType?: string | null;
   referenceNumber?: string | null;
+  cardLast4?: string | null;
   accountCode?: string | null;
   grossAmount?: number | null;
   processingFee?: number | null;
@@ -222,6 +223,7 @@ export interface UpdateTransactionRequest {
   amount: number;
   transactionDate: string;
   referenceNumber?: string | null;
+  cardLast4?: string | null;
   description: string;
   bankAccountId?: string | null;
   transactionType: string;
@@ -315,6 +317,7 @@ export interface ReconciliationMatchedRecord {
   matchAmount: number;
   transactionDate?: string;
   referenceNumber?: string;
+  cardLast4?: string | null;
   grossAmount?: number;
   processingFee?: number;
   netAmount: number;
@@ -341,6 +344,7 @@ export interface WaitingRecord {
   importBatchId: string;
   transactionDate: string;
   referenceNumber?: string;
+  cardLast4?: string | null;
   description?: string;
   grossAmount?: number;
   processingFee?: number;

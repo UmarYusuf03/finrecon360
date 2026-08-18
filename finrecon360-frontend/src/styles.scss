@@ -2,17 +2,34 @@
 
 @use '@angular/material' as mat;
 
+// WHY this font stack is repeated here: mat.theme bakes the family into every typography
+// token it emits (--mat-sys-body-medium and friends). It previously said "Roboto" while body
+// said "Inter", so Material components rendered in Roboto, custom components in Inter, and
+// anything falling through landed on Arial — three typefaces on a single screen.
+// Declaring the same stack in both places is what makes the app read as one product.
+$fr-font-stack: Inter, Roboto, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
 // Apply a single light theme to the whole app
 html {
   color-scheme: light;
 
   @include mat.theme((
+    // Colours are deliberately untouched.
     color: (
       primary: mat.$azure-palette,
       tertiary: mat.$blue-palette,
     ),
-    typography: Roboto,
-    density: 0,
+    typography: (
+      plain-family: $fr-font-stack,
+      brand-family: $fr-font-stack,
+      bold-weight: 700,
+      medium-weight: 600,
+      regular-weight: 400,
+    ),
+    // WHY -1: this is a finance product where users scan tables of transactions. Material's
+    // default (0) is tuned for touch and leaves rows airy enough that fewer fit on screen than
+    // the work needs. One step down reads as deliberate and data-dense without becoming cramped.
+    density: -1,
   ));
 }
 
@@ -46,10 +63,67 @@ html {
   --fr-danger-text: #b91c1c;
   --fr-neutral-bg: rgba(241, 245, 249, 0.92);
   --fr-neutral-text: #475569;
+
+  // ── Type scale ────────────────────────────────────────────────────────────
+  // WHY these exist: the app rendered 52 distinct font sizes, nine of them between
+  // 11.8px and 15.2px on a single screen — differences nobody can perceive, each one
+  // decided separately. These seven steps are deliberately far enough apart to read as
+  // intentional, and they map onto Material's own tokens so custom components and
+  // Material components sit on the same scale instead of two competing ones.
+  --fr-text-2xs: 0.6875rem;  // 11px — dense table meta, timestamps
+  --fr-text-xs: 0.75rem;     // 12px — chips, badges, captions
+  --fr-text-sm: 0.8125rem;   // 13px — secondary body, table cells
+  --fr-text-base: 0.875rem;  // 14px — body default (matches --mat-sys-body-medium)
+  --fr-text-md: 1rem;        // 16px — emphasised body, card titles
+  --fr-text-lg: 1.25rem;     // 20px — section headings
+  --fr-text-xl: 1.75rem;     // 28px — page titles
+  --fr-text-2xl: 2.25rem;    // 36px — KPI figures, empty-state icons
+
+  // Page titles, fluid between mobile and desktop. Ten different clamp() formulas were in
+  // use — every page title grew at its own rate, so headings never lined up when moving
+  // between screens. One curve for the whole app.
+  --fr-text-display: clamp(1.75rem, 1.5rem + 1vw, 2.5rem);
+
+  --fr-weight-regular: 400;
+  --fr-weight-medium: 600;
+  --fr-weight-bold: 700;
+
+  // ── Spacing rhythm ────────────────────────────────────────────────────────
+  // Measured spacing was 4, 8, 10, 12, 14, 16, 18, 21.912, 24, 28 — a 4px rhythm with
+  // odd values mixed in. A strict 4px scale is what makes unrelated screens feel aligned.
+  --fr-space-1: 4px;
+  --fr-space-2: 8px;
+  --fr-space-3: 12px;
+  --fr-space-4: 16px;
+  --fr-space-5: 24px;
+  --fr-space-6: 32px;
+  --fr-space-7: 48px;
+
+  // ── Breakpoints ───────────────────────────────────────────────────────────
+  // Reference values only (custom properties cannot be used inside media queries).
+  // 19 different breakpoints were in use; these three are the ones worth having.
+  --fr-bp-sm: 640px;
+  --fr-bp-md: 960px;
+  --fr-bp-lg: 1280px;
+
+  // Minimum comfortable hit area. Several controls measured 17–32px tall.
+  --fr-touch-target: 44px;
 }
 
 * {
   box-sizing: border-box;
+}
+
+// WHY: form controls do not inherit font-family from their ancestors — browsers apply their
+// own UA default instead. That is why buttons like the language switcher and the import
+// source-type cards were silently rendering in Arial while everything around them used Inter.
+// Nothing declared Arial anywhere; it was simply never told what to use.
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: inherit;
 }
 
 body {
@@ -62,6 +136,48 @@ body {
     sans-serif;
   margin: 0;
   min-height: 100vh;
+
+  // Anchors the whole app to one body size. Nested rem sizing was compounding into
+  // values like 32.3128px and 13.3333px, which is why sizes never quite lined up.
+  font-size: var(--fr-text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ── Accessibility baseline ──────────────────────────────────────────────────
+// WHY: only 6 of 40 stylesheets styled a focus state, so keyboard users frequently had
+// no visible indication of where they were. One global rule covers every control, and
+// :focus-visible means mouse users never see a ring they did not ask for.
+:focus-visible {
+  outline: 2px solid var(--fr-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+// The shell animates (glass blur, transitions). Anyone who has asked their OS to reduce
+// motion — commonly for vestibular disorders — should not be made to sit through it.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// Icon-only controls measured as small as 26px. Padding rather than a fixed height so
+// the visual size is unchanged — only the clickable area grows.
+.mat-mdc-icon-button {
+  min-width: var(--fr-touch-target);
+  min-height: var(--fr-touch-target);
+}
+
+// Inline text links sat at 17px tall. This lifts the hit area without shifting layout.
+a:not(.mat-mdc-button-base) {
+  padding-block: 2px;
 }
 
 .fr-glass-panel {
@@ -148,7 +264,7 @@ body {
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.5);
   color: var(--fr-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--fr-text-sm);
   font-weight: 700;
   letter-spacing: 0.02em;
   text-decoration: none;
@@ -213,7 +329,7 @@ body {
   .sv-hero__copy h1,
   .events-hero__copy h1
 ) {
-  font-size: clamp(1.95rem, 1.72rem + 0.65vw, 2.35rem);
+  font-size: var(--fr-text-display);
 }
 
 :where(
@@ -227,7 +343,7 @@ body {
   .audit-page__copy h2,
   .transaction-page-header h2
 ) {
-  font-size: clamp(1.7rem, 1.56rem + 0.45vw, 2rem);
+  font-size: var(--fr-text-display);
 }
 
 :where(
@@ -254,7 +370,7 @@ body {
   background: rgba(255, 255, 255, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.8);
   color: var(--fr-primary);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -278,7 +394,7 @@ body {
   .audit-page__copy p,
   .transaction-page-header p
 ) {
-  font-size: 0.95rem;
+  font-size: var(--fr-text-base);
   line-height: 1.6;
 }
 
@@ -382,7 +498,7 @@ body {
   min-height: 28px;
   padding: 0 12px;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;

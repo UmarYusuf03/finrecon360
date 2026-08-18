@@ -59,7 +59,14 @@ export class GoogleSsoService {
     this.config$ ??= this.http
       .get<SsoConfig>(`${API_BASE_URL}${API_ENDPOINTS.AUTH.SSO_CONFIG}`)
       .pipe(
-        catchError(() => of({ googleEnabled: false, googleClientId: '' })),
+        catchError(() => {
+          // Drop the cache before returning the fallback. Without this the "SSO unavailable"
+          // answer is replayed for the lifetime of the app, so a backend that was down for a
+          // moment when the login screen first loaded hides the Google button until a full
+          // page reload — which looks exactly like the feature having disappeared.
+          this.config$ = undefined;
+          return of({ googleEnabled: false, googleClientId: '' });
+        }),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
 

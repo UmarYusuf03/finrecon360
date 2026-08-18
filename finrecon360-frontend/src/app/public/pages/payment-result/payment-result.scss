@@ -9,7 +9,7 @@
 }
 
 .auth-logo {
-  font-size: 24px;
+  font-size: var(--fr-text-lg);
   font-weight: 800;
   color: #1e293b;
   margin-bottom: 24px;
@@ -45,7 +45,7 @@
 
   h1 {
     margin: 0 0 8px 0;
-    font-size: 24px;
+    font-size: var(--fr-text-lg);
     font-weight: 700;
   }
 
@@ -72,7 +72,7 @@
   margin-bottom: 16px;
 
   mat-icon {
-    font-size: 48px;
+    font-size: var(--fr-text-2xl);
     width: 48px;
     height: 48px;
   }
@@ -89,14 +89,14 @@
 }
 
 .result-message {
-  font-size: 16px;
+  font-size: var(--fr-text-md);
   color: #475569;
   margin: 0 0 8px 0;
   line-height: 1.5;
 }
 
 .order-id {
-  font-size: 12px;
+  font-size: var(--fr-text-xs);
   color: #94a3b8;
   margin: 0 0 24px 0;
   font-family: monospace;
@@ -115,12 +115,12 @@
   button {
     width: 100%;
     padding: 12px;
-    font-size: 14px;
+    font-size: var(--fr-text-base);
     font-weight: 600;
 
     mat-icon {
       margin-right: 8px;
-      font-size: 18px;
+      font-size: var(--fr-text-md);
       width: 18px;
       height: 18px;
     }
@@ -128,7 +128,7 @@
 }
 
 .help-text {
-  font-size: 12px;
+  font-size: var(--fr-text-xs);
   color: #94a3b8;
   margin: 0;
   text-align: center;
@@ -145,13 +145,13 @@
     height: 64px;
 
     mat-icon {
-      font-size: 36px;
+      font-size: var(--fr-text-2xl);
       width: 36px;
       height: 36px;
     }
   }
 
   h1 {
-    font-size: 20px;
+    font-size: var(--fr-text-lg);
   }
 }

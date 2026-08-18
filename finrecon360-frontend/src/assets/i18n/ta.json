@@ -269,7 +269,8 @@
       "PRICE_REQUIRED": "Price must be 0 or higher."
     },
     "ENFORCEMENT": {
-      "TITLE": "Enforcement"
+      "TITLE": "Enforcement",
+      "COPY": "டெனன்ட் மற்றும் அவர்களின் பயனர்களின் அணுகலை இடைநிறுத்தவும் அல்லது மீட்டமைக்கவும்."
     },
     "PAYMENT_ALERTS": {
       "TITLE": "Payment Alerts",
@@ -363,7 +364,8 @@
       "TITLE": "இறக்குமதி பணிப்பகம்"
     },
     "TENANT_AUDIT_LOGS": {
-      "TITLE": "Title"
+      "TITLE": "Title",
+      "COPY": "யார் எதை, எப்போது மாற்றினார்கள் என்பதன் பதிவு."
     }
   },
   "DASHBOARD": {
@@ -481,7 +483,8 @@
     "ADMIN": "நிர்வாகி",
     "PROFILE": "சுயவிவரம்",
     "SETTINGS": "அமைப்புகள்",
-    "LOGOUT": "வெளியேறு"
+    "LOGOUT": "வெளியேறு",
+    "SECTION_WORKSPACE": "பணியிடம்"
   },
   "COMMON": {
     "REQUEST_FAILED": "Request failed. Please try again.",
@@ -603,7 +606,8 @@
     "NOT_SET": "Not set",
     "SAVING": "Saving...",
     "SUBTITLE": "Manage the accounts available for transaction capture and reconciliation.",
-    "TITLE": "வங்கி கணக்குகள்"
+    "TITLE": "வங்கி கணக்குகள்",
+    "COPY": "அட்டை பரிவர்த்தனைகள் தீர்க்கப்படும் வங்கிக் கணக்குகள்."
   },
   "IMPORTS": {
     "HISTORY": {

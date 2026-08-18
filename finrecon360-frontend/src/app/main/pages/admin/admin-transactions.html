@@ -211,26 +211,19 @@
 <ng-template #transactionDialog>
   <h2 mat-dialog-title>{{ getDialogTitleKey() | translate }}</h2>
   <div mat-dialog-content class="transaction-dialog">
-    <div class="transaction-dialog__intro">
-      <div>
-        <p class="transaction-dialog__eyebrow">{{ 'TRANSACTIONS.WORKFLOW' | translate }}</p>
-        <p class="transaction-dialog__helper">{{ getDialogHelperKey() | translate }}</p>
-      </div>
-      <div class="transaction-dialog__notes">
-        <div class="transaction-dialog__note">
-          <span>{{ 'TRANSACTIONS.CARD_PAYMENTS' | translate }}</span>
-          <strong>{{ 'TRANSACTIONS.REQUIRE_BANK_ACCOUNT' | translate }}</strong>
-        </div>
-        <div class="transaction-dialog__note">
-          <span>{{ 'TRANSACTIONS.DATE_RULES' | translate }}</span>
-          <strong>{{ minTransactionDate }} to {{ maxTransactionDate }}</strong>
-        </div>
-      </div>
-    </div>
+    <!--
+      The two rule callouts that used to sit here (card payments need a bank account, and the
+      permitted date range) now appear as hints on the fields they actually govern. Guidance
+      next to the control is read; guidance in a panel above the form is scrolled past, and it
+      was pushing the fields themselves below the fold.
+    -->
+    <p class="transaction-dialog__helper">{{ getDialogHelperKey() | translate }}</p>
     <form [formGroup]="form" class="transaction-form">
       <div class="transaction-form__grid">
         <mat-form-field appearance="outline">
           <mat-label>{{ 'TRANSACTIONS.AMOUNT' | translate }}</mat-label>
+          <!-- The currency is stated on the field rather than left for the user to assume. -->
+          <span matTextPrefix class="transaction-form__currency">LKR&nbsp;</span>
           <input matInput type="number" min="0.01" step="0.01" formControlName="amount" />
           <mat-error *ngIf="form.get('amount')?.hasError('required')">{{ 'TRANSACTIONS.ERRORS.AMOUNT_REQUIRED' | translate }}</mat-error>
           <mat-error *ngIf="form.get('amount')?.hasError('min')">{{ 'TRANSACTIONS.ERRORS.AMOUNT_MIN' | translate }}</mat-error>
@@ -240,14 +233,16 @@
           <mat-label>{{ 'TRANSACTIONS.TRANSACTION_DATE' | translate }}</mat-label>
           <input
             matInput
-            type="date"
+            [matDatepicker]="transactionDatePicker"
             formControlName="transactionDate"
-            [min]="minTransactionDate"
-            [max]="maxTransactionDate"
-            step="1"
-            pattern="\d{4}-\d{2}-\d{2}"
-            inputmode="numeric"
+            [min]="minTransactionDateValue"
+            [max]="maxTransactionDateValue"
           />
+          <mat-datepicker-toggle matIconSuffix [for]="transactionDatePicker"></mat-datepicker-toggle>
+          <mat-datepicker #transactionDatePicker></mat-datepicker>
+          <!-- The allowed range now sits on the field it governs, instead of in a separate
+               panel above the form where it was easy to miss. -->
+          <mat-hint>{{ minTransactionDate }} to {{ maxTransactionDate }}</mat-hint>
           <mat-error *ngIf="form.get('transactionDate')?.hasError('required')">
             {{ 'TRANSACTIONS.ERRORS.TRANSACTION_DATE_REQUIRED' | translate }}
           </mat-error>
@@ -281,7 +276,11 @@
         <mat-form-field appearance="outline">
           <mat-label>{{ 'TRANSACTIONS.TRANSACTION_TYPE' | translate }}</mat-label>
           <mat-select formControlName="transactionType">
-            <mat-option *ngFor="let type of transactionTypes" [value]="type">{{ type }}</mat-option>
+            <!-- Enum values are shown as words. "CashOut" is how the code spells it, not how a
+                 finance user reads it. -->
+            <mat-option *ngFor="let type of transactionTypes" [value]="type">
+              {{ getTransactionTypeLabel(type) }}
+            </mat-option>
           </mat-select>
           <mat-error *ngIf="form.get('transactionType')?.hasError('required')">{{ 'TRANSACTIONS.ERRORS.TRANSACTION_TYPE_REQUIRED' | translate }}</mat-error>
         </mat-form-field>
@@ -291,6 +290,7 @@
           <mat-select formControlName="paymentMethod">
             <mat-option *ngFor="let method of paymentMethods" [value]="method">{{ method }}</mat-option>
           </mat-select>
+          <mat-hint>{{ 'TRANSACTIONS.REQUIRE_BANK_ACCOUNT' | translate }}</mat-hint>
           <mat-error *ngIf="form.get('paymentMethod')?.hasError('required')">{{ 'TRANSACTIONS.ERRORS.PAYMENT_METHOD_REQUIRED' | translate }}</mat-error>
         </mat-form-field>
       </div>
@@ -305,6 +305,18 @@
         </mat-select>
         <mat-hint>{{ 'TRANSACTIONS.BANK_ACCOUNT_HINT' | translate }}</mat-hint>
         <mat-error *ngIf="form.get('bankAccountId')?.hasError('required')">{{ 'TRANSACTIONS.ERRORS.BANK_ACCOUNT_REQUIRED_CARD' | translate }}</mat-error>
+      </mat-form-field>
+
+      <!--
+        Only shown for card payments, because a cash transaction has no card. The server drops
+        the value for non-card payments regardless, so hiding it keeps the form honest about
+        what will actually be stored.
+      -->
+      <mat-form-field appearance="outline" *ngIf="isCardPayment">
+        <mat-label>Card last 4 digits</mat-label>
+        <input matInput type="text" formControlName="cardLast4" maxlength="4" inputmode="numeric" placeholder="4242" />
+        <mat-hint>Optional. Helps identify which card a bank line refers to.</mat-hint>
+        <mat-error *ngIf="form.get('cardLast4')?.hasError('pattern')">Enter exactly four digits.</mat-error>
       </mat-form-field>
     </form>
     <p *ngIf="saveError" class="transaction-dialog__error" role="alert">{{ saveError }}</p>

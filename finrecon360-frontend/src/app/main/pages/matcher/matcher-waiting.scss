@@ -14,6 +14,7 @@
   backdrop-filter: blur(24px);
 }
 
+
 .waiting-hero {
   display: flex;
   justify-content: space-between;
@@ -28,7 +29,7 @@
   h1 {
     margin: 0;
     color: var(--fr-text-primary);
-    font-size: 2rem;
+    font-size: var(--fr-text-2xl);
     line-height: 1.08;
     letter-spacing: -0.03em;
   }
@@ -36,7 +37,7 @@
   p {
     margin: 10px 0 0;
     color: var(--fr-text-muted);
-    font-size: 0.96rem;
+    font-size: var(--fr-text-base);
     line-height: 1.6;
   }
 }
@@ -45,7 +46,7 @@
   display: inline-flex;
   margin-bottom: 10px;
   color: var(--fr-primary);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -71,7 +72,7 @@
 
 .summary-card__label {
   color: var(--fr-text-muted);
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -79,14 +80,14 @@
 
 .summary-card__value {
   color: var(--fr-text-primary);
-  font-size: 1.55rem;
+  font-size: var(--fr-text-xl);
   line-height: 1.1;
   letter-spacing: -0.03em;
 }
 
 .summary-card__meta {
   color: var(--fr-text-muted);
-  font-size: 0.86rem;
+  font-size: var(--fr-text-base);
   line-height: 1.45;
 }
 
@@ -119,19 +120,19 @@
   h3 {
     margin: 0;
     color: var(--fr-text-primary);
-    font-size: 1rem;
+    font-size: var(--fr-text-md);
   }
 
   p {
     margin: 6px 0 0;
-    font-size: 0.9rem;
+    font-size: var(--fr-text-base);
     line-height: 1.55;
   }
 
   mat-icon {
     width: 40px;
     height: 40px;
-    font-size: 40px;
+    font-size: var(--fr-text-2xl);
     color: rgba(11, 132, 216, 0.44);
   }
 }
@@ -190,7 +191,7 @@
   border-radius: 999px;
   background: rgba(241, 245, 249, 0.9);
   color: var(--fr-text-muted);
-  font-size: 0.78rem;
+  font-size: var(--fr-text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -199,7 +200,7 @@
 .no-permission__icon {
   width: 16px;
   height: 16px;
-  font-size: 16px;
+  font-size: var(--fr-text-md);
   opacity: 0.6;
 }
 
@@ -211,7 +212,7 @@
   padding: 14px 16px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
   color: var(--fr-text-muted);
-  font-size: 0.76rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -221,7 +222,7 @@
   padding: 14px 16px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.72);
   color: var(--fr-text-primary);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
 }
 
 :host ::ng-deep .waiting-table .mat-mdc-row:last-child .mat-mdc-cell {
@@ -256,6 +257,6 @@
   }
 
   .waiting-hero__copy h1 {
-    font-size: 1.7rem;
+    font-size: var(--fr-text-xl);
   }
 }

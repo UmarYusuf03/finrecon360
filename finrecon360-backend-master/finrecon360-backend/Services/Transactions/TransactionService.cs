@@ -24,6 +24,7 @@ namespace finrecon360_backend.Services.Transactions
                 request.BankAccountId,
                 request.TransactionType,
                 request.PaymentMethod,
+                request.ReferenceNumber,
                 ct);
 
             var now = DateTime.UtcNow;
@@ -38,6 +39,8 @@ namespace finrecon360_backend.Services.Transactions
                 TransactionType = validated.TransactionType,
                 PaymentMethod = validated.PaymentMethod,
                 TransactionState = TransactionState.Pending,
+                ReferenceNumber = NormalizeReferenceNumber(request.ReferenceNumber),
+                CardLast4 = NormalizeCardLast4(request.CardLast4, validated.PaymentMethod),
                 CreatedByUserId = userId,
                 CreatedAt = now,
                 UpdatedAt = null
@@ -93,6 +96,7 @@ namespace finrecon360_backend.Services.Transactions
                 request.BankAccountId,
                 request.TransactionType,
                 request.PaymentMethod,
+                request.ReferenceNumber,
                 ct);
 
             _ = userId;
@@ -104,6 +108,8 @@ namespace finrecon360_backend.Services.Transactions
             entity.BankAccountId = validated.BankAccountId;
             entity.TransactionType = validated.TransactionType;
             entity.PaymentMethod = validated.PaymentMethod;
+            entity.ReferenceNumber = NormalizeReferenceNumber(request.ReferenceNumber);
+            entity.CardLast4 = NormalizeCardLast4(request.CardLast4, validated.PaymentMethod);
             entity.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync(ct);
@@ -267,6 +273,7 @@ namespace finrecon360_backend.Services.Transactions
             Guid? bankAccountId,
             string transactionType,
             string paymentMethod,
+            string? referenceNumber,
             CancellationToken ct)
         {
             if (amount <= 0)
@@ -313,6 +320,13 @@ namespace finrecon360_backend.Services.Transactions
 
             var normalizedTransactionType = ParseEnum<TransactionType>(transactionType, nameof(transactionType));
             var normalizedPaymentMethod = ParseEnum<PaymentMethod>(paymentMethod, nameof(paymentMethod));
+
+            // Length is enforced here as well as by the DTO attribute, because the DTO only guards
+            // the HTTP boundary and this service is also reachable from tests and future callers.
+            if (referenceNumber is not null && referenceNumber.Trim().Length > 100)
+            {
+                throw new InvalidOperationException("ReferenceNumber cannot exceed 100 characters.");
+            }
 
             if (normalizedPaymentMethod == PaymentMethod.Card && bankAccountId == null)
             {
@@ -412,8 +426,40 @@ namespace finrecon360_backend.Services.Transactions
                 entity.RejectedAt,
                 entity.RejectedByUserId,
                 entity.RejectionReason,
+                entity.ReferenceNumber,
+                entity.CardLast4,
                 entity.CreatedAt,
                 entity.UpdatedAt);
+
+        /// <summary>
+        /// Trims the reference and treats blank input as absent, so the column holds either a real
+        /// reference or null. Storing an empty string instead would create a value that looks like
+        /// a reference to every downstream matcher but can never match anything.
+        /// </summary>
+        private static string? NormalizeReferenceNumber(string? referenceNumber) =>
+            string.IsNullOrWhiteSpace(referenceNumber) ? null : referenceNumber.Trim();
+
+        /// <summary>
+        /// Keeps the last four card digits only for card payments, and only if they are four
+        /// digits. Cash transactions have no card, so a value arriving on one is dropped rather
+        /// than stored — otherwise the field would quietly accumulate meaningless data that a
+        /// later matcher might treat as significant.
+        /// </summary>
+        private static string? NormalizeCardLast4(string? cardLast4, PaymentMethod paymentMethod)
+        {
+            if (paymentMethod != PaymentMethod.Card || string.IsNullOrWhiteSpace(cardLast4))
+            {
+                return null;
+            }
+
+            var trimmed = cardLast4.Trim();
+            if (trimmed.Length != 4 || !trimmed.All(char.IsDigit))
+            {
+                throw new InvalidOperationException("CardLast4 must be exactly four digits.");
+            }
+
+            return trimmed;
+        }
 
         private static TransactionStateHistoryResponse MapHistory(TransactionStateHistory entity) =>
             new(

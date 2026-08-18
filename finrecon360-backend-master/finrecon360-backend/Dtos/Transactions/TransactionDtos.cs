@@ -21,6 +21,22 @@ namespace finrecon360_backend.Dtos.Transactions
 
         [Required]
         public string PaymentMethod { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The upstream reference for this payment — a gateway reference or bank narrative.
+        /// Optional, because a manually recorded cash transaction has no upstream document, but it
+        /// is the strongest key available for correlating this record with an imported one later.
+        /// </summary>
+        [MaxLength(100)]
+        public string? ReferenceNumber { get; set; }
+
+        /// <summary>
+        /// Last four digits of the card, for card payments only. Not sensitive on its own — it
+        /// cannot reconstruct a card number — and it is what lets a person confirm that a bank
+        /// line and a recorded cash-out refer to the same card.
+        /// </summary>
+        [MaxLength(4)]
+        public string? CardLast4 { get; set; }
     }
 
     public class UpdateTransactionRequest
@@ -42,6 +58,17 @@ namespace finrecon360_backend.Dtos.Transactions
 
         [Required]
         public string PaymentMethod { get; set; } = string.Empty;
+
+        [MaxLength(100)]
+        public string? ReferenceNumber { get; set; }
+
+        /// <summary>
+        /// Last four digits of the card, for card payments only. Not sensitive on its own — it
+        /// cannot reconstruct a card number — and it is what lets a person confirm that a bank
+        /// line and a recorded cash-out refer to the same card.
+        /// </summary>
+        [MaxLength(4)]
+        public string? CardLast4 { get; set; }
     }
 
     public class ApproveTransactionRequest
@@ -73,6 +100,8 @@ namespace finrecon360_backend.Dtos.Transactions
         DateTime? RejectedAt,
         Guid? RejectedByUserId,
         string? RejectionReason,
+        string? ReferenceNumber,
+        string? CardLast4,
         DateTime CreatedAt,
         DateTime? UpdatedAt);
 

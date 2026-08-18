@@ -12,6 +12,7 @@
 }
 
 
+
 .hero {
   display: flex;
   justify-content: space-between;
@@ -26,7 +27,7 @@
   h1 {
     margin: 0;
     color: var(--fr-text-primary);
-    font-size: 2rem;
+    font-size: var(--fr-text-2xl);
     line-height: 1.08;
     letter-spacing: -0.03em;
   }
@@ -34,7 +35,7 @@
   p {
     margin: 10px 0 0;
     color: var(--fr-text-muted);
-    font-size: 0.96rem;
+    font-size: var(--fr-text-base);
     line-height: 1.55;
   }
 }
@@ -42,7 +43,7 @@
 .eyebrow,
 .label {
   color: var(--fr-text-muted);
-  font-size: 0.74rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -87,7 +88,7 @@
 }
 
 .stat .value {
-  font-size: 1.8rem;
+  font-size: var(--fr-text-xl);
   line-height: 1;
   letter-spacing: -0.04em;
 }
@@ -103,7 +104,7 @@
 }
 
 .fin .value {
-  font-size: 1rem;
+  font-size: var(--fr-text-md);
   line-height: 1.35;
 }
 
@@ -140,19 +141,19 @@
   h3 {
     margin: 0;
     color: var(--fr-text-primary);
-    font-size: 1rem;
+    font-size: var(--fr-text-md);
   }
 
   p {
     margin: 6px 0 0;
-    font-size: 0.9rem;
+    font-size: var(--fr-text-base);
     line-height: 1.5;
   }
 
   mat-icon {
     width: 40px;
     height: 40px;
-    font-size: 40px;
+    font-size: var(--fr-text-2xl);
     color: rgba(11, 132, 216, 0.46);
   }
 }
@@ -219,7 +220,7 @@
   min-height: 28px;
   padding: 0 12px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -235,7 +236,7 @@
   mat-icon {
     width: 15px;
     height: 15px;
-    font-size: 15px;
+    font-size: var(--fr-text-base);
   }
 }
 
@@ -243,7 +244,7 @@
 .meta span,
 .hint {
   color: var(--fr-text-muted);
-  font-size: 0.88rem;
+  font-size: var(--fr-text-base);
   font-weight: 600;
 }
 
@@ -333,7 +334,7 @@
   mat-icon {
     width: 18px;
     height: 18px;
-    font-size: 18px;
+    font-size: var(--fr-text-md);
   }
 }
 
@@ -342,7 +343,7 @@
   padding: 14px 16px;
   border: 1px solid transparent;
   border-radius: var(--fr-radius-md);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
   font-weight: 600;
 
   a {
@@ -353,7 +354,7 @@
   mat-icon {
     width: 18px;
     height: 18px;
-    font-size: 18px;
+    font-size: var(--fr-text-md);
   }
 }
 
@@ -378,7 +379,7 @@
 
 :host ::ng-deep .tabset .mdc-tab__text-label {
   color: var(--fr-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--fr-text-sm);
   font-weight: 800;
   letter-spacing: 0.03em;
 }
@@ -407,7 +408,7 @@
 :host ::ng-deep .table .mat-mdc-header-cell {
   padding: 14px 16px;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-  font-size: 0.76rem;
+  font-size: var(--fr-text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -416,7 +417,7 @@
   padding: 14px 16px;
   border-bottom: 1px solid rgba(226, 232, 240, 0.72);
   color: var(--fr-text-primary);
-  font-size: 0.9rem;
+  font-size: var(--fr-text-base);
 }
 
 :host ::ng-deep .table .mat-mdc-row:last-child .mat-mdc-cell {
@@ -459,7 +460,7 @@
   }
 
   .copy h1 {
-    font-size: 1.7rem;
+    font-size: var(--fr-text-xl);
   }
 
   :host ::ng-deep .panel .mat-expansion-panel-header,

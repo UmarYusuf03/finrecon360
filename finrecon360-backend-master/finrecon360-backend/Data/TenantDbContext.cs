@@ -172,7 +172,7 @@ namespace finrecon360_backend.Data
                 entity.Property(x => x.Amount).HasColumnType("decimal(18,2)").IsRequired();
                 entity.Property(x => x.TransactionDate).HasColumnType("datetime2").IsRequired();
                 entity.Property(x => x.Description).HasMaxLength(500).IsRequired();
-                entity.Property(x => x.ReferenceNumber).HasMaxLength(120);
+                entity.Property(x => x.ReferenceNumber).HasMaxLength(100);
                 entity.Property(x => x.TransactionType).HasConversion<string>().HasMaxLength(20).IsRequired();
                 entity.Property(x => x.PaymentMethod).HasConversion<string>().HasMaxLength(20).IsRequired();
                 entity.Property(x => x.TransactionState)

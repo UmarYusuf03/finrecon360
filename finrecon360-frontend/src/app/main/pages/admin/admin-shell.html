@@ -25,7 +25,32 @@
 
   <mat-tab-nav-panel #tabPanel>
     <div class="admin-shell__content">
-      <router-outlet></router-outlet>
+      <router-outlet #adminOutlet="outlet"></router-outlet>
+
+      <!--
+        Shown only while no section is open. The administration area used to redirect straight
+        into whichever section came first, which meant landing somewhere arbitrary with no sense
+        of what else was available. This makes the index a real page: every section the current
+        user may open, with what it is for.
+      -->
+      <div class="admin-overview" *ngIf="!adminOutlet.isActivated">
+        <header class="admin-overview__header">
+          <h1 class="admin-overview__title">{{ 'ADMIN.OVERVIEW' | translate }}</h1>
+          <p class="admin-overview__subtitle">{{ 'ADMIN.SUBTITLE' | translate }}</p>
+        </header>
+
+        <div class="admin-overview__grid">
+          <a
+            class="admin-overview__card"
+            *ngFor="let link of visibleLinks$ | async"
+            [routerLink]="link.path"
+          >
+            <span class="admin-overview__card-title">{{ link.label | translate }}</span>
+            <span class="admin-overview__card-copy">{{ link.description | translate }}</span>
+            <span class="admin-overview__card-cue" aria-hidden="true">→</span>
+          </a>
+        </div>
+      </div>
     </div>
   </mat-tab-nav-panel>
 </section>

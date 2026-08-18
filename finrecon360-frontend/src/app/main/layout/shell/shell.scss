@@ -6,11 +6,14 @@
 .shell__sidebar {
   display: none;
   flex-direction: column;
-  gap: 20px;
+  // Was 20px between brand and nav — too much air above a short list.
+  gap: var(--fr-space-4);
   position: fixed;
   inset: 0 auto 0 0;
-  width: 280px;
-  padding: 24px 18px;
+  // Was 280px. Five short labels do not need that much width, and the excess made the
+  // navigation read as heavier than the content beside it.
+  width: 232px;
+  padding: var(--fr-space-4) var(--fr-space-3);
   background: var(--fr-sidebar-background);
   backdrop-filter: blur(24px);
   border-right: 1px solid var(--fr-border);
@@ -20,29 +23,30 @@
 .shell__brand-panel {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
+  gap: var(--fr-space-3);
+  padding: var(--fr-space-2);
   border-radius: var(--fr-radius-lg);
 }
 
 .shell__brand-mark {
-  width: 44px;
-  height: 44px;
+  // Was 44px. Scaled with the narrower rail so the mark sits in proportion to the labels.
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  border-radius: 14px;
+  border-radius: 11px;
   background: linear-gradient(135deg, rgba(11, 132, 216, 0.2), rgba(8, 145, 178, 0.08));
   color: var(--fr-primary);
-  font-size: 15px;
+  font-size: var(--fr-text-xs);
   font-weight: 800;
   letter-spacing: 0.08em;
 }
 
 .shell__brand {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: var(--fr-text-md);
+  font-weight: 700;
   color: var(--fr-text-primary);
   letter-spacing: -0.02em;
 }
@@ -50,21 +54,95 @@
 .shell__sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  // Rows now sit as a group rather than five separate islands.
+  gap: var(--fr-space-1);
+}
+
+// Gives the cluster of links a heading so it reads as a labelled section rather than a
+// group of items that happen to be stacked at the top of an otherwise empty column.
+.shell__nav-label {
+  margin: 0 0 var(--fr-space-1);
+  padding: 0 var(--fr-space-3);
+  color: var(--fr-text-muted);
+  font-size: var(--fr-text-2xs);
+  font-weight: var(--fr-weight-bold);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+// margin-top: auto is what does the work — it consumes the leftover vertical space so this
+// block sits against the bottom edge and the emptiness becomes deliberate margin.
+.shell__sidebar-footer {
+  margin-top: auto;
+  padding-top: var(--fr-space-3);
+  border-top: 1px solid var(--fr-border);
+}
+
+.shell__sidebar-account {
+  display: flex;
+  align-items: center;
+  gap: var(--fr-space-3);
+  padding: var(--fr-space-2);
+  border-radius: var(--fr-radius-md);
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid var(--fr-glass-border);
+}
+
+.shell__sidebar-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(11, 132, 216, 0.22), rgba(8, 145, 178, 0.1));
+  color: var(--fr-primary);
+  font-size: var(--fr-text-2xs);
+  font-weight: var(--fr-weight-bold);
+  letter-spacing: 0.04em;
+}
+
+.shell__sidebar-account-text {
+  display: grid;
+  // min-width: 0 lets the ellipsis actually engage; grid children default to min-content
+  // width, which would otherwise push a long email past the edge of the rail.
+  min-width: 0;
+}
+
+.shell__sidebar-account-name {
+  color: var(--fr-text-primary);
+  font-size: var(--fr-text-sm);
+  font-weight: var(--fr-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shell__sidebar-account-meta {
+  color: var(--fr-text-muted);
+  font-size: var(--fr-text-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shell__nav-link,
 .shell__mobile-link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 12px 16px;
-  border-radius: 14px;
-  border-left: 4px solid transparent;
+  gap: var(--fr-space-3);
+  // Was 48px tall with 12px padding, giving 56px of pitch per row. 40px keeps a comfortable
+  // target while letting the five items read as one list.
+  min-height: 40px;
+  padding: var(--fr-space-2) var(--fr-space-3);
+  border-radius: 10px;
+  border-left: 3px solid transparent;
   color: var(--fr-text-muted);
   text-decoration: none;
-  font-weight: 600;
+  font-size: var(--fr-text-base);
+  font-weight: var(--fr-weight-medium);
   transition:
     background-color 160ms ease,
     color 160ms ease,
@@ -265,7 +343,7 @@
 }
 
 .shell__menu-email {
-  font-size: 12px;
+  font-size: var(--fr-text-xs);
   color: var(--fr-text-muted);
 }
 
@@ -275,7 +353,9 @@
   }
 
   .shell__workspace {
-    margin-left: 280px;
+    // Must track .shell__sidebar width exactly — the rail is fixed-position, so this is what
+    // stops the content sliding underneath it.
+    margin-left: 232px;
   }
 
   .shell__topbar {

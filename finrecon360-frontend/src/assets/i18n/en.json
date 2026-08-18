@@ -32,7 +32,8 @@
     "ADMIN": "Admin",
     "PROFILE": "Profile",
     "SIGNED_IN_AS": "Signed in as",
-    "SIGN_OUT": "Sign out"
+    "SIGN_OUT": "Sign out",
+    "SECTION_WORKSPACE": "Workspace"
   },
   "COMMON": {
     "REQUEST_FAILED": "Request failed. Please try again.",
@@ -327,7 +328,8 @@
       "COPY": "Track uploads, owners, and processing status across your workspace."
     },
     "TENANT_AUDIT_LOGS": {
-      "TITLE": "Tenant Audit Logs"
+      "TITLE": "Tenant Audit Logs",
+      "COPY": "A record of who changed what, and when."
     },
     "TENANT_REGISTRATIONS": {
       "TITLE": "Tenant Registrations",
@@ -415,7 +417,8 @@
       "PRICE_REQUIRED": "Price must be 0 or higher."
     },
     "ENFORCEMENT": {
-      "TITLE": "Enforcement"
+      "TITLE": "Enforcement",
+      "COPY": "Suspend or restore access for tenants and their users."
     },
     "PAYMENT_ALERTS": {
       "TITLE": "Payment Alerts",
@@ -654,7 +657,8 @@
     "NOT_SET": "Not set",
     "SAVING": "Saving...",
     "SUBTITLE": "Manage the accounts available for transaction capture and reconciliation.",
-    "TITLE": "Bank Accounts"
+    "TITLE": "Bank Accounts",
+    "COPY": "Bank accounts that card transactions are settled against."
   },
   "IMPORTS": {
     "HISTORY": {

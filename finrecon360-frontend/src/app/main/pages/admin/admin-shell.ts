@@ -17,6 +17,11 @@ import { AuthService } from '../../../core/auth/auth.service';
 type AdminLink = {
   path: string;
   label: string;
+  /**
+   * Sentence shown on the overview card. Follows the existing i18n convention where a section's
+   * heading is X.TITLE and its one-line explanation is X.COPY, so no new strings are needed.
+   */
+  description: string;
   permission: string;
   scope: 'tenant' | 'system';
   role?: string;
@@ -41,6 +46,7 @@ export class AdminShellComponent implements OnInit {
     {
       path: '/app/admin/bank-accounts',
       label: 'BANK_ACCOUNTS.TITLE',
+      description: 'BANK_ACCOUNTS.COPY',
       permission: 'ADMIN.BANK_ACCOUNTS.VIEW',
       scope: 'tenant',
     },
@@ -59,48 +65,56 @@ export class AdminShellComponent implements OnInit {
     {
       path: '/app/admin/roles',
       label: 'ADMIN.ROLES.TITLE',
+      description: 'ADMIN.ROLES.COPY',
       permission: 'ADMIN.ROLES.VIEW',
       scope: 'tenant',
     },
     {
       path: '/app/admin/components',
       label: 'ADMIN.COMPONENTS.TITLE',
+      description: 'ADMIN.COMPONENTS.COPY',
       permission: 'ADMIN.COMPONENTS.VIEW',
       scope: 'tenant',
     },
     {
       path: '/app/admin/permissions',
       label: 'ADMIN.PERMISSIONS.TITLE',
+      description: 'ADMIN.PERMISSIONS.COPY',
       permission: 'ADMIN.PERMISSIONS.VIEW',
       scope: 'tenant',
     },
     {
       path: '/app/admin/users',
       label: 'ADMIN.USERS.TITLE',
+      description: 'ADMIN.USERS.COPY',
       permission: 'ADMIN.USERS.VIEW',
       scope: 'tenant',
     },
     {
       path: '/app/admin/audit-logs',
       label: 'ADMIN.TENANT_AUDIT_LOGS.TITLE',
+      description: 'ADMIN.TENANT_AUDIT_LOGS.COPY',
       permission: 'ADMIN.AUDIT_LOGS.VIEW',
       scope: 'tenant',
     },
     {
       path: '/app/system/tenant-registrations',
       label: 'ADMIN.TENANT_REGISTRATIONS.TITLE',
+      description: 'ADMIN.TENANT_REGISTRATIONS.COPY',
       permission: 'ADMIN.TENANT_REGISTRATIONS.MANAGE',
       scope: 'system',
     },
     {
       path: '/app/system/tenants',
       label: 'ADMIN.TENANTS.TITLE',
+      description: 'ADMIN.TENANTS.COPY',
       permission: 'ADMIN.TENANTS.MANAGE',
       scope: 'system',
     },
     {
       path: '/app/system/plans',
       label: 'ADMIN.PLANS.TITLE',
+      description: 'ADMIN.PLANS.COPY',
       permission: 'ADMIN.PLANS.MANAGE',
       scope: 'system',
     },
@@ -111,8 +125,16 @@ export class AdminShellComponent implements OnInit {
       scope: 'system',
     },
     {
+      path: '/app/system/enforcement',
+      label: 'ADMIN.ENFORCEMENT.TITLE',
+      description: 'ADMIN.ENFORCEMENT.COPY',
+      permission: 'ADMIN.ENFORCEMENT.MANAGE',
+      scope: 'system',
+    },
+    {
       path: '/app/system/audit-logs',
       label: 'ADMIN.AUDIT_LOGS.TITLE',
+      description: 'ADMIN.AUDIT_LOGS.COPY',
       permission: 'ADMIN.TENANTS.MANAGE',
       scope: 'system',
       role: 'ADMIN',
@@ -170,12 +192,12 @@ export class AdminShellComponent implements OnInit {
           return;
         }
 
-        if (links.length > 0) {
-          this.router.navigateByUrl(links[0].path);
-          return;
+        // Previously this jumped straight to links[0], so the administration area opened on
+        // whichever section happened to be first. The overview grid is the landing now, so the
+        // only redirect left is the genuine no-access case.
+        if (links.length === 0) {
+          this.router.navigate(['/app/not-authorized'], { relativeTo: this.route.root });
         }
-
-        this.router.navigate(['/app/not-authorized'], { relativeTo: this.route.root });
       });
   }
 

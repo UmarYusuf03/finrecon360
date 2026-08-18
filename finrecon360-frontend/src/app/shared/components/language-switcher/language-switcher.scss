@@ -1,20 +1,36 @@
 .lang-switcher {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--fr-space-2);
 }
 
 .lang-btn {
   border: none;
   background: transparent;
-  padding: 4px 10px;
+  // Was 4px 10px, giving a 29px-tall control — the smallest interactive target in the app.
+  // Vertical padding is what lifts it to a comfortable size; the label is unchanged.
+  padding: var(--fr-space-2) var(--fr-space-3);
+  min-height: 36px;
   border-radius: 999px;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: var(--fr-text-sm);
+  font-weight: var(--fr-weight-medium);
   opacity: 0.7;
+  transition: opacity 120ms ease, background-color 120ms ease;
+
+  &:hover {
+    opacity: 1;
+    background: var(--fr-neutral-bg);
+  }
 
   &--active {
-    background: #007bff;
+    // Was #007bff, a one-off blue that appeared nowhere else in the palette.
+    // --fr-primary is the same family and is the colour the rest of the app already uses.
+    background: var(--fr-primary);
     color: #fff;
     opacity: 1;
+
+    &:hover {
+      background: var(--fr-primary);
+    }
   }
 }
