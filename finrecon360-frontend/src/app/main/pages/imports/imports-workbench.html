@@ -111,6 +111,29 @@
       </p>
     </div>
 
+    <div class="bank-account-section" *ngIf="requiresBankAccount">
+      <label class="source-type-label" for="bank-account-select"
+        >{{ 'IMPORTS.WORKBENCH.SELECT_BANK_ACCOUNT' | translate }}
+        <span class="required">*</span></label
+      >
+      <select
+        id="bank-account-select"
+        class="bank-account-select"
+        [(ngModel)]="selectedBankAccountId"
+      >
+        <option [ngValue]="null" disabled>{{ 'IMPORTS.WORKBENCH.SELECT_BANK_ACCOUNT_PLACEHOLDER' | translate }}</option>
+        <option *ngFor="let account of bankAccounts" [ngValue]="account.bankAccountId">
+          {{ account.bankName }} — {{ account.accountName }} ({{ account.accountNumber }})
+        </option>
+      </select>
+      <p
+        class="source-type-error"
+        *ngIf="!selectedBankAccountId && actionError && actionError.includes('Bank Account')"
+      >
+        {{ 'IMPORTS.WORKBENCH.SELECT_BANK_ACCOUNT_ERROR' | translate }}
+      </p>
+    </div>
+
     <div
       class="upload-dropzone"
       [class.dragging]="isDragging"
@@ -134,7 +157,12 @@
       </div>
       <button
         class="primary-btn upload-btn"
-        [disabled]="processing || !canUploadForCurrentSourceType || !selectedFile"
+        [disabled]="
+          processing ||
+          !canUploadForCurrentSourceType ||
+          !selectedFile ||
+          (requiresBankAccount && !selectedBankAccountId)
+        "
         (click)="upload()"
         id="upload-file-btn"
       >

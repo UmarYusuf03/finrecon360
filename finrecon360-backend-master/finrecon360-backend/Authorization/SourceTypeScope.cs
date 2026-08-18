@@ -27,7 +27,7 @@ namespace finrecon360_backend.Authorization
         /// <param name="permissions">Flat list of permission codes from the tenant DB.</param>
         /// <param name="module">Module segment, e.g. "IMPORTS" or "RECONCILIATION".</param>
         /// <param name="action">Action segment, e.g. "CREATE", "EDIT", "COMMIT", "RESOLVE".</param>
-        /// <param name="sourceType">Normalised source type, e.g. "POS", "ERP", "GATEWAY", "BANK".</param>
+        /// <param name="sourceType">Normalised source type, e.g. "POS", "POS_SETTLEMENT", "ERP", "GATEWAY", "BANK".</param>
         public static bool IsAllowed(
             IEnumerable<string> permissions,
             string module,

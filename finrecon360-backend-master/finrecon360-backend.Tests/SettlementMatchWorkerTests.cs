@@ -195,4 +195,65 @@ public class SettlementMatchWorkerTests
         var updatedBank = await tenantDb.ImportedNormalizedRecords.FindAsync(bankRecord.ImportedNormalizedRecordId);
         Assert.Equal("MATCHED", updatedBank!.MatchStatus);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_scopes_to_gateway_batch_bank_account_instead_of_matching_tenant_wide()
+    {
+        using var tenantDb = CreateTenantDb();
+        var worker = CreateWorker();
+        var tenantId = Guid.NewGuid();
+
+        var operatingAccountId = Guid.NewGuid();
+        var payrollAccountId = Guid.NewGuid();
+
+        // The gateway batch was uploaded against the tenant's operating account.
+        var gwBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "GATEWAY", Status = "COMMITTED", BankAccountId = operatingAccountId };
+        // Two BANK batches, one per account, both happen to carry a deposit referencing the
+        // same settlement ID within tolerance of the expected payout — without account scoping
+        // this would be ambiguous (or could silently match the wrong account's deposit).
+        var operatingBankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED", BankAccountId = operatingAccountId };
+        var payrollBankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED", BankAccountId = payrollAccountId };
+        tenantDb.ImportBatches.AddRange(gwBatch, operatingBankBatch, payrollBankBatch);
+
+        var gwRecord = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = gwBatch.ImportBatchId,
+            SettlementId = "SETTLE-ACCT",
+            ReferenceNumber = "SETTLE-ACCT",
+            NetAmount = 500m,
+            MatchStatus = "LEVEL3_MATCHED",
+        };
+
+        var correctAccountDeposit = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = operatingBankBatch.ImportBatchId,
+            ReferenceNumber = "SETTLE-ACCT",
+            NetAmount = 500m,
+            MatchStatus = "PENDING",
+        };
+        var wrongAccountDeposit = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = payrollBankBatch.ImportBatchId,
+            ReferenceNumber = "SETTLE-ACCT",
+            NetAmount = 500m,
+            MatchStatus = "PENDING",
+        };
+
+        tenantDb.ImportedNormalizedRecords.AddRange(gwRecord, correctAccountDeposit, wrongAccountDeposit);
+        await tenantDb.SaveChangesAsync();
+
+        var result = await worker.ExecuteAsync(tenantId, tenantDb);
+
+        // Scoped to the operating account, there is exactly one candidate — no ambiguity.
+        Assert.Equal(1, result.AutoMatchedCount);
+        Assert.Equal(0, result.ExceptionCount);
+
+        var updatedCorrect = await tenantDb.ImportedNormalizedRecords.FindAsync(correctAccountDeposit.ImportedNormalizedRecordId);
+        var updatedWrong = await tenantDb.ImportedNormalizedRecords.FindAsync(wrongAccountDeposit.ImportedNormalizedRecordId);
+        Assert.Equal("MATCHED", updatedCorrect!.MatchStatus);
+        Assert.Equal("PENDING", updatedWrong!.MatchStatus); // untouched — wrong account, never a candidate
+    }
 }

@@ -147,6 +147,14 @@ namespace finrecon360_backend.Services
                 Description = NormalizeText(ReadString(row, mappings, "Description")),
                 AccountCode = NormalizeAccountCode(ReadString(row, mappings, "AccountCode")),
                 AccountName = NormalizeText(ReadString(row, mappings, "AccountName")),
+                // Direct column mapping for a structured settlement file (e.g. POS_SETTLEMENT,
+                // where the acquirer's batch-close export has real BatchNumber/TerminalId/
+                // MerchantId columns). Left null when unmapped — PosIdentifierExtractor fills
+                // these in afterwards from Description for sources whose narrative is unstructured
+                // (e.g. BANK), without overwriting a value already set here.
+                BatchNumber = NormalizeIdentifier(ReadString(row, mappings, "BatchNumber"), stripLeadingZeros: true),
+                TerminalId = NormalizeIdentifier(ReadString(row, mappings, "TerminalId"), stripLeadingZeros: false),
+                MerchantId = NormalizeIdentifier(ReadString(row, mappings, "MerchantId"), stripLeadingZeros: false),
                 GrossAmount = grossAmount,
                 ProcessingFee = processingFee,
                 DebitAmount = debit,
@@ -162,6 +170,27 @@ namespace finrecon360_backend.Services
         private static string? NormalizeText(string? value)
         {
             return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        // Mirrors PosIdentifierExtractor's normalization so a directly-mapped column and a
+        // regex-extracted narrative value land in the same format as grouping keys for
+        // PosSettlementMatchWorker (Level7) and SettlementMatchWorker (Level6).
+        private static string? NormalizeIdentifier(string? value, bool stripLeadingZeros)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            var trimmed = value.Trim().ToUpperInvariant();
+
+            if (stripLeadingZeros)
+            {
+                var stripped = trimmed.TrimStart('0');
+                trimmed = stripped.Length == 0 ? "0" : stripped;
+            }
+
+            return trimmed;
         }
 
         private static string? NormalizeAccountCode(string? value)

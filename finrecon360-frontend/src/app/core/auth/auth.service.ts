@@ -163,7 +163,7 @@ export class AuthService {
     );
     if (hasFullAccess) return null;
 
-    const validSourceTypes = ['POS', 'ERP', 'GATEWAY', 'BANK'];
+    const validSourceTypes = ['POS', 'POS_SETTLEMENT', 'ERP', 'GATEWAY', 'BANK'];
     const allowed = new Set<string>();
     for (const src of validSourceTypes) {
       if (

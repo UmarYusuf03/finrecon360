@@ -22,11 +22,18 @@ import {
 export class ImportsService {
   constructor(private http: HttpClient) {}
 
-  uploadImport(file: File, sourceType?: string): Observable<ImportUploadResponse> {
+  uploadImport(
+    file: File,
+    sourceType?: string,
+    bankAccountId?: string,
+  ): Observable<ImportUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     if (sourceType) {
       formData.append('sourceType', sourceType);
+    }
+    if (bankAccountId) {
+      formData.append('bankAccountId', bankAccountId);
     }
 
     return this.http.post<ImportUploadResponse>(

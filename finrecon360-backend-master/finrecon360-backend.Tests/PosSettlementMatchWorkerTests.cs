@@ -69,7 +69,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         var bankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED" };
         db.ImportBatches.AddRange(posBatch, bankBatch);
 
@@ -113,7 +113,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         var bankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED" };
         db.ImportBatches.AddRange(posBatch, bankBatch);
 
@@ -143,7 +143,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         var bankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED" };
         db.ImportBatches.AddRange(posBatch, bankBatch);
 
@@ -163,7 +163,7 @@ public class PosSettlementMatchWorkerTests
         var group = await db.ReconciliationMatchGroups.Include(g => g.MatchedRecords).FirstOrDefaultAsync();
         Assert.NotNull(group);
         Assert.True(group!.IsConfirmed); // Tier2 also auto-confirms
-        Assert.Equal(2, group.MatchedRecords.Count(r => r.SourceType == "POS"));
+        Assert.Equal(2, group.MatchedRecords.Count(r => r.SourceType == "POS_SETTLEMENT"));
     }
 
     [Fact]
@@ -174,7 +174,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         var bankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED" };
         db.ImportBatches.AddRange(posBatch, bankBatch);
 
@@ -205,7 +205,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         var bankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED" };
         db.ImportBatches.AddRange(posBatch, bankBatch);
 
@@ -238,7 +238,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         db.ImportBatches.Add(posBatch);
 
         var pos = MakePos(posBatch.ImportBatchId, new DateTime(2026, 8, 17), gross: 1000m, fee: 30m, batchNumber: "452");
@@ -263,7 +263,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         var bankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED" };
         db.ImportBatches.AddRange(posBatch, bankBatch);
 
@@ -290,7 +290,7 @@ public class PosSettlementMatchWorkerTests
         var worker = CreateWorker();
         var tenantId = Guid.NewGuid();
 
-        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS", Status = "COMMITTED" };
+        var posBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "POS_SETTLEMENT", Status = "COMMITTED" };
         var bankBatch = new ImportBatch { ImportBatchId = Guid.NewGuid(), SourceType = "BANK", Status = "COMMITTED" };
         db.ImportBatches.AddRange(posBatch, bankBatch);
 
