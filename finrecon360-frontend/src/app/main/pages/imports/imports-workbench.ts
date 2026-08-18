@@ -184,6 +184,10 @@ export class ImportsWorkbenchComponent implements OnInit {
     return this.has('ADMIN.IMPORT_ARCHITECTURE.VIEW');
   }
 
+  get canManage(): boolean {
+    return this.has('ADMIN.IMPORT_ARCHITECTURE.MANAGE');
+  }
+
   /**
    * WHY: True when the current importSourceType selection is within the user's allowed scope.
    * Used to disable the Upload button when a CASHIER somehow has a non-POS type selected

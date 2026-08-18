@@ -72,4 +72,46 @@ describe('ShellComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('evaluates matcher entry permissions correctly', () => {
+    const userWithMatcher = {
+      id: 'u1',
+      email: 'matcher@example.com',
+      displayName: 'Matcher User',
+      roles: ['USER'],
+      permissions: ['MATCHER.VIEW'],
+      token: null,
+    };
+    expect(component.hasAnyPermission(userWithMatcher, component.matcherEntryPermissions)).toBeTrue();
+
+    const userWithRecon = {
+      id: 'u2',
+      email: 'admin@example.com',
+      displayName: 'Admin User',
+      roles: ['ADMIN'],
+      permissions: ['ADMIN.RECONCILIATION.VIEW'],
+      token: null,
+    };
+    expect(component.hasAnyPermission(userWithRecon, component.matcherEntryPermissions)).toBeTrue();
+
+    const userWithMatcherManage = {
+      id: 'u3',
+      email: 'manager@example.com',
+      displayName: 'Manager',
+      roles: ['MANAGER'],
+      permissions: ['MATCHER.MANAGE'],
+      token: null,
+    };
+    expect(component.hasAnyPermission(userWithMatcherManage, component.matcherEntryPermissions)).toBeTrue();
+
+    const userWithoutMatcher = {
+      id: 'u4',
+      email: 'other@example.com',
+      displayName: 'Other User',
+      roles: ['USER'],
+      permissions: ['OTHER.PERMISSION'],
+      token: null,
+    };
+    expect(component.hasAnyPermission(userWithoutMatcher, component.matcherEntryPermissions)).toBeFalse();
+  });
 });

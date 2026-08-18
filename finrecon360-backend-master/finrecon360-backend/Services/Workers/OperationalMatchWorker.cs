@@ -121,6 +121,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = matchResult.Best!.ImportedNormalizedRecordId,
+                        ImportBatchId = matchResult.Best!.ImportBatchId,
+                        SourceType = "POS",
                         EventType = ReconciliationEventTypes.RequiresReview,
                         MatchLevel = MatchLevels.Level1,
                         Details = $"Ambiguous match: {matchResult.CandidateCount} POS records share date+ref " +
@@ -139,6 +141,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = bestCandidate.ImportedNormalizedRecordId,
+                        ImportBatchId = bestCandidate.ImportBatchId,
+                        SourceType = "POS",
                         EventType = ReconciliationEventTypes.Variance,
                         MatchLevel = MatchLevels.Level1,
                         Details = $"Amount variance: staff={entry.Amount}, POS={bestCandidate.NetAmount}, " +

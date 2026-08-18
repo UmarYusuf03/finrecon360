@@ -42,6 +42,7 @@ namespace finrecon360_backend.Services
         private const string MigrationReconciliationDailySnapshot = "202608190001_TenantReconciliationDailySnapshot";
         private const string MigrationTenantDailySnapshot = "202608190002_TenantDailySnapshot";
         private const string MigrationReportSchedules = "202608190003_TenantReportSchedules";
+        private const string MigrationReconciliationEventsImportBatchNullable = "202608190004_TenantReconciliationEventsImportBatchNullable";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -84,6 +85,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationDailySnapshot, BuildTenantReconciliationDailySnapshotSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTenantDailySnapshot, BuildTenantDailySnapshotSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReportSchedules, BuildTenantReportSchedulesSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEventsImportBatchNullable, BuildTenantReconciliationEventsImportBatchNullableSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -1596,6 +1598,26 @@ namespace finrecon360_backend.Services
                         FOREIGN KEY (ReconciliationMatchGroupId)
                         REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId)
                         ON DELETE NO ACTION;
+                END
+            END
+            """;
+
+        // Fixes an overly restrictive NOT NULL constraint on ImportBatchId in tenant databases
+        // where ReconciliationEvents was created by earlier schema revisions. Aggregate variance
+        // events and cross-source reconciliation exceptions may not belong to a single import batch,
+        // and the C# model defines ImportBatchId as nullable Guid?.
+        private static string BuildTenantReconciliationEventsImportBatchNullableSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationEvents', N'U') IS NOT NULL
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM sys.columns
+                    WHERE object_id = OBJECT_ID(N'dbo.ReconciliationEvents')
+                      AND name = N'ImportBatchId'
+                      AND is_nullable = 0
+                )
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN ImportBatchId uniqueidentifier NULL;
                 END
             END
             """;

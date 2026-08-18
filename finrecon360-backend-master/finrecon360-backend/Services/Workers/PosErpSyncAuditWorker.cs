@@ -92,6 +92,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = posRecord.ImportedNormalizedRecordId,
+                        ImportBatchId = posRecord.ImportBatchId,
+                        SourceType = "POS",
                         EventType = ReconciliationEventTypes.MatchNotFound,
                         MatchLevel = MatchLevels.Level2,
                         Details = $"POS record ref={posRecord.ReferenceNumber} (amount={posRecord.NetAmount}) " +
@@ -112,6 +114,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = posRecord.ImportedNormalizedRecordId,
+                        ImportBatchId = posRecord.ImportBatchId,
+                        SourceType = "POS",
                         EventType = ReconciliationEventTypes.RequiresReview,
                         MatchLevel = MatchLevels.Level2,
                         Details = $"Ambiguous match: ref={posRecord.ReferenceNumber} has {matchResult.CandidateCount} " +
@@ -130,6 +134,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = posRecord.ImportedNormalizedRecordId,
+                        ImportBatchId = posRecord.ImportBatchId,
+                        SourceType = "POS",
                         EventType = ReconciliationEventTypes.Variance,
                         MatchLevel = MatchLevels.Level2,
                         Details = $"Ref={posRecord.ReferenceNumber}: POS amount={posRecord.NetAmount}, " +

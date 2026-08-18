@@ -289,7 +289,10 @@ export const mainRoutes: Routes = [
         path: 'matcher',
         component: MatcherShellComponent,
         canActivate: [AccessGuard],
-        data: { scope: 'tenant', permissions: ['ADMIN.RECONCILIATION.VIEW'] },
+        data: {
+          scope: 'tenant',
+          anyPermissions: ['MATCHER.VIEW', 'ADMIN.RECONCILIATION.VIEW'],
+        },
         children: [
           {
             path: '',

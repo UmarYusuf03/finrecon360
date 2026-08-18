@@ -93,6 +93,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = erpRecord.ImportedNormalizedRecordId,
+                        ImportBatchId = erpRecord.ImportBatchId,
+                        SourceType = "ERP",
                         EventType = ReconciliationEventTypes.MatchNotFound,
                         MatchLevel = MatchLevels.Level3,
                         Details = $"ERP record ref={erpRecord.ReferenceNumber} (amount={erpRecord.NetAmount}) " +
@@ -114,6 +116,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = erpRecord.ImportedNormalizedRecordId,
+                        ImportBatchId = erpRecord.ImportBatchId,
+                        SourceType = "ERP",
                         EventType = ReconciliationEventTypes.RequiresReview,
                         MatchLevel = MatchLevels.Level3,
                         Details = $"Ambiguous match: ref={erpRecord.ReferenceNumber} has {matchResult.CandidateCount} " +
@@ -133,6 +137,8 @@ namespace finrecon360_backend.Services.Workers
                     {
                         ReconciliationEventId = Guid.NewGuid(),
                         ImportedNormalizedRecordId = erpRecord.ImportedNormalizedRecordId,
+                        ImportBatchId = erpRecord.ImportBatchId,
+                        SourceType = "ERP",
                         EventType = ReconciliationEventTypes.Variance,
                         MatchLevel = MatchLevels.Level3,
                         Details = $"Ref={erpRecord.ReferenceNumber}: ERP amount={erpRecord.NetAmount}, " +

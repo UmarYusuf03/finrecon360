@@ -449,6 +449,8 @@ namespace finrecon360_backend.Services.Workers
                 {
                     ReconciliationEventId = Guid.NewGuid(),
                     ImportedNormalizedRecordId = r.ImportedNormalizedRecordId,
+                    ImportBatchId = r.ImportBatchId,
+                    SourceType = "POS",
                     EventType = ReconciliationEventTypes.MatchNotFound,
                     MatchLevel = MatchLevels.Level7,
                     Details = $"POS record (batch={r.BatchNumber ?? "n/a"}, terminal={r.TerminalId ?? "n/a"}, " +
@@ -466,6 +468,8 @@ namespace finrecon360_backend.Services.Workers
                 {
                     ReconciliationEventId = Guid.NewGuid(),
                     ImportedNormalizedRecordId = r.ImportedNormalizedRecordId,
+                    ImportBatchId = r.ImportBatchId,
+                    SourceType = "BANK",
                     EventType = ReconciliationEventTypes.MatchNotFound,
                     MatchLevel = MatchLevels.Level7,
                     Details = $"BANK record (batch={r.BatchNumber ?? "n/a"}, terminal={r.TerminalId ?? "n/a"}, " +

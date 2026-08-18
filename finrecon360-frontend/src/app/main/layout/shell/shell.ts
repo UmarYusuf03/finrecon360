@@ -51,6 +51,11 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.PAYMENT_ALERTS.VIEW',
   ];
 
+  readonly matcherEntryPermissions: string[] = [
+    'MATCHER.VIEW',
+    'ADMIN.RECONCILIATION.VIEW',
+  ];
+
   readonly importEntryPermissions: string[] = [
     'ADMIN.IMPORT_WORKBENCH.VIEW',
     'ADMIN.IMPORT_ARCHITECTURE.VIEW',
@@ -158,7 +163,7 @@ export class ShellComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    return permissions.some((permission) => user.permissions.includes(permission));
+    return permissions.some((permission) => this.hasPermission(user.permissions, permission));
   }
 
   hasPermission(grantedPermissions: string[], requiredPermission: string): boolean {
