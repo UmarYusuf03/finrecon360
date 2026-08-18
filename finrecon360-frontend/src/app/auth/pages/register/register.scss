@@ -63,12 +63,69 @@
   outline: none;
   box-sizing: border-box;
   background: white;
+  transition: border-color 0.15s, box-shadow 0.15s;
 
   &:focus {
     border-color: #1d9bf0;
     box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.1);
   }
+
+  &--error {
+    border-color: #ef4444 !important;
+    box-shadow: none;
+
+    &:focus {
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+  }
 }
+
+.field-error {
+  margin: 4px 0 0;
+  font-size: var(--fr-text-xs, 12px);
+  color: #ef4444;
+  line-height: 1.4;
+}
+
+.server-error-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: var(--fr-text-sm, 13px);
+  color: #dc2626;
+  margin-top: 4px;
+
+  .server-error-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}
+
+.btn-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  .spin-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 
 // Password Toggle
 .password-wrapper {
