@@ -19,9 +19,11 @@ The codebase currently implements these areas:
 - tenant-scoped RBAC and tenant user management
 - onboarding via magic link, password setup, and Stripe checkout activation
 - canonical import foundation (upload, parse, map, validate, normalize, commit)
-- basic dashboard and profile surfaces
+- six-level reconciliation matching and automated journal posting (see `WORKER-INTEGRATION.md`)
+- reporting and analytics: CSV/XLSX exports, financial statements, reconciliation trend charts, a daily KPI snapshot pipeline, a Reports Hub, and weekly emailed report schedules (see `docs/architecture/reporting-implementation-plan.md`)
+- dashboard and profile surfaces
 
-The codebase still does not implement the full finance-operational target described in the architecture baseline. In particular, transaction state history, cashout workflow control, reconciliation orchestration, journal posting rules, and reporting snapshots are not present as working backend modules today.
+Some other target-architecture items (full transaction state history, cashout workflow control) may be further along than earlier notes in this repo suggest — check `WORKER-INTEGRATION.md` for the current state of the reconciliation/journal-posting pipeline rather than relying on this summary alone.
 
 ## Important Contradictions To Keep In View
 

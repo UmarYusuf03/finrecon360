@@ -489,6 +489,11 @@ Typical outputs:
 - bank account reconciliation progress
 - period-based trend KPIs
 
+Implementation note (2026-08-18): this section is built. See
+`docs/architecture/reporting-implementation-plan.md` for the concrete design and a
+phase-by-phase completion log — this document remains the target-design baseline, that
+one is the audit trail of what was actually shipped against it.
+
 ## 18. Module Breakdown
 
 ### Module 1: Platform / Control Plane

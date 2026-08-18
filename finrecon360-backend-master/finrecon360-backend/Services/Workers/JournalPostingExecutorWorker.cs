@@ -67,12 +67,14 @@ namespace finrecon360_backend.Services.Workers
         private static readonly TimeSpan LookbackWindow = TimeSpan.FromDays(30);
         private readonly ILogger<JournalPostingExecutorWorker> _logger;
 
-        // EntryType -> ChartOfAccount.Code, matching the four accounts seeded by
-        // SqlServerTenantSchemaMigrator (BuildTenantChartOfAccountsAndVouchersSql).
+        // EntryType -> ChartOfAccount.Code, matching the accounts seeded by
+        // SqlServerTenantSchemaMigrator (BuildTenantChartOfAccountsAndVouchersSql /
+        // BuildTenantChartOfAccountsCashInSeedSql).
         private static readonly Dictionary<string, string> EntryTypeToAccountCode = new()
         {
             ["DebitBank"] = "1000-BANK",
             ["CreditCashOut"] = "2000-CASHOUT",
+            ["CreditCashIn"] = "3000-CASHIN",
             ["DebitFeeExpense"] = "5000-FEE",
             ["CreditFeeOffset"] = "4000-FEEOFFSET",
         };
@@ -305,7 +307,11 @@ namespace finrecon360_backend.Services.Workers
             Dictionary<string, Guid> accountsByCode,
             string notes)
         {
-            accountsByCode.TryGetValue(EntryTypeToAccountCode[entryType], out var chartOfAccountId);
+            Guid chartOfAccountId = default;
+            if (EntryTypeToAccountCode.TryGetValue(entryType, out var accountCode))
+            {
+                accountsByCode.TryGetValue(accountCode, out chartOfAccountId);
+            }
 
             return new JournalEntry
             {

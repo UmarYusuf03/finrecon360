@@ -91,9 +91,12 @@ namespace finrecon360_backend.Services
                 throw new InvalidOperationException("Tenant not found.");
             }
 
-            if (tenant.Status != TenantStatus.Active)
+            // Suspended tenants must still be able to pay their way back to Active — that is the
+            // entire point of suspending for non-payment rather than banning. Banned tenants stay
+            // locked out; that is a deliberate, human-triggered action, not a billing state.
+            if (tenant.Status != TenantStatus.Active && tenant.Status != TenantStatus.Suspended)
             {
-                throw new InvalidOperationException("Tenant subscription changes are only available for active tenants.");
+                throw new InvalidOperationException("Tenant subscription changes are not available for this tenant.");
             }
 
             var plan = await _dbContext.Plans.AsNoTracking().FirstOrDefaultAsync(p => p.PlanId == planId && p.IsActive, cancellationToken);
@@ -139,6 +142,23 @@ namespace finrecon360_backend.Services
 
             _dbContext.Subscriptions.Add(subscription);
             await _dbContext.SaveChangesAsync(cancellationToken);
+
+            // Free plans (the trial included) never touch the payment gateway — there is nothing
+            // to charge, so activate immediately instead of generating a checkout session for $0.
+            if (plan.PriceCents <= 0)
+            {
+                ActivateSubscriptionImmediately(tenant, subscription, plan);
+                await _dbContext.SaveChangesAsync(cancellationToken);
+
+                await _auditLogger.LogAsync(
+                    userId,
+                    "SubscriptionChangeFreeplanActivated",
+                    "Subscription",
+                    subscription.SubscriptionId.ToString(),
+                    $"plan={plan.Code}");
+
+                return new SubscriptionCheckoutResponse(subscription.SubscriptionId, _paymentCheckoutService.GetFallbackCheckoutUrl());
+            }
 
             var allowLocalBypass = _configuration.GetValue<bool>("PAYMENT_ALLOW_LOCAL_BYPASS", false);
             if (allowLocalBypass && !_environment.IsProduction())

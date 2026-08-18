@@ -11,7 +11,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
-import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { ReconciliationService } from '../../../core/admin-rbac/reconciliation.service';
@@ -33,8 +32,6 @@ import { WaitingRecord } from '../../../core/admin-rbac/models';
     MatSnackBarModule,
     MatProgressSpinnerModule,
     MatDialogModule,
-    RouterLink,
-    RouterLinkActive,
     TranslateModule,
   ],
   templateUrl: './matcher-waiting.html',

@@ -9,15 +9,21 @@ using Microsoft.Extensions.Logging;
 namespace finrecon360_backend.BackgroundServices
 {
     /// <summary>
-    /// WHY: Runs the full Level1-Level6 reconciliation chain for every active tenant on a
-    /// timer. Replaces the single-worker BankReconciliationHostedService — that only ever
-    /// ran Level4 (BankStatementReconciliationWorker), leaving OperationalMatchWorker,
-    /// PosErpSyncAuditWorker, ErpGatewaySalesMatchWorker, CollectionMatchWorker, and
-    /// SettlementMatchWorker registered but never invoked by anything.
+    /// WHY: Runs the reconciliation chain for every active tenant on a timer. Replaces the
+    /// single-worker BankReconciliationHostedService — that only ever ran Level4
+    /// (BankStatementReconciliationWorker), leaving OperationalMatchWorker,
+    /// PosErpSyncAuditWorker, ErpGatewaySalesMatchWorker, and SettlementMatchWorker
+    /// registered but never invoked by anything.
+    ///
+    /// Level5 (CollectionMatchWorker, staff-entered card-in Transaction ↔ Bank) was removed —
+    /// every card-in collection arrives via a POS batch file, which is Level7's territory, so
+    /// Level5 never had candidates to act on. Levels run 1→2→3→4→6→7 (no gap in numbering
+    /// semantics — 5 is simply retired, not renumbered, since historical Level5 match-group
+    /// rows may still exist in tenant databases).
     ///
     /// Behavior:
     /// - Runs on an interval (default: every 5 minutes)
-    /// - For each active tenant, runs all 6 matching workers in Level order using one
+    /// - For each active tenant, runs the matching workers in Level order using one
     ///   TenantDbContext per cycle
     /// - Each worker runs in its own try/catch so one worker's failure doesn't block the rest
     /// - Safely handles concurrent execution; skips a tenant if its previous cycle hasn't finished
@@ -124,12 +130,18 @@ namespace finrecon360_backend.BackgroundServices
                     },
                     cancellationToken);
 
-                await RunWorkerAsync(scope, tenantId, tenantDb, "Level5",
-                    w => w.GetRequiredService<CollectionMatchWorker>().ExecuteAsync(tenantId, tenantDb, cancellationToken),
-                    cancellationToken);
-
                 await RunWorkerAsync(scope, tenantId, tenantDb, "Level6",
                     w => w.GetRequiredService<SettlementMatchWorker>().ExecuteAsync(tenantId, tenantDb, cancellationToken),
+                    cancellationToken);
+
+                await RunWorkerAsync(scope, tenantId, tenantDb, "Level7",
+                    async w =>
+                    {
+                        var result = await w.GetRequiredService<PosSettlementMatchWorker>()
+                            .ExecuteAsync(tenantId, tenantDb, cancellationToken);
+                        var totalMatched = result.Tier1Matched + result.Tier2Matched + result.Tier3Matched;
+                        return new MatchingRunResult("Level7", result.TotalCandidates, totalMatched, result.ExceptionCount, result.NoMatchCount);
+                    },
                     cancellationToken);
             }
             catch (Exception ex)

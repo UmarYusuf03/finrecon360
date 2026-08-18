@@ -11,6 +11,7 @@ import { AdminUsersComponent } from './pages/admin/admin-users';
 import { DashboardComponent } from './pages/dashboard/dashboard';
 import { ImportsShellComponent } from './pages/imports/imports-shell';
 import { MatcherPageComponent } from './pages/matcher/matcher-page';
+import { MatcherShellComponent } from './pages/matcher/matcher-shell';
 import { NotAuthorizedComponent } from './pages/not-authorized/not-authorized';
 import { ProfileComponent } from './pages/profile/profile';
 
@@ -40,9 +41,29 @@ export const mainRoutes: Routes = [
             'ADMIN.PERMISSIONS.VIEW',
             'ADMIN.USERS.VIEW',
             'ADMIN.IMPORT_ARCHITECTURE.VIEW',
+            'ADMIN.SUBSCRIPTIONS.MANAGE',
+            'ADMIN.CASH_FLOW_FORECAST.VIEW',
+            'ADMIN.FINANCIAL_REPORTS.VIEW',
+            'ADMIN.REPORT_SCHEDULES.MANAGE',
           ],
         },
         children: [
+          {
+            path: 'reports',
+            loadComponent: () =>
+              import('./pages/admin/admin-reports-hub').then((m) => m.AdminReportsHubComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.DASHBOARD.VIEW'] },
+          },
+          {
+            path: 'report-schedules',
+            loadComponent: () =>
+              import('./pages/admin/admin-report-schedules').then(
+                (m) => m.AdminReportSchedulesComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.REPORT_SCHEDULES.MANAGE'] },
+          },
           {
             path: 'transactions',
             pathMatch: 'full',
@@ -66,6 +87,64 @@ export const mainRoutes: Routes = [
               ),
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.BANK_ACCOUNTS.VIEW'] },
+          },
+          {
+            path: 'subscription',
+            loadComponent: () =>
+              import('./pages/admin/admin-subscription').then(
+                (m) => m.AdminSubscriptionComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.SUBSCRIPTIONS.MANAGE'] },
+          },
+          {
+            path: 'cash-flow-forecast',
+            loadComponent: () =>
+              import('./pages/admin/admin-cash-flow-forecast').then(
+                (m) => m.AdminCashFlowForecastComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.CASH_FLOW_FORECAST.VIEW'] },
+          },
+          {
+            path: 'financial-reports',
+            loadComponent: () =>
+              import('./pages/admin/admin-financial-reports-shell').then(
+                (m) => m.AdminFinancialReportsShellComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.FINANCIAL_REPORTS.VIEW'] },
+            children: [
+              {
+                path: 'general-ledger',
+                loadComponent: () =>
+                  import('./pages/admin/admin-general-ledger').then(
+                    (m) => m.AdminGeneralLedgerComponent,
+                  ),
+              },
+              {
+                path: 'trial-balance',
+                loadComponent: () =>
+                  import('./pages/admin/admin-trial-balance').then(
+                    (m) => m.AdminTrialBalanceComponent,
+                  ),
+              },
+              {
+                path: 'income-statement',
+                loadComponent: () =>
+                  import('./pages/admin/admin-income-statement').then(
+                    (m) => m.AdminIncomeStatementComponent,
+                  ),
+              },
+              {
+                path: 'balance-sheet',
+                loadComponent: () =>
+                  import('./pages/admin/admin-balance-sheet').then(
+                    (m) => m.AdminBalanceSheetComponent,
+                  ),
+              },
+              { path: '', pathMatch: 'full', redirectTo: 'general-ledger' },
+            ],
           },
           {
             path: 'roles',
@@ -133,7 +212,7 @@ export const mainRoutes: Routes = [
             'ADMIN.TENANT_REGISTRATIONS.MANAGE',
             'ADMIN.TENANTS.MANAGE',
             'ADMIN.PLANS.MANAGE',
-            'ADMIN.ENFORCEMENT.MANAGE',
+            'ADMIN.PAYMENT_ALERTS.VIEW',
           ],
         },
         children: [
@@ -161,11 +240,11 @@ export const mainRoutes: Routes = [
             data: { permissions: ['ADMIN.PLANS.MANAGE'] },
           },
           {
-            path: 'enforcement',
+            path: 'payment-alerts',
             loadComponent: () =>
-              import('./pages/admin/admin-enforcement').then((m) => m.AdminEnforcementComponent),
+              import('./pages/admin/admin-payment-alerts').then((m) => m.AdminPaymentAlertsComponent),
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.ENFORCEMENT.MANAGE'] },
+            data: { permissions: ['ADMIN.PAYMENT_ALERTS.VIEW'] },
           },
           {
             path: 'audit-logs',
@@ -208,6 +287,7 @@ export const mainRoutes: Routes = [
       },
       {
         path: 'matcher',
+        component: MatcherShellComponent,
         canActivate: [AccessGuard],
         data: { scope: 'tenant', permissions: ['ADMIN.RECONCILIATION.VIEW'] },
         children: [
@@ -229,6 +309,11 @@ export const mainRoutes: Routes = [
             path: 'events',
             loadComponent: () =>
               import('./pages/matcher/matcher-events').then((m) => m.MatcherEventsComponent),
+          },
+          {
+            path: 'trends',
+            loadComponent: () =>
+              import('./pages/matcher/matcher-trends').then((m) => m.MatcherTrendsComponent),
           },
           { path: '**', redirectTo: '' },
         ],

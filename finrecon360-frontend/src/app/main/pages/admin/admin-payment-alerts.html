@@ -1,0 +1,111 @@
+<section class="alerts-page">
+  <header class="alerts-page__hero">
+    <div class="alerts-page__copy">
+      <span class="alerts-page__eyebrow">{{ 'ADMIN.PAYMENT_ALERTS.EYEBROW' | translate }}</span>
+      <h2>{{ 'ADMIN.PAYMENT_ALERTS.TITLE' | translate }}</h2>
+      <p>{{ 'ADMIN.PAYMENT_ALERTS.COPY' | translate }}</p>
+    </div>
+    <span class="alerts-page__count">{{ 'ADMIN.PAYMENT_ALERTS.COUNT' | translate:{ count: alerts.length } }}</span>
+  </header>
+
+  <div class="message message--success" role="status" *ngIf="actionMessage">{{ actionMessage }}</div>
+  <div class="message message--error" role="alert" *ngIf="actionError">{{ actionError }}</div>
+
+  <div class="threshold-card">
+    <div class="threshold-card__info">
+      <span class="threshold-card__label">{{ 'ADMIN.PAYMENT_ALERTS.THRESHOLD_LABEL' | translate }}</span>
+      <p>{{ 'ADMIN.PAYMENT_ALERTS.THRESHOLD_COPY' | translate }}</p>
+    </div>
+
+    <div class="threshold-card__control" *ngIf="!thresholdEditing">
+      <strong>{{ 'ADMIN.PAYMENT_ALERTS.THRESHOLD_VALUE' | translate:{ count: settings?.paymentOverdueSuspensionThresholdDays ?? '—' } }}</strong>
+      <button type="button" class="ghost-btn" (click)="openThresholdEditor()">{{ 'COMMON.EDIT' | translate }}</button>
+    </div>
+
+    <div class="threshold-card__control threshold-card__control--editing" *ngIf="thresholdEditing">
+      <input
+        type="number"
+        min="1"
+        max="365"
+        [(ngModel)]="thresholdInput"
+        [attr.aria-label]="'ADMIN.PAYMENT_ALERTS.THRESHOLD_LABEL' | translate"
+      />
+      <span>{{ 'ADMIN.PAYMENT_ALERTS.DAYS' | translate }}</span>
+      <button type="button" class="primary-btn" [disabled]="savingThreshold" (click)="saveThreshold()">
+        {{ savingThreshold ? ('COMMON.SAVING' | translate) : ('COMMON.SAVE' | translate) }}
+      </button>
+      <button type="button" class="ghost-btn" [disabled]="savingThreshold" (click)="cancelThresholdEdit()">
+        {{ 'COMMON.CANCEL' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-group" role="group" [attr.aria-label]="'ADMIN.PAYMENT_ALERTS.FILTER_ARIA' | translate">
+    <button
+      *ngFor="let filter of filters"
+      type="button"
+      class="filter-chip"
+      [class.active]="activeFilter === filter"
+      (click)="setFilter(filter)"
+    >
+      {{ 'ADMIN.PAYMENT_ALERTS.FILTERS.' + filter.toUpperCase() | translate }}
+    </button>
+  </div>
+
+  <div class="alerts-page__state" *ngIf="loading">{{ 'ADMIN.PAYMENT_ALERTS.LOADING' | translate }}</div>
+
+  <div class="alerts-list" *ngIf="!loading && alerts.length > 0">
+    <article class="alert-card" *ngFor="let alert of alerts" [class]="'alert-card--' + severity(alert.daysOverdue)">
+      <div class="alert-card__severity-bar" [attr.aria-hidden]="true"></div>
+
+      <div class="alert-card__body">
+        <div class="alert-card__main">
+          <h3>{{ alert.tenantName }}</h3>
+          <p>
+            {{ alert.planName }} · {{ 'ADMIN.PAYMENT_ALERTS.DUE' | translate }}
+            {{ alert.periodEndAt | date: 'mediumDate' }}
+          </p>
+        </div>
+
+        <div class="alert-card__days">
+          <strong>{{ alert.daysOverdue }}</strong>
+          <span>{{ 'ADMIN.PAYMENT_ALERTS.DAYS_OVERDUE' | translate }}</span>
+        </div>
+
+        <span class="status-pill" [class.status-pill--warning]="alert.status === 'Acknowledged'" [class.status-pill--muted]="alert.status === 'Resolved'">
+          {{ 'ADMIN.PAYMENT_ALERTS.STATUS.' + alert.status.toUpperCase() | translate }}
+        </span>
+
+        <div class="alert-card__actions">
+          <a class="ghost-btn" [routerLink]="['/app/system/tenants']" [queryParams]="{ tenantId: alert.tenantId }">
+            {{ 'ADMIN.PAYMENT_ALERTS.VIEW_TENANT' | translate }}
+          </a>
+          <button
+            *ngIf="alert.status === 'Open'"
+            type="button"
+            class="warning-btn"
+            [disabled]="actionId === alert.id"
+            (click)="acknowledge(alert)"
+          >
+            {{ 'ADMIN.PAYMENT_ALERTS.ACKNOWLEDGE' | translate }}
+          </button>
+          <button
+            *ngIf="alert.status !== 'Resolved'"
+            type="button"
+            class="primary-btn"
+            [disabled]="actionId === alert.id"
+            (click)="resolve(alert)"
+          >
+            {{ 'ADMIN.PAYMENT_ALERTS.RESOLVE' | translate }}
+          </button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <div class="alerts-empty" *ngIf="!loading && alerts.length === 0">
+    <span class="alerts-empty__icon">notifications_none</span>
+    <h3>{{ 'ADMIN.PAYMENT_ALERTS.EMPTY_TITLE' | translate }}</h3>
+    <p>{{ 'ADMIN.PAYMENT_ALERTS.EMPTY_COPY' | translate }}</p>
+  </div>
+</section>

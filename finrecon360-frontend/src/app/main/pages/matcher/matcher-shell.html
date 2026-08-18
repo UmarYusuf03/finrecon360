@@ -1,0 +1,30 @@
+<div class="matcher-shell">
+  <nav class="nav fr-glass-panel" [attr.aria-label]="'MATCHER.WORKFLOW_ARIA' | translate">
+    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <mat-icon>account_balance</mat-icon>
+      <span>{{ 'MATCHER.NAV.MATCH_GROUPS' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
+      <mat-icon>pending</mat-icon>
+      <span>{{ 'MATCHER.NAV.WAITING_QUEUE' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/sales-verification" routerLinkActive="active" id="nav-sales-verification">
+      <mat-icon>find_in_page</mat-icon>
+      <span>{{ 'MATCHER.NAV.SALES_VERIFICATION' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/events" routerLinkActive="active" id="nav-recon-events">
+      <mat-icon>timeline</mat-icon>
+      <span>{{ 'MATCHER.NAV.EVENTS' | translate }}</span>
+    </a>
+    <a routerLink="/app/matcher/trends" routerLinkActive="active" id="nav-recon-trends">
+      <mat-icon>trending_up</mat-icon>
+      <span>{{ 'MATCHER.NAV.TRENDS' | translate }}</span>
+    </a>
+    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
+      <mat-icon>receipt_long</mat-icon>
+      <span>{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</span>
+    </a>
+  </nav>
+
+  <router-outlet></router-outlet>
+</div>

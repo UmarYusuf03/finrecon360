@@ -1,0 +1,62 @@
+<div class="reports-toolbar">
+  <label class="reports-field">
+    <span>{{ 'FINANCIAL_REPORTS.FROM' | translate }}</span>
+    <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onFiltersChanged()" />
+  </label>
+  <label class="reports-field">
+    <span>{{ 'FINANCIAL_REPORTS.TO' | translate }}</span>
+    <input type="date" [(ngModel)]="toDate" (ngModelChange)="onFiltersChanged()" />
+  </label>
+
+  <div class="reports-toolbar__actions">
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('csv')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_CSV') | translate }}
+    </button>
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('xlsx')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_XLSX') | translate }}
+    </button>
+  </div>
+</div>
+
+<div class="reports-state" *ngIf="loading">{{ 'FINANCIAL_REPORTS.LOADING' | translate }}</div>
+<div class="reports-state reports-state--error" *ngIf="!loading && error" role="alert">{{ error }}</div>
+
+<ng-container *ngIf="!loading && !error && report">
+  <div class="reports-state" *ngIf="report.accounts.length === 0">
+    {{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.EMPTY' | translate }}
+  </div>
+
+  <div class="reports-account-group" *ngFor="let account of report.accounts">
+    <div class="reports-account-group__header">
+      <h4>{{ account.accountCode }} · {{ account.accountName }}</h4>
+      <span class="reports-account-group__balances">
+        {{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.OPENING' | translate }}: {{ account.openingBalance | number: '1.2-2' }}
+        &nbsp;·&nbsp;
+        {{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.CLOSING' | translate }}: {{ account.closingBalance | number: '1.2-2' }}
+      </span>
+    </div>
+
+    <div class="reports-table-wrap">
+      <table class="reports-table">
+        <thead>
+          <tr>
+            <th>{{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.POSTED_AT' | translate }}</th>
+            <th>{{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.ENTRY_TYPE' | translate }}</th>
+            <th>{{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.NOTES' | translate }}</th>
+            <th class="numeric">{{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.AMOUNT' | translate }}</th>
+            <th class="numeric">{{ 'FINANCIAL_REPORTS.GENERAL_LEDGER.RUNNING_BALANCE' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let entry of account.entries">
+            <td>{{ entry.postedAt | date: 'yyyy-MM-dd HH:mm' : 'UTC' }}</td>
+            <td>{{ entry.entryType }}</td>
+            <td>{{ entry.notes || '-' }}</td>
+            <td class="numeric">{{ entry.amount | number: '1.2-2' }}</td>
+            <td class="numeric">{{ entry.runningBalance | number: '1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</ng-container>

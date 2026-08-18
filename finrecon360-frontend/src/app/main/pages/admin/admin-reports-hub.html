@@ -1,0 +1,15 @@
+<section class="reports-hub">
+  <header class="reports-hub__hero">
+    <span class="reports-hub__eyebrow">{{ 'REPORTS_HUB.EYEBROW' | translate }}</span>
+    <h2>{{ 'REPORTS_HUB.TITLE' | translate }}</h2>
+    <p>{{ 'REPORTS_HUB.COPY' | translate }}</p>
+  </header>
+
+  <div class="reports-hub__grid">
+    <a class="reports-hub__card" *ngFor="let link of links" [routerLink]="link.path">
+      <mat-icon class="reports-hub__icon">{{ link.icon }}</mat-icon>
+      <h3>{{ link.titleKey | translate }}</h3>
+      <p>{{ link.copyKey | translate }}</p>
+    </a>
+  </div>
+</section>

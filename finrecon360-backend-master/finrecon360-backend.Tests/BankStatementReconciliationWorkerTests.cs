@@ -38,7 +38,7 @@ public class BankStatementReconciliationWorkerTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_auto_matches_transaction_when_GATEWAY_and_BANK_records_found()
+    public async Task ExecuteAsync_tier1_exact_match_auto_confirms_and_promotes_to_JournalReady()
     {
         using var tenantDb = CreateTenantDb();
         var worker = CreateWorker();
@@ -126,26 +126,32 @@ public class BankStatementReconciliationWorkerTests
         Assert.Equal(0, result.ExceptionCount);
         Assert.Equal(0, result.NoMatchCount);
 
-        // 6. The transaction must NOT move on its own. The worker proposes a match; a person
-        // confirms it, and that confirmation is what promotes the transaction.
+        // 6. Tier1 (exact match, no fee) auto-confirms AND promotes the transaction —
+        // IsConfirmed alone doesn't move it; the worker also runs CardCashoutPromoter.
         var updatedTxn = await tenantDb.Transactions.FirstOrDefaultAsync(x => x.TransactionId == txn.TransactionId);
         Assert.NotNull(updatedTxn);
-        Assert.Equal(TransactionState.NeedsBankMatch, updatedTxn.TransactionState);
+        Assert.Equal(TransactionState.JournalReady, updatedTxn.TransactionState);
 
-        // 7. Verify match group is proposed but unconfirmed
+        var stateHistory = await tenantDb.TransactionStateHistories
+            .FirstOrDefaultAsync(h => h.TransactionId == txn.TransactionId);
+        Assert.NotNull(stateHistory);
+        Assert.Null(stateHistory!.ChangedByUserId); // system auto-confirm, not a human
+
+        // 7. Verify match group was auto-confirmed
         var matchGroup = await tenantDb.ReconciliationMatchGroups.FirstOrDefaultAsync();
         Assert.NotNull(matchGroup);
         Assert.Equal("Level4", matchGroup.MatchLevel);
-        Assert.False(matchGroup.IsConfirmed);
-        Assert.Null(matchGroup.ConfirmedAt);
+        Assert.True(matchGroup.IsConfirmed);
+        Assert.NotNull(matchGroup.ConfirmedAt);
+        Assert.Null(matchGroup.ConfirmedByUserId); // system, not a human
+        Assert.Equal(0m, matchGroup.Variance);
         Assert.Equal("ACCT001|REF001", matchGroup.SettlementKey);
 
-        // The proposal records that a machine suggested it, so the UI can distinguish
-        // auto-proposed matches from ones a person built by hand.
         var metadata = finrecon360_backend.Services.Reconciliation.MatchGroupMetadata
             .TryParse(matchGroup.MatchMetadataJson);
         Assert.NotNull(metadata);
         Assert.True(metadata.AutoMatched);
+        Assert.Equal("Tier1_ExactMatch", metadata.RuleTriggered);
         Assert.Equal(txn.TransactionId, metadata.TransactionId);
 
         // 8. Verify matched records linked
@@ -155,6 +161,105 @@ public class BankStatementReconciliationWorkerTests
         Assert.Equal(2, matchedRecords.Count);
         Assert.Single(matchedRecords, mr => mr.SourceType == "GATEWAY");
         Assert.Single(matchedRecords, mr => mr.SourceType == "BANK");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_tier2_fee_explained_match_auto_confirms_with_variance_equal_to_fee()
+    {
+        using var tenantDb = CreateTenantDb();
+        var worker = CreateWorker();
+
+        var tenantId = Guid.NewGuid();
+        var txnDate = DateTime.UtcNow.Date;
+
+        var txn = new Transaction
+        {
+            TransactionId = Guid.NewGuid(),
+            Amount = 1000m,
+            TransactionDate = txnDate,
+            TransactionState = TransactionState.NeedsBankMatch,
+            TransactionType = TransactionType.CashOut,
+            PaymentMethod = PaymentMethod.Card,
+            Description = "Test card cashout with gateway fee",
+            CreatedAt = DateTime.UtcNow,
+            ApprovedAt = DateTime.UtcNow
+        };
+        tenantDb.Transactions.Add(txn);
+
+        var gatewayBatch = new ImportBatch
+        {
+            ImportBatchId = Guid.NewGuid(),
+            SourceType = "GATEWAY",
+            Status = "COMMITTED",
+            OriginalFileName = "gateway.csv",
+            ImportedAt = DateTime.UtcNow
+        };
+        tenantDb.ImportBatches.Add(gatewayBatch);
+
+        // GATEWAY nets to the transaction amount (this is what Step 1 matches on) but carries a
+        // known 30 LKR processing fee — the bank only ever receives txn.Amount - fee.
+        var gatewayRecord = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = gatewayBatch.ImportBatchId,
+            TransactionDate = txnDate,
+            GrossAmount = 1030m,
+            ProcessingFee = 30m,
+            NetAmount = 1000m,
+            Currency = "LKR",
+            AccountCode = "ACCT001",
+            ReferenceNumber = "REF001",
+            MatchStatus = "PENDING",
+            CreatedAt = DateTime.UtcNow
+        };
+        tenantDb.ImportedNormalizedRecords.Add(gatewayRecord);
+
+        var bankBatch = new ImportBatch
+        {
+            ImportBatchId = Guid.NewGuid(),
+            SourceType = "BANK",
+            Status = "COMMITTED",
+            OriginalFileName = "bank.csv",
+            ImportedAt = DateTime.UtcNow
+        };
+        tenantDb.ImportBatches.Add(bankBatch);
+
+        // Bank deposit is exactly txn.Amount - ProcessingFee (970), not txn.Amount (1000).
+        var bankRecord = new ImportedNormalizedRecord
+        {
+            ImportedNormalizedRecordId = Guid.NewGuid(),
+            ImportBatchId = bankBatch.ImportBatchId,
+            TransactionDate = txnDate,
+            NetAmount = 970m,
+            ProcessingFee = 0m,
+            Currency = "LKR",
+            AccountCode = "ACCT001",
+            ReferenceNumber = "REF001",
+            MatchStatus = "PENDING",
+            CreatedAt = DateTime.UtcNow
+        };
+        tenantDb.ImportedNormalizedRecords.Add(bankRecord);
+
+        await tenantDb.SaveChangesAsync();
+
+        var result = await worker.ExecuteAsync(tenantId, tenantDb);
+
+        Assert.Equal(1, result.AutoMatchedCount);
+        Assert.Equal(0, result.ExceptionCount);
+
+        var updatedTxn = await tenantDb.Transactions.FirstOrDefaultAsync(x => x.TransactionId == txn.TransactionId);
+        Assert.Equal(TransactionState.JournalReady, updatedTxn!.TransactionState);
+
+        var matchGroup = await tenantDb.ReconciliationMatchGroups.FirstOrDefaultAsync();
+        Assert.NotNull(matchGroup);
+        Assert.True(matchGroup!.IsConfirmed);
+        // Variance is recorded as the known fee, not zero and not flagged as unexplained.
+        Assert.Equal(30m, matchGroup.Variance);
+
+        var metadata = finrecon360_backend.Services.Reconciliation.MatchGroupMetadata
+            .TryParse(matchGroup.MatchMetadataJson);
+        Assert.Equal("Tier2_FeeExplained", metadata!.RuleTriggered);
+        Assert.Equal(30m, metadata.ProcessingFeeTotal);
     }
 
     [Fact]

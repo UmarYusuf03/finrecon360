@@ -27,6 +27,7 @@ namespace finrecon360_backend.Services.Workers
         public const string Level4 = "Level4";
         public const string Level5 = "Level5";
         public const string Level6 = "Level6";
+        public const string Level7 = "Level7";
     }
 
     /// <summary>

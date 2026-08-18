@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ExportFormat } from '../../core/services/export.service';
 
 export interface MatchedRecordDetail {
   importedNormalizedRecordId: string;
@@ -90,5 +91,19 @@ export class MatchGroupsService {
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
     return this.http.get<UnmatchedQueueItem[]>(`${this.apiUrl}/unmatched`, { params });
+  }
+
+  exportPending(format: ExportFormat, level?: string): Observable<Blob> {
+    let params = new HttpParams().set('format', format);
+    if (level) params = params.set('level', level);
+    return this.http.get(`${this.apiUrl}/pending/export`, { params, responseType: 'blob' });
+  }
+
+  exportUnmatched(format: ExportFormat, rule?: string, from?: string, to?: string): Observable<Blob> {
+    let params = new HttpParams().set('format', format);
+    if (rule) params = params.set('rule', rule);
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get(`${this.apiUrl}/unmatched/export`, { params, responseType: 'blob' });
   }
 }

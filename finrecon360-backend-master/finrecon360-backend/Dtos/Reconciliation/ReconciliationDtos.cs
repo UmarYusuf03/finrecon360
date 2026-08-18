@@ -93,7 +93,15 @@ namespace finrecon360_backend.Dtos.Reconciliation
     {
         public decimal AmountTolerance { get; set; }
         public int DateToleranceDays { get; set; }
+        public int SettlementDateWindowDays { get; set; }
         public DateTime? UpdatedAt { get; set; }
+    }
+
+    public class BankingHolidayResponse
+    {
+        public Guid BankingHolidayId { get; set; }
+        public DateOnly Date { get; set; }
+        public string Description { get; set; } = string.Empty;
     }
 
     // ─── Request DTOs ───────────────────────────────────────────────────────────
@@ -112,5 +120,12 @@ namespace finrecon360_backend.Dtos.Reconciliation
     {
         public decimal AmountTolerance { get; set; }
         public int DateToleranceDays { get; set; }
+        public int SettlementDateWindowDays { get; set; } = 3;
+    }
+
+    public class CreateBankingHolidayRequest
+    {
+        public DateOnly Date { get; set; }
+        public string Description { get; set; } = string.Empty;
     }
 }

@@ -19,3 +19,4 @@
 .vscode/
 *.log
 finrecon.session.sql
+.claude/

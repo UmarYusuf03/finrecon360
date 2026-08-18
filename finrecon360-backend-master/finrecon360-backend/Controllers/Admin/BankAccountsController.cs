@@ -3,6 +3,7 @@ using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.BankAccounts;
 using finrecon360_backend.Services;
 using finrecon360_backend.Services.BankAccounts;
+using finrecon360_backend.Services.Export;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,24 +15,38 @@ namespace finrecon360_backend.Controllers.Admin
     [Authorize]
     public class BankAccountsController : ControllerBase
     {
+        private static readonly IReadOnlyList<ExportColumn<BankAccountResponse>> ExportColumns = new List<ExportColumn<BankAccountResponse>>
+        {
+            new("Bank Name", a => a.BankName),
+            new("Account Name", a => a.AccountName),
+            new("Account Number", a => a.AccountNumber),
+            new("Currency", a => a.Currency),
+            new("Status", a => a.IsActive ? "Active" : "Inactive"),
+            new("Created At (UTC)", a => a.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+            new("Updated At (UTC)", a => a.UpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss")),
+        };
+
         private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
         private readonly IUserContext _userContext;
         private readonly BankAccountService _bankAccountService;
+        private readonly IReportExporter _reportExporter;
 
         public BankAccountsController(
             AppDbContext dbContext,
             ITenantContext tenantContext,
             ITenantDbContextFactory tenantDbContextFactory,
             IUserContext userContext,
-            BankAccountService bankAccountService)
+            BankAccountService bankAccountService,
+            IReportExporter reportExporter)
         {
             _dbContext = dbContext;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
             _bankAccountService = bankAccountService;
+            _reportExporter = reportExporter;
         }
 
         [HttpPost]
@@ -44,6 +59,17 @@ namespace finrecon360_backend.Controllers.Admin
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
+            var maxAccounts = await GetMaxAccountsAsync(auth.TenantId, ct);
+            if (maxAccounts.HasValue)
+            {
+                var currentAccounts = await tenantDb.BankAccounts.AsNoTracking()
+                    .CountAsync(x => x.IsActive, ct);
+                if (currentAccounts >= maxAccounts.Value)
+                {
+                    return BadRequest(new { message = $"Bank account limit reached ({maxAccounts.Value}). Upgrade the subscription plan to add more." });
+                }
+            }
+
             try
             {
                 var result = await _bankAccountService.CreateAsync(tenantDb, request, ct);
@@ -53,6 +79,20 @@ namespace finrecon360_backend.Controllers.Admin
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [HttpGet("capacity")]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.VIEW")]
+        public async Task<ActionResult<BankAccountCapacityResponse>> GetCapacity(CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantAdminAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var maxAccounts = await GetMaxAccountsAsync(auth.TenantId, ct);
+            var currentAccounts = await tenantDb.BankAccounts.AsNoTracking().CountAsync(x => x.IsActive, ct);
+
+            return Ok(new BankAccountCapacityResponse(currentAccounts, maxAccounts));
         }
 
         [HttpGet]
@@ -65,6 +105,32 @@ namespace finrecon360_backend.Controllers.Admin
 
             var result = await _bankAccountService.GetAllAsync(tenantDb, ct);
             return Ok(result);
+        }
+
+        [HttpGet("export")]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.VIEW")]
+        public async Task<IActionResult> Export([FromQuery] string? format, CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantAdminAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (!_reportExporter.TryParseFormat(format, out var exportFormat))
+            {
+                return BadRequest(new { message = "Unsupported export format. Use 'csv' or 'xlsx'." });
+            }
+
+            var accounts = await _bankAccountService.GetAllAsync(tenantDb, ct);
+            if (accounts.Count > _reportExporter.MaxRows)
+            {
+                return BadRequest(new
+                {
+                    message = $"Export limited to {_reportExporter.MaxRows} rows."
+                });
+            }
+
+            var file = _reportExporter.Export(accounts, ExportColumns, "Bank Accounts", exportFormat);
+            return File(file.Content, file.ContentType, $"bank-accounts-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
         }
 
         [HttpGet("{id:guid}")]
@@ -128,16 +194,16 @@ namespace finrecon360_backend.Controllers.Admin
             return NoContent();
         }
 
-        private async Task<(TenantDbContext? Db, ActionResult? Error)> AuthorizeTenantAdminAsync(CancellationToken ct)
+        private async Task<(TenantDbContext? Db, Guid TenantId, ActionResult? Error)> AuthorizeTenantAdminAsync(CancellationToken ct)
         {
-            if (_userContext.UserId is not { } userId) return (null, Unauthorized());
+            if (_userContext.UserId is not { } userId) return (null, Guid.Empty, Unauthorized());
 
             var tenant = await _tenantContext.ResolveAsync(ct);
-            if (tenant == null) return (null, Forbid());
+            if (tenant == null) return (null, Guid.Empty, Forbid());
 
             var isTenantMember = await _dbContext.TenantUsers.AsNoTracking()
                 .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId, ct);
-            if (!isTenantMember) return (null, Forbid());
+            if (!isTenantMember) return (null, Guid.Empty, Forbid());
 
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, ct);
             var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking()
@@ -145,10 +211,19 @@ namespace finrecon360_backend.Controllers.Admin
             if (!isActiveInTenant)
             {
                 await tenantDb.DisposeAsync();
-                return (null, Forbid());
+                return (null, Guid.Empty, Forbid());
             }
 
-            return (tenantDb, null);
+            return (tenantDb, tenant.TenantId, null);
+        }
+
+        private async Task<int?> GetMaxAccountsAsync(Guid tenantId, CancellationToken ct)
+        {
+            return await _dbContext.Tenants
+                .AsNoTracking()
+                .Where(t => t.TenantId == tenantId)
+                .Select(t => t.CurrentSubscription != null ? (int?)t.CurrentSubscription.Plan.MaxAccounts : null)
+                .FirstOrDefaultAsync(ct);
         }
     }
 }

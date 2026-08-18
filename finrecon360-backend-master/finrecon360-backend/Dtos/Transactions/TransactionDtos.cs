@@ -11,14 +11,6 @@ namespace finrecon360_backend.Dtos.Transactions
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
 
-        public Guid? BankAccountId { get; set; }
-
-        [Required]
-        public string TransactionType { get; set; } = string.Empty;
-
-        [Required]
-        public string PaymentMethod { get; set; } = string.Empty;
-
         /// <summary>
         /// The upstream reference for this payment — a gateway reference or bank narrative.
         /// Optional, because a manually recorded cash transaction has no upstream document, but it
@@ -26,6 +18,14 @@ namespace finrecon360_backend.Dtos.Transactions
         /// </summary>
         [MaxLength(100)]
         public string? ReferenceNumber { get; set; }
+
+        public Guid? BankAccountId { get; set; }
+
+        [Required]
+        public string TransactionType { get; set; } = string.Empty;
+
+        [Required]
+        public string PaymentMethod { get; set; } = string.Empty;
 
         /// <summary>
         /// Last four digits of the card, for card payments only. Not sensitive on its own — it
@@ -45,6 +45,9 @@ namespace finrecon360_backend.Dtos.Transactions
         [MaxLength(500)]
         public string Description { get; set; } = string.Empty;
 
+        [MaxLength(100)]
+        public string? ReferenceNumber { get; set; }
+
         public Guid? BankAccountId { get; set; }
 
         [Required]
@@ -52,9 +55,6 @@ namespace finrecon360_backend.Dtos.Transactions
 
         [Required]
         public string PaymentMethod { get; set; } = string.Empty;
-
-        [MaxLength(100)]
-        public string? ReferenceNumber { get; set; }
 
         /// <summary>
         /// Last four digits of the card, for card payments only. Not sensitive on its own — it
@@ -83,6 +83,7 @@ namespace finrecon360_backend.Dtos.Transactions
         decimal Amount,
         DateTime TransactionDate,
         string Description,
+        string? ReferenceNumber,
         Guid? BankAccountId,
         string TransactionType,
         string PaymentMethod,
@@ -93,7 +94,6 @@ namespace finrecon360_backend.Dtos.Transactions
         DateTime? RejectedAt,
         Guid? RejectedByUserId,
         string? RejectionReason,
-        string? ReferenceNumber,
         string? CardLast4,
         DateTime CreatedAt,
         DateTime? UpdatedAt);

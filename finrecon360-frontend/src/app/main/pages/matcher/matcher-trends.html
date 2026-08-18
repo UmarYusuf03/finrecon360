@@ -1,0 +1,115 @@
+<section class="trends-page">
+  <header class="trends-hero">
+    <div class="trends-hero__copy">
+      <span class="trends-hero__eyebrow">{{ 'MATCHER.TRENDS.EYEBROW' | translate }}</span>
+      <h1>{{ 'MATCHER.TRENDS.TITLE' | translate }}</h1>
+      <p>{{ 'MATCHER.TRENDS.SUBTITLE' | translate }}</p>
+    </div>
+
+    <div class="trends-hero__actions">
+      <a routerLink="/app/matcher" class="ghost-btn back-btn">
+        <mat-icon>arrow_back</mat-icon>
+        {{ 'MATCHER.BACK_TO_MATCHER' | translate }}
+      </a>
+
+      <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        {{ 'COMMON.REFRESH' | translate }}
+      </button>
+    </div>
+  </header>
+
+  <div class="trends-filters-card">
+    <div class="trends-filters">
+      <label class="filter-field">
+        <span>{{ 'MATCHER.TRENDS.LOOKBACK' | translate }}</span>
+        <select [(ngModel)]="selectedLookback" (ngModelChange)="onFiltersChanged()">
+          <option *ngFor="let option of lookbackOptions" [ngValue]="option">
+            {{ 'CASH_FLOW.DAYS_OPTION' | translate: { count: option } }}
+          </option>
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>{{ 'MATCHER.TRENDS.MATCH_LEVEL' | translate }}</span>
+        <select [(ngModel)]="selectedLevel" (ngModelChange)="onFiltersChanged()">
+          <option [ngValue]="null">{{ 'MATCHER.TRENDS.ALL_LEVELS' | translate }}</option>
+          <option *ngFor="let level of levelOptions" [ngValue]="level">{{ level }}</option>
+        </select>
+      </label>
+
+      <div class="trends-filters__actions">
+        <button mat-stroked-button type="button" [disabled]="exporting || loading" (click)="exportTrend('csv')">
+          {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_CSV') | translate }}
+        </button>
+        <button mat-stroked-button type="button" [disabled]="exporting || loading" (click)="exportTrend('xlsx')">
+          {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_XLSX') | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="trends-state" *ngIf="loading">{{ 'MATCHER.TRENDS.LOADING' | translate }}</div>
+  <div class="trends-state trends-state--error" *ngIf="!loading && error" role="alert">{{ error }}</div>
+
+  <div class="charts-grid" *ngIf="!loading && !error">
+    <article class="chart-card">
+      <div class="chart-card__header">
+        <div>
+          <h3>{{ 'MATCHER.TRENDS.MATCH_RATE.TITLE' | translate }}</h3>
+          <p>{{ 'MATCHER.TRENDS.MATCH_RATE.SUBTITLE' | translate }}</p>
+        </div>
+        <div class="chart-legend">
+          <span class="chart-legend__item"><i class="swatch swatch--matched"></i>{{ 'MATCHER.TRENDS.MATCH_RATE.MATCHED' | translate }}</span>
+          <span class="chart-legend__item"><i class="swatch swatch--confirmed"></i>{{ 'MATCHER.TRENDS.MATCH_RATE.CONFIRMED' | translate }}</span>
+        </div>
+      </div>
+      <svg [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" class="trend-chart" preserveAspectRatio="none">
+        <path [attr.d]="matchLine.path" class="chart-line chart-line--matched" />
+        <path [attr.d]="confirmedLine.path" class="chart-line chart-line--confirmed" />
+      </svg>
+      <div class="chart-axis">
+        <span>{{ days.length > 0 ? days[0].date : '' }}</span>
+        <span>{{ days.length > 0 ? days[days.length - 1].date : '' }}</span>
+      </div>
+    </article>
+
+    <article class="chart-card">
+      <div class="chart-card__header">
+        <div>
+          <h3>{{ 'MATCHER.TRENDS.EXCEPTIONS.TITLE' | translate }}</h3>
+          <p>{{ 'MATCHER.TRENDS.EXCEPTIONS.SUBTITLE' | translate }}</p>
+        </div>
+        <div class="chart-legend">
+          <span class="chart-legend__item"><i class="swatch swatch--exceptions"></i>{{ 'MATCHER.TRENDS.EXCEPTIONS.LEGEND' | translate }}</span>
+        </div>
+      </div>
+      <svg [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" class="trend-chart" preserveAspectRatio="none">
+        <path [attr.d]="exceptionLine.path" class="chart-line chart-line--exceptions" />
+      </svg>
+      <div class="chart-axis">
+        <span>{{ days.length > 0 ? days[0].date : '' }}</span>
+        <span>{{ days.length > 0 ? days[days.length - 1].date : '' }}</span>
+      </div>
+    </article>
+
+    <article class="chart-card">
+      <div class="chart-card__header">
+        <div>
+          <h3>{{ 'MATCHER.TRENDS.UNMATCHED.TITLE' | translate }}</h3>
+          <p>{{ 'MATCHER.TRENDS.UNMATCHED.SUBTITLE' | translate }}</p>
+        </div>
+        <div class="chart-legend">
+          <span class="chart-legend__item"><i class="swatch swatch--unmatched"></i>{{ 'MATCHER.TRENDS.UNMATCHED.LEGEND' | translate }}</span>
+        </div>
+      </div>
+      <svg [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" class="trend-chart" preserveAspectRatio="none">
+        <path [attr.d]="unmatchedLine.path" class="chart-line chart-line--unmatched" />
+      </svg>
+      <div class="chart-axis">
+        <span>{{ days.length > 0 ? days[0].date : '' }}</span>
+        <span>{{ days.length > 0 ? days[days.length - 1].date : '' }}</span>
+      </div>
+    </article>
+  </div>
+</section>

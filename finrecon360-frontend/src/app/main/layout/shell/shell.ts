@@ -3,13 +3,16 @@ import { CommonModule } from '@angular/common';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterOutlet, RouterLinkActive } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import { Observable, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { Observable, of, Subject, timer } from 'rxjs';
+import { catchError, switchMap, takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileService } from '../../services/profile.service';
+import { PaymentAlertService } from '../../../core/admin-tenant/payment-alert.service';
+import { SubscriptionService } from '../../../core/admin-tenant/subscription.service';
 import { CurrentUser } from '../../../core/auth/models';
 import { LanguageSwitcherComponent } from '../../../shared/components/language-switcher/language-switcher';
 
@@ -26,6 +29,7 @@ import { LanguageSwitcherComponent } from '../../../shared/components/language-s
     MatMenuModule,
     MatButtonModule,
     MatIconModule,
+    MatTooltipModule,
   ],
   templateUrl: './shell.html',
   styleUrls: ['./shell.scss'],
@@ -44,6 +48,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.TENANTS.MANAGE',
     'ADMIN.PLANS.MANAGE',
     'ADMIN.ENFORCEMENT.MANAGE',
+    'ADMIN.PAYMENT_ALERTS.VIEW',
   ];
 
   readonly importEntryPermissions: string[] = [
@@ -55,13 +60,18 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   user$: Observable<CurrentUser | null>;
   profileImageUrl: string | null = null;
+  openPaymentAlertCount = 0;
+  subscriptionDaysOverdue: number | null = null;
 
   private destroy$ = new Subject<void>();
+  private static readonly PaymentAlertPollInterval = 60000;
 
   constructor(
     private authService: AuthService,
     private router: Router,
-    private profileService: ProfileService
+    private profileService: ProfileService,
+    private paymentAlertService: PaymentAlertService,
+    private subscriptionService: SubscriptionService,
   ) {
     // assign here so it is initialized after DI
     this.user$ = this.authService.currentUser$;
@@ -83,6 +93,43 @@ export class ShellComponent implements OnInit, OnDestroy {
             this.clearProfileImageUrl();
           }
         });
+
+        if (user.isSystemAdmin && this.hasAnyPermission(user, ['ADMIN.PAYMENT_ALERTS.VIEW'])) {
+          this.startPaymentAlertPolling();
+        }
+
+        // Only the tenant users who can actually do something about a lapsed subscription
+        // (i.e. hold the permission to view/pay it) get checked for the overdue banner.
+        if (!user.isSystemAdmin && this.hasAnyPermission(user, ['ADMIN.SUBSCRIPTIONS.MANAGE'])) {
+          this.checkSubscriptionOverdue();
+        }
+      });
+  }
+
+  private startPaymentAlertPolling(): void {
+    timer(0, ShellComponent.PaymentAlertPollInterval)
+      .pipe(
+        switchMap(() => this.paymentAlertService.getSummary().pipe(catchError(() => of({ openCount: 0 })))),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((summary) => (this.openPaymentAlertCount = summary.openCount));
+  }
+
+  private checkSubscriptionOverdue(): void {
+    this.subscriptionService.getTenantSubscriptionOverview()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (overview) => {
+          const subscription = overview.currentSubscription;
+          if (subscription?.status === 'PastDue' && subscription.periodEnd) {
+            const periodEnd = new Date(subscription.periodEnd).getTime();
+            const days = Math.floor((Date.now() - periodEnd) / (1000 * 60 * 60 * 24));
+            this.subscriptionDaysOverdue = Math.max(days, 0);
+          } else {
+            this.subscriptionDaysOverdue = null;
+          }
+        },
+        error: () => (this.subscriptionDaysOverdue = null),
       });
   }
 

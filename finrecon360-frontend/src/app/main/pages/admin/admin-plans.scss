@@ -64,6 +64,17 @@
   color: var(--fr-primary);
 }
 
+.plans-page__error {
+  margin: 0 0 4px;
+  padding: 10px 14px;
+  border-radius: var(--fr-radius-md);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .plans-table-shell,
 .plan-form {
   border: 1px solid rgba(148, 163, 184, 0.18);

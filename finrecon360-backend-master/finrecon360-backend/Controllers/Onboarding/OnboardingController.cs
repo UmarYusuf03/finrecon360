@@ -170,6 +170,30 @@ namespace finrecon360_backend.Controllers.Onboarding
             _dbContext.Subscriptions.Add(subscription);
             await _dbContext.SaveChangesAsync();
 
+            // Free plans (the trial included) never touch the payment gateway — activate the
+            // tenant immediately instead of generating a checkout session for $0.
+            if (plan.PriceCents <= 0)
+            {
+                var trialNow = DateTime.UtcNow;
+                subscription.Status = SubscriptionStatus.Active;
+                subscription.CurrentPeriodStart = trialNow;
+                subscription.CurrentPeriodEnd = trialNow.AddDays(plan.DurationDays);
+
+                tenant.Status = TenantStatus.Active;
+                tenant.ActivatedAt = trialNow;
+                tenant.CurrentSubscriptionId = subscription.SubscriptionId;
+
+                await _dbContext.SaveChangesAsync();
+                await _auditLogger.LogAsync(
+                    tokenResult.UserId.Value,
+                    "OnboardingFreeplanActivated",
+                    "Subscription",
+                    subscription.SubscriptionId.ToString(),
+                    $"plan={plan.Code}");
+
+                return Ok(new OnboardingCheckoutResponse(_paymentCheckoutService.GetFallbackCheckoutUrl()));
+            }
+
             if (!_paymentCheckoutService.IsConfigured())
             {
                 var allowLocalBypass = _configuration.GetValue<bool>("PAYMENT_ALLOW_LOCAL_BYPASS", false);

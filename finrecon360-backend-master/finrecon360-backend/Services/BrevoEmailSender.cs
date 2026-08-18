@@ -80,5 +80,65 @@ namespace finrecon360_backend.Services
 
             throw new InvalidOperationException("Brevo email send failed after retries.");
         }
+
+        public async Task SendWithAttachmentAsync(
+            string toEmail,
+            string subject,
+            string htmlBody,
+            IReadOnlyList<EmailAttachment> attachments,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(_options.ApiKey))
+            {
+                throw new InvalidOperationException("Brevo API key not configured.");
+            }
+
+            var payload = new
+            {
+                sender = new { name = _options.SenderName, email = _options.SenderEmail },
+                to = new[] { new { email = toEmail } },
+                subject,
+                htmlContent = htmlBody,
+                attachment = attachments.Select(a => new { content = Convert.ToBase64String(a.Content), name = a.FileName }).ToArray(),
+            };
+
+            const int maxAttempts = 3;
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                // A fresh HttpRequestMessage per attempt — the same instance cannot be sent twice.
+                using var request = new HttpRequestMessage(HttpMethod.Post, "smtp/email");
+                request.Headers.Add("api-key", _options.ApiKey);
+                request.Content = JsonContent.Create(payload, options: JsonOptions);
+
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    var requestId = response.Headers.TryGetValues("x-request-id", out var values)
+                        ? values.FirstOrDefault()
+                        : null;
+                    _logger.LogInformation("Brevo email with attachment sent to {ToEmail}. RequestId={RequestId}", toEmail, requestId ?? "n/a");
+                    return;
+                }
+
+                if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.InternalServerError or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout)
+                {
+                    if (attempt == maxAttempts)
+                    {
+                        break;
+                    }
+
+                    await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
+                    continue;
+                }
+
+                var requestIdHeader = response.Headers.TryGetValues("x-request-id", out var headerValues)
+                    ? headerValues.FirstOrDefault()
+                    : null;
+                _logger.LogWarning("Brevo email with attachment failed with status {StatusCode}. RequestId={RequestId}", (int)response.StatusCode, requestIdHeader ?? "n/a");
+                response.EnsureSuccessStatusCode();
+            }
+
+            throw new InvalidOperationException("Brevo email with attachment send failed after retries.");
+        }
     }
 }

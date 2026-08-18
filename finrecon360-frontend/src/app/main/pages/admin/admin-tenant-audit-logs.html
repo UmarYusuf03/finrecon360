@@ -22,9 +22,16 @@
     <div class="actions">
       <button class="primary-btn" (click)="applyFilters()">Apply</button>
       <button class="ghost-btn" (click)="resetFilters()">Reset</button>
+      <button class="ghost-btn" [disabled]="exporting" (click)="exportLogs('csv')">
+        {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_CSV') | translate }}
+      </button>
+      <button class="ghost-btn" [disabled]="exporting" (click)="exportLogs('xlsx')">
+        {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_XLSX') | translate }}
+      </button>
     </div>
   </div>
 
+  <div class="error" *ngIf="exportError">{{ exportError }}</div>
   <div class="error" *ngIf="error">{{ error }}</div>
   <div *ngIf="loading">Loading...</div>
 

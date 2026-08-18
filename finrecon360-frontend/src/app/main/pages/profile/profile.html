@@ -226,5 +226,15 @@
     </div>
   </div>
 
-  <app-profile-subscription></app-profile-subscription>
+  <mat-card class="profile-card profile-card--billing" *appHasPermission="'ADMIN.SUBSCRIPTIONS.MANAGE'">
+    <div class="profile-card__header">
+      <div>
+        <h2>{{ 'PROFILE.BILLING.TITLE' | translate }}</h2>
+        <p>{{ 'PROFILE.BILLING.COPY' | translate }}</p>
+      </div>
+      <a mat-flat-button color="primary" routerLink="/app/admin/subscription">
+        {{ 'PROFILE.BILLING.MANAGE_LINK' | translate }}
+      </a>
+    </div>
+  </mat-card>
 </div>

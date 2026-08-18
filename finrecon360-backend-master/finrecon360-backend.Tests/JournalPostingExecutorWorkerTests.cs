@@ -26,6 +26,7 @@ public class JournalPostingExecutorWorkerTests
         tenantDb.ChartOfAccounts.AddRange(
             new ChartOfAccount { ChartOfAccountId = Guid.NewGuid(), Code = "1000-BANK", Name = "Bank / Cash Received", AccountType = AccountType.Asset },
             new ChartOfAccount { ChartOfAccountId = Guid.NewGuid(), Code = "2000-CASHOUT", Name = "Cash-Out Clearing", AccountType = AccountType.Liability },
+            new ChartOfAccount { ChartOfAccountId = Guid.NewGuid(), Code = "3000-CASHIN", Name = "Cash-In Clearing", AccountType = AccountType.Liability },
             new ChartOfAccount { ChartOfAccountId = Guid.NewGuid(), Code = "5000-FEE", Name = "Processing Fee Expense", AccountType = AccountType.Expense },
             new ChartOfAccount { ChartOfAccountId = Guid.NewGuid(), Code = "4000-FEEOFFSET", Name = "Fee Offset Revenue", AccountType = AccountType.Revenue });
     }
@@ -132,6 +133,46 @@ public class JournalPostingExecutorWorkerTests
         Assert.Equal(980m, voucher.Entries.Single(e => e.EntryType == "DebitBank").Amount);
         Assert.Equal(20m, voucher.Entries.Single(e => e.EntryType == "DebitFeeExpense").Amount);
         Assert.All(voucher.Entries, e => Assert.NotNull(e.ChartOfAccountId));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_posts_balanced_voucher_for_direct_cash_cashin()
+    {
+        using var tenantDb = CreateTenantDb();
+        SeedChartOfAccounts(tenantDb);
+        var worker = CreateWorker();
+        var tenantId = Guid.NewGuid();
+
+        // Cash CashIn (a collection) has no Level4 gate either — it posts directly on approval,
+        // and uses the CreditCashIn entry type rather than CreditCashOut.
+        var txn = new Transaction
+        {
+            TransactionId = Guid.NewGuid(),
+            Amount = 750m,
+            TransactionDate = DateTime.UtcNow.Date,
+            TransactionState = TransactionState.JournalReady,
+            TransactionType = TransactionType.CashIn,
+            PaymentMethod = PaymentMethod.Cash,
+            Description = "Direct cash collection",
+            CreatedAt = DateTime.UtcNow,
+        };
+        tenantDb.Transactions.Add(txn);
+        await tenantDb.SaveChangesAsync();
+
+        var result = await worker.ExecuteAsync(tenantId, tenantDb);
+
+        Assert.Equal(1, result.PostedCount);
+        Assert.Equal(0, result.FailedCount);
+
+        var voucher = await tenantDb.JournalVouchers
+            .Include(v => v.Entries)
+            .FirstOrDefaultAsync(v => v.TransactionId == txn.TransactionId);
+
+        Assert.NotNull(voucher);
+        Assert.Equal(2, voucher!.Entries.Count);
+        Assert.Equal(0m, voucher.Entries.Sum(e => e.Amount));
+        Assert.Equal(750m, voucher.Entries.Single(e => e.EntryType == "DebitBank").Amount);
+        Assert.Equal(-750m, voucher.Entries.Single(e => e.EntryType == "CreditCashIn").Amount);
     }
 
     [Fact]

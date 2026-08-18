@@ -8,14 +8,18 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
-import { BankAccount } from '../../../core/admin-rbac/models';
+import { BankAccount, BankAccountCapacity } from '../../../core/admin-rbac/models';
+import { ExportFormat, ExportService } from '../../../core/services/export.service';
 
 @Component({
   selector: 'app-admin-bank-accounts',
@@ -30,8 +34,11 @@ import { BankAccount } from '../../../core/admin-rbac/models';
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
+    RouterLink,
     TranslateModule,
   ],
   templateUrl: './admin-bank-accounts.html',
@@ -43,8 +50,14 @@ export class AdminBankAccountsComponent implements OnInit {
   editingId: string | null = null;
   loading = false;
   saving = false;
+  exporting = false;
   deactivatingId: string | null = null;
   saveError: string | null = null;
+  capacity: BankAccountCapacity | null = null;
+
+  get isAccountLimitReached(): boolean {
+    return this.capacity?.maxAccounts != null && this.capacity.currentAccounts >= this.capacity.maxAccounts;
+  }
   private readonly dialogConfig = {
     autoFocus: false,
     maxWidth: 'calc(100vw - 32px)',
@@ -56,6 +69,7 @@ export class AdminBankAccountsComponent implements OnInit {
     private fb: FormBuilder,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
+    private exportService: ExportService,
   ) {}
 
   ngOnInit(): void {
@@ -67,13 +81,39 @@ export class AdminBankAccountsComponent implements OnInit {
     });
 
     this.loadBankAccounts();
+    this.loadCapacity();
   }
 
   refresh(): void {
     this.loadBankAccounts();
+    this.loadCapacity();
+  }
+
+  exportBankAccounts(format: ExportFormat): void {
+    if (this.exporting) {
+      return;
+    }
+
+    this.exporting = true;
+    this.bankAccountService.export(format).subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        this.exportService.downloadBlob(blob, this.exportService.buildFilename('bank-accounts', format));
+      },
+      error: (error: unknown) => {
+        this.exporting = false;
+        this.exportService.extractErrorMessage(error).then((message) => {
+          this.snackBar.open(message, 'Close', { duration: 3500 });
+        });
+      },
+    });
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
+    if (this.isAccountLimitReached) {
+      return;
+    }
+
     this.editingId = null;
     this.saveError = null;
     this.form.reset({
@@ -120,6 +160,7 @@ export class AdminBankAccountsComponent implements OnInit {
       currency: string;
     };
 
+    const wasCreating = !this.editingId;
     const request$: Observable<unknown> = this.editingId
       ? this.bankAccountService.update(this.editingId, payload)
       : this.bankAccountService.create(payload);
@@ -129,6 +170,9 @@ export class AdminBankAccountsComponent implements OnInit {
         this.saving = false;
         this.dialog.closeAll();
         this.loadBankAccounts();
+        if (wasCreating) {
+          this.loadCapacity();
+        }
         this.snackBar.open(
           this.editingId
             ? 'Bank account updated successfully.'
@@ -160,6 +204,7 @@ export class AdminBankAccountsComponent implements OnInit {
             ? { ...item, isActive: false, updatedAt: new Date().toISOString() }
             : item,
         );
+        this.loadCapacity();
         this.snackBar.open('Bank account deactivated.', 'Close', { duration: 2500 });
       },
       error: (error: unknown) => {
@@ -192,6 +237,10 @@ export class AdminBankAccountsComponent implements OnInit {
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
       },
     });
+  }
+
+  private loadCapacity(): void {
+    this.bankAccountService.getCapacity().subscribe((capacity) => (this.capacity = capacity));
   }
 
   private openDialog(dialogTemplate: TemplateRef<unknown>): void {

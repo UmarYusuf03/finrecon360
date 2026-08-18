@@ -9,6 +9,8 @@
     <span class="plans-page__count">{{ 'ADMIN.PLANS.COUNT' | translate:{ count: plans.length } }}</span>
   </header>
 
+  <p *ngIf="deleteError" class="plans-page__error" role="alert">{{ deleteError }}</p>
+
   <div class="plans-table-shell" *ngIf="plans.length > 0; else plansEmpty">
     <table class="plans-table">
       <thead>
@@ -43,6 +45,9 @@
             </button>
             <button class="primary-btn" *ngIf="!plan.isActive" (click)="activate(plan)">
               {{ 'COMMON.ACTIVATE' | translate }}
+            </button>
+            <button class="danger-btn" [disabled]="deletingId === plan.id" (click)="delete(plan)">
+              {{ 'COMMON.DELETE' | translate }}
             </button>
           </td>
         </tr>

@@ -1,7 +1,7 @@
 /**
- * WHY: These models define the structural contracts for the Role-Based Access Control (RBAC) 
- * mechanism in the admin portal. They mirror the core domain entities used by the backend 
- * to ensure that frontend components always operate on a strictly defined shape of data, 
+ * WHY: These models define the structural contracts for the Role-Based Access Control (RBAC)
+ * mechanism in the admin portal. They mirror the core domain entities used by the backend
+ * to ensure that frontend components always operate on a strictly defined shape of data,
  * preventing runtime errors when evaluating and assigning user permissions.
  */
 import { PermissionCode, RoleCode } from '../auth/models';
@@ -21,8 +21,8 @@ export interface Role {
 }
 
 /**
- * WHY: Represents a logical component or feature module within the application (e.g., 'Dashboard', 'Reports'). 
- * Permissions are assigned against these components. The `routePath` is included to potentially automate 
+ * WHY: Represents a logical component or feature module within the application (e.g., 'Dashboard', 'Reports').
+ * Permissions are assigned against these components. The `routePath` is included to potentially automate
  * route-guarding based on component access.
  */
 export interface AppComponentResource {
@@ -47,7 +47,7 @@ export interface ActionDefinition {
 }
 
 /**
- * WHY: The intersection relationship mapping a Role to a specific Action on a specific Component. 
+ * WHY: The intersection relationship mapping a Role to a specific Action on a specific Component.
  * This is the atomic unit of the permission matrix used to resolve `hasPermission` checks.
  */
 export interface PermissionAssignment {
@@ -71,6 +71,11 @@ export interface AdminUserSummary {
   roles: RoleCode[];
 }
 
+export interface UserCapacity {
+  currentUsers: number;
+  maxUsers: number | null;
+}
+
 export interface BankAccount {
   bankAccountId: string;
   bankName: string;
@@ -82,11 +87,41 @@ export interface BankAccount {
   updatedAt?: string | null;
 }
 
+export interface BankAccountCapacity {
+  currentAccounts: number;
+  maxAccounts: number | null;
+}
+
+export interface CashFlowHistoryDay {
+  date: string;
+  netAmount: number;
+}
+
+export interface CashFlowForecastDay {
+  date: string;
+  projectedNetFlow: number;
+  cumulativeNetFlow: number;
+  knownPendingAmount: number;
+}
+
+export interface CashFlowForecast {
+  bankAccountId: string | null;
+  bankAccountName: string;
+  generatedAt: string;
+  lookbackDays: number;
+  dailyAverageNetFlow: number;
+  settlementLagDays: number;
+  history: CashFlowHistoryDay[];
+  forecast: CashFlowForecastDay[];
+}
+
 export interface Transaction {
   transactionId: string;
   amount: number;
   transactionDate: string;
   description: string;
+  referenceNumber?: string | null;
+  cardLast4?: string | null;
   bankAccountId?: string | null;
   transactionType: string;
   paymentMethod: string;
@@ -115,6 +150,7 @@ export interface CreateTransactionRequest {
   amount: number;
   transactionDate: string;
   description: string;
+  referenceNumber?: string | null;
   bankAccountId?: string | null;
   transactionType: string;
   paymentMethod: string;
@@ -124,6 +160,7 @@ export interface UpdateTransactionRequest {
   amount: number;
   transactionDate: string;
   description: string;
+  referenceNumber?: string | null;
   bankAccountId?: string | null;
   transactionType: string;
   paymentMethod: string;
@@ -136,38 +173,6 @@ export interface ApproveTransactionRequest {
 export interface RejectTransactionRequest {
   reason: string;
 }
-
-export interface Transaction {
-  transactionId: string;
-  amount: number;
-  transactionDate: string;
-  referenceNumber?: string | null;
-  cardLast4?: string | null;
-  description: string;
-  bankAccountId?: string | null;
-  transactionType: string;
-  paymentMethod: string;
-  transactionState: string;
-  createdByUserId?: string | null;
-  approvedAt?: string | null;
-  approvedByUserId?: string | null;
-  rejectedAt?: string | null;
-  rejectedByUserId?: string | null;
-  rejectionReason?: string | null;
-  createdAt: string;
-  updatedAt?: string | null;
-}
-
-export interface TransactionStateHistory {
-  transactionStateHistoryId: string;
-  transactionId: string;
-  fromState: string;
-  toState: string;
-  changedByUserId?: string | null;
-  changedAt: string;
-  note?: string | null;
-}
-
 /**
  * WHY: Enriched NeedsBankMatch row — combines core transaction fields with matched
  * GATEWAY import record context and any existing ReconciliationMatchGroup so the
@@ -374,4 +379,116 @@ export interface NeedsBankMatchRecord {
   isConfirmed: boolean;
   isJournalPosted: boolean;
   matchMetadataJson?: string | null;
+}
+
+export interface GeneralLedgerEntry {
+  postedAt: string;
+  journalEntryId: string;
+  journalVoucherId: string | null;
+  entryType: string;
+  notes: string | null;
+  amount: number;
+  runningBalance: number;
+}
+
+export interface GeneralLedgerAccount {
+  chartOfAccountId: string | null;
+  accountCode: string;
+  accountName: string;
+  accountType: string | null;
+  openingBalance: number;
+  closingBalance: number;
+  entries: GeneralLedgerEntry[];
+}
+
+export interface GeneralLedgerReport {
+  fromUtc: string;
+  toUtc: string;
+  accounts: GeneralLedgerAccount[];
+}
+
+export interface TrialBalanceLine {
+  chartOfAccountId: string | null;
+  accountCode: string;
+  accountName: string;
+  accountType: string | null;
+  debit: number;
+  credit: number;
+}
+
+export interface TrialBalanceReport {
+  asOfUtc: string;
+  lines: TrialBalanceLine[];
+  totalDebit: number;
+  totalCredit: number;
+  isBalanced: boolean;
+}
+
+export interface IncomeStatementLine {
+  accountCode: string;
+  accountName: string;
+  amount: number;
+}
+
+export interface IncomeStatementReport {
+  fromUtc: string;
+  toUtc: string;
+  revenueLines: IncomeStatementLine[];
+  expenseLines: IncomeStatementLine[];
+  totalRevenue: number;
+  totalExpense: number;
+  netIncome: number;
+  unclassifiedAmount: number;
+}
+
+export interface BalanceSheetLine {
+  accountCode: string;
+  accountName: string;
+  amount: number;
+}
+
+export interface BalanceSheetReport {
+  asOfUtc: string;
+  assetLines: BalanceSheetLine[];
+  liabilityLines: BalanceSheetLine[];
+  equityLines: BalanceSheetLine[];
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  unclassifiedAmount: number;
+}
+
+export interface ReconciliationTrendDay {
+  snapshotDate: string;
+  matchLevel: string;
+  matchedCount: number;
+  confirmedCount: number;
+  exceptionCount: number;
+  unmatchedCount: number;
+  averageTimeToMatchHours: number | null;
+}
+
+export interface ReconciliationTrendReport {
+  fromUtc: string;
+  toUtc: string;
+  days: ReconciliationTrendDay[];
+}
+
+export interface ReportSchedule {
+  reportScheduleId: string;
+  reportType: string;
+  format: string;
+  dayOfWeek: number;
+  recipientEmail: string;
+  isActive: boolean;
+  lastRunAt: string | null;
+  nextRunAt: string;
+  createdAt: string;
+}
+
+export interface CreateReportScheduleRequest {
+  reportType: string;
+  format: string;
+  dayOfWeek: number;
+  recipientEmail: string;
 }

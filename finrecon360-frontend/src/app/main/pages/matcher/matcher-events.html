@@ -1,27 +1,4 @@
 <section class="events-page">
-  <nav class="matcher-nav" [attr.aria-label]="'MATCHER.WORKFLOW_ARIA' | translate">
-    <a routerLink="/app/matcher" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-      <mat-icon>account_balance</mat-icon>
-      <span>{{ 'MATCHER.NAV.MATCH_GROUPS' | translate }}</span>
-    </a>
-    <a routerLink="/app/matcher/waiting" routerLinkActive="active">
-      <mat-icon>pending</mat-icon>
-      <span>{{ 'MATCHER.NAV.WAITING_QUEUE' | translate }}</span>
-    </a>
-    <a routerLink="/app/matcher/sales-verification" routerLinkActive="active">
-      <mat-icon>find_in_page</mat-icon>
-      <span>{{ 'MATCHER.NAV.SALES_VERIFICATION' | translate }}</span>
-    </a>
-    <a routerLink="/app/matcher/events" routerLinkActive="active">
-      <mat-icon>timeline</mat-icon>
-      <span>{{ 'MATCHER.NAV.EVENTS' | translate }}</span>
-    </a>
-    <a routerLink="/app/transactions/journal-ready" routerLinkActive="active">
-      <mat-icon>receipt_long</mat-icon>
-      <span>{{ 'TRANSACTIONS.NAV.JOURNAL_READY' | translate }}</span>
-    </a>
-  </nav>
-
   <header class="events-hero">
     <div class="events-hero__copy">
       <span class="events-hero__eyebrow">{{ 'MATCHER.EVENTS.EYEBROW' | translate }}</span>
