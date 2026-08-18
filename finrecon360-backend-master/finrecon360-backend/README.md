@@ -87,8 +87,45 @@ The backend supports:
 - `POST /api/auth/confirm-password-reset-link`
 - `POST /api/auth/request-change-password-link`
 - `POST /api/auth/confirm-change-password-link`
+- `POST /api/auth/sso/google`
+- `GET  /api/auth/sso/config`
 
-This means the current implementation is password-based login with magic-link support for verification and password-management flows. It is not a pure magic-link login system.
+This means the current implementation is password-based login with magic-link support for verification and password-management flows, plus Google single sign-on. It is not a pure magic-link login system.
+
+### Google Single Sign-On
+
+`POST /api/auth/sso/google` accepts the ID token obtained in the browser and returns the same
+`LoginResponse` the password login returns, so SSO is a second route into one session rather
+than a parallel authentication path.
+
+`GoogleIdTokenValidator` verifies the token rather than decoding it. An ID token is a signed
+JSON blob the browser hands us and anyone can craft one, so trust comes from the signature
+checked against Google's published keys, plus three checks a signature alone does not give:
+
+- **issuer** — minted by Google, not another provider.
+- **audience** — minted *for this application*. Without this check a token issued to any other
+  Google application would be accepted here, which is a full account takeover.
+- **expiry** — still current, so a captured token cannot be replayed indefinitely.
+
+Signing keys come from Google's OpenID discovery document and are cached, so key rotation needs
+no redeploy. Sign-ins where Google reports the email as unverified are rejected, because email
+is what an existing account is matched on.
+
+`SsoAuthenticationService` resolves the account by the provider's immutable subject identifier
+first and falls back to email, so an account survives an email change at Google. New accounts
+are always `GlobalPublic`, never system admin: an external provider establishes identity, never
+privilege. The same active-account gate as the password login applies, so a suspended account
+cannot be reached through the alternative route.
+
+`Users` carries `ExternalProvider` and `ExternalProviderId` under a filtered unique index, and
+`PasswordHash` is nullable — an SSO-only account genuinely has no password, and a placeholder
+hash would be a value some input could satisfy. The password login rejects null hashes using
+its existing generic message, so the response does not disclose which accounts are SSO-only.
+
+Configure with `GOOGLE_CLIENT_ID`. Optional: `GOOGLE_HOSTED_DOMAIN` restricts sign-in to one
+Workspace domain; `GOOGLE_ALLOW_AUTO_PROVISIONING=false` requires the account to exist first.
+Token validation uses the OpenID Connect libraries already present via JwtBearer — no added
+NuGet dependency.
 
 ### Tenant Onboarding
 
@@ -204,6 +241,8 @@ Current transaction fields include:
 - transaction type: `CashIn` or `CashOut`
 - payment method: `Cash` or `Card`
 - optional bank account
+- optional reference number — the upstream gateway reference or bank narrative
+- optional card last four digits, for card payments only
 - current state
 - approval/rejection metadata
 
@@ -213,6 +252,16 @@ Validation rules:
 - `TransactionDate` is required.
 - `Card` transactions require `BankAccountId`.
 - `Cash` transactions may have `BankAccountId` null or populated.
+- `ReferenceNumber` is trimmed, capped at 100 characters, and stored as null when blank — an
+  empty string looks like a reference to a matcher but can never match.
+- `CardLast4` is kept only for card payments and only when it is exactly four digits. A value
+  arriving on a cash transaction is dropped rather than stored, so the field cannot accumulate
+  data a later matcher might treat as meaningful.
+
+`ReferenceNumber` is the strongest key available for correlating a manually recorded
+transaction with an imported gateway or bank record. Level-4 matching currently correlates on
+date and amount with an ambiguity guard; moving it to reference-first is the natural next step
+now that the field is stored again.
 
 Required permissions:
 

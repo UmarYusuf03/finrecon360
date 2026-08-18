@@ -265,16 +265,38 @@ Settlement Key:  MERCHANT_ACCT|TXN_12345
 
 ## ✅ Test Results
 
-All 68 existing tests pass with new worker integration:
-- No regressions
-- Full backward compatibility
-- Ready for production deployment
+113 tests pass (`dotnet test` from `finrecon360-backend-master`).
+
+Note on an earlier version of this document: it claimed "all 68 existing tests pass" at a point
+when the test project did not compile, so none of them could run. Treat a stated pass count as
+meaningful only alongside a build that succeeds.
+
+## ⚠️ Human confirmation is required
+
+An earlier revision of the reconciliation worker set `IsConfirmed = true` on the groups it
+created, and the posting worker did not check the flag, so a card cashout could travel from
+import to posted ledger entry with nobody having reviewed it.
+
+The current behaviour:
+
+- The worker **proposes** a Level-4 match group. It is created unconfirmed and marked
+  `AutoMatched` in its metadata, so the UI can show that a machine suggested it.
+- The transaction **stays in `NeedsBankMatch`**. The worker does not promote it.
+- A person confirms the group on the matcher screen. That confirmation is what moves the
+  transaction to `JournalReady` and writes the history row naming who did it.
+- `JournalPostingExecutorWorker` refuses any group that is not confirmed.
+
+Cash transactions do not need a match group at all and post on approval — requiring one for
+every transaction previously left every cash transaction stranded in `JournalReady`.
 
 ## 🚀 Next Steps
 
 1. **Configure Worker Intervals** (if needed):
-   - BankReconciliation: 5 min (line 51 in BankReconciliationHostedService)
-   - JournalPosting: 5 min (line 20 in JournalPostingHostedService)
+   - Reconciliation cycle: see `ReconciliationCycleHostedService`
+   - JournalPosting: see `JournalPostingHostedService`
+
+   Both sweep every active tenant on a timer and guard concurrency with an in-process
+   dictionary, so exactly one API instance may run until that guard is distributed.
 
 2. **Monitor Posting Events**:
    - Check transaction state transitions

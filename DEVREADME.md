@@ -26,7 +26,8 @@ This file covers local setup and the current development workflow for the reposi
    - `SYSTEM_ADMIN_EMAIL`
    - `SYSTEM_ADMIN_PASSWORD`
    - Brevo settings
-   - Stripe settings
+   - `GOOGLE_CLIENT_ID` (Google SSO — optional; unset hides the Google sign-in button)
+   - PayHere settings
    - `TENANT_DB_TEMPLATE`
 3. Start the API:
 
@@ -70,7 +71,7 @@ Use the real onboarding path:
 3. Approve the registration from the system-admin tenant-registration flow.
 4. Complete onboarding from the magic link email.
 5. Set password and select plan.
-6. Complete Stripe checkout.
+6. Complete PayHere checkout.
 7. Access tenant-scoped routes after the tenant becomes `Active`.
 
 ## Access Enforcement Notes
