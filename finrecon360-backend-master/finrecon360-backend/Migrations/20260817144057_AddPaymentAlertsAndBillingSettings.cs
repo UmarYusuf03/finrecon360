@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -62,7 +62,7 @@ namespace finrecon360_backend.Migrations
                         column: x => x.TenantId,
                         principalTable: "Tenants",
                         principalColumn: "TenantId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
