@@ -21,10 +21,15 @@ type AdminLink = {
    * Sentence shown on the overview card. Follows the existing i18n convention where a section's
    * heading is X.TITLE and its one-line explanation is X.COPY, so no new strings are needed.
    */
-  description: string;
+  description?: string;
   permission: string;
   scope: 'tenant' | 'system';
   role?: string;
+  /**
+   * True for links that should stay reachable from the admin overview grid but not clutter the
+   * horizontal tab bar — e.g. Reports Hub, which is also promoted to its own top-level main tab.
+   */
+  hideFromTabs?: boolean;
 };
 
 @Component({
@@ -44,40 +49,18 @@ type AdminLink = {
 export class AdminShellComponent implements OnInit {
   private readonly links: AdminLink[] = [
     {
-      path: '/app/admin/reports',
+      path: '/app/reports',
       label: 'REPORTS_HUB.TITLE',
+      description: 'REPORTS_HUB.COPY',
       permission: 'ADMIN.DASHBOARD.VIEW',
       scope: 'tenant',
+      hideFromTabs: true,
     },
     {
       path: '/app/admin/bank-accounts',
       label: 'BANK_ACCOUNTS.TITLE',
       description: 'BANK_ACCOUNTS.COPY',
       permission: 'ADMIN.BANK_ACCOUNTS.VIEW',
-      scope: 'tenant',
-    },
-    {
-      path: '/app/admin/cash-flow-forecast',
-      label: 'CASH_FLOW.TITLE',
-      permission: 'ADMIN.CASH_FLOW_FORECAST.VIEW',
-      scope: 'tenant',
-    },
-    {
-      path: '/app/admin/financial-reports',
-      label: 'FINANCIAL_REPORTS.TITLE',
-      permission: 'ADMIN.FINANCIAL_REPORTS.VIEW',
-      scope: 'tenant',
-    },
-    {
-      path: '/app/admin/report-schedules',
-      label: 'REPORT_SCHEDULES.TITLE',
-      permission: 'ADMIN.REPORT_SCHEDULES.MANAGE',
-      scope: 'tenant',
-    },
-    {
-      path: '/app/admin/subscription',
-      label: 'PROFILE.BILLING.TITLE',
-      permission: 'ADMIN.SUBSCRIPTIONS.MANAGE',
       scope: 'tenant',
     },
     {
@@ -140,13 +123,6 @@ export class AdminShellComponent implements OnInit {
       path: '/app/system/payment-alerts',
       label: 'ADMIN.PAYMENT_ALERTS.TITLE',
       permission: 'ADMIN.PAYMENT_ALERTS.VIEW',
-      scope: 'system',
-    },
-    {
-      path: '/app/system/enforcement',
-      label: 'ADMIN.ENFORCEMENT.TITLE',
-      description: 'ADMIN.ENFORCEMENT.COPY',
-      permission: 'ADMIN.ENFORCEMENT.MANAGE',
       scope: 'system',
     },
     {

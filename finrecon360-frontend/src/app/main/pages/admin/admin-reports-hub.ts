@@ -21,7 +21,7 @@ interface ReportLink {
 export class AdminReportsHubComponent {
   readonly links: ReportLink[] = [
     {
-      path: '/app/admin/financial-reports',
+      path: '/app/reports/financial-reports',
       icon: 'account_balance',
       titleKey: 'FINANCIAL_REPORTS.TITLE',
       copyKey: 'REPORTS_HUB.FINANCIAL_REPORTS_COPY',
@@ -33,7 +33,7 @@ export class AdminReportsHubComponent {
       copyKey: 'REPORTS_HUB.RECONCILIATION_TRENDS_COPY',
     },
     {
-      path: '/app/admin/cash-flow-forecast',
+      path: '/app/reports/cash-flow-forecast',
       icon: 'timeline',
       titleKey: 'CASH_FLOW.TITLE',
       copyKey: 'REPORTS_HUB.CASH_FLOW_COPY',
@@ -45,7 +45,7 @@ export class AdminReportsHubComponent {
       copyKey: 'REPORTS_HUB.DASHBOARD_COPY',
     },
     {
-      path: '/app/admin/report-schedules',
+      path: '/app/reports/report-schedules',
       icon: 'schedule_send',
       titleKey: 'REPORT_SCHEDULES.TITLE',
       copyKey: 'REPORTS_HUB.REPORT_SCHEDULES_COPY',

@@ -1,25 +1,26 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatIconModule } from '@angular/material/icon';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { API_BASE_URL } from '../../../core/constants/api.constants';
 import {
   SubscriptionOverview,
-  SubscriptionPlan,
+  SubscriptionPlanOption,
 } from '../../../core/admin-tenant/models';
 import { SubscriptionService } from '../../../core/admin-tenant/subscription.service';
 
 @Component({
   selector: 'app-admin-subscription',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MatIconModule],
   templateUrl: './admin-subscription.html',
   styleUrls: ['./admin-subscription.scss'],
 })
 export class AdminSubscriptionComponent implements OnInit {
   overview: SubscriptionOverview | null = null;
-  plans: SubscriptionPlan[] = [];
+  plans: SubscriptionPlanOption[] = [];
   selectedPlanId = '';
   loading = true;
   busy = false;
@@ -27,22 +28,40 @@ export class AdminSubscriptionComponent implements OnInit {
 
   constructor(private authService: AuthService, private subscriptionService: SubscriptionService) {}
 
+  get hasEligiblePlan(): boolean {
+    return this.plans.some((plan) => plan.isEligible);
+  }
+
   ngOnInit(): void {
     this.subscriptionService.getTenantSubscriptionOverview().subscribe({
       next: (overview) => {
         this.overview = overview;
         this.plans = overview.availablePlans;
-        this.selectedPlanId =
-          (overview.currentSubscription
-            ? this.plans.find((plan) => plan.code === overview.currentSubscription?.planCode)?.id
-            : null) ?? this.plans[0]?.id ?? '';
+
+        const currentPlan = overview.currentSubscription
+          ? this.plans.find((plan) => plan.code === overview.currentSubscription?.planCode)
+          : undefined;
+        const firstEligiblePlan = this.plans.find((plan) => plan.isEligible);
+
+        // Never land the selection on a plan the tenant can no longer fit into — pick their
+        // current plan only if it's still eligible, otherwise the cheapest one that is.
+        this.selectedPlanId = (currentPlan?.isEligible ? currentPlan.id : firstEligiblePlan?.id) ?? '';
         this.loading = false;
       },
-      error: () => {
-        this.error = 'Unable to load your subscription details.';
+      error: (error) => {
+        const message = error?.error?.detail ?? error?.error?.message;
+        this.error = message ? `Unable to load your subscription details: ${message}` : 'Unable to load your subscription details.';
         this.loading = false;
       },
     });
+  }
+
+  selectPlan(plan: SubscriptionPlanOption): void {
+    if (!plan.isEligible || this.busy) {
+      return;
+    }
+
+    this.selectedPlanId = plan.id;
   }
 
   changePlan(): void {
@@ -58,7 +77,7 @@ export class AdminSubscriptionComponent implements OnInit {
         window.location.href = this.resolveCheckoutUrl(response.checkoutUrl);
       },
       error: (error) => {
-        const message = error?.error?.message as string | undefined;
+        const message = error?.error?.detail ?? error?.error?.message;
         this.error = message ?? 'Unable to start checkout.';
         this.busy = false;
       },

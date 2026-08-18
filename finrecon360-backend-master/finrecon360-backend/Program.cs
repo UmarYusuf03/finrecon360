@@ -127,6 +127,7 @@ builder.Services.Configure<PayHereOptions>(options =>
 {
     options.MerchantId = builder.Configuration["PAYHERE_MERCHANT_ID"] ?? string.Empty;
     options.MerchantSecret = builder.Configuration["PAYHERE_MERCHANT_SECRET"] ?? string.Empty;
+    options.MerchantSecretMode = builder.Configuration["PAYHERE_MERCHANT_SECRET_MODE"] ?? string.Empty;
     options.CheckoutBaseUrl = builder.Configuration["PAYHERE_CHECKOUT_BASE_URL"] ?? "https://sandbox.payhere.lk/pay/checkout";
     options.ReturnUrl = builder.Configuration["PAYHERE_RETURN_URL"] ?? string.Empty;
     options.CancelUrl = builder.Configuration["PAYHERE_CANCEL_URL"] ?? string.Empty;
@@ -159,6 +160,7 @@ builder.Services.AddScoped<IOnboardingTokenService, OnboardingTokenService>();
 builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkService>();
 builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
 builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
 builder.Services.AddScoped<BankAccountService>();

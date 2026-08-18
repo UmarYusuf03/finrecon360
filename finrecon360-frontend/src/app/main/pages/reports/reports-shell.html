@@ -1,0 +1,31 @@
+<section class="reports-shell">
+  <div class="reports-shell__nav-shell fr-glass-panel">
+    <nav
+      mat-tab-nav-bar
+      backgroundColor="primary"
+      color="primary"
+      [tabPanel]="tabPanel"
+      class="reports-shell__nav"
+    >
+      <a
+        mat-tab-link
+        class="reports-shell__link"
+        *ngFor="let link of visibleLinks$ | async"
+        [routerLink]="link.path"
+        routerLinkActive="active-link"
+        [routerLinkActiveOptions]="{ exact: true }"
+        #rla="routerLinkActive"
+        [active]="rla.isActive"
+        [class.active-link]="rla.isActive"
+      >
+        {{ link.label | translate }}
+      </a>
+    </nav>
+  </div>
+
+  <mat-tab-nav-panel #tabPanel>
+    <div class="reports-shell__content">
+      <router-outlet></router-outlet>
+    </div>
+  </mat-tab-nav-panel>
+</section>

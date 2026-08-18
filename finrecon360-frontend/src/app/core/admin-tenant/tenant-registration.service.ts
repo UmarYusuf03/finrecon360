@@ -22,6 +22,14 @@ export class TenantRegistrationService {
       .pipe(map((result) => result.items));
   }
 
+  getPendingCount(): Observable<number> {
+    return this.http
+      .get<PagedResult<TenantRegistrationSummary>>(
+        `${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANT_REGISTRATIONS}?status=PENDING_REVIEW&page=1&pageSize=1`
+      )
+      .pipe(map((result) => result.totalCount));
+  }
+
   getRegistration(id: string): Observable<TenantRegistrationDetail> {
     return this.http.get<TenantRegistrationDetail>(
       `${API_BASE_URL}${API_ENDPOINTS.SYSTEM.TENANT_REGISTRATIONS}/${id}`
