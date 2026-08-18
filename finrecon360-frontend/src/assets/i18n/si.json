@@ -549,7 +549,11 @@
     "STATUS": "තත්ත්වය",
     "TO": "දක්වා",
     "TYPE": "වර්ගය",
-    "UPDATE": "යාවත්කාලීන කරන්න"
+    "UPDATE": "යාවත්කාලීන කරන්න",
+    "EXPORT_CSV": "Export CSV",
+    "EXPORT_XLSX": "Export Excel",
+    "EXPORTING": "Exporting...",
+    "EXPORT_FAILED": "Export failed. Please try again."
   },
   "ERRORS": {
     "EMAIL_REQUIRED": "විද්‍යුත් තැපෑල අවශ්‍යයි",
@@ -765,7 +769,8 @@
       "EVENTS": "Events",
       "MATCH_GROUPS": "Match Groups",
       "SALES_VERIFICATION": "Sales Verification",
-      "WAITING_QUEUE": "Waiting Queue"
+      "WAITING_QUEUE": "Waiting Queue",
+      "TRENDS": "Trends"
     },
     "NET": "Net",
     "NET_TOTAL": "Net",
@@ -825,7 +830,32 @@
       "TITLE": "Waiting Queue",
       "VIEW_ONLY": "View only"
     },
-    "WORKFLOW_ARIA": "Reconciliation workflow"
+    "WORKFLOW_ARIA": "Reconciliation workflow",
+    "TRENDS": {
+      "EYEBROW": "Reconciliation history",
+      "TITLE": "Reconciliation Trends",
+      "SUBTITLE": "Daily match, confirmation, exception, and unmatched-backlog trends computed from the daily reconciliation snapshot.",
+      "LOOKBACK": "Lookback",
+      "MATCH_LEVEL": "Match Level",
+      "ALL_LEVELS": "All Levels",
+      "LOADING": "Loading trend data...",
+      "MATCH_RATE": {
+        "TITLE": "Match Rate",
+        "SUBTITLE": "Match groups created vs. confirmed, per day",
+        "MATCHED": "Matched",
+        "CONFIRMED": "Confirmed"
+      },
+      "EXCEPTIONS": {
+        "TITLE": "Exceptions",
+        "SUBTITLE": "Variance events logged, per day",
+        "LEGEND": "Exceptions"
+      },
+      "UNMATCHED": {
+        "TITLE": "Unmatched Backlog",
+        "SUBTITLE": "Bank records still unmatched, by original transaction date",
+        "LEGEND": "Unmatched"
+      }
+    }
   },
   "TRANSACTIONS": {
     "ADD_TRANSACTION": "Add transaction",
@@ -973,5 +1003,101 @@
     "TRANSACTION_TYPE": "Transaction type",
     "WORKFLOW": "Workflow",
     "WORKFLOW_ARIA": "Transaction workflow"
+  },
+  "FINANCIAL_REPORTS": {
+    "EYEBROW": "Accounting",
+    "TITLE": "Financial Reports",
+    "COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet, computed from posted journal entries.",
+    "NAV_ARIA": "Financial report sections",
+    "NAV": {
+      "GENERAL_LEDGER": "General Ledger",
+      "TRIAL_BALANCE": "Trial Balance",
+      "INCOME_STATEMENT": "Income Statement",
+      "BALANCE_SHEET": "Balance Sheet"
+    },
+    "FROM": "From",
+    "TO": "To",
+    "AS_OF": "As of",
+    "LOADING": "Loading report...",
+    "ACCOUNT_CODE": "Account Code",
+    "ACCOUNT_NAME": "Account Name",
+    "ACCOUNT_TYPE": "Account Type",
+    "UNCLASSIFIED_NOTE": "{{amount}} in journal activity has no chart-of-account mapping and is excluded from this report. See the General Ledger's Unclassified account for detail.",
+    "GENERAL_LEDGER": {
+      "EMPTY": "No journal activity in this date range.",
+      "OPENING": "Opening",
+      "CLOSING": "Closing",
+      "POSTED_AT": "Posted At (UTC)",
+      "ENTRY_TYPE": "Entry Type",
+      "NOTES": "Notes",
+      "AMOUNT": "Amount",
+      "RUNNING_BALANCE": "Running Balance"
+    },
+    "TRIAL_BALANCE": {
+      "TOTAL_DEBIT": "Total Debit",
+      "TOTAL_CREDIT": "Total Credit",
+      "STATUS": "Status",
+      "BALANCED": "Balanced",
+      "UNBALANCED": "Unbalanced",
+      "DEBIT": "Debit",
+      "CREDIT": "Credit",
+      "EMPTY": "No posted journal entries as of this date.",
+      "TOTALS": "Totals"
+    },
+    "INCOME_STATEMENT": {
+      "TOTAL_REVENUE": "Total Revenue",
+      "TOTAL_EXPENSE": "Total Expense",
+      "NET_INCOME": "Net Income",
+      "AMOUNT": "Amount",
+      "REVENUE": "Revenue",
+      "EXPENSE": "Expense",
+      "NO_REVENUE": "No revenue activity in this date range.",
+      "NO_EXPENSE": "No expense activity in this date range."
+    },
+    "BALANCE_SHEET": {
+      "TOTAL_ASSETS": "Total Assets",
+      "TOTAL_LIABILITIES": "Total Liabilities",
+      "TOTAL_EQUITY": "Total Equity",
+      "ASSETS": "Assets",
+      "LIABILITIES": "Liabilities",
+      "EQUITY": "Equity",
+      "NO_ASSETS": "No asset activity as of this date.",
+      "NO_LIABILITIES": "No liability activity as of this date.",
+      "NO_EQUITY": "No equity activity as of this date.",
+      "RETAINED_EARNINGS_NOTE": "Retained earnings (Revenue minus Expense) are not yet rolled into Equity, so Total Assets may not equal Total Liabilities plus Total Equity."
+    }
+  },
+  "REPORTS_HUB": {
+    "EYEBROW": "Reporting",
+    "TITLE": "Reports",
+    "COPY": "One place to reach every report and analytics page: financial statements, reconciliation trends, cash flow forecasting, the live dashboard, and scheduled report emails.",
+    "FINANCIAL_REPORTS_COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet.",
+    "RECONCILIATION_TRENDS_COPY": "Daily match, confirmation, exception, and backlog trends.",
+    "CASH_FLOW_COPY": "Projected cash position based on confirmed and pending transactions.",
+    "DASHBOARD_TITLE": "Dashboard",
+    "DASHBOARD_COPY": "Live counts across transactions, matching, and journal posting.",
+    "REPORT_SCHEDULES_COPY": "Get any report emailed to you automatically, every week."
+  },
+  "REPORT_SCHEDULES": {
+    "TITLE": "Report Schedules",
+    "SUBTITLE": "Automatically email a report to a recipient every week.",
+    "REPORT_TYPE": "Report",
+    "FORMAT": "Format",
+    "DAY_OF_WEEK": "Day",
+    "RECIPIENT_EMAIL": "Recipient Email",
+    "ADD": "Add Schedule",
+    "NEXT_RUN": "Next Run",
+    "LAST_RUN": "Last Run",
+    "NEVER": "Never",
+    "EMPTY": "No report schedules yet. Add one above.",
+    "WEEKDAYS": {
+      "SUNDAY": "Sunday",
+      "MONDAY": "Monday",
+      "TUESDAY": "Tuesday",
+      "WEDNESDAY": "Wednesday",
+      "THURSDAY": "Thursday",
+      "FRIDAY": "Friday",
+      "SATURDAY": "Saturday"
+    }
   }
 }

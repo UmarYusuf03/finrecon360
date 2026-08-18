@@ -2,6 +2,7 @@ using finrecon360_backend.Authorization;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Transactions;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Export;
 using finrecon360_backend.Services.Transactions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,24 +15,43 @@ namespace finrecon360_backend.Controllers.Admin
     [Authorize]
     public class TransactionsController : ControllerBase
     {
+        private static readonly IReadOnlyList<ExportColumn<TransactionResponse>> ExportColumns = new List<ExportColumn<TransactionResponse>>
+        {
+            new("Date", t => t.TransactionDate.ToString("yyyy-MM-dd")),
+            new("Reference", t => t.ReferenceNumber),
+            new("Description", t => t.Description),
+            new("Amount", t => t.Amount.ToString("0.00")),
+            new("Type", t => t.TransactionType),
+            new("Method", t => t.PaymentMethod),
+            new("State", t => t.TransactionState),
+            new("Bank Account ID", t => t.BankAccountId?.ToString()),
+            new("Created At (UTC)", t => t.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+            new("Approved At (UTC)", t => t.ApprovedAt?.ToString("yyyy-MM-dd HH:mm:ss")),
+            new("Rejected At (UTC)", t => t.RejectedAt?.ToString("yyyy-MM-dd HH:mm:ss")),
+            new("Rejection Reason", t => t.RejectionReason),
+        };
+
         private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
         private readonly IUserContext _userContext;
         private readonly TransactionService _transactionService;
+        private readonly IReportExporter _reportExporter;
 
         public TransactionsController(
             AppDbContext dbContext,
             ITenantContext tenantContext,
             ITenantDbContextFactory tenantDbContextFactory,
             IUserContext userContext,
-            TransactionService transactionService)
+            TransactionService transactionService,
+            IReportExporter reportExporter)
         {
             _dbContext = dbContext;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
             _transactionService = transactionService;
+            _reportExporter = reportExporter;
         }
 
         [HttpPost]
@@ -65,6 +85,67 @@ namespace finrecon360_backend.Controllers.Admin
 
             var result = await _transactionService.GetAllAsync(tenantDb, ct);
             return Ok(result);
+        }
+
+        [HttpGet("export")]
+        [RequirePermission("ADMIN.TRANSACTIONS.VIEW")]
+        public async Task<IActionResult> Export(
+            [FromQuery] string? format,
+            [FromQuery] string? state,
+            [FromQuery] string? search,
+            CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (!_reportExporter.TryParseFormat(format, out var exportFormat))
+            {
+                return BadRequest(new { message = "Unsupported export format. Use 'csv' or 'xlsx'." });
+            }
+
+            var all = await _transactionService.GetAllAsync(tenantDb, ct);
+            var filtered = ApplyExportFilters(all, state, search);
+
+            if (filtered.Count > _reportExporter.MaxRows)
+            {
+                return BadRequest(new
+                {
+                    message = $"Export limited to {_reportExporter.MaxRows} rows. Narrow the state or search filters and try again."
+                });
+            }
+
+            var file = _reportExporter.Export(filtered, ExportColumns, "Transactions", exportFormat);
+            return File(file.Content, file.ContentType, $"transactions-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
+        }
+
+        // Mirrors the client-side search/state filtering in admin-transactions.ts so the export
+        // matches exactly what the user sees on screen.
+        private static List<TransactionResponse> ApplyExportFilters(
+            List<TransactionResponse> transactions,
+            string? state,
+            string? search)
+        {
+            IEnumerable<TransactionResponse> query = transactions;
+
+            if (!string.IsNullOrWhiteSpace(state) && !string.Equals(state, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(t => string.Equals(t.TransactionState, state, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var term = search?.Trim();
+            if (!string.IsNullOrEmpty(term))
+            {
+                query = query.Where(t =>
+                    (t.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (t.ReferenceNumber?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    t.TransactionType.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    t.PaymentMethod.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    t.TransactionState.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    t.Amount.ToString("0.00").Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.ToList();
         }
 
         [HttpGet("journal-ready")]

@@ -8,6 +8,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
@@ -18,6 +19,7 @@ import { Observable } from 'rxjs';
 
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { BankAccount, BankAccountCapacity } from '../../../core/admin-rbac/models';
+import { ExportFormat, ExportService } from '../../../core/services/export.service';
 
 @Component({
   selector: 'app-admin-bank-accounts',
@@ -32,6 +34,7 @@ import { BankAccount, BankAccountCapacity } from '../../../core/admin-rbac/model
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
@@ -47,6 +50,7 @@ export class AdminBankAccountsComponent implements OnInit {
   editingId: string | null = null;
   loading = false;
   saving = false;
+  exporting = false;
   deactivatingId: string | null = null;
   saveError: string | null = null;
   capacity: BankAccountCapacity | null = null;
@@ -65,6 +69,7 @@ export class AdminBankAccountsComponent implements OnInit {
     private fb: FormBuilder,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
+    private exportService: ExportService,
   ) {}
 
   ngOnInit(): void {
@@ -82,6 +87,26 @@ export class AdminBankAccountsComponent implements OnInit {
   refresh(): void {
     this.loadBankAccounts();
     this.loadCapacity();
+  }
+
+  exportBankAccounts(format: ExportFormat): void {
+    if (this.exporting) {
+      return;
+    }
+
+    this.exporting = true;
+    this.bankAccountService.export(format).subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        this.exportService.downloadBlob(blob, this.exportService.buildFilename('bank-accounts', format));
+      },
+      error: (error: unknown) => {
+        this.exporting = false;
+        this.exportService.extractErrorMessage(error).then((message) => {
+          this.snackBar.open(message, 'Close', { duration: 3500 });
+        });
+      },
+    });
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {

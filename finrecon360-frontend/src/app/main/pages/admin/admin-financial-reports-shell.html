@@ -1,0 +1,18 @@
+<section class="reports-page">
+  <header>
+    <span class="reports-page__eyebrow">{{ 'FINANCIAL_REPORTS.EYEBROW' | translate }}</span>
+    <div class="reports-page__copy">
+      <h2>{{ 'FINANCIAL_REPORTS.TITLE' | translate }}</h2>
+      <p>{{ 'FINANCIAL_REPORTS.COPY' | translate }}</p>
+    </div>
+  </header>
+
+  <nav class="reports-nav" [attr.aria-label]="'FINANCIAL_REPORTS.NAV_ARIA' | translate">
+    <a routerLink="general-ledger" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.GENERAL_LEDGER' | translate }}</a>
+    <a routerLink="trial-balance" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.TRIAL_BALANCE' | translate }}</a>
+    <a routerLink="income-statement" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.INCOME_STATEMENT' | translate }}</a>
+    <a routerLink="balance-sheet" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.BALANCE_SHEET' | translate }}</a>
+  </nav>
+
+  <router-outlet></router-outlet>
+</section>

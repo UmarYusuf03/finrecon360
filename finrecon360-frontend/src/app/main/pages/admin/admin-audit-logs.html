@@ -26,9 +26,16 @@
     <div class="actions">
       <button class="primary-btn" (click)="applyFilters()">{{ 'COMMON.APPLY' | translate }}</button>
       <button class="ghost-btn" (click)="resetFilters()">{{ 'COMMON.RESET' | translate }}</button>
+      <button class="ghost-btn" [disabled]="exporting" (click)="exportLogs('csv')">
+        {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_CSV') | translate }}
+      </button>
+      <button class="ghost-btn" [disabled]="exporting" (click)="exportLogs('xlsx')">
+        {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_XLSX') | translate }}
+      </button>
     </div>
   </div>
 
+  <div class="state state--error" *ngIf="exportError">{{ exportError }}</div>
   <div class="state state--error" *ngIf="error">{{ error }}</div>
   <div class="state" *ngIf="loading">{{ 'ADMIN.AUDIT_LOGS.LOADING' | translate }}</div>
 

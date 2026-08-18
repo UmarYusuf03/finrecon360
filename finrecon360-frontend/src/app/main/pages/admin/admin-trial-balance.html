@@ -1,0 +1,70 @@
+<div class="reports-toolbar">
+  <label class="reports-field">
+    <span>{{ 'FINANCIAL_REPORTS.AS_OF' | translate }}</span>
+    <input type="date" [(ngModel)]="asOfDate" (ngModelChange)="onFiltersChanged()" />
+  </label>
+
+  <div class="reports-toolbar__actions">
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('csv')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_CSV') | translate }}
+    </button>
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('xlsx')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_XLSX') | translate }}
+    </button>
+  </div>
+</div>
+
+<div class="reports-state" *ngIf="loading">{{ 'FINANCIAL_REPORTS.LOADING' | translate }}</div>
+<div class="reports-state reports-state--error" *ngIf="!loading && error" role="alert">{{ error }}</div>
+
+<ng-container *ngIf="!loading && !error && report">
+  <div class="reports-stats">
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.TRIAL_BALANCE.TOTAL_DEBIT' | translate }}</span>
+      <strong>{{ report.totalDebit | number: '1.2-2' }}</strong>
+    </article>
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.TRIAL_BALANCE.TOTAL_CREDIT' | translate }}</span>
+      <strong>{{ report.totalCredit | number: '1.2-2' }}</strong>
+    </article>
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.TRIAL_BALANCE.STATUS' | translate }}</span>
+      <strong [class.positive]="report.isBalanced" [class.negative]="!report.isBalanced">
+        {{ (report.isBalanced ? 'FINANCIAL_REPORTS.TRIAL_BALANCE.BALANCED' : 'FINANCIAL_REPORTS.TRIAL_BALANCE.UNBALANCED') | translate }}
+      </strong>
+    </article>
+  </div>
+
+  <div class="reports-table-wrap">
+    <table class="reports-table">
+      <thead>
+        <tr>
+          <th>{{ 'FINANCIAL_REPORTS.ACCOUNT_CODE' | translate }}</th>
+          <th>{{ 'FINANCIAL_REPORTS.ACCOUNT_NAME' | translate }}</th>
+          <th>{{ 'FINANCIAL_REPORTS.ACCOUNT_TYPE' | translate }}</th>
+          <th class="numeric">{{ 'FINANCIAL_REPORTS.TRIAL_BALANCE.DEBIT' | translate }}</th>
+          <th class="numeric">{{ 'FINANCIAL_REPORTS.TRIAL_BALANCE.CREDIT' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let line of report.lines">
+          <td>{{ line.accountCode }}</td>
+          <td>{{ line.accountName }}</td>
+          <td>{{ line.accountType || '-' }}</td>
+          <td class="numeric">{{ line.debit | number: '1.2-2' }}</td>
+          <td class="numeric">{{ line.credit | number: '1.2-2' }}</td>
+        </tr>
+        <tr *ngIf="report.lines.length === 0">
+          <td colspan="5" class="reports-state">{{ 'FINANCIAL_REPORTS.TRIAL_BALANCE.EMPTY' | translate }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3">{{ 'FINANCIAL_REPORTS.TRIAL_BALANCE.TOTALS' | translate }}</td>
+          <td class="numeric">{{ report.totalDebit | number: '1.2-2' }}</td>
+          <td class="numeric">{{ report.totalCredit | number: '1.2-2' }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</ng-container>

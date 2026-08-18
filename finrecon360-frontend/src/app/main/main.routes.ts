@@ -43,9 +43,27 @@ export const mainRoutes: Routes = [
             'ADMIN.IMPORT_ARCHITECTURE.VIEW',
             'ADMIN.SUBSCRIPTIONS.MANAGE',
             'ADMIN.CASH_FLOW_FORECAST.VIEW',
+            'ADMIN.FINANCIAL_REPORTS.VIEW',
+            'ADMIN.REPORT_SCHEDULES.MANAGE',
           ],
         },
         children: [
+          {
+            path: 'reports',
+            loadComponent: () =>
+              import('./pages/admin/admin-reports-hub').then((m) => m.AdminReportsHubComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.DASHBOARD.VIEW'] },
+          },
+          {
+            path: 'report-schedules',
+            loadComponent: () =>
+              import('./pages/admin/admin-report-schedules').then(
+                (m) => m.AdminReportSchedulesComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.REPORT_SCHEDULES.MANAGE'] },
+          },
           {
             path: 'transactions',
             pathMatch: 'full',
@@ -87,6 +105,46 @@ export const mainRoutes: Routes = [
               ),
             canActivate: [AccessGuard],
             data: { permissions: ['ADMIN.CASH_FLOW_FORECAST.VIEW'] },
+          },
+          {
+            path: 'financial-reports',
+            loadComponent: () =>
+              import('./pages/admin/admin-financial-reports-shell').then(
+                (m) => m.AdminFinancialReportsShellComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.FINANCIAL_REPORTS.VIEW'] },
+            children: [
+              {
+                path: 'general-ledger',
+                loadComponent: () =>
+                  import('./pages/admin/admin-general-ledger').then(
+                    (m) => m.AdminGeneralLedgerComponent,
+                  ),
+              },
+              {
+                path: 'trial-balance',
+                loadComponent: () =>
+                  import('./pages/admin/admin-trial-balance').then(
+                    (m) => m.AdminTrialBalanceComponent,
+                  ),
+              },
+              {
+                path: 'income-statement',
+                loadComponent: () =>
+                  import('./pages/admin/admin-income-statement').then(
+                    (m) => m.AdminIncomeStatementComponent,
+                  ),
+              },
+              {
+                path: 'balance-sheet',
+                loadComponent: () =>
+                  import('./pages/admin/admin-balance-sheet').then(
+                    (m) => m.AdminBalanceSheetComponent,
+                  ),
+              },
+              { path: '', pathMatch: 'full', redirectTo: 'general-ledger' },
+            ],
           },
           {
             path: 'roles',
@@ -251,6 +309,11 @@ export const mainRoutes: Routes = [
             path: 'events',
             loadComponent: () =>
               import('./pages/matcher/matcher-events').then((m) => m.MatcherEventsComponent),
+          },
+          {
+            path: 'trends',
+            loadComponent: () =>
+              import('./pages/matcher/matcher-trends').then((m) => m.MatcherTrendsComponent),
           },
           { path: '**', redirectTo: '' },
         ],

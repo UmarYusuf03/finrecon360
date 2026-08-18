@@ -100,17 +100,16 @@ Frontend unit tests use `src/environments/environment.test.ts` with `mockApi: tr
 
 ## Current Scope Warning
 
-The target architecture describes broader finance workflows such as reconciliation orchestration, journal gating, transaction state history, cashout branching rules, and reporting snapshots. Those are not fully implemented in this repository yet.
+The target architecture describes broader finance workflows such as reconciliation orchestration, journal gating, transaction state history, and cashout branching rules. See `WORKER-INTEGRATION.md` for the current status of the six-level reconciliation and journal posting pipeline.
 
 What is already implemented beyond tenancy/onboarding/RBAC:
 
 - canonical import foundation in backend and frontend (`/app/imports` and `/app/admin/import-architecture`)
 - import pipeline stages: upload -> parse -> field mapping -> validation -> normalization commit
 - canonical schema and mapping-template management APIs for tenant-admin users
+- reporting: CSV/XLSX export on every list screen, financial statements (General Ledger, Trial Balance, Income Statement, Balance Sheet), reconciliation trend charts, a tenant-wide daily KPI snapshot pipeline, a Reports Hub landing page, and weekly emailed report schedules — see `docs/architecture/reporting-implementation-plan.md` for the phase-by-phase detail
 
 What remains target-state:
 
-- cashout workflow branching (cash approval -> journal vs card approval -> bank match -> journal)
-- transaction state and transaction state history entities
-- reconciliation engine and journal posting orchestration modules
-- reporting snapshot jobs and finance KPI tables
+- cashout workflow branching (cash approval -> journal vs card approval -> bank match -> journal) — see `WORKER-INTEGRATION.md` for current status, this may already be further along than this line suggests
+- transaction state and transaction state history entities — see `WORKER-INTEGRATION.md`

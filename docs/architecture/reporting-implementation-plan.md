@@ -1,7 +1,10 @@
 # Reporting & Analytics — Implementation Plan
 
-Status: planned, not started. Written to be picked up cold in a new chat/session — it
-does not assume any prior conversation context.
+Status: **implemented, Phases 0–5 complete (2026-08-18)**. Originally written to be
+picked up cold in a new chat/session; that context-free framing is now historical —
+this doc is kept as the design record for the reporting layer. See "Phase completion
+log" at the end of this file for what was actually built, verification results, and
+the handful of deliberate deviations from the plan below (each with reasoning).
 
 ## 1. Where this fits
 
@@ -100,7 +103,7 @@ What does **not** exist at all:
 Each phase is independently shippable and builds on the last. Sizing is relative
 (S/M/L), not a time estimate.
 
-### Phase 0 — Export foundation (S)
+### Phase 0 — Export foundation (S) — ✅ Done
 
 Nothing downstream should build its own export logic; this is the one piece every
 later phase reuses.
@@ -122,7 +125,7 @@ later phase reuses.
   viewer (`AdminTenantAuditLogsController`), since it already has the filter
   parameters that should also scope the export.
 
-### Phase 1 — Export existing screens (S)
+### Phase 1 — Export existing screens (S) — ✅ Done
 
 Pure leverage of Phase 0, no new data model. Add "Export CSV" / "Export XLSX" to:
 
@@ -137,7 +140,7 @@ Each is a new `GET .../export?format=csv|xlsx` endpoint on the existing controll
 (reuse existing query/filter logic, skip pagination, cap at a sane row limit e.g.
 10,000 with a clear error if exceeded) plus one button in the existing template.
 
-### Phase 2 — Financial statements (L)
+### Phase 2 — Financial statements (L) — ✅ Done
 
 The highest-value gap: real accounting output from data that already exists.
 
@@ -169,7 +172,7 @@ The highest-value gap: real accounting output from data that already exists.
   needs closing first, either by backfilling a mapping or explicitly reporting an
   "unclassified" bucket rather than silently excluding those entries.
 
-### Phase 3 — Reconciliation trend reporting (M)
+### Phase 3 — Reconciliation trend reporting (M) — ✅ Done
 
 Needs history that doesn't exist yet — match groups and events are current-state
 only, so this phase introduces the first real snapshot table (a scoped-down preview
@@ -190,7 +193,7 @@ it).
 - Frontend: trend charts using the same hand-rolled-SVG approach as the cash flow
   forecast — match rate over time, exception aging, unmatched backlog trend.
 
-### Phase 4 — Generalize into Module 8 (L)
+### Phase 4 — Generalize into Module 8 (L) — ✅ Done (with deviations, see completion log)
 
 Once Phase 3 proves the snapshot pattern works, generalize it into what Section 17
 actually describes: a tenant-wide KPI fact table, not just a reconciliation-specific
@@ -214,7 +217,7 @@ one.
   stated Section 17 benefit ("lower load on transactional tables") — a
   backward-compatible internal swap, not a breaking change to the dashboard API.
 
-### Phase 5 — Scheduled/emailed reports (stretch, M)
+### Phase 5 — Scheduled/emailed reports (stretch, M) — ✅ Done (without plan-gating, see completion log)
 
 Not blocking, but a natural extension once Phase 2–4 exist, and ties into the
 subscription-revenue ideas discussed earlier this project (a plan-gated premium
@@ -233,3 +236,90 @@ Statements turns out to need the Chart of Accounts prerequisite check resolved f
 (that could push it behind Phase 3). Do not start Phase 4 before Phase 3 has shipped
 and been used for at least one real reporting period — generalizing a pattern that's
 only been designed on paper, not exercised, tends to guess wrong about the shape.
+
+## 6. Phase completion log (2026-08-18)
+
+All six phases were built in one continuous run rather than across separate real
+reporting periods — the user explicitly asked to proceed straight through Phase 4
+despite the "wait for a real period" note above. Recorded here so a future reader
+knows that caution was consciously overridden, not missed.
+
+**Verification, every phase**: `dotnet build` clean, `dotnet test` full suite green
+(128 → 167 tests over the course of the six phases), `ng build --configuration
+development` clean, `ng test --watch=false --browsers=ChromeHeadless` — 66
+passing / 8 failing throughout, the same 8 pre-existing unrelated failures called out
+in Section 3 above (never 9+, confirmed via `git stash` diff before/after each phase).
+
+### What shipped, file-by-file, is in the Controllers/Services/Dtos/BackgroundServices
+listed inline throughout Sections 4.0–4.5 above — this section covers only where the
+implementation diverged from what's written there, and why.
+
+**Phase 0/1** — built exactly as specified. `Services/Export/ReportExporter.cs`,
+`core/services/export.service.ts`, export endpoints + buttons on Transactions, Bank
+Accounts, both Audit Log variants, and Match Groups (pending + unmatched queues).
+
+**Phase 2** — built as specified, with one correctness finding along the way: the
+Chart-of-Accounts prerequisite check (Section 4.2) turned up real unclassified
+activity — `ReconciliationController`'s two manual posting endpoints
+(`PostJournalFromTransaction`, `PostJournalFromMatchGroup`) never set
+`ChartOfAccountId` at all. Rather than touch live posting code in a reporting-only
+phase, every report (General Ledger, Trial Balance, Income Statement, Balance Sheet)
+surfaces those entries as a distinct "Unclassified" line/bucket instead of silently
+dropping them — the plan's own explicitly-sanctioned fallback. Balance Sheet
+deliberately does not assert Assets = Liabilities + Equity (no retained-earnings
+roll-up exists in this ledger yet; asserting it would be dishonest, not just
+incomplete). A real bug was caught by the compiler here, not by review:
+`Dictionary<Guid?, T>` throws `ArgumentNullException` on a null key at runtime —
+exactly the Unclassified case — fixed in `GeneralLedgerService` with a regression
+test.
+
+**Phase 3** — built as specified. `ReconciliationDailySnapshot` (one row per
+`SnapshotDate` × `MatchLevel`), `ReconciliationSnapshotWorker`,
+`ReconciliationSnapshotHostedService`, `ReconciliationReportsController`, and a
+`matcher-trends` page added as a sibling tab to the Matcher shell's existing
+Material-styled pages (Events/Waiting Queue/Sales Verification) rather than the older
+Tailwind-styled drill-down pages (`matcher-queue`/`matcher-unmatched`) — the new page
+is a nav-level sibling to the former, not a drill-down like the latter.
+
+**Phase 4** — one design decision and one deliberate deviation:
+
+- *Design decision the plan left open*: kept `TenantDailySnapshot` as a **separate**
+  table from `ReconciliationDailySnapshot` rather than broadening the latter, per the
+  plan's own "decide based on how Phase 3 actually shakes out" allowance. None of
+  Module 8's remaining outputs (approval backlog, journal posting summary, bank
+  reconciliation progress) are naturally per-`MatchLevel`, so forcing them into that
+  shape would mean repeating the same tenant-wide number on every level row.
+- *Deviation*: the plan says `DashboardController` "should start reading from the
+  snapshot table instead of running `COUNT()` queries live." This was **not** done for
+  the existing `/summary` endpoint. Most of its fields (pending approvals,
+  needs-bank-match, journal-ready) are current-moment queue sizes an operator needs
+  accurate to the second — a once-daily snapshot would show yesterday's queue as
+  today's, which actively misleads rather than merely going stale. And for the
+  cumulative counts, summing N days of snapshot deltas is asymptotically *slower* than
+  the existing indexed `COUNT(*)` as a tenant's history grows — the literal swap would
+  have been a performance regression dressed up as compliance with this doc. Instead,
+  a new, additive `GetTrend` endpoint reads the snapshot tables for historical
+  context, and `/summary` is untouched.
+- Reports Hub shipped as specified: `/app/admin/reports`, linking to Financial
+  Reports, Reconciliation Trends, Cash Flow Forecast, Dashboard, and (once it existed)
+  Report Schedules.
+
+**Phase 5** — built as specified, with one necessary extension and one scope cut:
+
+- *Necessary extension*: `IEmailSender` was template-only (`SendTemplateAsync`, a
+  fixed Brevo template ID + params, no attachment field) — there was no way to
+  "send it through the already-wired `IEmailSender`" as written without adding
+  attachment support. Added `SendWithAttachmentAsync` as a new interface method
+  (existing call sites — magic links, onboarding, password reset — untouched) and
+  implemented it in `BrevoEmailSender` and the test double `FakeEmailSender`.
+- *Scope cut*: no plan-gating (Growth/Enterprise tier restriction on scheduled
+  reports). The plan mentions this as motivating context ("ties into the
+  subscription-revenue ideas discussed earlier"), not a hard requirement, and it's a
+  meaningfully separate piece of work — a new `Plan` column via a real control-plane
+  EF migration, an admin plan-editor UI diff, and enforcement wiring — that deserves
+  its own explicit decision rather than being bundled silently into an already-large
+  combined delivery. The scheduling feature itself is fully built and available to
+  every tenant today.
+- Weekly-only cadence (`DayOfWeek` + a fixed 06:00 UTC delivery hour), no PUT-update
+  on an existing schedule's report type/format/day/recipient (delete and recreate
+  instead) — both explicit scope simplifications for a "stretch" phase, not oversights.

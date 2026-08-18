@@ -3,6 +3,7 @@ using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.BankAccounts;
 using finrecon360_backend.Services;
 using finrecon360_backend.Services.BankAccounts;
+using finrecon360_backend.Services.Export;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,24 +15,38 @@ namespace finrecon360_backend.Controllers.Admin
     [Authorize]
     public class BankAccountsController : ControllerBase
     {
+        private static readonly IReadOnlyList<ExportColumn<BankAccountResponse>> ExportColumns = new List<ExportColumn<BankAccountResponse>>
+        {
+            new("Bank Name", a => a.BankName),
+            new("Account Name", a => a.AccountName),
+            new("Account Number", a => a.AccountNumber),
+            new("Currency", a => a.Currency),
+            new("Status", a => a.IsActive ? "Active" : "Inactive"),
+            new("Created At (UTC)", a => a.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+            new("Updated At (UTC)", a => a.UpdatedAt?.ToString("yyyy-MM-dd HH:mm:ss")),
+        };
+
         private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
         private readonly IUserContext _userContext;
         private readonly BankAccountService _bankAccountService;
+        private readonly IReportExporter _reportExporter;
 
         public BankAccountsController(
             AppDbContext dbContext,
             ITenantContext tenantContext,
             ITenantDbContextFactory tenantDbContextFactory,
             IUserContext userContext,
-            BankAccountService bankAccountService)
+            BankAccountService bankAccountService,
+            IReportExporter reportExporter)
         {
             _dbContext = dbContext;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
             _bankAccountService = bankAccountService;
+            _reportExporter = reportExporter;
         }
 
         [HttpPost]
@@ -90,6 +105,32 @@ namespace finrecon360_backend.Controllers.Admin
 
             var result = await _bankAccountService.GetAllAsync(tenantDb, ct);
             return Ok(result);
+        }
+
+        [HttpGet("export")]
+        [RequirePermission("ADMIN.BANK_ACCOUNTS.VIEW")]
+        public async Task<IActionResult> Export([FromQuery] string? format, CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantAdminAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (!_reportExporter.TryParseFormat(format, out var exportFormat))
+            {
+                return BadRequest(new { message = "Unsupported export format. Use 'csv' or 'xlsx'." });
+            }
+
+            var accounts = await _bankAccountService.GetAllAsync(tenantDb, ct);
+            if (accounts.Count > _reportExporter.MaxRows)
+            {
+                return BadRequest(new
+                {
+                    message = $"Export limited to {_reportExporter.MaxRows} rows."
+                });
+            }
+
+            var file = _reportExporter.Export(accounts, ExportColumns, "Bank Accounts", exportFormat);
+            return File(file.Content, file.ContentType, $"bank-accounts-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
         }
 
         [HttpGet("{id:guid}")]

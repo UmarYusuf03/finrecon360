@@ -16,6 +16,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -36,6 +37,7 @@ import {
   UpdateTransactionRequest,
 } from '../../../core/admin-rbac/models';
 import { AuthService } from '../../../core/auth/auth.service';
+import { ExportFormat, ExportService } from '../../../core/services/export.service';
 
 @Component({
   selector: 'app-admin-transactions',
@@ -50,6 +52,7 @@ import { AuthService } from '../../../core/auth/auth.service';
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     MatSelectModule,
     MatDatepickerModule,
     MatSnackBarModule,
@@ -83,6 +86,7 @@ export class AdminTransactionsComponent implements OnInit {
   loading = false;
   historyLoading = false;
   saving = false;
+  exporting = false;
   actionId: string | null = null;
   saveError: string | null = null;
   searchTerm = '';
@@ -104,6 +108,7 @@ export class AdminTransactionsComponent implements OnInit {
     private fb: FormBuilder,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
+    private exportService: ExportService,
   ) {}
 
   ngOnInit(): void {
@@ -153,6 +158,26 @@ export class AdminTransactionsComponent implements OnInit {
     }
 
     this.loadTransactions();
+  }
+
+  exportTransactions(format: ExportFormat): void {
+    if (this.exporting) {
+      return;
+    }
+
+    this.exporting = true;
+    this.transactionService.export(format, this.selectedStateFilter, this.searchTerm).subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        this.exportService.downloadBlob(blob, this.exportService.buildFilename('transactions', format));
+      },
+      error: (error: unknown) => {
+        this.exporting = false;
+        this.exportService.extractErrorMessage(error).then((message) => {
+          this.snackBar.open(message, 'Close', { duration: 3500 });
+        });
+      },
+    });
   }
 
   applyListFilters(): void {

@@ -1,0 +1,88 @@
+<div class="reports-toolbar">
+  <label class="reports-field">
+    <span>{{ 'FINANCIAL_REPORTS.FROM' | translate }}</span>
+    <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onFiltersChanged()" />
+  </label>
+  <label class="reports-field">
+    <span>{{ 'FINANCIAL_REPORTS.TO' | translate }}</span>
+    <input type="date" [(ngModel)]="toDate" (ngModelChange)="onFiltersChanged()" />
+  </label>
+
+  <div class="reports-toolbar__actions">
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('csv')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_CSV') | translate }}
+    </button>
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('xlsx')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_XLSX') | translate }}
+    </button>
+  </div>
+</div>
+
+<div class="reports-state" *ngIf="loading">{{ 'FINANCIAL_REPORTS.LOADING' | translate }}</div>
+<div class="reports-state reports-state--error" *ngIf="!loading && error" role="alert">{{ error }}</div>
+
+<ng-container *ngIf="!loading && !error && report">
+  <div class="reports-stats">
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.TOTAL_REVENUE' | translate }}</span>
+      <strong class="positive">{{ report.totalRevenue | number: '1.2-2' }}</strong>
+    </article>
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.TOTAL_EXPENSE' | translate }}</span>
+      <strong class="negative">{{ report.totalExpense | number: '1.2-2' }}</strong>
+    </article>
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.NET_INCOME' | translate }}</span>
+      <strong [class.positive]="report.netIncome >= 0" [class.negative]="report.netIncome < 0">
+        {{ report.netIncome | number: '1.2-2' }}
+      </strong>
+    </article>
+  </div>
+
+  <div class="reports-table-wrap">
+    <table class="reports-table">
+      <thead>
+        <tr>
+          <th>{{ 'FINANCIAL_REPORTS.ACCOUNT_CODE' | translate }}</th>
+          <th>{{ 'FINANCIAL_REPORTS.ACCOUNT_NAME' | translate }}</th>
+          <th class="numeric">{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.AMOUNT' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="reports-table__section-row">
+          <td colspan="3">{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.REVENUE' | translate }}</td>
+        </tr>
+        <tr *ngFor="let line of report.revenueLines">
+          <td>{{ line.accountCode }}</td>
+          <td>{{ line.accountName }}</td>
+          <td class="numeric">{{ line.amount | number: '1.2-2' }}</td>
+        </tr>
+        <tr *ngIf="report.revenueLines.length === 0">
+          <td colspan="3">{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.NO_REVENUE' | translate }}</td>
+        </tr>
+
+        <tr class="reports-table__section-row">
+          <td colspan="3">{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.EXPENSE' | translate }}</td>
+        </tr>
+        <tr *ngFor="let line of report.expenseLines">
+          <td>{{ line.accountCode }}</td>
+          <td>{{ line.accountName }}</td>
+          <td class="numeric">{{ line.amount | number: '1.2-2' }}</td>
+        </tr>
+        <tr *ngIf="report.expenseLines.length === 0">
+          <td colspan="3">{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.NO_EXPENSE' | translate }}</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2">{{ 'FINANCIAL_REPORTS.INCOME_STATEMENT.NET_INCOME' | translate }}</td>
+          <td class="numeric">{{ report.netIncome | number: '1.2-2' }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <p class="reports-note" *ngIf="report.unclassifiedAmount !== 0">
+    {{ 'FINANCIAL_REPORTS.UNCLASSIFIED_NOTE' | translate: { amount: (report.unclassifiedAmount | number: '1.2-2') } }}
+  </p>
+</ng-container>

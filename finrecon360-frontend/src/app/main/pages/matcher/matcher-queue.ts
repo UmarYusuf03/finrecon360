@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MatchGroupsService, PendingMatchSummary } from '../../services/match-groups.service';
 import { finalize } from 'rxjs/operators';
+import { ExportFormat, ExportService } from '../../../core/services/export.service';
 
 @Component({
   selector: 'app-matcher-queue',
@@ -18,12 +19,21 @@ import { finalize } from 'rxjs/operators';
           <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Confirmation Queue</h1>
           <p class="text-slate-500 mt-1">Review and manually confirm matches for {{ level || 'All Rules' }}</p>
         </div>
+        <div class="flex gap-2" *ngIf="!loading && queue.length > 0">
+          <button class="btn btn-outline btn-sm" [disabled]="exporting" (click)="exportQueue('csv')">
+            <i class="bi bi-download me-2"></i> {{ exporting ? 'Exporting...' : 'Export CSV' }}
+          </button>
+          <button class="btn btn-outline btn-sm" [disabled]="exporting" (click)="exportQueue('xlsx')">
+            <i class="bi bi-download me-2"></i> {{ exporting ? 'Exporting...' : 'Export Excel' }}
+          </button>
+        </div>
       </div>
 
       <div *ngIf="loading" class="text-center p-12">
         <div class="spinner-border text-primary"></div>
       </div>
 
+      <div *ngIf="exportError" class="alert alert-danger">{{ exportError }}</div>
       <div *ngIf="error" class="alert alert-danger">{{ error }}</div>
 
       <div *ngIf="!loading && !error && queue.length === 0" class="text-center p-12 bg-slate-50 dark:bg-slate-800 rounded-xl">
@@ -103,11 +113,14 @@ export class MatcherQueueComponent implements OnInit {
   private matchGroupsService = inject(MatchGroupsService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private exportService = inject(ExportService);
 
   level: string | null = null;
   queue: PendingMatchSummary[] = [];
   loading = true;
   error: string | null = null;
+  exporting = false;
+  exportError: string | null = null;
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
@@ -124,6 +137,27 @@ export class MatcherQueueComponent implements OnInit {
         next: (data) => this.queue = data,
         error: () => this.error = 'Failed to load confirmation queue'
       });
+  }
+
+  exportQueue(format: ExportFormat): void {
+    if (this.exporting) {
+      return;
+    }
+
+    this.exporting = true;
+    this.exportError = null;
+    this.matchGroupsService.exportPending(format, this.level || undefined).subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        this.exportService.downloadBlob(blob, this.exportService.buildFilename('pending-matches', format));
+      },
+      error: (error: unknown) => {
+        this.exporting = false;
+        this.exportService.extractErrorMessage(error).then((message) => {
+          this.exportError = message;
+        });
+      },
+    });
   }
 
   getRecordsBySide(group: PendingMatchSummary, side: 'left' | 'right') {

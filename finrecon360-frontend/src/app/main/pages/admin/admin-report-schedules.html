@@ -1,0 +1,110 @@
+<mat-card class="schedules-page-card">
+  <div class="schedules-page-header">
+    <div>
+      <h2>{{ 'REPORT_SCHEDULES.TITLE' | translate }}</h2>
+      <p>{{ 'REPORT_SCHEDULES.SUBTITLE' | translate }}</p>
+    </div>
+    <button mat-stroked-button type="button" (click)="load()" [disabled]="loading">
+      <mat-icon>refresh</mat-icon>
+      {{ 'COMMON.REFRESH' | translate }}
+    </button>
+  </div>
+
+  <form [formGroup]="form" class="schedules-form" (ngSubmit)="create()">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'REPORT_SCHEDULES.REPORT_TYPE' | translate }}</mat-label>
+      <mat-select formControlName="reportType">
+        <mat-option *ngFor="let type of reportTypes" [value]="type">{{ type }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'REPORT_SCHEDULES.FORMAT' | translate }}</mat-label>
+      <mat-select formControlName="format">
+        <mat-option *ngFor="let format of formats" [value]="format">{{ format.toUpperCase() }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'REPORT_SCHEDULES.DAY_OF_WEEK' | translate }}</mat-label>
+      <mat-select formControlName="dayOfWeek">
+        <mat-option *ngFor="let key of weekdayKeys; let i = index" [value]="i">{{ key | translate }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ 'REPORT_SCHEDULES.RECIPIENT_EMAIL' | translate }}</mat-label>
+      <input matInput type="email" formControlName="recipientEmail" placeholder="finance@company.com" />
+    </mat-form-field>
+
+    <button mat-flat-button color="primary" type="submit" [disabled]="saving">
+      <mat-icon>add</mat-icon>
+      {{ (saving ? 'COMMON.SAVING' : 'REPORT_SCHEDULES.ADD') | translate }}
+    </button>
+  </form>
+
+  <div class="schedules-table-wrap" *ngIf="!loading">
+    <table mat-table [dataSource]="schedules" class="schedules-table">
+      <ng-container matColumnDef="reportType">
+        <th mat-header-cell *matHeaderCellDef>{{ 'REPORT_SCHEDULES.REPORT_TYPE' | translate }}</th>
+        <td mat-cell *matCellDef="let schedule">{{ schedule.reportType }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="format">
+        <th mat-header-cell *matHeaderCellDef>{{ 'REPORT_SCHEDULES.FORMAT' | translate }}</th>
+        <td mat-cell *matCellDef="let schedule">{{ schedule.format.toUpperCase() }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="dayOfWeek">
+        <th mat-header-cell *matHeaderCellDef>{{ 'REPORT_SCHEDULES.DAY_OF_WEEK' | translate }}</th>
+        <td mat-cell *matCellDef="let schedule">{{ weekdayLabelKey(schedule.dayOfWeek) | translate }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="recipientEmail">
+        <th mat-header-cell *matHeaderCellDef>{{ 'REPORT_SCHEDULES.RECIPIENT_EMAIL' | translate }}</th>
+        <td mat-cell *matCellDef="let schedule">{{ schedule.recipientEmail }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="nextRunAt">
+        <th mat-header-cell *matHeaderCellDef>{{ 'REPORT_SCHEDULES.NEXT_RUN' | translate }}</th>
+        <td mat-cell *matCellDef="let schedule">{{ schedule.nextRunAt | date: 'yyyy-MM-dd HH:mm' : 'UTC' }} UTC</td>
+      </ng-container>
+
+      <ng-container matColumnDef="lastRunAt">
+        <th mat-header-cell *matHeaderCellDef>{{ 'REPORT_SCHEDULES.LAST_RUN' | translate }}</th>
+        <td mat-cell *matCellDef="let schedule">
+          {{ schedule.lastRunAt ? (schedule.lastRunAt | date: 'yyyy-MM-dd HH:mm' : 'UTC') + ' UTC' : ('REPORT_SCHEDULES.NEVER' | translate) }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="active">
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.ACTIVE' | translate }}</th>
+        <td mat-cell *matCellDef="let schedule">
+          <mat-slide-toggle [checked]="schedule.isActive" (change)="toggleActive(schedule)"></mat-slide-toggle>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let schedule">
+          <button
+            mat-icon-button
+            type="button"
+            [disabled]="deletingId === schedule.reportScheduleId"
+            (click)="remove(schedule)"
+            [attr.aria-label]="'COMMON.DELETE' | translate"
+          >
+            <mat-icon>delete</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+
+    <div class="schedules-empty" *ngIf="schedules.length === 0">
+      {{ 'REPORT_SCHEDULES.EMPTY' | translate }}
+    </div>
+  </div>
+</mat-card>

@@ -4,6 +4,7 @@ using finrecon360_backend.Dtos;
 using finrecon360_backend.Dtos.Admin;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Export;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -23,15 +24,18 @@ namespace finrecon360_backend.Controllers.Admin
         private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly IUserContext _userContext;
+        private readonly IReportExporter _reportExporter;
 
         public AdminTenantAuditLogsController(
             AppDbContext dbContext,
             ITenantContext tenantContext,
-            IUserContext userContext)
+            IUserContext userContext,
+            IReportExporter reportExporter)
         {
             _dbContext = dbContext;
             _tenantContext = tenantContext;
             _userContext = userContext;
+            _reportExporter = reportExporter;
         }
 
         [HttpGet]
@@ -51,10 +55,85 @@ namespace finrecon360_backend.Controllers.Admin
             page = page < 1 ? 1 : page;
             pageSize = pageSize < 1 ? 25 : Math.Min(pageSize, MaxPageSize);
 
+            var query = BuildFilteredQuery(auth.TenantId, action, entity, userId, fromUtc, toUtc, search);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(a => a.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => new AuditLogSummaryDto(
+                    a.AuditLogId,
+                    a.UserId,
+                    a.Action,
+                    a.Entity,
+                    a.EntityId,
+                    a.Metadata,
+                    a.CreatedAt,
+                    a.User != null ? a.User.Email : null,
+                    a.User != null ? a.User.DisplayName : null))
+                .ToListAsync();
+
+            return Ok(new PagedResult<AuditLogSummaryDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            });
+        }
+
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportAuditLogs(
+            [FromQuery] string? format,
+            [FromQuery] string? action = null,
+            [FromQuery] string? entity = null,
+            [FromQuery] Guid? userId = null,
+            [FromQuery] DateTime? fromUtc = null,
+            [FromQuery] DateTime? toUtc = null,
+            [FromQuery] string? search = null)
+        {
+            var auth = await AuthorizeTenantAdminAsync();
+            if (auth.Error != null) return auth.Error;
+
+            if (!_reportExporter.TryParseFormat(format, out var exportFormat))
+            {
+                return BadRequest(new { message = "Unsupported export format. Use 'csv' or 'xlsx'." });
+            }
+
+            var query = BuildFilteredQuery(auth.TenantId, action, entity, userId, fromUtc, toUtc, search);
+
+            var totalCount = await query.CountAsync();
+            if (totalCount > _reportExporter.MaxRows)
+            {
+                return BadRequest(new
+                {
+                    message = $"Export limited to {_reportExporter.MaxRows} rows. Narrow the date range or filters and try again."
+                });
+            }
+
+            var entities = await query
+                .OrderByDescending(a => a.CreatedAt)
+                .ToListAsync();
+            var items = entities.Select(ToSummaryDto).ToList();
+
+            var file = _reportExporter.Export(items, AuditLogExportColumns.Columns, "Audit Logs", exportFormat);
+            return File(file.Content, file.ContentType, $"audit-logs-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
+        }
+
+        private IQueryable<AuditLog> BuildFilteredQuery(
+            Guid tenantId,
+            string? action,
+            string? entity,
+            Guid? userId,
+            DateTime? fromUtc,
+            DateTime? toUtc,
+            string? search)
+        {
             var query = from log in _dbContext.AuditLogs.AsNoTracking().Include(a => a.User)
                         join tu in _dbContext.TenantUsers.AsNoTracking()
                             on log.UserId equals tu.UserId
-                        where tu.TenantId == auth.TenantId
+                        where tu.TenantId == tenantId
                         select log;
 
             if (!string.IsNullOrWhiteSpace(action))
@@ -96,31 +175,19 @@ namespace finrecon360_backend.Controllers.Admin
                         (a.User.DisplayName != null && a.User.DisplayName.Contains(term)))));
             }
 
-            var totalCount = await query.CountAsync();
-            var items = await query
-                .OrderByDescending(a => a.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(a => new AuditLogSummaryDto(
-                    a.AuditLogId,
-                    a.UserId,
-                    a.Action,
-                    a.Entity,
-                    a.EntityId,
-                    a.Metadata,
-                    a.CreatedAt,
-                    a.User != null ? a.User.Email : null,
-                    a.User != null ? a.User.DisplayName : null))
-                .ToListAsync();
-
-            return Ok(new PagedResult<AuditLogSummaryDto>
-            {
-                Items = items,
-                TotalCount = totalCount,
-                Page = page,
-                PageSize = pageSize
-            });
+            return query;
         }
+
+        private static AuditLogSummaryDto ToSummaryDto(AuditLog a) => new(
+            a.AuditLogId,
+            a.UserId,
+            a.Action,
+            a.Entity,
+            a.EntityId,
+            a.Metadata,
+            a.CreatedAt,
+            a.User != null ? a.User.Email : null,
+            a.User != null ? a.User.DisplayName : null);
 
         private async Task<(Guid TenantId, ActionResult? Error)> AuthorizeTenantAdminAsync()
         {

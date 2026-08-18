@@ -16,6 +16,19 @@
         {{ 'COMMON.REFRESH' | translate }}
       </button>
       <button
+        mat-stroked-button
+        type="button"
+        [matMenuTriggerFor]="exportMenu"
+        [disabled]="exporting || transactions.length === 0"
+      >
+        <mat-icon>download</mat-icon>
+        {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT') | translate }}
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item type="button" (click)="exportTransactions('csv')">{{ 'COMMON.EXPORT_CSV' | translate }}</button>
+        <button mat-menu-item type="button" (click)="exportTransactions('xlsx')">{{ 'COMMON.EXPORT_XLSX' | translate }}</button>
+      </mat-menu>
+      <button
         mat-flat-button
         color="primary"
         type="button"
