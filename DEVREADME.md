@@ -98,6 +98,22 @@ ng test --watch=false
 
 Frontend unit tests use `src/environments/environment.test.ts` with `mockApi: true`.
 
+## Reconciliation Test Data
+
+To exercise the matching engine and reporting screens against realistic data instead of a few
+hand-typed rows, use the `scenario-seeder` tool at the repo root. It spins up a brand-new tenant
+and seeds it with transactions/CSV imports covering every matching rule and exception path across
+all six reconciliation workers, spread over a ~3-month window.
+
+```bash
+cd scenario-seeder
+dotnet run -- --verify   # sanity-check with no server needed
+```
+
+See [`scenario-seeder/README.md`](scenario-seeder/README.md) for the full test-run vs. demo-run
+instructions (the demo run leaves the CSV files for a manual, click-through import instead of
+importing them automatically).
+
 ## Current Scope Warning
 
 The target architecture describes broader finance workflows such as reconciliation orchestration, journal gating, transaction state history, and cashout branching rules. See `WORKER-INTEGRATION.md` for the current status of the six-level reconciliation and journal posting pipeline.

@@ -1,0 +1,5 @@
+TransactionDate,PostingDate,ReferenceNumber,SettlementId,Description,AccountCode,AccountName,BatchNumber,TerminalId,MerchantId,GrossAmount,ProcessingFee,DebitAmount,CreditAmount,NetAmount,Currency
+2026-07-04,,CO-L4WRONGACCT-01,,Bank credit - lodged to wrong account,ACC600,,,,,,,,,9400.00,LKR
+2026-07-05,,CO-L4WRONGACCT-02,,Bank credit - lodged to wrong account,ACC601,,,,,,,,,9700.00,LKR
+2026-07-12,,STL-L6WRONGACCT-01,,Bank settlement deposit (wrong account),,,,,,,,,,27500.00,LKR
+2026-07-13,,STL-L6WRONGACCT-02,,Bank settlement deposit (wrong account),,,,,,,,,,28700.00,LKR

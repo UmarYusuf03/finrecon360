@@ -16,11 +16,20 @@ namespace finrecon360_backend.Services.Workers
         int NoMatchCount);
 
     /// <summary>
-    /// Implements Level7 (POS-terminal batch settlement): POS EOD batches ↔ BANK deposits.
+    /// Implements Level7 (POS-terminal batch settlement): POS_SETTLEMENT batches ↔ BANK deposits.
     ///
-    /// Both sides carry BatchNumber/TerminalId/MerchantId, extracted from narrative bank
-    /// descriptions at import time by PosIdentifierExtractor (see ImportsController.Commit) and
-    /// normalized (trimmed, uppercased, leading zeros stripped from BatchNumber).
+    /// POS_SETTLEMENT is the card-terminal/acquirer batch-close file — distinct from the POS
+    /// source type, which is the POS software's own EOD sales report used by Level1
+    /// (OperationalMatchWorker) to check staff entries. A modern POS setup produces both as
+    /// separate files: the register's sales log has no visibility into how the acquirer batched
+    /// and settled card charges, so BatchNumber/TerminalId/MerchantId can only come from the
+    /// terminal/acquirer's own settlement export.
+    ///
+    /// Both sides carry BatchNumber/TerminalId/MerchantId — either mapped directly from
+    /// structured columns in the POS_SETTLEMENT file, or (for BANK, whose narrative is
+    /// unstructured) extracted from the bank description at import time by PosIdentifierExtractor
+    /// (see ImportsController.Commit), normalized (trimmed, uppercased, leading zeros stripped
+    /// from BatchNumber).
     ///
     /// Matching runs as a four-tier waterfall each cycle, each tier operating only on records
     /// the previous tier left PENDING:
@@ -66,7 +75,7 @@ namespace finrecon360_backend.Services.Workers
             var holidays = (await tenantDb.BankingHolidays.AsNoTracking().Select(h => h.Date).ToListAsync(ct))
                 .ToHashSet();
 
-            var posRecords = await QueryPendingAsync(tenantDb, "POS", ct);
+            var posRecords = await QueryPendingAsync(tenantDb, "POS_SETTLEMENT", ct);
             var bankRecords = await QueryPendingAsync(tenantDb, "BANK", ct);
 
             var totalCandidates = posRecords.Count;
@@ -371,7 +380,7 @@ namespace finrecon360_backend.Services.Workers
             };
             tenantDb.ReconciliationMatchGroups.Add(group);
 
-            LinkRecords(tenantDb, group.ReconciliationMatchGroupId, match.PosRecords, "POS", settlementKey, now);
+            LinkRecords(tenantDb, group.ReconciliationMatchGroupId, match.PosRecords, "POS_SETTLEMENT", settlementKey, now);
             LinkRecords(tenantDb, group.ReconciliationMatchGroupId, match.BankRecords, "BANK", settlementKey, now);
 
             if (autoConfirm)

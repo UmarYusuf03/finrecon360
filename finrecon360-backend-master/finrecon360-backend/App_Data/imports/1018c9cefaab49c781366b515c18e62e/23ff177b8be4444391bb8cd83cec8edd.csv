@@ -1,0 +1,17 @@
+TransactionDate,PostingDate,ReferenceNumber,SettlementId,Description,AccountCode,AccountName,BatchNumber,TerminalId,MerchantId,GrossAmount,ProcessingFee,DebitAmount,CreditAmount,NetAmount,Currency
+2026-06-06,,ORD-L2MATCH-01,,ERP sales ledger entry,,,,,,,,,,7400.00,LKR
+2026-06-07,,ORD-L2MATCH-02,,ERP sales ledger entry,,,,,,,,,,8010.00,LKR
+2026-06-10,,ORD-L2VAR-01,,ERP sales ledger entry (discount applied),,,,,,,,,,8080.00,LKR
+2026-06-11,,ORD-L2VAR-02,,ERP sales ledger entry (discount applied),,,,,,,,,,8580.00,LKR
+2026-06-12,,ORD-L2AMB-01,,ERP sales ledger entry - draft 1,,,,,,,,,,9100.00,LKR
+2026-06-12,,ORD-L2AMB-01,,ERP sales ledger entry - draft 2 (duplicate posting),,,,,,,,,,9100.00,LKR
+2026-06-13,,ORD-L2AMB-02,,ERP sales ledger entry - draft 1,,,,,,,,,,9400.00,LKR
+2026-06-13,,ORD-L2AMB-02,,ERP sales ledger entry - draft 2 (duplicate posting),,,,,,,,,,9400.00,LKR
+2026-06-14,,INV-L3MATCH-01,,ERP sales ledger entry,,,,,,,,,,5600.00,LKR
+2026-06-15,,INV-L3MATCH-02,,ERP sales ledger entry,,,,,,,,,,6070.00,LKR
+2026-06-16,,INV-L3NOMATCH-01,,ERP sales ledger entry (revenue not yet collected),,,,,,,,,,4700.00,LKR
+2026-06-17,,INV-L3NOMATCH-02,,ERP sales ledger entry (revenue not yet collected),,,,,,,,,,5050.00,LKR
+2026-06-18,,INV-L3VAR-01,,ERP sales ledger entry,,,,,,,,,,6800.00,LKR
+2026-06-19,,INV-L3VAR-02,,ERP sales ledger entry,,,,,,,,,,7200.00,LKR
+2026-06-20,,INV-L3AMB-01,,ERP sales ledger entry,,,,,,,,,,7200.00,LKR
+2026-06-21,,INV-L3AMB-02,,ERP sales ledger entry,,,,,,,,,,7460.00,LKR

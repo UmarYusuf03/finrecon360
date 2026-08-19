@@ -1,0 +1,37 @@
+TransactionDate,PostingDate,ReferenceNumber,SettlementId,Description,AccountCode,AccountName,BatchNumber,TerminalId,MerchantId,GrossAmount,ProcessingFee,DebitAmount,CreditAmount,NetAmount,Currency
+2026-06-22,,CO-L4T1-01,,Bank credit - card cashout settlement,ACC100,,,,,,,,,12000.00,LKR
+2026-06-23,,CO-L4T1-02,,Bank credit - card cashout settlement,ACC101,,,,,,,,,12900.00,LKR
+2026-06-24,,CO-L4T2-01,,Bank credit - card cashout net of processing fee,ACC200,,,,,,,,,13200.00,LKR
+2026-06-25,,CO-L4T2-02,,Bank credit - card cashout net of processing fee,ACC201,,,,,,,,,13975.00,LKR
+2026-06-26,,CO-L4T3-01,,Bank credit - unexplained shortfall,ACC300,,,,,,,,,9070.00,LKR
+2026-06-27,,CO-L4T3-02,,Bank credit - unexplained shortfall,ACC301,,,,,,,,,9620.00,LKR
+2026-07-06,,CO-L4AMBBANK-01,,Bank credit - candidate A,ACC700,,,,,,,,,8800.00,LKR
+2026-07-06,,CO-L4AMBBANK-01,,Bank credit - candidate B (duplicate memo),ACC700,,,,,,,,,8800.00,LKR
+2026-07-07,,CO-L4AMBBANK-02,,Bank credit - candidate A,ACC701,,,,,,,,,9200.00,LKR
+2026-07-07,,CO-L4AMBBANK-02,,Bank credit - candidate B (duplicate memo),ACC701,,,,,,,,,9200.00,LKR
+2026-07-08,,STL-L6MATCH-01,,Bank settlement deposit,,,,,,,,,,42000.00,LKR
+2026-07-09,,STL-L6MATCH-02,,Bank settlement deposit (consolidated),,,,,,,,,,44500.00,LKR
+2026-07-14,,STL-L6VAR-01,,Bank settlement deposit (fee withheld),,,,,,,,,,35100.00,LKR
+2026-07-15,,STL-L6VAR-02,,Bank settlement deposit (fee withheld),,,,,,,,,,36500.00,LKR
+2026-07-16,,STL-L6AMB-01,,Bank settlement deposit - candidate A,,,,,,,,,,29500.00,LKR
+2026-07-16,,STL-L6AMB-01,,Bank settlement deposit - candidate B,,,,,,,,,,29500.00,LKR
+2026-07-17,,STL-L6AMB-02,,Bank settlement deposit - candidate A,,,,,,,,,,31100.00,LKR
+2026-07-17,,STL-L6AMB-02,,Bank settlement deposit - candidate B,,,,,,,,,,31100.00,LKR
+2026-05-20,,,,Bank credit - POS settlement,,,7001,,,,,,,24250.00,LKR
+2026-05-26,,,,Bank credit - POS settlement,,,7002,,,,,,,26010.00,LKR
+2026-05-28,,,,Bank credit - POS settlement (Visa),,,7101,,,,,,,23280.00,LKR
+2026-05-28,,,,Bank credit - POS settlement (Amex),,,7101,,,,,,,15520.00,LKR
+2026-06-02,,,,Bank credit - POS settlement (Visa),,,7102,,,,,,,24564.00,LKR
+2026-06-02,,,,Bank credit - POS settlement (Amex),,,7102,,,,,,,16376.00,LKR
+2026-06-05,,,,Bank credit - POS settlement,,,,TID8001,,,,,,23280.00,LKR
+2026-06-09,,,,Bank credit - POS settlement,,,,TID8002,,,,,,24680.00,LKR
+2026-06-15,,,,Bank credit - POS settlement,,,,,MID9001,,,,,17460.00,LKR
+2026-06-17,,,,Bank credit - POS settlement,,,,,MID9002,,,,,18530.00,LKR
+2026-06-23,,,,Bank credit - POS settlement (short),,,7201,,,,,,,19840.00,LKR
+2026-06-25,,,,Bank credit - POS settlement (short),,,7202,,,,,,,21140.00,LKR
+2026-07-09,,,,Bank credit - POS settlement (arrived on window boundary),,,7401,,,,,,,15520.00,LKR
+2026-07-15,,,,Bank credit - POS settlement (arrived on window boundary),,,7402,,,,,,,16420.00,LKR
+2026-07-20,,,,Bank credit - POS settlement (arrived after window),,,7501,,,,,,,16490.00,LKR
+2026-07-24,,,,Bank credit - POS settlement (arrived after window),,,7502,,,,,,,17440.00,LKR
+2026-07-28,,,,Bank credit - POS settlement (after banking holiday),,,7601,,,,,,,18430.00,LKR
+2026-07-31,,,,Bank credit - POS settlement (after banking holiday),,,7602,,,,,,,19430.00,LKR

@@ -359,6 +359,13 @@ The platform should preserve both:
 
 That dual record is important for auditability and debugging.
 
+Implementation note (2026-08-19): source types are not open-ended in practice — six
+exist today (`POS`, `POS_SETTLEMENT`, `ERP`, `GATEWAY`, `BANK`), and
+`BatchNumber`/`TerminalId`/`MerchantId` were added as canonical, directly-mappable
+fields alongside the existing amount/date/reference set. See `WORKER-INTEGRATION.md`
+for the concrete source-type-to-level mapping and why `POS` and `POS_SETTLEMENT` are
+deliberately separate source types.
+
 ## 12. Transaction Workflow Model
 
 ### Cash-In
@@ -451,6 +458,12 @@ Typical flow:
 7. Confirmed outcomes may unlock journal posting or reconciliation closure.
 
 For card cashouts, this matching step is mandatory before journal posting.
+
+Implementation note (2026-08-19): this flow is built as a seven-level worker pipeline
+(Level1–Level7, Level5 retired), one worker per source-type pairing, run on a 5-minute
+cycle per tenant. See `WORKER-INTEGRATION.md` for the full level table, bank-account
+scoping rules, and a dated changelog of the matching logic — this document remains the
+target-design baseline, that one is the concrete implementation record.
 
 ## 16. Journal Posting
 

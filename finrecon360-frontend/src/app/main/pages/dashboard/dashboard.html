@@ -12,6 +12,25 @@
       <p class="dashboard__subtitle">{{ 'DASHBOARD.SUBTITLE' | translate }}</p>
     </div>
 
+    <div class="dashboard__filters">
+      <div class="filter-group">
+        <select class="dashboard-select" [(ngModel)]="timeFilter" (ngModelChange)="onFilterChange($event)">
+          <option value="all">All Time</option>
+          <option value="weekly">Last 7 Days</option>
+          <option value="monthly">Last 30 Days</option>
+          <option value="yearly">Last 12 Months</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      
+      <div class="custom-date-group" *ngIf="timeFilter === 'custom'">
+        <input type="date" class="dashboard-input" [(ngModel)]="customStartDate" />
+        <span>-</span>
+        <input type="date" class="dashboard-input" [(ngModel)]="customEndDate" />
+        <button class="ghost-btn small" (click)="applyCustomFilter()">Apply</button>
+      </div>
+    </div>
+
     <div class="dashboard__workspace" *ngIf="currentTenantName || isAdmin">
       <span class="dashboard__workspace-label">{{ 'DASHBOARD.WORKSPACE' | translate }}</span>
       <strong>{{ currentTenantName || ('DASHBOARD.ADMIN_WORKSPACE' | translate) }}</strong>

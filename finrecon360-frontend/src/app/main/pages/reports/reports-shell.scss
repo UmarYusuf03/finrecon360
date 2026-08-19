@@ -1,0 +1,56 @@
+.reports-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.reports-shell__nav-shell {
+  padding: 10px;
+  border-radius: var(--fr-radius-xl);
+}
+
+.reports-shell__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 0;
+}
+
+.reports-shell__link {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--fr-text-muted);
+  font-size: var(--fr-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.reports-shell__link:hover {
+  color: var(--fr-text-primary);
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(11, 132, 216, 0.16);
+}
+
+.reports-shell__content {
+  padding: 0;
+}
+
+.active-link {
+  color: var(--fr-primary);
+  background: rgba(11, 132, 216, 0.12);
+  border-color: rgba(11, 132, 216, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+::ng-deep .reports-shell__nav .mdc-tab-indicator {
+  display: none;
+}

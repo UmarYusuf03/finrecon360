@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
@@ -12,7 +13,7 @@ import { DashboardService } from '../../services/dashboard.service';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, TranslateModule, MatCardModule, MatIconModule],
+  imports: [CommonModule, FormsModule, TranslateModule, MatCardModule, MatIconModule],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.scss'],
 })
@@ -27,6 +28,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   currentUserDisplayName = '';
   currentTenantName = '';
 
+  timeFilter: 'all' | 'weekly' | 'monthly' | 'yearly' | 'custom' = 'all';
+  customStartDate?: string;
+  customEndDate?: string;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -35,10 +40,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.dashboardService
-      .getDashboardData()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((payload) => (this.data = payload));
+    this.loadDashboardData();
 
     this.authService.currentUser$
       .pipe(takeUntil(this.destroy$))
@@ -58,6 +60,52 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  loadDashboardData(): void {
+    let start: string | undefined;
+    let end: string | undefined;
+
+    const today = new Date();
+
+    if (this.timeFilter === 'weekly') {
+      const lastWeek = new Date(today);
+      lastWeek.setDate(today.getDate() - 7);
+      start = lastWeek.toISOString();
+    } else if (this.timeFilter === 'monthly') {
+      const lastMonth = new Date(today);
+      lastMonth.setMonth(today.getMonth() - 1);
+      start = lastMonth.toISOString();
+    } else if (this.timeFilter === 'yearly') {
+      const lastYear = new Date(today);
+      lastYear.setFullYear(today.getFullYear() - 1);
+      start = lastYear.toISOString();
+    } else if (this.timeFilter === 'custom') {
+      if (this.customStartDate) {
+        start = new Date(this.customStartDate).toISOString();
+      }
+      if (this.customEndDate) {
+        end = new Date(this.customEndDate).toISOString();
+      }
+    }
+
+    this.dashboardService
+      .getDashboardData(start, end)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((payload) => (this.data = payload));
+  }
+
+  onFilterChange(filter: 'all' | 'weekly' | 'monthly' | 'yearly' | 'custom'): void {
+    this.timeFilter = filter;
+    if (filter !== 'custom') {
+      this.loadDashboardData();
+    }
+  }
+
+  applyCustomFilter(): void {
+    if (this.timeFilter === 'custom') {
+      this.loadDashboardData();
+    }
   }
 
   /** Share of match groups that have been confirmed by a reviewer. */

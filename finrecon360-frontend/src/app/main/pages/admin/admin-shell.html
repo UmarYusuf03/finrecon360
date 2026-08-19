@@ -7,19 +7,21 @@
       [tabPanel]="tabPanel"
       class="admin-shell__nav"
     >
-      <a
-        mat-tab-link
-        class="admin-shell__link"
-        *ngFor="let link of visibleLinks$ | async"
-        [routerLink]="link.path"
-        routerLinkActive="active-link"
-        [routerLinkActiveOptions]="{ exact: true }"
-        #rla="routerLinkActive"
-        [active]="rla.isActive"
-        [class.active-link]="rla.isActive"
-      >
-        {{ link.label | translate }}
-      </a>
+      <ng-container *ngFor="let link of visibleLinks$ | async">
+        <a
+          *ngIf="!link.hideFromTabs"
+          mat-tab-link
+          class="admin-shell__link"
+          [routerLink]="link.path"
+          routerLinkActive="active-link"
+          [routerLinkActiveOptions]="{ exact: true }"
+          #rla="routerLinkActive"
+          [active]="rla.isActive"
+          [class.active-link]="rla.isActive"
+        >
+          {{ link.label | translate }}
+        </a>
+      </ng-container>
     </nav>
   </div>
 

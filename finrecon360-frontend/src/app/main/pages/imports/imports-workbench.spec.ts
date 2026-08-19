@@ -1,20 +1,38 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { Router } from '@angular/router';
+import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 
 import { ImportsWorkbenchComponent } from './imports-workbench';
 import { ImportsService } from '../../../core/imports/imports.service';
 import { AdminImportArchitectureService } from '../../../core/admin-rbac/admin-import-architecture.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 
 class AuthServiceStub {
   currentUser = {
-    permissions: ['ADMIN.IMPORT_ARCHITECTURE.MANAGE'],
+    permissions: ['ADMIN.IMPORT_ARCHITECTURE.VIEW'],
   } as any;
+
+  // WHY: matches the real AuthService's "no scoped IMPORTS permissions" case — the
+  // stub's permissions list above has none, so unrestricted (null) would be wrong.
+  allowedImportSourceTypes(): Set<string> | null {
+    return new Set<string>();
+  }
+}
+
+class BankAccountServiceStub {
+  getAll = () => of([]);
+}
+
+class FakeLoader implements TranslateLoader {
+  getTranslation() {
+    return of({});
+  }
 }
 
 describe('ImportsWorkbenchComponent', () => {
-  it('sets canManage when permission exists', () => {
+  it('sets canViewArchitecture when permission exists', () => {
     const importsService = jasmine.createSpyObj<ImportsService>('ImportsService', [
       'getImportHistory',
     ]);
@@ -23,11 +41,17 @@ describe('ImportsWorkbenchComponent', () => {
     );
 
     TestBed.configureTestingModule({
-      imports: [ImportsWorkbenchComponent],
+      imports: [
+        ImportsWorkbenchComponent,
+        TranslateModule.forRoot({
+          loader: { provide: TranslateLoader, useClass: FakeLoader },
+        }),
+      ],
       providers: [
         { provide: ImportsService, useValue: importsService },
         { provide: AdminImportArchitectureService, useValue: {} },
         { provide: AuthService, useClass: AuthServiceStub },
+        { provide: BankAccountService, useClass: BankAccountServiceStub },
         { provide: Router, useValue: { navigateByUrl: () => Promise.resolve(true) } },
       ],
     });
@@ -36,7 +60,7 @@ describe('ImportsWorkbenchComponent', () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    expect(component.canManage).toBeTrue();
+    expect(component.canViewArchitecture).toBeTrue();
   });
 
   it('loads history on init', () => {
@@ -63,11 +87,17 @@ describe('ImportsWorkbenchComponent', () => {
     );
 
     TestBed.configureTestingModule({
-      imports: [ImportsWorkbenchComponent],
+      imports: [
+        ImportsWorkbenchComponent,
+        TranslateModule.forRoot({
+          loader: { provide: TranslateLoader, useClass: FakeLoader },
+        }),
+      ],
       providers: [
         { provide: ImportsService, useValue: importsService },
         { provide: AdminImportArchitectureService, useValue: {} },
         { provide: AuthService, useClass: AuthServiceStub },
+        { provide: BankAccountService, useClass: BankAccountServiceStub },
         { provide: Router, useValue: { navigateByUrl: () => Promise.resolve(true) } },
       ],
     });

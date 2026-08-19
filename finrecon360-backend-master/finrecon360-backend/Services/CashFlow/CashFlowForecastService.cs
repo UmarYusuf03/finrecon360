@@ -47,7 +47,8 @@ namespace finrecon360_backend.Services.CashFlow
                     .Select(a => a.BankAccountId)
                     .ToListAsync(ct);
 
-            var dailyNet = BuildEmptyDailySeries(lookbackStart, today);
+            var dailyNetCash = BuildEmptyDailySeries(lookbackStart, today);
+            var dailyNetCard = BuildEmptyDailySeries(lookbackStart, today);
 
             if (accountIds.Count > 0)
             {
@@ -57,19 +58,30 @@ namespace finrecon360_backend.Services.CashFlow
                         && t.TransactionState == TransactionState.JournalReady
                         && t.TransactionDate >= lookbackStart
                         && t.TransactionDate <= today)
-                    .Select(t => new { t.TransactionDate, t.Amount, t.TransactionType })
+                    .Select(t => new { t.TransactionDate, t.Amount, t.TransactionType, t.PaymentMethod })
                     .ToListAsync(ct);
 
                 foreach (var t in confirmedTransactions)
                 {
                     var day = t.TransactionDate.Date;
                     var signedAmount = t.TransactionType == TransactionType.CashIn ? t.Amount : -t.Amount;
-                    dailyNet[day] = dailyNet.GetValueOrDefault(day) + signedAmount;
+                    if (t.PaymentMethod == PaymentMethod.Card)
+                    {
+                        dailyNetCard[day] = dailyNetCard.GetValueOrDefault(day) + signedAmount;
+                    }
+                    else
+                    {
+                        dailyNetCash[day] = dailyNetCash.GetValueOrDefault(day) + signedAmount;
+                    }
                 }
             }
 
-            var orderedDailyValues = dailyNet.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList();
-            var dailyAverageNetFlow = ComputeEwma(orderedDailyValues, EwmaSpanDays);
+            var orderedCashValues = dailyNetCash.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList();
+            var orderedCardValues = dailyNetCard.OrderBy(kv => kv.Key).Select(kv => kv.Value).ToList();
+            
+            var dailyAverageNetFlowCash = ComputeEwma(orderedCashValues, EwmaSpanDays);
+            var dailyAverageNetFlowCard = ComputeEwma(orderedCardValues, EwmaSpanDays);
+            
             var settlementLagDays = await EstimateSettlementLagDaysAsync(db, accountIds, ct);
             var pendingByDate = await BuildPendingByDateAsync(db, accountIds, settlementLagDays, today, ct);
 
@@ -78,13 +90,35 @@ namespace finrecon360_backend.Services.CashFlow
             for (var i = 1; i <= horizonDays; i++)
             {
                 var day = today.AddDays(i);
-                var known = pendingByDate.GetValueOrDefault(day);
-                var projected = dailyAverageNetFlow + known;
-                cumulative += projected;
-                forecast.Add(new CashFlowForecastDayDto(day, Math.Round(projected, 2), Math.Round(cumulative, 2), Math.Round(known, 2)));
+                var knownPendingCard = pendingByDate.GetValueOrDefault(day);
+                
+                var projectedCard = 0m;
+                // Within the settlement window, we rely strictly on what is known to be pending.
+                // Beyond it, we fall back to the historical card trend.
+                if (i <= settlementLagDays)
+                {
+                    projectedCard = knownPendingCard;
+                }
+                else
+                {
+                    projectedCard = dailyAverageNetFlowCard;
+                }
+
+                var projectedCash = dailyAverageNetFlowCash; // Instant flows are always forecast using trend
+                var projectedTotal = projectedCash + projectedCard;
+                
+                cumulative += projectedTotal;
+                forecast.Add(new CashFlowForecastDayDto(day, Math.Round(projectedTotal, 2), Math.Round(cumulative, 2), Math.Round(knownPendingCard, 2)));
             }
 
-            var history = dailyNet.OrderBy(kv => kv.Key)
+            // Combine histories for the charting endpoint
+            var dailyNetTotal = BuildEmptyDailySeries(lookbackStart, today);
+            foreach (var kv in dailyNetCash)
+            {
+                dailyNetTotal[kv.Key] = kv.Value + dailyNetCard.GetValueOrDefault(kv.Key);
+            }
+
+            var history = dailyNetTotal.OrderBy(kv => kv.Key)
                 .Select(kv => new CashFlowHistoryDayDto(kv.Key, Math.Round(kv.Value, 2)))
                 .ToList();
 
@@ -100,7 +134,7 @@ namespace finrecon360_backend.Services.CashFlow
                 bankAccountName ?? "Bank account",
                 DateTime.UtcNow,
                 LookbackDays,
-                Math.Round(dailyAverageNetFlow, 2),
+                Math.Round(dailyAverageNetFlowCash + dailyAverageNetFlowCard, 2),
                 settlementLagDays,
                 history,
                 forecast);

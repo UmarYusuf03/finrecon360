@@ -71,6 +71,27 @@ export interface PlanSummary {
 
 export interface SubscriptionPlan extends PlanSummary {}
 
+// Returned only from the tenant's own subscription overview (not the shared plan-listing
+// endpoints), because eligibility is computed against THIS tenant's current usage — it isn't a
+// property of the plan itself.
+export interface SubscriptionPlanOption {
+  id: string;
+  code: string;
+  name: string;
+  priceCents: number;
+  currency: string;
+  durationDays: number;
+  maxUsers: number;
+  maxAccounts: number;
+  isEligible: boolean;
+  ineligibleReason: string | null;
+}
+
+export interface SubscriptionUsage {
+  activeUsers: number;
+  activeBankAccounts: number;
+}
+
 export interface TenantSubscription {
   subscriptionId: string;
   planCode: string;
@@ -82,7 +103,8 @@ export interface TenantSubscription {
 
 export interface SubscriptionOverview {
   currentSubscription: TenantSubscription | null;
-  availablePlans: SubscriptionPlan[];
+  usage: SubscriptionUsage;
+  availablePlans: SubscriptionPlanOption[];
 }
 
 export interface SubscriptionCheckoutResponse {

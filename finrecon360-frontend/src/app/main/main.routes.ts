@@ -14,6 +14,7 @@ import { MatcherPageComponent } from './pages/matcher/matcher-page';
 import { MatcherShellComponent } from './pages/matcher/matcher-shell';
 import { NotAuthorizedComponent } from './pages/not-authorized/not-authorized';
 import { ProfileComponent } from './pages/profile/profile';
+import { ReportsShellComponent } from './pages/reports/reports-shell';
 
 export const mainRoutes: Routes = [
   {
@@ -41,28 +42,21 @@ export const mainRoutes: Routes = [
             'ADMIN.PERMISSIONS.VIEW',
             'ADMIN.USERS.VIEW',
             'ADMIN.IMPORT_ARCHITECTURE.VIEW',
-            'ADMIN.SUBSCRIPTIONS.MANAGE',
-            'ADMIN.CASH_FLOW_FORECAST.VIEW',
-            'ADMIN.FINANCIAL_REPORTS.VIEW',
-            'ADMIN.REPORT_SCHEDULES.MANAGE',
           ],
         },
         children: [
           {
+            // Reporting moved out of Admin into its own top-level module (see 'reports' below) so
+            // that visiting it no longer highlights the Admin tab or shows Admin's sub-nav. Kept as
+            // a redirect for old bookmarks/links.
             path: 'reports',
-            loadComponent: () =>
-              import('./pages/admin/admin-reports-hub').then((m) => m.AdminReportsHubComponent),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.DASHBOARD.VIEW'] },
+            pathMatch: 'full',
+            redirectTo: '/app/reports',
           },
           {
             path: 'report-schedules',
-            loadComponent: () =>
-              import('./pages/admin/admin-report-schedules').then(
-                (m) => m.AdminReportSchedulesComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.REPORT_SCHEDULES.MANAGE'] },
+            pathMatch: 'full',
+            redirectTo: '/app/reports/report-schedules',
           },
           {
             path: 'transactions',
@@ -89,62 +83,21 @@ export const mainRoutes: Routes = [
             data: { permissions: ['ADMIN.BANK_ACCOUNTS.VIEW'] },
           },
           {
+            // Billing moved out of Admin into its own top-level tab (see 'billing' below). Kept as
+            // a redirect for old bookmarks/links.
             path: 'subscription',
-            loadComponent: () =>
-              import('./pages/admin/admin-subscription').then(
-                (m) => m.AdminSubscriptionComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.SUBSCRIPTIONS.MANAGE'] },
+            pathMatch: 'full',
+            redirectTo: '/app/billing',
           },
           {
             path: 'cash-flow-forecast',
-            loadComponent: () =>
-              import('./pages/admin/admin-cash-flow-forecast').then(
-                (m) => m.AdminCashFlowForecastComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.CASH_FLOW_FORECAST.VIEW'] },
+            pathMatch: 'full',
+            redirectTo: '/app/reports/cash-flow-forecast',
           },
           {
             path: 'financial-reports',
-            loadComponent: () =>
-              import('./pages/admin/admin-financial-reports-shell').then(
-                (m) => m.AdminFinancialReportsShellComponent,
-              ),
-            canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.FINANCIAL_REPORTS.VIEW'] },
-            children: [
-              {
-                path: 'general-ledger',
-                loadComponent: () =>
-                  import('./pages/admin/admin-general-ledger').then(
-                    (m) => m.AdminGeneralLedgerComponent,
-                  ),
-              },
-              {
-                path: 'trial-balance',
-                loadComponent: () =>
-                  import('./pages/admin/admin-trial-balance').then(
-                    (m) => m.AdminTrialBalanceComponent,
-                  ),
-              },
-              {
-                path: 'income-statement',
-                loadComponent: () =>
-                  import('./pages/admin/admin-income-statement').then(
-                    (m) => m.AdminIncomeStatementComponent,
-                  ),
-              },
-              {
-                path: 'balance-sheet',
-                loadComponent: () =>
-                  import('./pages/admin/admin-balance-sheet').then(
-                    (m) => m.AdminBalanceSheetComponent,
-                  ),
-              },
-              { path: '', pathMatch: 'full', redirectTo: 'general-ledger' },
-            ],
+            pathMatch: 'full',
+            redirectTo: '/app/reports/financial-reports',
           },
           {
             path: 'roles',
@@ -201,6 +154,99 @@ export const mainRoutes: Routes = [
             data: { permissions: ['ADMIN.USERS.VIEW'] },
           },
         ],
+      },
+      {
+        // Reporting used to live nested under Admin, which meant opening any report also
+        // highlighted the Admin tab and showed Admin's unrelated sub-nav. It's now a top-level
+        // module with its own sub-nav, same shape as Matcher/Imports.
+        path: 'reports',
+        component: ReportsShellComponent,
+        canActivate: [AccessGuard],
+        data: {
+          scope: 'tenant',
+          anyPermissions: [
+            'ADMIN.DASHBOARD.VIEW',
+            'ADMIN.CASH_FLOW_FORECAST.VIEW',
+            'ADMIN.FINANCIAL_REPORTS.VIEW',
+            'ADMIN.REPORT_SCHEDULES.MANAGE',
+          ],
+        },
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./pages/admin/admin-reports-hub').then((m) => m.AdminReportsHubComponent),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.DASHBOARD.VIEW'] },
+          },
+          {
+            path: 'cash-flow-forecast',
+            loadComponent: () =>
+              import('./pages/admin/admin-cash-flow-forecast').then(
+                (m) => m.AdminCashFlowForecastComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.CASH_FLOW_FORECAST.VIEW'] },
+          },
+          {
+            path: 'financial-reports',
+            loadComponent: () =>
+              import('./pages/admin/admin-financial-reports-shell').then(
+                (m) => m.AdminFinancialReportsShellComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.FINANCIAL_REPORTS.VIEW'] },
+            children: [
+              {
+                path: 'general-ledger',
+                loadComponent: () =>
+                  import('./pages/admin/admin-general-ledger').then(
+                    (m) => m.AdminGeneralLedgerComponent,
+                  ),
+              },
+              {
+                path: 'trial-balance',
+                loadComponent: () =>
+                  import('./pages/admin/admin-trial-balance').then(
+                    (m) => m.AdminTrialBalanceComponent,
+                  ),
+              },
+              {
+                path: 'income-statement',
+                loadComponent: () =>
+                  import('./pages/admin/admin-income-statement').then(
+                    (m) => m.AdminIncomeStatementComponent,
+                  ),
+              },
+              {
+                path: 'balance-sheet',
+                loadComponent: () =>
+                  import('./pages/admin/admin-balance-sheet').then(
+                    (m) => m.AdminBalanceSheetComponent,
+                  ),
+              },
+              { path: '', pathMatch: 'full', redirectTo: 'general-ledger' },
+            ],
+          },
+          {
+            path: 'report-schedules',
+            loadComponent: () =>
+              import('./pages/admin/admin-report-schedules').then(
+                (m) => m.AdminReportSchedulesComponent,
+              ),
+            canActivate: [AccessGuard],
+            data: { permissions: ['ADMIN.REPORT_SCHEDULES.MANAGE'] },
+          },
+        ],
+      },
+      {
+        // Billing used to live nested under Admin for the same reason described above for
+        // 'reports'; promoted to its own top-level tab so it no longer drags Admin's nav along.
+        path: 'billing',
+        loadComponent: () =>
+          import('./pages/admin/admin-subscription').then((m) => m.AdminSubscriptionComponent),
+        canActivate: [AccessGuard],
+        data: { scope: 'tenant', permissions: ['ADMIN.SUBSCRIPTIONS.MANAGE'] },
       },
       {
         path: 'system',

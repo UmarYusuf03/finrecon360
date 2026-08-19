@@ -15,7 +15,8 @@ namespace finrecon360_backend.Services
         SalesMatch,
         SettlementMatch,
         ExpenseMatch,
-        CollectionMatch
+        CollectionMatch,
+        PosSettlementMatch
     }
 
     public record ReconciliationWorkflowStep(
@@ -79,6 +80,21 @@ namespace finrecon360_backend.Services
                                 "SALES_VERIFIED or EXCEPTION")
                         ],
                         "ERP -> Stages 2 and 3 (Sync Audit, Sales Match)");
+                    return true;
+
+                case "POS_SETTLEMENT":
+                    plan = BuildPlan(
+                        normalizedSourceType,
+                        [
+                            CreateStep(
+                                ReconciliationWorkflowStage.PhysicalBankReconciliation,
+                                ReconciliationWorkflowEvent.PosSettlementMatch,
+                                "Confirm in-person card batch settled to the bank",
+                                "POS Terminal Batch (BatchNumber/TerminalId/MerchantId) ↔ Bank Statement",
+                                "BatchNumber / TerminalId / MerchantId (tiered)",
+                                "MATCHED (Tier1/2 auto) or MATCHED after human confirmation (Tier3)")
+                        ],
+                        "POS Settlement -> Stage 4 (POS Terminal Settlement Match)");
                     return true;
 
                 case "GATEWAY":

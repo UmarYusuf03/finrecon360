@@ -1,21 +1,33 @@
 # Worker Integration Summary: Six-Level Reconciliation → Journal Posting Pipeline
 
-## ✅ Integration Complete (2026-08-17 update)
+## ✅ Integration Complete (2026-08-17 update; matching-logic updates 2026-08-19)
 
 **Status change from the original version of this doc**: the workers below were previously implemented but never actually running — nothing was registered in DI, so `BankReconciliationHostedService` (the only hosted service that existed at the time) and every worker class sat unused. Five of the six matching levels (Operational, Sync-Audit, Sales, Collection, Settlement) had no hosted service driving them at all. This has been fixed: all seven workers are now registered in `Program.cs`, and a single `ReconciliationCycleHostedService` drives all six matching levels in order every cycle. See "DI Wiring" below for what changed and why.
+
+**2026-08-19**: two matching-logic gaps closed — Level6 now scopes its BANK search to the
+GATEWAY batch's bank account instead of searching every account tenant-wide, and a new
+`POS_SETTLEMENT` source type was introduced so Level7 reads real terminal/acquirer batch
+data instead of extracting it from POS EOD narrative text. See "Level6 detail" and "Level7
+detail" below for the full explanation, and the "Known Follow-Ups" section for what this
+touched versus what it deliberately left alone.
 
 ### Components
 
 1. **The six matching-level workers** (`Services/Workers/*.cs`), all sharing the signature `Task<TResult> ExecuteAsync(Guid tenantId, TenantDbContext tenantDb, CancellationToken ct)`:
 
-   | Level | Worker | Matches |
-   |---|---|---|
-   | Level1 | `OperationalMatchWorker` | Staff manual entry ↔ POS EOD |
-   | Level2 | `PosErpSyncAuditWorker` | POS EOD ↔ ERP sales ledger |
-   | Level3 | `ErpGatewaySalesMatchWorker` | ERP sales ledger ↔ Payment gateway |
-   | Level4 | `BankStatementReconciliationWorker` | Approved card cashout ↔ Bank statement |
-   | Level6 | `SettlementMatchWorker` | Gateway payout (many records) ↔ Bank statement (one deposit) |
-   | Level7 | `PosSettlementMatchWorker` | POS-terminal batch settlement (POS EOD) ↔ Bank statement |
+   | Level | Worker | Matches | Source types |
+   |---|---|---|---|
+   | Level1 | `OperationalMatchWorker` | Staff manual entry ↔ POS EOD | `POS` |
+   | Level2 | `PosErpSyncAuditWorker` | POS EOD ↔ ERP sales ledger | `POS`, `ERP` |
+   | Level3 | `ErpGatewaySalesMatchWorker` | ERP sales ledger ↔ Payment gateway | `ERP`, `GATEWAY` |
+   | Level4 | `BankStatementReconciliationWorker` | Approved card cashout ↔ Bank statement | `GATEWAY`, `BANK` |
+   | Level6 | `SettlementMatchWorker` | Gateway payout (many records) ↔ Bank statement (one deposit) | `GATEWAY`, `BANK` |
+   | Level7 | `PosSettlementMatchWorker` | POS-terminal batch settlement ↔ Bank statement | `POS_SETTLEMENT`, `BANK` |
+
+   **`POS` vs `POS_SETTLEMENT`** (2026-08-19 addition — see "Level7 detail" below for
+   why this split exists): `POS` is the POS register's own EOD sales report, used only
+   by Level1/Level2. `POS_SETTLEMENT` is the card terminal / acquirer's batch-close
+   export — a different file, from a different system, used only by Level7.
 
    **Level5 removed** (2026-08-18): `CollectionMatchWorker` matched staff-entered card-in
    `Transaction` rows against BANK statements. Confirmed with the business that every card-in
@@ -52,11 +64,45 @@
    since a fee-explained `MatchedAmount` (the bank side) is deliberately *not* equal to
    `txn.Amount` (caught by a failing test while building this, not assumed correct).
 
-   **Level7 detail** (2026-08-18 addition — closes the gap this doc used to flag here): matches
-   POS EOD batches against BANK deposits using identifiers (`BatchNumber`/`TerminalId`/`MerchantId`)
-   extracted from narrative bank descriptions at import time by `Services/Reconciliation/PosIdentifierExtractor.cs`
-   (regex per `ImportMappingTemplate.ExtractionPatternsJson`, since raw bank narratives — e.g.
-   `"POS SETTLEMENT - TID88552 - BATCH 000452"` — aren't parseable by exact-string comparison).
+   **Level6 detail** (2026-08-19 — bank-account scoping added): previously matched GATEWAY
+   settlement groups against BANK deposits by `SettlementId`/`ReferenceNumber` alone, searching
+   every BANK record tenant-wide — fine for a tenant with one bank account, but a real gap for
+   any tenant with more than one, since two accounts could each hold a deposit that happens to
+   share a reference. Fixed by scoping BANK candidates to the GATEWAY batch's `ImportBatch.BankAccountId`,
+   mirroring the pattern Level4 already used for `txn.BankAccountId`. The scoping is null-safe on
+   both sides (`gatewayAccountId == null || bankAccountId == null || gatewayAccountId == bankAccountId`)
+   so a batch uploaded before this field was populated — or without an account at all — falls back
+   to the old tenant-wide search instead of matching nothing. This also required actually making the
+   `BankAccountId` field populatable: the Imports Workbench upload form never sent it for any
+   source type before this change (the API param existed; nothing in the UI called it), so it was
+   always null in practice — including for Level4, whose scoping was consequently a no-op too.
+   Now surfaced as a bank-account picker on the upload screen for `GATEWAY`, `BANK`, and
+   `POS_SETTLEMENT` uploads. Covered by
+   `SettlementMatchWorkerTests.ExecuteAsync_scopes_to_gateway_batch_bank_account_instead_of_matching_tenant_wide`
+   (two accounts, same settlement reference on both, only the correct account's deposit matches).
+
+   **Level7 detail** (2026-08-18 addition — closes the gap this doc used to flag here; **source
+   type changed 2026-08-19, see below**): matches POS-terminal batches against BANK deposits
+   using identifiers (`BatchNumber`/`TerminalId`/`MerchantId`). Originally these were read off the
+   `POS` source type and only ever came from extracting narrative bank descriptions at import time
+   via `Services/Reconciliation/PosIdentifierExtractor.cs` (regex per
+   `ImportMappingTemplate.ExtractionPatternsJson`, since raw bank narratives — e.g.
+   `"POS SETTLEMENT - TID88552 - BATCH 000452"` — aren't parseable by exact-string comparison). That
+   was backwards for the POS side: the POS register's own EOD sales report has no visibility into
+   how the card terminal/acquirer batched and settled a card charge — batching is an acquirer-side
+   concept the register doesn't track — so `BatchNumber`/`TerminalId`/`MerchantId` could only ever
+   be extracted if the EOD file happened to embed acquirer narrative text in a `Description` column,
+   which isn't guaranteed. **Fixed (2026-08-19) by introducing `POS_SETTLEMENT`** as its own source
+   type — the actual terminal/acquirer batch-close export — and switching Level7's POS-side query to
+   read from it instead of `POS`. `ImportNormalizationService` now also supports mapping
+   `BatchNumber`/`TerminalId`/`MerchantId` directly from structured CSV columns (this is how
+   `POS_SETTLEMENT` supplies them); `PosIdentifierExtractor`'s regex path still runs afterward as a
+   fallback for sources with unstructured narrative (`BANK` today) but no longer overwrites a value
+   already set by direct mapping (`??=` instead of unconditional assignment in
+   `ImportsController.Commit`). **Behavior change to flag on deploy**: a tenant that doesn't start
+   uploading a `POS_SETTLEMENT` file gets zero Level7 candidates — it does not fall back to reading
+   `POS` the old way.
+
    Runs as a four-tier waterfall, each tier a grouped-sum comparison that naturally produces 1:1,
    many:1 (consolidated), or 1:many (split-network settlement, e.g. Amex separate from Visa/MC)
    depending on how many records land on each side of a shared key:
@@ -104,6 +150,7 @@
    builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
    builder.Services.AddScoped<BankStatementReconciliationWorker>();
    builder.Services.AddScoped<SettlementMatchWorker>();
+   builder.Services.AddScoped<PosSettlementMatchWorker>();
    builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
 
    builder.Services.AddHostedService<ReconciliationCycleHostedService>();
@@ -337,7 +384,7 @@ Settlement Key:  MERCHANT_ACCT|TXN_12345
 
 ## ✅ Test Results
 
-All 167 tests pass (`finrecon360-backend.Tests`), including coverage for all six active matching levels (1/2/3/4/6/7 — Level5 retired), ambiguous-match detection, tenant-configurable tolerances, bank-account scoping, balanced journal-voucher posting (including the CreditCashIn fix above), identifier extraction against real bank narrative formats, business-day settlement-window arithmetic, the Level7 waterfall's tier boundaries (1:1, many:1, 1:many, variance, no-match, window-exclusion, idempotency), Level4's Tier1/Tier2/Tier3 auto-confirm boundaries (exact match, fee-explained match, ambiguous/unexplained), and the reporting layer below (39 tests: export formatting, financial-statement sign conventions, snapshot worker idempotency, scheduled-report dispatch and cadence math).
+All 180 tests pass (`finrecon360-backend.Tests`), including coverage for all six active matching levels (1/2/3/4/6/7 — Level5 retired), ambiguous-match detection, tenant-configurable tolerances, bank-account scoping (now including Level6, see "Level6 detail" above), balanced journal-voucher posting (including the CreditCashIn fix above), identifier extraction against real bank narrative formats and direct-column mapping (2026-08-19), business-day settlement-window arithmetic, the Level7 waterfall's tier boundaries (1:1, many:1, 1:many, variance, no-match, window-exclusion, idempotency) now running against `POS_SETTLEMENT` fixtures, Level4's Tier1/Tier2/Tier3 auto-confirm boundaries (exact match, fee-explained match, ambiguous/unexplained), and the reporting layer below (39 tests: export formatting, financial-statement sign conventions, snapshot worker idempotency, scheduled-report dispatch and cadence math).
 
 **Reporting hosted services** (added after this doc's original scope, documented in full in `docs/architecture/reporting-implementation-plan.md`): `ReconciliationSnapshotHostedService` runs once daily, staggered well clear of the two services above, and rolls up the previous day's activity from `ReconciliationMatchGroup`/`ReconciliationEvent`/`JournalEntry` into `ReconciliationDailySnapshot` and `TenantDailySnapshot` — the read side those tables feed (Financial Reports, Reconciliation Trends, the Reports Hub) never touches the transactional tables above at request time. `ReportScheduleHostedService` runs hourly and emails out any due weekly report schedule.
 
@@ -354,3 +401,22 @@ All 167 tests pass (`finrecon360-backend.Tests`), including coverage for all six
    - Export journal entries to accounting system
    - Map GL account codes per tenant
    - Handle multi-currency settlements
+6. ~~`imports-workbench.spec.ts` doesn't compile~~ — **fixed 2026-08-19.** One test asserted
+   `component.canManage`, a property that hadn't existed since an earlier refactor replaced stored
+   boolean flags with permission-computed getters (`git log -S"canManage = false"` shows it really
+   did exist once). Blocked the whole spec file, including a second, otherwise-passing test.
+   Rewrote the assertion against `canViewArchitecture` (the surviving equivalent — checks
+   `ADMIN.IMPORT_ARCHITECTURE.VIEW`) and corrected the stub's permission list to match. Fixing the
+   compile error surfaced two more layers of the same rot, both fixed in the same pass: the spec
+   never provided `TranslateService` (the component's template uses the `translate` pipe) — added
+   `TranslateModule.forRoot()` with a `FakeLoader`, the pattern already used in
+   `shell.spec.ts` — and `AuthServiceStub` didn't implement `allowedImportSourceTypes()`, a method
+   `ngOnInit` now calls but that postdated the stub. Both tests pass; ran the full frontend suite
+   afterward and confirmed the 8 pre-existing failures elsewhere (`RegisterComponent`,
+   `AdminAuditLogsComponent`, `LoginComponent` — all unrelated `HttpClient`/DI wiring gaps) are
+   untouched by this fix.
+7. ~~`SettlementId` isn't mappable through the Imports Workbench UI~~ — **fixed 2026-08-19.** Added
+   to `imports-workbench.ts`'s `canonicalFields` array (the mapping screen renders one dropdown row
+   per entry in that array, so this was the only missing piece — `ImportNormalizationService` and
+   the mapping-save endpoint already handled the key). Placed alongside `ReferenceNumber`, matching
+   the field order in `AdminImportArchitectureController`'s canonical schema docs.

@@ -13,6 +13,8 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { ProfileService } from '../../services/profile.service';
 import { PaymentAlertService } from '../../../core/admin-tenant/payment-alert.service';
 import { SubscriptionService } from '../../../core/admin-tenant/subscription.service';
+import { TenantRegistrationService } from '../../../core/admin-tenant/tenant-registration.service';
+import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 import { CurrentUser } from '../../../core/auth/models';
 import { LanguageSwitcherComponent } from '../../../shared/components/language-switcher/language-switcher';
 
@@ -24,6 +26,7 @@ import { LanguageSwitcherComponent } from '../../../shared/components/language-s
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
+    HasPermissionDirective,
     LanguageSwitcherComponent,
     TranslateModule,
     MatMenuModule,
@@ -47,7 +50,6 @@ export class ShellComponent implements OnInit, OnDestroy {
     'ADMIN.TENANT_REGISTRATIONS.MANAGE',
     'ADMIN.TENANTS.MANAGE',
     'ADMIN.PLANS.MANAGE',
-    'ADMIN.ENFORCEMENT.MANAGE',
     'ADMIN.PAYMENT_ALERTS.VIEW',
   ];
 
@@ -61,10 +63,12 @@ export class ShellComponent implements OnInit, OnDestroy {
   user$: Observable<CurrentUser | null>;
   profileImageUrl: string | null = null;
   openPaymentAlertCount = 0;
+  pendingRegistrationCount = 0;
   subscriptionDaysOverdue: number | null = null;
 
   private destroy$ = new Subject<void>();
   private static readonly PaymentAlertPollInterval = 60000;
+  private static readonly PendingRegistrationPollInterval = 60000;
 
   constructor(
     private authService: AuthService,
@@ -72,6 +76,7 @@ export class ShellComponent implements OnInit, OnDestroy {
     private profileService: ProfileService,
     private paymentAlertService: PaymentAlertService,
     private subscriptionService: SubscriptionService,
+    private tenantRegistrationService: TenantRegistrationService,
   ) {
     // assign here so it is initialized after DI
     this.user$ = this.authService.currentUser$;
@@ -98,6 +103,10 @@ export class ShellComponent implements OnInit, OnDestroy {
           this.startPaymentAlertPolling();
         }
 
+        if (user.isSystemAdmin && this.hasAnyPermission(user, ['ADMIN.TENANT_REGISTRATIONS.MANAGE'])) {
+          this.startPendingRegistrationPolling();
+        }
+
         // Only the tenant users who can actually do something about a lapsed subscription
         // (i.e. hold the permission to view/pay it) get checked for the overdue banner.
         if (!user.isSystemAdmin && this.hasAnyPermission(user, ['ADMIN.SUBSCRIPTIONS.MANAGE'])) {
@@ -113,6 +122,15 @@ export class ShellComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
       )
       .subscribe((summary) => (this.openPaymentAlertCount = summary.openCount));
+  }
+
+  private startPendingRegistrationPolling(): void {
+    timer(0, ShellComponent.PendingRegistrationPollInterval)
+      .pipe(
+        switchMap(() => this.tenantRegistrationService.getPendingCount().pipe(catchError(() => of(0)))),
+        takeUntil(this.destroy$),
+      )
+      .subscribe((count) => (this.pendingRegistrationCount = count));
   }
 
   private checkSubscriptionOverdue(): void {

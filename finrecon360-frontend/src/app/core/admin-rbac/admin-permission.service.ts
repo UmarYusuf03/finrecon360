@@ -48,7 +48,7 @@ interface PermissionDto {
 })
 export class AdminPermissionService {
   /** WHY: Canonical source types that can appear in scoped permission codes. */
-  static readonly SOURCE_TYPES = ['POS', 'ERP', 'GATEWAY', 'BANK'] as const;
+  static readonly SOURCE_TYPES = ['POS', 'POS_SETTLEMENT', 'ERP', 'GATEWAY', 'BANK'] as const;
 
   /**
    * WHY: Defines the scoped permission actions per module. These generate codes like

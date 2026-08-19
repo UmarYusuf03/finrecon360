@@ -65,7 +65,7 @@ namespace finrecon360_backend.Services
             var amount = (amountCents / 100m).ToString("0.00", CultureInfo.InvariantCulture);
             var currency = string.IsNullOrWhiteSpace(_options.Currency) ? "LKR" : _options.Currency.ToUpperInvariant();
 
-            var merchantSecretHash = ToMd5Hex(_options.MerchantSecret).ToUpperInvariant();
+            var merchantSecretHash = ToMd5Hex(ResolveMerchantSecret()).ToUpperInvariant();
             var hashInput = $"{_options.MerchantId}{orderId}{amount}{currency}{merchantSecretHash}";
             var hash = ToMd5Hex(hashInput).ToUpperInvariant();
 
@@ -121,7 +121,7 @@ namespace finrecon360_backend.Services
                 return new PayHereCallbackResult(false, false, orderId, paymentId, null, statusCode, "Merchant mismatch.");
             }
 
-            var merchantSecretHash = ToMd5Hex(_options.MerchantSecret).ToUpperInvariant();
+            var merchantSecretHash = ToMd5Hex(ResolveMerchantSecret()).ToUpperInvariant();
             var localHashInput = $"{merchantId}{orderId}{amount}{currency}{statusCode}{merchantSecretHash}";
             var localSignature = ToMd5Hex(localHashInput).ToUpperInvariant();
 
@@ -174,6 +174,24 @@ namespace finrecon360_backend.Services
                 .Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}");
 
             return $"{baseUrl}{separator}{string.Join("&", pairs)}";
+        }
+
+        private string ResolveMerchantSecret()
+        {
+            if (!string.Equals(_options.MerchantSecretMode, "Base64", StringComparison.OrdinalIgnoreCase))
+            {
+                return _options.MerchantSecret;
+            }
+
+            try
+            {
+                return Encoding.UTF8.GetString(Convert.FromBase64String(_options.MerchantSecret));
+            }
+            catch (FormatException ex)
+            {
+                throw new InvalidOperationException(
+                    "PAYHERE_MERCHANT_SECRET_MODE is 'Base64' but PAYHERE_MERCHANT_SECRET is not valid base64.", ex);
+            }
         }
 
         private static string ToMd5Hex(string value)
