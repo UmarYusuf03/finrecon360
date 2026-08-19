@@ -1,6 +1,5 @@
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Admin;
-using finrecon360_backend.Dtos.Public;
 using finrecon360_backend.Dtos.Subscriptions;
 using finrecon360_backend.Models;
 using Microsoft.EntityFrameworkCore;
@@ -69,18 +68,71 @@ namespace finrecon360_backend.Services
                 .AsNoTracking()
                 .Where(p => p.IsActive)
                 .OrderBy(p => p.PriceCents)
-                .Select(p => new PublicPlanSummaryDto(
-                    p.PlanId,
-                    p.Code,
-                    p.Name,
-                    p.PriceCents,
-                    p.Currency,
-                    p.DurationDays,
-                    p.MaxUsers,
-                    p.MaxAccounts))
                 .ToListAsync(cancellationToken);
 
-            return new SubscriptionOverviewDto(currentSubscription, plans);
+            var (activeUsers, activeAccounts) = await GetCurrentUsageAsync(tenantId, cancellationToken);
+
+            var planOptions = plans
+                .Select(p => BuildPlanOption(p, activeUsers, activeAccounts))
+                .ToList();
+
+            return new SubscriptionOverviewDto(
+                currentSubscription,
+                new SubscriptionUsageDto(activeUsers, activeAccounts),
+                planOptions);
+        }
+
+        // Shared with CreateCheckoutAsync's enforcement check below so the plans the overview marks
+        // "available" are guaranteed to be the ones checkout will actually accept — computing this
+        // two different ways here and there previously wasn't a risk, but only because there was no
+        // "here" yet.
+        private async Task<(int ActiveUsers, int ActiveAccounts)> GetCurrentUsageAsync(Guid tenantId, CancellationToken cancellationToken)
+        {
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenantId, cancellationToken);
+
+            var activeUsers = await tenantDb.TenantUsers
+                .AsNoTracking()
+                .CountAsync(tu => tu.IsActive, cancellationToken);
+
+            var activeAccounts = await tenantDb.BankAccounts
+                .AsNoTracking()
+                .CountAsync(bankAccount => bankAccount.IsActive, cancellationToken);
+
+            return (activeUsers, activeAccounts);
+        }
+
+        private static SubscriptionPlanOptionDto BuildPlanOption(Plan plan, int activeUsers, int activeAccounts)
+        {
+            var exceedsUsers = activeUsers > plan.MaxUsers;
+            var exceedsAccounts = activeAccounts > plan.MaxAccounts;
+            var isEligible = !exceedsUsers && !exceedsAccounts;
+
+            string? ineligibleReason = null;
+            if (!isEligible)
+            {
+                var parts = new List<string>();
+                if (exceedsUsers)
+                {
+                    parts.Add($"{activeUsers} users (limit {plan.MaxUsers})");
+                }
+                if (exceedsAccounts)
+                {
+                    parts.Add($"{activeAccounts} bank accounts (limit {plan.MaxAccounts})");
+                }
+                ineligibleReason = $"Your account currently has {string.Join(" and ", parts)}.";
+            }
+
+            return new SubscriptionPlanOptionDto(
+                plan.PlanId,
+                plan.Code,
+                plan.Name,
+                plan.PriceCents,
+                plan.Currency,
+                plan.DurationDays,
+                plan.MaxUsers,
+                plan.MaxAccounts,
+                isEligible,
+                ineligibleReason);
         }
 
         public async Task<SubscriptionCheckoutResponse> CreateCheckoutAsync(Guid tenantId, Guid userId, Guid planId, CancellationToken cancellationToken = default)
@@ -111,20 +163,12 @@ namespace finrecon360_backend.Services
                 throw new InvalidOperationException("Current user is not available.");
             }
 
-            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenantId, cancellationToken);
-
-            var activeUsers = await tenantDb.TenantUsers
-                .AsNoTracking()
-                .CountAsync(tu => tu.IsActive, cancellationToken);
+            var (activeUsers, activeAccounts) = await GetCurrentUsageAsync(tenantId, cancellationToken);
 
             if (activeUsers > plan.MaxUsers)
             {
                 throw new InvalidOperationException($"Selected plan allows {plan.MaxUsers} users, but the tenant already has {activeUsers} active users.");
             }
-
-            var activeAccounts = await tenantDb.BankAccounts
-                .AsNoTracking()
-                .CountAsync(bankAccount => bankAccount.IsActive, cancellationToken);
 
             if (activeAccounts > plan.MaxAccounts)
             {

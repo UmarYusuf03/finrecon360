@@ -8,6 +8,7 @@ public class ReconciliationOrchestratorTests
 
     [Theory]
     [InlineData("POS", 1, "Operational Match")]
+    [InlineData("POS_SETTLEMENT", 1, "Pos Settlement Match")]
     [InlineData("ERP", 2, "Sync Audit")]
     [InlineData("GATEWAY", 2, "Settlement Match")]
     [InlineData("BANK", 3, "Collection Match")]

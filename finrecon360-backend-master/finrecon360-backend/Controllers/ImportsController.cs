@@ -640,10 +640,13 @@ namespace finrecon360_backend.Controllers
 
                 if (extractionPatterns.Count > 0)
                 {
+                    // ??= rather than unconditional assignment: a source with structured columns
+                    // (e.g. POS_SETTLEMENT) may have already mapped these directly in Normalize()
+                    // above, and that value should win over a narrative-regex guess.
                     var identifiers = PosIdentifierExtractor.Extract(result.Normalized.Description, extractionPatterns);
-                    result.Normalized.BatchNumber = identifiers.BatchNumber;
-                    result.Normalized.TerminalId = identifiers.TerminalId;
-                    result.Normalized.MerchantId = identifiers.MerchantId;
+                    result.Normalized.BatchNumber ??= identifiers.BatchNumber;
+                    result.Normalized.TerminalId ??= identifiers.TerminalId;
+                    result.Normalized.MerchantId ??= identifiers.MerchantId;
                 }
 
                 normalizedRecords.Add(result.Normalized);

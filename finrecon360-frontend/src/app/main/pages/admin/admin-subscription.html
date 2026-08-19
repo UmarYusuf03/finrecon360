@@ -13,7 +13,23 @@
     <span>{{ current.status }}</span>
   </div>
 
+  <div class="usage-summary" *ngIf="overview as ov">
+    <mat-icon>insights</mat-icon>
+    <span>
+      You're currently using <strong>{{ ov.usage.activeUsers }}</strong>
+      {{ ov.usage.activeUsers === 1 ? 'user' : 'users' }} and
+      <strong>{{ ov.usage.activeBankAccounts }}</strong>
+      {{ ov.usage.activeBankAccounts === 1 ? 'bank account' : 'bank accounts' }}. Plans that don't
+      fit that are shown below but can't be selected.
+    </span>
+  </div>
+
   <div *ngIf="loading" class="state">Loading subscription details...</div>
+
+  <div *ngIf="!loading && !hasEligiblePlan" class="alert error">
+    None of the available plans support your current usage. Reduce your active users or bank
+    accounts, or contact support for a custom plan.
+  </div>
 
   <div *ngIf="!loading" class="plan-grid">
     <button
@@ -21,13 +37,22 @@
       class="plan-card"
       *ngFor="let plan of plans"
       [class.active]="plan.id === selectedPlanId"
-      (click)="selectedPlanId = plan.id"
+      [class.disabled]="!plan.isEligible"
+      [disabled]="!plan.isEligible"
+      [attr.aria-disabled]="!plan.isEligible"
+      [attr.title]="plan.isEligible ? null : plan.ineligibleReason"
+      (click)="selectPlan(plan)"
     >
+      <span class="plan-card__badge" *ngIf="!plan.isEligible">
+        <mat-icon>lock</mat-icon>
+        Not available
+      </span>
       <span class="plan-name">{{ plan.name }}</span>
       <span class="plan-price">{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</span>
       <span class="plan-meta">{{ plan.durationDays }} days</span>
       <span class="plan-meta">{{ plan.maxUsers }} users</span>
       <span class="plan-meta">{{ plan.maxAccounts }} bank accounts</span>
+      <span class="plan-card__reason" *ngIf="!plan.isEligible">{{ plan.ineligibleReason }}</span>
     </button>
   </div>
 

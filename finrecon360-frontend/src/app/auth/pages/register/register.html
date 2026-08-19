@@ -15,55 +15,119 @@
       Check your email to verify your account. If the email exists, you will receive a verification link shortly.
     </div>
 
-    <form *ngIf="!isSubmitted" [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
+    <form *ngIf="!isSubmitted" [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form" novalidate>
+
+      <!-- Full Name & Date of Birth -->
       <div class="form-row">
         <div class="form-col">
-          <label class="field-label">Full Name</label>
-          <input type="text" class="auth-input" formControlName="fullName" placeholder="John Doe">
+          <label class="field-label" for="fullName">Full Name</label>
+          <input
+            id="fullName"
+            type="text"
+            class="auth-input"
+            [class.auth-input--error]="fullNameError"
+            formControlName="fullName"
+            placeholder="John Doe"
+            autocomplete="name"
+          >
+          <p class="field-error" *ngIf="fullNameError">{{ fullNameError }}</p>
         </div>
 
         <div class="form-col">
-          <label class="field-label">Date of Birth</label>
-          <input type="date" class="auth-input" formControlName="dob">
+          <label class="field-label" for="dob">Date of Birth</label>
+          <input
+            id="dob"
+            type="date"
+            class="auth-input"
+            [class.auth-input--error]="dobError"
+            formControlName="dob"
+          >
+          <p class="field-error" *ngIf="dobError">{{ dobError }}</p>
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="form-col">
-          <label class="field-label">Country</label>
-           <select class="auth-input" formControlName="country">
-             <option value="" disabled selected>Select Country</option>
-             <option *ngFor="let c of countries" [value]="c">{{ c }}</option>
-           </select>
-        </div>
-      </div>
-
+      <!-- Country -->
       <div class="form-group">
-        <label class="field-label">Email</label>
-        <input type="email" class="auth-input" formControlName="email" placeholder="name@example.com">
+        <label class="field-label" for="country">Country</label>
+        <select
+          id="country"
+          class="auth-input"
+          [class.auth-input--error]="countryError"
+          formControlName="country"
+        >
+          <option value="" disabled>Select Country</option>
+          <option *ngFor="let c of countries" [value]="c">{{ c }}</option>
+        </select>
+        <p class="field-error" *ngIf="countryError">{{ countryError }}</p>
       </div>
 
+      <!-- Email -->
+      <div class="form-group">
+        <label class="field-label" for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          class="auth-input"
+          [class.auth-input--error]="emailError"
+          formControlName="email"
+          placeholder="name@example.com"
+          autocomplete="email"
+        >
+        <p class="field-error" *ngIf="emailError">{{ emailError }}</p>
+      </div>
+
+      <!-- Password & Confirm Password -->
       <div class="form-row">
         <div class="form-col">
-          <label class="field-label">Password</label>
+          <label class="field-label" for="password">Password</label>
           <div class="password-wrapper">
-            <input [type]="hidePassword ? 'password' : 'text'" class="auth-input" formControlName="password" placeholder="Create">
-            <button type="button" class="toggle-btn" (click)="hidePassword = !hidePassword">
+            <input
+              id="password"
+              [type]="hidePassword ? 'password' : 'text'"
+              class="auth-input"
+              [class.auth-input--error]="passwordError"
+              formControlName="password"
+              placeholder="Min. 8 characters"
+              autocomplete="new-password"
+            >
+            <button
+              type="button"
+              class="toggle-btn"
+              (click)="hidePassword = !hidePassword"
+              [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'"
+            >
               <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
           </div>
+          <p class="field-error" *ngIf="passwordError">{{ passwordError }}</p>
         </div>
+
         <div class="form-col">
-          <label class="field-label">Confirm</label>
+          <label class="field-label" for="confirmPassword">Confirm Password</label>
           <div class="password-wrapper">
-            <input [type]="hideConfirmPassword ? 'password' : 'text'" class="auth-input" formControlName="confirmPassword" placeholder="Confirm">
-            <button type="button" class="toggle-btn" (click)="hideConfirmPassword = !hideConfirmPassword">
+            <input
+              id="confirmPassword"
+              [type]="hideConfirmPassword ? 'password' : 'text'"
+              class="auth-input"
+              [class.auth-input--error]="confirmPasswordError"
+              formControlName="confirmPassword"
+              placeholder="Repeat password"
+              autocomplete="new-password"
+            >
+            <button
+              type="button"
+              class="toggle-btn"
+              (click)="hideConfirmPassword = !hideConfirmPassword"
+              [attr.aria-label]="hideConfirmPassword ? 'Show confirm password' : 'Hide confirm password'"
+            >
               <mat-icon>{{ hideConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
           </div>
+          <p class="field-error" *ngIf="confirmPasswordError">{{ confirmPasswordError }}</p>
         </div>
       </div>
 
+      <!-- Gender -->
       <div class="form-group">
         <label class="field-label">Gender</label>
         <div class="gender-options">
@@ -79,12 +143,17 @@
         </div>
       </div>
 
-      <div *ngIf="errorMessage" class="auth-helper-text text-center">
-        {{ errorMessage }}
+      <!-- Server-side error -->
+      <div *ngIf="errorMessage" class="server-error-box" role="alert">
+        <mat-icon class="server-error-icon">error_outline</mat-icon>
+        <span>{{ errorMessage }}</span>
       </div>
 
-      <button class="primary-btn mt-4" type="submit" [disabled]="registerForm.invalid || isSubmitting">
-        {{ isSubmitting ? 'Submitting...' : 'Create Account' }}
+      <button class="primary-btn mt-4" type="submit" [disabled]="isSubmitting">
+        <span *ngIf="!isSubmitting">Create Account</span>
+        <span *ngIf="isSubmitting" class="btn-spinner">
+          <mat-icon class="spin-icon">autorenew</mat-icon> Creating account…
+        </span>
       </button>
     </form>
 
@@ -96,7 +165,6 @@
         script runs; the wrapper is what hides it when SSO is not configured. Signing up with
         Google and signing in with Google are the same operation server-side — the account is
         created on first arrival — so this reuses the same flow rather than a separate one.
-        Microsoft and Okta were removed: they were never wired to anything.
       -->
       <div class="social-row">
         <div class="sso-slot" [class.sso-slot--hidden]="!googleSsoAvailable">

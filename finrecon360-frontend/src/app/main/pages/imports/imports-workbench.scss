@@ -236,8 +236,22 @@
 
 .source-type-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 10px;
+}
+
+.bank-account-section {
+  display: grid;
+  gap: 8px;
+}
+
+.bank-account-select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--fr-border);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--fr-text-primary);
+  font-size: var(--fr-text-base);
 }
 
 .source-type-card,

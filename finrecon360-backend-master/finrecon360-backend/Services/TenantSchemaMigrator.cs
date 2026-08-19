@@ -42,6 +42,8 @@ namespace finrecon360_backend.Services
         private const string MigrationReconciliationDailySnapshot = "202608190001_TenantReconciliationDailySnapshot";
         private const string MigrationTenantDailySnapshot = "202608190002_TenantDailySnapshot";
         private const string MigrationReportSchedules = "202608190003_TenantReportSchedules";
+        private const string MigrationMatcherReconciliationViewGrant = "202608190004_TenantMatcherReconciliationViewGrant";
+        private const string MigrationReconciliationEventsImportBatchIdNull = "202608190005_TenantReconciliationEventsImportBatchIdNull";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -84,6 +86,8 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationDailySnapshot, BuildTenantReconciliationDailySnapshotSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationTenantDailySnapshot, BuildTenantDailySnapshotSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReportSchedules, BuildTenantReportSchedulesSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationMatcherReconciliationViewGrant, BuildTenantMatcherReconciliationViewGrantSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEventsImportBatchIdNull, BuildTenantReconciliationEventsImportBatchIdNullSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -967,6 +971,26 @@ namespace finrecon360_backend.Services
               );
             """;
 
+        // The Matcher nav tab is gated by MATCHER.VIEW (granted to ADMIN/MANAGER/REVIEWER/USER in
+        // BuildTenantRbacSql), but the /app/matcher route it links to is guarded by
+        // ADMIN.RECONCILIATION.VIEW, which BuildTenantReconciliationJournalSchemaSql only granted
+        // to ADMIN. Non-ADMIN roles could see the tab but bounced to /app/not-authorized on click.
+        // This is a standalone migration rather than an edit to that method's SQL because
+        // MigrationReconciliationJournalSchema is tracked by name and only runs once per tenant —
+        // see BuildTenantReconciliationEventsMatchGroupFieldsSql above for the same gap class.
+        private static string BuildTenantMatcherReconciliationViewGrantSql() =>
+            """
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code = N'ADMIN.RECONCILIATION.VIEW'
+            WHERE r.Code IN (N'MANAGER', N'REVIEWER', N'USER')
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
+            """;
+
         // Adds approval metadata without rebuilding tenant transaction tables already in use.
         /// <summary>
         /// Adds the columns introduced by the reconciliation rewrite.
@@ -1596,6 +1620,17 @@ namespace finrecon360_backend.Services
                         FOREIGN KEY (ReconciliationMatchGroupId)
                         REFERENCES dbo.ReconciliationMatchGroups(ReconciliationMatchGroupId)
                         ON DELETE NO ACTION;
+                END
+            END
+            """;
+
+        private static string BuildTenantReconciliationEventsImportBatchIdNullSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationEvents', N'U') IS NOT NULL
+            BEGIN
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'ImportBatchId') IS NOT NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN ImportBatchId uniqueidentifier NULL;
                 END
             END
             """;

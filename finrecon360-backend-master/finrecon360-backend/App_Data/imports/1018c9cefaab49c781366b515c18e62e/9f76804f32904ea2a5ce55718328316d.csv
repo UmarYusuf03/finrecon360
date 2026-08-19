@@ -1,0 +1,17 @@
+TransactionDate,PostingDate,ReferenceNumber,SettlementId,Description,AccountCode,AccountName,BatchNumber,TerminalId,MerchantId,GrossAmount,ProcessingFee,DebitAmount,CreditAmount,NetAmount,Currency
+2026-05-29,,SHIFT-L1MATCH-01,,Shift cash handover,,,,,,,,,,4200.50,LKR
+2026-05-30,,SHIFT-L1MATCH-02,,Shift cash handover,,,,,,,,,,5050.50,LKR
+2026-06-02,,SHIFT-L1VAR-01,,Shift cash handover (till short),,,,,,,,,,4520.00,LKR
+2026-06-03,,SHIFT-L1VAR-02,,Shift cash handover (till short),,,,,,,,,,4820.00,LKR
+2026-06-04,,SHIFT-L1AMB-01,,Shift cash handover - register A,,,,,,,,,,6000.00,LKR
+2026-06-04,,SHIFT-L1AMB-01,,Shift cash handover - register B (duplicate entry),,,,,,,,,,6000.00,LKR
+2026-06-05,,SHIFT-L1AMB-02,,Shift cash handover - register A,,,,,,,,,,6250.00,LKR
+2026-06-05,,SHIFT-L1AMB-02,,Shift cash handover - register B (duplicate entry),,,,,,,,,,6250.00,LKR
+2026-06-06,,ORD-L2MATCH-01,,POS EOD sale,,,,,,,,,,7400.00,LKR
+2026-06-07,,ORD-L2MATCH-02,,POS EOD sale,,,,,,,,,,8010.00,LKR
+2026-06-08,,ORD-L2NOMATCH-01,,POS EOD sale (no ERP entry yet),,,,,,,,,,6100.00,LKR
+2026-06-09,,ORD-L2NOMATCH-02,,POS EOD sale (no ERP entry yet),,,,,,,,,,6500.00,LKR
+2026-06-10,,ORD-L2VAR-01,,POS EOD sale,,,,,,,,,,8300.00,LKR
+2026-06-11,,ORD-L2VAR-02,,POS EOD sale,,,,,,,,,,8800.00,LKR
+2026-06-12,,ORD-L2AMB-01,,POS EOD sale,,,,,,,,,,9100.00,LKR
+2026-06-13,,ORD-L2AMB-02,,POS EOD sale,,,,,,,,,,9400.00,LKR

@@ -37,12 +37,30 @@
     </a>
     <a
       [class]="linkClass"
+      routerLink="/app/reports"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: false }"
+      *appHasPermission="'ADMIN.DASHBOARD.VIEW'"
+    >
+      {{ 'REPORTS_HUB.TITLE' | translate }}
+    </a>
+    <a
+      [class]="linkClass"
       [routerLink]="getAdminRoot(user$ | async)"
       routerLinkActive="active"
       [routerLinkActiveOptions]="{ exact: false }"
       *ngIf="hasAnyPermission(user$ | async, adminEntryPermissions)"
     >
       {{ 'NAV.ADMIN' | translate }}
+    </a>
+    <a
+      [class]="linkClass"
+      routerLink="/app/billing"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }"
+      *appHasPermission="'ADMIN.SUBSCRIPTIONS.MANAGE'"
+    >
+      {{ 'PROFILE.BILLING.TITLE' | translate }}
     </a>
     <a
       [class]="linkClass"
@@ -101,6 +119,17 @@
 
           <ng-container *ngIf="user$ | async as user">
             <a
+              *ngIf="user.isSystemAdmin && hasAnyPermission(user, ['ADMIN.TENANT_REGISTRATIONS.MANAGE'])"
+              routerLink="/app/system/tenant-registrations"
+              class="shell__bell-btn"
+              [attr.aria-label]="'ADMIN.TENANT_REGISTRATIONS.TITLE' | translate"
+              [matTooltip]="'ADMIN.TENANT_REGISTRATIONS.TITLE' | translate"
+            >
+              <mat-icon>how_to_reg</mat-icon>
+              <span class="shell__bell-badge" *ngIf="pendingRegistrationCount > 0">{{ pendingRegistrationCount > 99 ? '99+' : pendingRegistrationCount }}</span>
+            </a>
+
+            <a
               *ngIf="user.isSystemAdmin && hasAnyPermission(user, ['ADMIN.PAYMENT_ALERTS.VIEW'])"
               routerLink="/app/system/payment-alerts"
               class="shell__bell-btn"
@@ -144,7 +173,7 @@
     <div class="shell__billing-banner" *ngIf="subscriptionDaysOverdue !== null" role="alert">
       <mat-icon>error_outline</mat-icon>
       <span>{{ 'BILLING.OVERDUE_BANNER' | translate:{ count: subscriptionDaysOverdue } }}</span>
-      <a routerLink="/app/admin/subscription" class="shell__billing-banner-link">
+      <a routerLink="/app/billing" class="shell__billing-banner-link">
         {{ 'BILLING.PAY_NOW' | translate }}
       </a>
     </div>

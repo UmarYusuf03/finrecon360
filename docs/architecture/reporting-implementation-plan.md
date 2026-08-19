@@ -32,10 +32,11 @@ What exists today:
   `Services/CashFlow/CashFlowForecastService.cs`, frontend
   `main/pages/admin/admin-cash-flow-forecast.*`) — built the session before this plan
   was written. The one genuinely forward-looking, report-like feature shipped so far.
-  Uses an EWMA over confirmed `JournalReady` transactions plus settlement-lag-adjusted
-  pending amounts. Treat this as the reference implementation for "what a report page
-  in this codebase looks like" — same visual language, same permission-seeding
-  pattern, same controller/service split.
+  Uses two separate EWMAs over confirmed `JournalReady` transactions (split by instant vs
+  pending flows). For near-term projections, it strictly relies on known pending amounts
+  instead of the trend to avoid double-counting. Treat this as the reference implementation
+  for "what a report page in this codebase looks like" — same visual language, same
+  permission-seeding pattern, same controller/service split.
 
 What does **not** exist at all:
 

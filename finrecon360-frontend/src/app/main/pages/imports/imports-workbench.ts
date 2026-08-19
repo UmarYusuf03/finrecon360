@@ -8,7 +8,8 @@ import { TranslateModule } from '@ngx-translate/core';
 
 import { AuthService } from '../../../core/auth/auth.service';
 import { AdminImportArchitectureService } from '../../../core/admin-rbac/admin-import-architecture.service';
-import { ImportMappingTemplate } from '../../../core/admin-rbac/models';
+import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
+import { BankAccount, ImportMappingTemplate } from '../../../core/admin-rbac/models';
 import { ImportsService } from '../../../core/imports/imports.service';
 import {
   ImportActiveTemplateResponse,
@@ -41,9 +42,13 @@ export class ImportsWorkbenchComponent implements OnInit {
     'TransactionDate',
     'PostingDate',
     'ReferenceNumber',
+    'SettlementId',
     'Description',
     'AccountCode',
     'AccountName',
+    'BatchNumber',
+    'TerminalId',
+    'MerchantId',
     'GrossAmount',
     'ProcessingFee',
     'DebitAmount',
@@ -77,7 +82,25 @@ export class ImportsWorkbenchComponent implements OnInit {
       icon: 'point_of_sale',
       hint: 'EOD sales reports',
     },
+    {
+      value: 'POS_SETTLEMENT',
+      label: 'POS_SETTLEMENT — Terminal Settlement',
+      icon: 'sync_alt',
+      hint: 'Card terminal / acquirer batch-close file',
+    },
   ];
+
+  // WHY: These source types settle into a specific bank account, so the matching workers
+  // (Level6 for GATEWAY, Level7 for POS_SETTLEMENT) can scope their BANK search to that
+  // account instead of searching every account tenant-wide. BANK itself also needs an
+  // account so its own records carry one for the other side of that scoping.
+  readonly sourceTypesRequiringBankAccount = new Set(['GATEWAY', 'BANK', 'POS_SETTLEMENT']);
+  bankAccounts: BankAccount[] = [];
+  selectedBankAccountId: string | null = null;
+
+  get requiresBankAccount(): boolean {
+    return !!this.importSourceType && this.sourceTypesRequiringBankAccount.has(this.importSourceType);
+  }
 
   loading = false;
   processing = false;
@@ -151,7 +174,7 @@ export class ImportsWorkbenchComponent implements OnInit {
   get canCreateImport(): boolean {
     if (this.has('ADMIN.IMPORTS.CREATE')) return true;
     const perms = this.perms;
-    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+    return ['POS', 'POS_SETTLEMENT', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
       perms.includes(`ADMIN.IMPORTS.${src}.CREATE`),
     );
   }
@@ -160,7 +183,7 @@ export class ImportsWorkbenchComponent implements OnInit {
   get canEditImport(): boolean {
     if (this.has('ADMIN.IMPORTS.EDIT')) return true;
     const perms = this.perms;
-    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+    return ['POS', 'POS_SETTLEMENT', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
       perms.includes(`ADMIN.IMPORTS.${src}.EDIT`),
     );
   }
@@ -170,7 +193,7 @@ export class ImportsWorkbenchComponent implements OnInit {
   get canCommit(): boolean {
     if (this.has('ADMIN.IMPORTS.COMMIT')) return true;
     const perms = this.perms;
-    return ['POS', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
+    return ['POS', 'POS_SETTLEMENT', 'ERP', 'GATEWAY', 'BANK'].some((src) =>
       perms.includes(`ADMIN.IMPORTS.${src}.COMMIT`),
     );
   }
@@ -215,6 +238,7 @@ export class ImportsWorkbenchComponent implements OnInit {
     private readonly importsService: ImportsService,
     private readonly importArchitectureService: AdminImportArchitectureService,
     private readonly authService: AuthService,
+    private readonly bankAccountService: BankAccountService,
     private readonly router: Router,
   ) {}
 
@@ -226,6 +250,10 @@ export class ImportsWorkbenchComponent implements OnInit {
       this.importSourceType = [...allowed][0];
     }
     this.refreshHistory();
+    this.bankAccountService.getAll().subscribe({
+      next: (accounts) => (this.bankAccounts = accounts),
+      error: () => (this.bankAccounts = []),
+    });
   }
 
   onFileSelected(event: Event): void {
@@ -262,23 +290,30 @@ export class ImportsWorkbenchComponent implements OnInit {
       return;
     }
 
+    if (this.requiresBankAccount && !this.selectedBankAccountId) {
+      this.actionError = 'Select a Bank Account before uploading.';
+      return;
+    }
+
     this.processing = true;
     this.clearAlerts();
-    this.importsService.uploadImport(this.selectedFile, this.importSourceType).subscribe({
-      next: (result) => {
-        this.processing = false;
-        this.actionMessage = `Upload created (${result.sourceType}): ${result.id}`;
-        this.setSelectedFile(null);
-        this.refreshHistory();
-      },
-      error: (error) => {
-        this.processing = false;
-        if (this.tryRefreshSessionAndRetry(error, () => this.upload())) {
-          return;
-        }
-        this.actionError = this.getErrorMessage(error, 'Upload failed.');
-      },
-    });
+    this.importsService
+      .uploadImport(this.selectedFile, this.importSourceType, this.selectedBankAccountId ?? undefined)
+      .subscribe({
+        next: (result) => {
+          this.processing = false;
+          this.actionMessage = `Upload created (${result.sourceType}): ${result.id}`;
+          this.setSelectedFile(null);
+          this.refreshHistory();
+        },
+        error: (error) => {
+          this.processing = false;
+          if (this.tryRefreshSessionAndRetry(error, () => this.upload())) {
+            return;
+          }
+          this.actionError = this.getErrorMessage(error, 'Upload failed.');
+        },
+      });
   }
 
   refreshHistory(): void {

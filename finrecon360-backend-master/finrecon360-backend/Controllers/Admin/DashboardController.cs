@@ -67,7 +67,10 @@ namespace finrecon360_backend.Controllers.Admin
         }
 
         [HttpGet("summary")]
-        public async Task<ActionResult<DashboardSummaryResponse>> GetSummary(CancellationToken ct)
+        public async Task<ActionResult<DashboardSummaryResponse>> GetSummary(
+            [FromQuery] DateTime? startDate,
+            [FromQuery] DateTime? endDate,
+            CancellationToken ct)
         {
             if (_userContext.UserId is not { } userId) return Unauthorized();
 
@@ -84,24 +87,45 @@ namespace finrecon360_backend.Controllers.Admin
                 .AnyAsync(tu => tu.UserId == userId && tu.IsActive, ct);
             if (!isActiveInTenant) return Forbid();
 
-            var totalTransactions = await tenantDb.Transactions.AsNoTracking().CountAsync(ct);
-            var pendingApprovalTransactions = await tenantDb.Transactions.AsNoTracking()
+            var txQuery = tenantDb.Transactions.AsNoTracking();
+            var mgQuery = tenantDb.ReconciliationMatchGroups.AsNoTracking();
+            var reQuery = tenantDb.ReconciliationEvents.AsNoTracking();
+            var jeQuery = tenantDb.JournalEntries.AsNoTracking();
+
+            if (startDate.HasValue)
+            {
+                txQuery = txQuery.Where(t => t.CreatedAt >= startDate.Value);
+                mgQuery = mgQuery.Where(g => g.CreatedAt >= startDate.Value);
+                reQuery = reQuery.Where(e => e.CreatedAt >= startDate.Value);
+                jeQuery = jeQuery.Where(j => j.PostedAt >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                txQuery = txQuery.Where(t => t.CreatedAt <= endDate.Value);
+                mgQuery = mgQuery.Where(g => g.CreatedAt <= endDate.Value);
+                reQuery = reQuery.Where(e => e.CreatedAt <= endDate.Value);
+                jeQuery = jeQuery.Where(j => j.PostedAt <= endDate.Value);
+            }
+
+            var totalTransactions = await txQuery.CountAsync(ct);
+            var pendingApprovalTransactions = await txQuery
                 .CountAsync(t => t.TransactionState == TransactionState.Pending, ct);
-            var needsBankMatchTransactions = await tenantDb.Transactions.AsNoTracking()
+            var needsBankMatchTransactions = await txQuery
                 .CountAsync(t => t.TransactionState == TransactionState.NeedsBankMatch, ct);
-            var journalReadyTransactions = await tenantDb.Transactions.AsNoTracking()
+            var journalReadyTransactions = await txQuery
                 .CountAsync(t => t.TransactionState == TransactionState.JournalReady, ct);
 
-            var totalMatchGroups = await tenantDb.ReconciliationMatchGroups.AsNoTracking().CountAsync(ct);
-            var confirmedMatchGroups = await tenantDb.ReconciliationMatchGroups.AsNoTracking()
+            var totalMatchGroups = await mgQuery.CountAsync(ct);
+            var confirmedMatchGroups = await mgQuery
                 .CountAsync(g => g.IsConfirmed, ct);
             var pendingConfirmationMatchGroups = totalMatchGroups - confirmedMatchGroups;
 
-            var totalEvents = await tenantDb.ReconciliationEvents.AsNoTracking().CountAsync(ct);
-            var exceptionEvents = await tenantDb.ReconciliationEvents.AsNoTracking()
+            var totalEvents = await reQuery.CountAsync(ct);
+            var exceptionEvents = await reQuery
                 .CountAsync(e => e.EventType == "Variance" || e.EventType == "RequiresReview", ct);
 
-            var totalJournalEntries = await tenantDb.JournalEntries.AsNoTracking().CountAsync(ct);
+            var totalJournalEntries = await jeQuery.CountAsync(ct);
             var totalBankAccounts = await tenantDb.BankAccounts.AsNoTracking().CountAsync(ct);
 
             return Ok(new DashboardSummaryResponse(
