@@ -64,6 +64,34 @@ export class AdminShellComponent implements OnInit {
       scope: 'tenant',
     },
     {
+      path: '/app/admin/cash-flow-forecast',
+      label: 'CASH_FLOW.TITLE',
+      description: 'CASH_FLOW.COPY',
+      permission: 'ADMIN.CASH_FLOW_FORECAST.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/financial-reports',
+      label: 'FINANCIAL_REPORTS.TITLE',
+      description: 'FINANCIAL_REPORTS.COPY',
+      permission: 'ADMIN.FINANCIAL_REPORTS.VIEW',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/report-schedules',
+      label: 'REPORT_SCHEDULES.TITLE',
+      description: 'REPORT_SCHEDULES.SUBTITLE',
+      permission: 'ADMIN.REPORT_SCHEDULES.MANAGE',
+      scope: 'tenant',
+    },
+    {
+      path: '/app/admin/subscription',
+      label: 'PROFILE.BILLING.TITLE',
+      description: 'PROFILE.BILLING.COPY',
+      permission: 'ADMIN.SUBSCRIPTIONS.MANAGE',
+      scope: 'tenant',
+    },
+    {
       path: '/app/admin/roles',
       label: 'ADMIN.ROLES.TITLE',
       description: 'ADMIN.ROLES.COPY',
@@ -122,6 +150,7 @@ export class AdminShellComponent implements OnInit {
     {
       path: '/app/system/payment-alerts',
       label: 'ADMIN.PAYMENT_ALERTS.TITLE',
+      description: 'ADMIN.PAYMENT_ALERTS.COPY',
       permission: 'ADMIN.PAYMENT_ALERTS.VIEW',
       scope: 'system',
     },

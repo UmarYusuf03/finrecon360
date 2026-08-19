@@ -26,6 +26,7 @@ This guide helps new developers set up the repo, configure the environment, and 
    - Jwt**Key, Jwt**Issuer, Jwt\_\_Audience
    - SYSTEM_ADMIN_EMAIL, SYSTEM_ADMIN_PASSWORD
    - BREVO\_\* values (email provider)
+   - GOOGLE_CLIENT_ID (Google SSO; leave unset to disable the Google button)
    - STRIPE\_\* values
    - TENANT_DB_TEMPLATE
 
@@ -71,7 +72,7 @@ Use the real onboarding flow:
 3. Approve registration in system admin screen
 4. Complete onboarding via magic link email
 5. Set password and choose plan
-6. Complete Stripe checkout
+6. Complete PayHere checkout
 7. Tenant becomes Active and can access tenant routes
 
 ## Import Workflow (Tenant Admin)
