@@ -1,0 +1,21 @@
+TransactionDate,PostingDate,ReferenceNumber,SettlementId,Description,AccountCode,AccountName,BatchNumber,TerminalId,MerchantId,GrossAmount,ProcessingFee,DebitAmount,CreditAmount,NetAmount,Currency
+2026-05-19,,,,POS terminal batch close,,,7001,,,25000.00,750.00,,,24250.00,LKR
+2026-05-25,,,,POS terminal batch close,,,7002,,,26800.00,790.00,,,26010.00,LKR
+2026-05-27,,,,POS terminal batch close (split network),,,7101,,,40000.00,1200.00,,,38800.00,LKR
+2026-06-01,,,,POS terminal batch close (split network),,,7102,,,42200.00,1260.00,,,40940.00,LKR
+2026-06-04,,,,POS terminal batch close - shift 1,,,,TID8001,,15000.00,450.00,,,14550.00,LKR
+2026-06-04,,,,POS terminal batch close - shift 2,,,,TID8001,,9000.00,270.00,,,8730.00,LKR
+2026-06-08,,,,POS terminal batch close - shift 1,,,,TID8002,,15900.00,450.00,,,15450.00,LKR
+2026-06-08,,,,POS terminal batch close - shift 2,,,,TID8002,,9500.00,270.00,,,9230.00,LKR
+2026-06-12,,,,POS terminal batch close (merchant EOD only),,,,,MID9001,18000.00,540.00,,,17460.00,LKR
+2026-06-16,,,,POS terminal batch close (merchant EOD only),,,,,MID9002,19100.00,570.00,,,18530.00,LKR
+2026-06-22,,,,POS terminal batch close,,,7201,,,22000.00,660.00,,,21340.00,LKR
+2026-06-24,,,,POS terminal batch close,,,7202,,,23300.00,660.00,,,22640.00,LKR
+2026-06-29,,,,POS terminal batch close (settlement pending),,,7301,,,12000.00,360.00,,,11640.00,LKR
+2026-07-02,,,,POS terminal batch close (settlement pending),,,7302,,,12700.00,360.00,,,12340.00,LKR
+2026-07-06,,,,POS terminal batch close (slow settlement),,,7401,,,16000.00,480.00,,,15520.00,LKR
+2026-07-10,,,,POS terminal batch close (slow settlement),,,7402,,,16900.00,480.00,,,16420.00,LKR
+2026-07-14,,,,POS terminal batch close (very slow settlement),,,7501,,,17000.00,510.00,,,16490.00,LKR
+2026-07-20,,,,POS terminal batch close (very slow settlement),,,7502,,,17950.00,510.00,,,17440.00,LKR
+2026-07-22,,,,POS terminal batch close (holiday-adjacent settlement),,,7601,,,19000.00,570.00,,,18430.00,LKR
+2026-07-27,,,,POS terminal batch close (holiday-adjacent settlement),,,7602,,,20000.00,570.00,,,19430.00,LKR

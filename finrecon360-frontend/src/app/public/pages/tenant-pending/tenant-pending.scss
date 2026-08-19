@@ -33,10 +33,10 @@
   height: 56px;
   margin: 0 auto 10px;
   border-radius: 14px;
-  background: linear-gradient(145deg, #1d2b64 0%, #2f4aa0 100%);
+  background: var(--fr-primary);
   display: grid;
   place-items: center;
-  box-shadow: 0 14px 28px rgba(29, 43, 100, 0.24);
+  box-shadow: 0 14px 28px rgba(11, 132, 216, 0.24);
 }
 
 .pending-icon span {

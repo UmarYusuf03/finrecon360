@@ -1,0 +1,38 @@
+TransactionDate,PostingDate,ReferenceNumber,SettlementId,Description,AccountCode,AccountName,BatchNumber,TerminalId,MerchantId,GrossAmount,ProcessingFee,DebitAmount,CreditAmount,NetAmount,Currency
+2026-06-14,,INV-L3MATCH-01,,Gateway settlement credit,,,,,,,,,,5600.00,LKR
+2026-06-15,,INV-L3MATCH-02,,Gateway settlement credit,,,,,,,,,,6070.00,LKR
+2026-06-18,,INV-L3VAR-01,,Gateway settlement credit (fee deducted),,,,,,,,,,6460.00,LKR
+2026-06-19,,INV-L3VAR-02,,Gateway settlement credit (fee deducted),,,,,,,,,,6860.00,LKR
+2026-06-20,,INV-L3AMB-01,,Gateway settlement credit - split 1,,,,,,,,,,7200.00,LKR
+2026-06-20,,INV-L3AMB-01,,Gateway settlement credit - split 2,,,,,,,,,,7200.00,LKR
+2026-06-21,,INV-L3AMB-02,,Gateway settlement credit - split 1,,,,,,,,,,7460.00,LKR
+2026-06-21,,INV-L3AMB-02,,Gateway settlement credit - split 2,,,,,,,,,,7460.00,LKR
+2026-06-22,,CO-L4T1-01,,Gateway payout - card cashout,ACC100,,,,,,,,,12000.00,LKR
+2026-06-23,,CO-L4T1-02,,Gateway payout - card cashout,ACC101,,,,,,,,,12900.00,LKR
+2026-06-24,,CO-L4T2-01,,Gateway payout - card cashout,ACC200,,,,,13800.00,300.00,,,13500.00,LKR
+2026-06-25,,CO-L4T2-02,,Gateway payout - card cashout,ACC201,,,,,14625.00,325.00,,,14300.00,LKR
+2026-06-26,,CO-L4T3-01,,Gateway payout - card cashout,ACC300,,,,,,,,,9800.00,LKR
+2026-06-27,,CO-L4T3-02,,Gateway payout - card cashout,ACC301,,,,,,,,,10350.00,LKR
+2026-06-28,,CO-L4AMBGW-01-A,,Gateway payout candidate A,ACC400A,,,,,,,,,11000.00,LKR
+2026-06-28,,CO-L4AMBGW-01-B,,Gateway payout candidate B,ACC400B,,,,,,,,,11000.00,LKR
+2026-06-29,,CO-L4AMBGW-02-A,,Gateway payout candidate A,ACC401A,,,,,,,,,11400.00,LKR
+2026-06-29,,CO-L4AMBGW-02-B,,Gateway payout candidate B,ACC401B,,,,,,,,,11400.00,LKR
+2026-06-30,,,,Gateway payout - missing settlement identifiers,,,,,,,,,,8600.00,LKR
+2026-07-01,,,,Gateway payout - missing settlement identifiers,,,,,,,,,,8900.00,LKR
+2026-07-02,,CO-L4NOBANK-01,,Gateway payout - awaiting bank settlement,ACC500,,,,,,,,,10200.00,LKR
+2026-07-03,,CO-L4NOBANK-02,,Gateway payout - awaiting bank settlement,ACC501,,,,,,,,,10550.00,LKR
+2026-07-04,,CO-L4WRONGACCT-01,,Gateway payout - card cashout,ACC600,,,,,,,,,9400.00,LKR
+2026-07-05,,CO-L4WRONGACCT-02,,Gateway payout - card cashout,ACC601,,,,,,,,,9700.00,LKR
+2026-07-06,,CO-L4AMBBANK-01,,Gateway payout - card cashout,ACC700,,,,,,,,,8800.00,LKR
+2026-07-07,,CO-L4AMBBANK-02,,Gateway payout - card cashout,ACC701,,,,,,,,,9200.00,LKR
+2026-07-08,,,STL-L6MATCH-01,Gateway settlement batch,,,,,,,,,,42000.00,LKR
+2026-07-09,,,STL-L6MATCH-02,Gateway settlement batch - part 1,,,,,,,,,,18000.00,LKR
+2026-07-09,,,STL-L6MATCH-02,Gateway settlement batch - part 2,,,,,,,,,,26500.00,LKR
+2026-07-10,,,STL-L6NOBANK-01,Gateway settlement batch (awaiting bank deposit),,,,,,,,,,31000.00,LKR
+2026-07-11,,,STL-L6NOBANK-02,Gateway settlement batch (awaiting bank deposit),,,,,,,,,,32500.00,LKR
+2026-07-12,,,STL-L6WRONGACCT-01,Gateway settlement batch,,,,,,,,,,27500.00,LKR
+2026-07-13,,,STL-L6WRONGACCT-02,Gateway settlement batch,,,,,,,,,,28700.00,LKR
+2026-07-14,,,STL-L6VAR-01,Gateway settlement batch,,,,,,,,,,36000.00,LKR
+2026-07-15,,,STL-L6VAR-02,Gateway settlement batch,,,,,,,,,,37400.00,LKR
+2026-07-16,,,STL-L6AMB-01,Gateway settlement batch,,,,,,,,,,29500.00,LKR
+2026-07-17,,,STL-L6AMB-02,Gateway settlement batch,,,,,,,,,,31100.00,LKR
