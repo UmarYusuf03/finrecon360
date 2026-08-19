@@ -26,13 +26,14 @@ Implemented frontend areas:
 - dashboard, matcher placeholder, and profile surfaces
 - permission-aware navigation and route guards
 
+Reporting and analytics surfaces are now implemented: export buttons (CSV/XLSX) on Transactions, Bank Accounts, Audit Logs, and Match Groups; a Financial Reports section (General Ledger, Trial Balance, Income Statement, Balance Sheet); a Reconciliation Trends page under Matcher; a Reports Hub landing page (`/app/admin/reports`); and a Report Schedules page for weekly emailed reports. See `../docs/architecture/reporting-implementation-plan.md`.
+
 Not yet implemented as full production workflows:
 
 - bank statement import workflow
 - transaction approvals workflow
 - exception management workflow
 - journal posting workflow
-- reporting and analytics surfaces matching the target architecture
 
 ## Admin Ownership Split
 
@@ -128,7 +129,7 @@ Test behavior:
 
 The target architecture includes imports, canonical mapping, approvals, reconciliation confirmation, journal gating, and reporting.
 
-Current frontend has working canonical import and mapping-template UX, but reconciliation, approvals, journal posting, bank-statement matching, and reporting remain incomplete or placeholder.
+Current frontend has working canonical import and mapping-template UX. Reporting is implemented (see the "Current Frontend Scope" section above); reconciliation, approvals, journal posting, and bank-statement matching status should be checked against `WORKER-INTEGRATION.md` and the Matcher UI directly rather than assumed incomplete from this note.
 
 ### 2. Global User Concept Is Not Expressed Cleanly In UI
 

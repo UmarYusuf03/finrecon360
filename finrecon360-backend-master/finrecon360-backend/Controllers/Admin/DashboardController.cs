@@ -23,6 +23,20 @@ namespace finrecon360_backend.Controllers.Admin
         int TotalBankAccounts,
         DateTime LastUpdatedUtc);
 
+    public record DashboardTrendDayDto(
+        DateTime SnapshotDate,
+        int PendingApprovalCount,
+        decimal? OldestPendingApprovalAgeHours,
+        int JournalEntriesPostedCount,
+        decimal JournalDebitAmountPosted,
+        int BankRecordsTotalCount,
+        int BankRecordsMatchedCount);
+
+    public record DashboardTrendResponse(
+        DateTime FromUtc,
+        DateTime ToUtc,
+        IReadOnlyList<DashboardTrendDayDto> Days);
+
     // ── Controller ────────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -103,6 +117,61 @@ namespace finrecon360_backend.Controllers.Admin
                 totalJournalEntries,
                 totalBankAccounts,
                 DateTime.UtcNow));
+        }
+
+        /// <summary>
+        /// Period-based trend KPIs (Section 17's term) read from TenantDailySnapshot — populated
+        /// once daily by ReconciliationSnapshotHostedService, so today (and any day before the
+        /// first snapshot ran) will have no row yet. Deliberately separate from GetSummary above:
+        /// that endpoint's counts are live, current-moment queue sizes an operator needs to be
+        /// accurate to the second (pending approvals, needs-bank-match, journal-ready) — swapping
+        /// those to a once-daily snapshot would show yesterday's queue as if it were today's,
+        /// which is actively misleading, not just "slightly stale". This endpoint is additive,
+        /// for historical trend context alongside the live summary, not a replacement for it.
+        /// </summary>
+        [HttpGet("trend")]
+        public async Task<ActionResult<DashboardTrendResponse>> GetTrend(
+            [FromQuery] DateTime? fromUtc,
+            [FromQuery] DateTime? toUtc,
+            CancellationToken ct)
+        {
+            if (_userContext.UserId is not { } userId) return Unauthorized();
+
+            var tenant = await _tenantContext.ResolveAsync(ct);
+            if (tenant == null) return Forbid();
+
+            var isTenantMember = await _dbContext.TenantUsers.AsNoTracking()
+                .AnyAsync(tu => tu.TenantId == tenant.TenantId && tu.UserId == userId, ct);
+            if (!isTenantMember) return Forbid();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, ct);
+
+            var isActiveInTenant = await tenantDb.TenantUsers.AsNoTracking()
+                .AnyAsync(tu => tu.UserId == userId && tu.IsActive, ct);
+            if (!isActiveInTenant) return Forbid();
+
+            var to = (toUtc ?? DateTime.UtcNow).Date;
+            var from = (fromUtc ?? to.AddDays(-30)).Date;
+            if (from > to)
+            {
+                return BadRequest(new { message = "fromUtc must be before or equal to toUtc." });
+            }
+
+            var days = await tenantDb.TenantDailySnapshots
+                .AsNoTracking()
+                .Where(s => s.SnapshotDate >= from && s.SnapshotDate <= to)
+                .OrderBy(s => s.SnapshotDate)
+                .Select(s => new DashboardTrendDayDto(
+                    s.SnapshotDate,
+                    s.PendingApprovalCount,
+                    s.OldestPendingApprovalAgeHours,
+                    s.JournalEntriesPostedCount,
+                    s.JournalDebitAmountPosted,
+                    s.BankRecordsTotalCount,
+                    s.BankRecordsMatchedCount))
+                .ToListAsync(ct);
+
+            return Ok(new DashboardTrendResponse(from, to, days));
         }
     }
 }

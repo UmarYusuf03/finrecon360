@@ -9,6 +9,9 @@ using finrecon360_backend.Services.Workers;
 using finrecon360_backend.Options;
 using finrecon360_backend.Services.BankAccounts;
 using finrecon360_backend.Services.Transactions;
+using finrecon360_backend.Services.CashFlow;
+using finrecon360_backend.Services.Export;
+using finrecon360_backend.Services.Reporting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
@@ -160,18 +163,30 @@ builder.Services.AddScoped<IImportFileParser, ImportFileParser>();
 builder.Services.AddScoped<IImportNormalizationService, ImportNormalizationService>();
 builder.Services.AddScoped<BankAccountService>();
 builder.Services.AddScoped<TransactionService>();
+builder.Services.AddScoped<ICashFlowForecastService, CashFlowForecastService>();
+builder.Services.AddScoped<IReportExporter, ReportExporter>();
+builder.Services.AddScoped<IGeneralLedgerService, GeneralLedgerService>();
+builder.Services.AddScoped<ITrialBalanceService, TrialBalanceService>();
+builder.Services.AddScoped<IIncomeStatementService, IncomeStatementService>();
+builder.Services.AddScoped<IBalanceSheetService, BalanceSheetService>();
+builder.Services.AddScoped<IScheduledReportRenderer, ScheduledReportRenderer>();
 
 builder.Services.AddScoped<IReconciliationSettingsProvider, ReconciliationSettingsProvider>();
 builder.Services.AddScoped<OperationalMatchWorker>();
 builder.Services.AddScoped<PosErpSyncAuditWorker>();
 builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();
 builder.Services.AddScoped<BankStatementReconciliationWorker>();
-builder.Services.AddScoped<CollectionMatchWorker>();
 builder.Services.AddScoped<SettlementMatchWorker>();
+builder.Services.AddScoped<PosSettlementMatchWorker>();
 builder.Services.AddScoped<IJournalPostingExecutorWorker, JournalPostingExecutorWorker>();
+builder.Services.AddScoped<IReconciliationSnapshotWorker, ReconciliationSnapshotWorker>();
+builder.Services.AddScoped<ITenantDailySnapshotWorker, TenantDailySnapshotWorker>();
 
 builder.Services.AddHostedService<ReconciliationCycleHostedService>();
 builder.Services.AddHostedService<JournalPostingHostedService>();
+builder.Services.AddHostedService<SubscriptionOverdueMonitorHostedService>();
+builder.Services.AddHostedService<ReconciliationSnapshotHostedService>();
+builder.Services.AddHostedService<ReportScheduleHostedService>();
 
 builder.Services.AddDataProtection()
     .SetApplicationName("finrecon360-backend");

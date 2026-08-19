@@ -20,10 +20,10 @@ namespace finrecon360_backend.Services.Transactions
                 request.Amount,
                 request.TransactionDate,
                 request.Description,
+                request.ReferenceNumber,
                 request.BankAccountId,
                 request.TransactionType,
                 request.PaymentMethod,
-                request.ReferenceNumber,
                 ct);
 
             var now = DateTime.UtcNow;
@@ -33,12 +33,12 @@ namespace finrecon360_backend.Services.Transactions
                 Amount = validated.Amount,
                 TransactionDate = validated.TransactionDate,
                 Description = validated.Description,
+                ReferenceNumber = NormalizeReferenceNumber(request.ReferenceNumber),
+                CardLast4 = NormalizeCardLast4(request.CardLast4, validated.PaymentMethod),
                 BankAccountId = validated.BankAccountId,
                 TransactionType = validated.TransactionType,
                 PaymentMethod = validated.PaymentMethod,
                 TransactionState = TransactionState.Pending,
-                ReferenceNumber = NormalizeReferenceNumber(request.ReferenceNumber),
-                CardLast4 = NormalizeCardLast4(request.CardLast4, validated.PaymentMethod),
                 CreatedByUserId = userId,
                 CreatedAt = now,
                 UpdatedAt = null
@@ -90,10 +90,10 @@ namespace finrecon360_backend.Services.Transactions
                 request.Amount,
                 request.TransactionDate,
                 request.Description,
+                request.ReferenceNumber,
                 request.BankAccountId,
                 request.TransactionType,
                 request.PaymentMethod,
-                request.ReferenceNumber,
                 ct);
 
             _ = userId;
@@ -101,11 +101,11 @@ namespace finrecon360_backend.Services.Transactions
             entity.Amount = validated.Amount;
             entity.TransactionDate = validated.TransactionDate;
             entity.Description = validated.Description;
+            entity.ReferenceNumber = NormalizeReferenceNumber(request.ReferenceNumber);
+            entity.CardLast4 = NormalizeCardLast4(request.CardLast4, validated.PaymentMethod);
             entity.BankAccountId = validated.BankAccountId;
             entity.TransactionType = validated.TransactionType;
             entity.PaymentMethod = validated.PaymentMethod;
-            entity.ReferenceNumber = NormalizeReferenceNumber(request.ReferenceNumber);
-            entity.CardLast4 = NormalizeCardLast4(request.CardLast4, validated.PaymentMethod);
             entity.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync(ct);
@@ -265,10 +265,10 @@ namespace finrecon360_backend.Services.Transactions
             decimal amount,
             DateTime transactionDate,
             string? description,
+            string? referenceNumber,
             Guid? bankAccountId,
             string transactionType,
             string paymentMethod,
-            string? referenceNumber,
             CancellationToken ct)
         {
             if (amount <= 0)
@@ -303,6 +303,16 @@ namespace finrecon360_backend.Services.Transactions
                 throw new InvalidOperationException("Description cannot exceed 500 characters.");
             }
 
+            string? normalizedReferenceNumber = null;
+            if (!string.IsNullOrWhiteSpace(referenceNumber))
+            {
+                normalizedReferenceNumber = referenceNumber.Trim();
+                if (normalizedReferenceNumber.Length > 120)
+                {
+                    throw new InvalidOperationException("ReferenceNumber cannot exceed 120 characters.");
+                }
+            }
+
             var normalizedTransactionType = ParseEnum<TransactionType>(transactionType, nameof(transactionType));
             var normalizedPaymentMethod = ParseEnum<PaymentMethod>(paymentMethod, nameof(paymentMethod));
 
@@ -334,6 +344,7 @@ namespace finrecon360_backend.Services.Transactions
                 amount,
                 normalizedTransactionDate,
                 normalizedDescription,
+                normalizedReferenceNumber,
                 bankAccountId,
                 normalizedTransactionType,
                 normalizedPaymentMethod);
@@ -399,6 +410,7 @@ namespace finrecon360_backend.Services.Transactions
                 entity.Amount,
                 entity.TransactionDate,
                 entity.Description,
+                entity.ReferenceNumber,
                 entity.BankAccountId,
                 entity.TransactionType.ToString(),
                 entity.PaymentMethod.ToString(),
@@ -409,7 +421,6 @@ namespace finrecon360_backend.Services.Transactions
                 entity.RejectedAt,
                 entity.RejectedByUserId,
                 entity.RejectionReason,
-                entity.ReferenceNumber,
                 entity.CardLast4,
                 entity.CreatedAt,
                 entity.UpdatedAt);
@@ -458,6 +469,7 @@ namespace finrecon360_backend.Services.Transactions
             decimal Amount,
             DateTime TransactionDate,
             string Description,
+            string? ReferenceNumber,
             Guid? BankAccountId,
             TransactionType TransactionType,
             PaymentMethod PaymentMethod);

@@ -51,6 +51,50 @@
         <button class="primary-btn" (click)="saveAdmins()">{{ 'ADMIN.TENANTS.UPDATE_ADMINS' | translate }}</button>
       </div>
 
+      <div class="admin-list" *ngIf="selected.admins.length > 0">
+        <label>{{ 'ADMIN.TENANTS.ADMIN_ACCOUNTS' | translate }}</label>
+        <ul>
+          <li *ngFor="let admin of selected.admins">
+            <div class="admin-list__info">
+              <span class="admin-list__name">{{ admin.displayName || admin.email }}</span>
+              <span class="admin-list__email">{{ admin.email }}</span>
+            </div>
+            <span
+              class="status-pill"
+              [class.status-pill--warning]="admin.status.toUpperCase() === 'SUSPENDED'"
+              [class.status-pill--danger]="admin.status.toUpperCase() === 'BANNED'"
+              >{{ admin.status }}</span
+            >
+            <div class="admin-list__actions">
+              <button
+                class="warning-btn"
+                *ngIf="admin.status.toUpperCase() !== 'SUSPENDED' && admin.status.toUpperCase() !== 'BANNED'"
+                [disabled]="adminActionId === admin.userId"
+                (click)="suspendAdmin(admin)"
+              >
+                {{ 'ADMIN.TENANTS.SUSPEND' | translate }}
+              </button>
+              <button
+                class="danger-btn"
+                *ngIf="admin.status.toUpperCase() !== 'BANNED'"
+                [disabled]="adminActionId === admin.userId"
+                (click)="banAdmin(admin)"
+              >
+                {{ 'ADMIN.TENANTS.BAN' | translate }}
+              </button>
+              <button
+                class="primary-btn"
+                *ngIf="admin.status.toUpperCase() === 'SUSPENDED' || admin.status.toUpperCase() === 'BANNED'"
+                [disabled]="adminActionId === admin.userId"
+                (click)="reinstateAdmin(admin)"
+              >
+                {{ 'ADMIN.TENANTS.REINSTATE' | translate }}
+              </button>
+            </div>
+          </li>
+        </ul>
+      </div>
+
       <div class="enforcement">
         <label>{{ 'ADMIN.TENANTS.ENFORCEMENT_REASON' | translate }}</label>
         <input [(ngModel)]="enforcementReason" [placeholder]="'ADMIN.TENANTS.REASON' | translate" />

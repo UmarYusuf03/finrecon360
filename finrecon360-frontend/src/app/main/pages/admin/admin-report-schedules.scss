@@ -1,0 +1,56 @@
+:host {
+  display: block;
+}
+
+.schedules-page-card {
+  padding: 20px;
+}
+
+.schedules-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.schedules-page-header h2 {
+  margin: 0 0 6px;
+  font-weight: 800;
+}
+
+.schedules-page-header p {
+  margin: 0;
+  color: var(--fr-text-muted);
+  max-width: 640px;
+}
+
+.schedules-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.schedules-form mat-form-field {
+  min-width: 180px;
+}
+
+.schedules-form button {
+  margin-top: 8px;
+}
+
+.schedules-table-wrap {
+  overflow-x: auto;
+}
+
+.schedules-table {
+  width: 100%;
+}
+
+.schedules-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--fr-text-muted);
+}

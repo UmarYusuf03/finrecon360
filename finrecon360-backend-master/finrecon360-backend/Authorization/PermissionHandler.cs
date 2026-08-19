@@ -17,7 +17,9 @@ namespace finrecon360_backend.Authorization
             "ADMIN.TENANT_REGISTRATIONS.MANAGE",
             "ADMIN.TENANTS.MANAGE",
             "ADMIN.PLANS.MANAGE",
-            "ADMIN.ENFORCEMENT.MANAGE"
+            "ADMIN.ENFORCEMENT.MANAGE",
+            "ADMIN.PAYMENT_ALERTS.VIEW",
+            "ADMIN.PAYMENT_ALERTS.MANAGE"
         };
 
         private static readonly Dictionary<string, string[]> AliasMap = new(StringComparer.OrdinalIgnoreCase)
@@ -107,10 +109,21 @@ namespace finrecon360_backend.Authorization
                 "ADMIN.TRANSACTIONS.MANAGE",
             }},
 
+            // Cashiers hold only CREATE (log a transaction) while approve/reject/edit stay on
+            // MANAGE, to keep the entry and approval duties separate for audit purposes. Any
+            // role with the broader MANAGE grant must still be able to create, same as before.
+            { "ADMIN.TRANSACTIONS.CREATE", new[] { "ADMIN.TRANSACTIONS.MANAGE" } },
+
             // BANK_ACCOUNTS module
             { "ADMIN.BANK_ACCOUNTS.VIEW", new[]
             {
                 "ADMIN.BANK_ACCOUNTS.MANAGE",
+            }},
+
+            // PAYMENT_ALERTS module (control plane)
+            { "ADMIN.PAYMENT_ALERTS.VIEW", new[]
+            {
+                "ADMIN.PAYMENT_ALERTS.MANAGE",
             }},
         };
 
@@ -167,7 +180,15 @@ namespace finrecon360_backend.Authorization
 
             if (!isControlPlanePermission && tenant != null)
             {
-                if (tenant.Status != Models.TenantStatus.Active)
+                // WHY: A tenant suspended for non-payment must still be able to reach their own
+                // billing screen to pay their way back to Active — otherwise suspension becomes a
+                // dead end instead of a recoverable state. Banned tenants get no such exception;
+                // that status is a deliberate human decision, not a billing lapse.
+                var isSubscriptionPermission = requirement.PermissionCode.StartsWith("ADMIN.SUBSCRIPTIONS.", StringComparison.OrdinalIgnoreCase);
+                var tenantIsReachable = tenant.Status == Models.TenantStatus.Active
+                    || (isSubscriptionPermission && tenant.Status == Models.TenantStatus.Suspended);
+
+                if (!tenantIsReachable)
                 {
                     return;
                 }

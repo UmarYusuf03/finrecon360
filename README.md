@@ -21,8 +21,13 @@ The codebase currently implements these areas:
 - onboarding via magic link, password setup, and PayHere checkout activation
 - canonical import foundation (upload, parse, map, validate, normalize, commit)
 - bank accounts, and the transaction workflow with approval routing and append-only state history
-- the six-stage matching engine, driven per tenant by `ReconciliationCycleHostedService`
+- the six-level matching engine (Levels 1/2/3/4/6/7 — Level 5 was retired) and automated
+  journal posting, driven per tenant by `ReconciliationCycleHostedService` and
+  `JournalPostingHostedService` (see `WORKER-INTEGRATION.md` for current pipeline state)
 - human confirmation of match groups, and journal posting via `JournalPostingHostedService`
+- reporting and analytics: CSV/XLSX exports, financial statements, reconciliation trend charts,
+  a daily KPI snapshot pipeline, a Reports Hub, and weekly emailed report schedules (see
+  `docs/architecture/reporting-implementation-plan.md`)
 - dashboard and profile surfaces, backed by real aggregation over tenant data
 
 What remains outstanding is listed under "Known gaps" below. The largest is that the
@@ -60,7 +65,12 @@ is hidden rather than shown and failing.
 - The reconciliation and journal-posting hosted services sweep every tenant on a timer and
   guard concurrency with an in-process dictionary, so exactly one API instance may run.
 
-## Important Contradictions To Keep In View
+Some other target-architecture items (full transaction state history, cashout workflow control)
+may be further along than earlier notes in this repo suggest — check `WORKER-INTEGRATION.md`
+for the current state of the reconciliation/journal-posting pipeline rather than relying on
+this summary alone.
+
+## Important Contradictionss To Keep In View
 
 - Subscription enforcement now separates `MaxUsers` (tenant operational user cap) and `MaxAccounts` (bank account cap) in the `Plan` model and user-creation enforcement path.
 - Global/public identity separation is now explicitly modeled through `UserType` (`GlobalPublic`, `TenantOperational`, `SystemAdmin`) with tenant-assignment guards and controlled conversion for onboarding/admin assignment flows.

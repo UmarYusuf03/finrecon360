@@ -39,6 +39,31 @@
   flex-wrap: wrap;
 }
 
+.bank-accounts-page__limit-banner {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--fr-radius-md);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.bank-accounts-page__limit-banner span {
+  text-align: right;
+}
+
+.bank-accounts-page__upgrade-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .bank-accounts-page__refresh,
 .bank-accounts-page__primary,
 .bank-account-card__action {

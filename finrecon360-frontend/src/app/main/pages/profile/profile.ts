@@ -17,7 +17,7 @@ import { AuthService, ChangePasswordLinkResponse } from '../../../core/auth/auth
 import { SUPPORTED_LANGUAGES } from '../../../core/constants/languages';
 import { UserProfileDetails } from '../../models/profile.models';
 import { ProfileService } from '../../services/profile.service';
-import { ProfileSubscriptionComponent } from './profile-subscription';
+import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 
 const TIME_ZONES = ['UTC', 'America/New_York', 'Europe/London', 'Asia/Colombo'];
 
@@ -37,7 +37,7 @@ const TIME_ZONES = ['UTC', 'America/New_York', 'Europe/London', 'Asia/Colombo'];
     MatIconModule,
     RouterModule,
     TranslateModule,
-    ProfileSubscriptionComponent,
+    HasPermissionDirective,
   ],
   templateUrl: './profile.html',
   styleUrls: ['./profile.scss'],

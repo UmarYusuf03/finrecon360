@@ -16,6 +16,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDatepickerModule } from '@angular/material/datepicker';
@@ -36,6 +37,7 @@ import {
   UpdateTransactionRequest,
 } from '../../../core/admin-rbac/models';
 import { AuthService } from '../../../core/auth/auth.service';
+import { ExportFormat, ExportService } from '../../../core/services/export.service';
 
 @Component({
   selector: 'app-admin-transactions',
@@ -50,6 +52,7 @@ import { AuthService } from '../../../core/auth/auth.service';
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     MatSelectModule,
     MatDatepickerModule,
     MatSnackBarModule,
@@ -65,7 +68,7 @@ import { AuthService } from '../../../core/auth/auth.service';
   styleUrls: ['./admin-transaction-pages.scss'],
 })
 export class AdminTransactionsComponent implements OnInit {
-  displayedColumns = ['transactionDate', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
+  displayedColumns = ['transactionDate', 'reference', 'amount', 'type', 'method', 'bankAccount', 'state', 'actions'];
   transactions: Transaction[] = [];
   filteredTransactions: Transaction[] = [];
   /** Active accounts only — what the create/edit form offers as choices. */
@@ -83,6 +86,7 @@ export class AdminTransactionsComponent implements OnInit {
   loading = false;
   historyLoading = false;
   saving = false;
+  exporting = false;
   actionId: string | null = null;
   saveError: string | null = null;
   searchTerm = '';
@@ -104,6 +108,7 @@ export class AdminTransactionsComponent implements OnInit {
     private fb: FormBuilder,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
+    private exportService: ExportService,
   ) {}
 
   ngOnInit(): void {
@@ -140,12 +145,39 @@ export class AdminTransactionsComponent implements OnInit {
     return this.authService.currentUser?.permissions.includes('ADMIN.TRANSACTIONS.MANAGE') ?? false;
   }
 
+  // Cashiers may hold only CREATE (log a transaction) without MANAGE (edit/approve/reject),
+  // so entry stays open to them while approval remains a separate, higher-trust action.
+  get canCreateTransactions(): boolean {
+    const permissions = this.authService.currentUser?.permissions ?? [];
+    return permissions.includes('ADMIN.TRANSACTIONS.CREATE') || permissions.includes('ADMIN.TRANSACTIONS.MANAGE');
+  }
+
   refresh(): void {
     if (this.loading) {
       return;
     }
 
     this.loadTransactions();
+  }
+
+  exportTransactions(format: ExportFormat): void {
+    if (this.exporting) {
+      return;
+    }
+
+    this.exporting = true;
+    this.transactionService.export(format, this.selectedStateFilter, this.searchTerm).subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        this.exportService.downloadBlob(blob, this.exportService.buildFilename('transactions', format));
+      },
+      error: (error: unknown) => {
+        this.exporting = false;
+        this.exportService.extractErrorMessage(error).then((message) => {
+          this.snackBar.open(message, 'Close', { duration: 3500 });
+        });
+      },
+    });
   }
 
   applyListFilters(): void {
@@ -161,9 +193,6 @@ export class AdminTransactionsComponent implements OnInit {
 
       const searchable = [
         transaction.description,
-        // The field the search placeholder has always promised. It was absent here because the
-        // reference never survived the round trip to the server, so searching for one silently
-        // returned nothing.
         transaction.referenceNumber ?? '',
         transaction.transactionType,
         transaction.paymentMethod,
@@ -209,6 +238,10 @@ export class AdminTransactionsComponent implements OnInit {
   }
 
   openAdd(dialogTemplate: TemplateRef<unknown>): void {
+    if (!this.canCreateTransactions) {
+      return;
+    }
+
     this.editingTransaction = null;
     this.saveError = null;
     this.form.enable({ emitEvent: false });
@@ -251,7 +284,8 @@ export class AdminTransactionsComponent implements OnInit {
   }
 
   save(): void {
-    if (!this.canManageTransactions) {
+    const allowed = this.editingTransaction ? this.canManageTransactions : this.canCreateTransactions;
+    if (!allowed) {
       return;
     }
 

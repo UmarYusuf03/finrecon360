@@ -27,11 +27,11 @@ Implemented backend areas:
 - needs-bank-match transaction queue
 - `api/me` tenant resolution and permission hydration
 - six-level reconciliation matching chain (Operational/Sync-Audit/Sales/Expense/Collection/Settlement) running on a background cycle, plus automated journal posting — see `../../WORKER-INTEGRATION.md`
+- reporting: `Services/Export/ReportExporter.cs` (CSV/XLSX, shared by every export endpoint), `Services/Reporting/*` (General Ledger, Trial Balance, Income Statement, Balance Sheet), `ReconciliationDailySnapshot`/`TenantDailySnapshot` tables populated daily by `BackgroundServices/ReconciliationSnapshotHostedService.cs`, and `ReportSchedule` + `BackgroundServices/ReportScheduleHostedService.cs` for weekly emailed reports — see `../../docs/architecture/reporting-implementation-plan.md` for the phase-by-phase detail
 
 Not yet implemented as finance-operational modules:
 
-- reporting snapshot jobs and reporting tables
-- POS-terminal batch settlement matching (POS EOD ↔ BANK); today POS records only reconcile against staff entry (Level1) and ERP (Level2), never directly against the bank — see "Known gap" in `../../WORKER-INTEGRATION.md`
+- plan-gating (Growth/Enterprise tier restriction) for scheduled report emails — the feature itself is implemented and available to all tenants; see the reporting plan doc's Phase 5 notes
 
 ## Architecture Boundaries In Code
 
@@ -535,7 +535,7 @@ The architecture baseline documents:
 - journal gating
 - reporting snapshots
 
-Bank accounts, basic transaction capture, approval/rejection, transaction history, a journal-ready queue, bank matching, journal posting execution, and the six-level reconciliation chain are now implemented (see `../../WORKER-INTEGRATION.md`). Reporting snapshots are still pending.
+Bank accounts, basic transaction capture, approval/rejection, transaction history, a journal-ready queue, bank matching, journal posting execution, and the six-level reconciliation chain are now implemented (see `../../WORKER-INTEGRATION.md`). Reporting snapshots are also now implemented (`ReconciliationDailySnapshot` and `TenantDailySnapshot`, populated daily — see `../../docs/architecture/reporting-implementation-plan.md`).
 
 Known gap within the implemented reconciliation chain: there is no level that matches POS EOD records directly against BANK statements (POS-terminal batch settlement). POS records only reconcile against staff manual entry (Level1) and ERP (Level2) today. Real-world bank statement narratives for POS batch settlements (e.g. `"POS SETTLEMENT - TID88552 - BATCH 000452"`) also aren't parseable by the current settlement-key resolver, which only does exact/trimmed/uppercased string comparison — there's no regex/substring-extraction step to pull a batch number out of a narrative description field.
 

@@ -128,6 +128,21 @@ namespace finrecon360_backend.Controllers.Admin
                 roles));
         }
 
+        [HttpGet("capacity")]
+        [RequirePermission("ADMIN.USERS.VIEW")]
+        public async Task<ActionResult<UserCapacityResponse>> GetCapacity()
+        {
+            var auth = await AuthorizeTenantAdminAsync(requireTenantDb: false);
+            if (auth.Error != null) return auth.Error;
+            var tenantId = auth.TenantId;
+
+            var maxUsers = await GetMaxUsersAsync(tenantId);
+            var currentUsers = await _dbContext.TenantUsers.AsNoTracking()
+                .Where(tu => tu.TenantId == tenantId).Select(tu => tu.UserId).Distinct().CountAsync();
+
+            return Ok(new UserCapacityResponse(currentUsers, maxUsers));
+        }
+
         [HttpPost]
         [RequirePermission("ADMIN.USERS.CREATE")]
         public async Task<ActionResult<AdminUserSummaryDto>> CreateUser([FromBody] AdminUserCreateRequest request)
@@ -140,11 +155,7 @@ namespace finrecon360_backend.Controllers.Admin
             var displayName = request.DisplayName.Trim();
             var phoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
 
-            var maxUsers = await _dbContext.Tenants
-                .AsNoTracking()
-                .Where(t => t.TenantId == tenantId)
-                .Select(t => t.CurrentSubscription != null ? (int?)t.CurrentSubscription.Plan.MaxUsers : null)
-                .FirstOrDefaultAsync();
+            var maxUsers = await GetMaxUsersAsync(tenantId);
 
             if (maxUsers.HasValue)
             {
@@ -370,6 +381,15 @@ namespace finrecon360_backend.Controllers.Admin
             var role = await _dbContext.TenantUsers.AsNoTracking().Where(tu => tu.TenantId == auth.TenantId && tu.UserId == userId).Select(tu => tu.Role).FirstOrDefaultAsync();
             await UpsertTenantScopedUserAsync(tenantDb, user, role, isActive);
             return NoContent();
+        }
+
+        private async Task<int?> GetMaxUsersAsync(Guid tenantId)
+        {
+            return await _dbContext.Tenants
+                .AsNoTracking()
+                .Where(t => t.TenantId == tenantId)
+                .Select(t => t.CurrentSubscription != null ? (int?)t.CurrentSubscription.Plan.MaxUsers : null)
+                .FirstOrDefaultAsync();
         }
 
         private static async Task<IReadOnlyList<string>> GetRoleCodesForUserAsync(TenantDbContext tenantDb, Guid userId)

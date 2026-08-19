@@ -61,6 +61,7 @@ namespace finrecon360_backend.Controllers.Admin
             {
                 AmountTolerance = settings?.AmountTolerance ?? 0.01m,
                 DateToleranceDays = settings?.DateToleranceDays ?? 1,
+                SettlementDateWindowDays = settings?.SettlementDateWindowDays ?? 3,
                 UpdatedAt = settings?.UpdatedAt,
             });
         }
@@ -80,6 +81,9 @@ namespace finrecon360_backend.Controllers.Admin
 
             if (request.DateToleranceDays < 0)
                 return BadRequest(new { message = "DateToleranceDays must be zero or positive." });
+
+            if (request.SettlementDateWindowDays < 0)
+                return BadRequest(new { message = "SettlementDateWindowDays must be zero or positive." });
 
             var tenant = await _tenantContext.ResolveAsync(cancellationToken);
             if (tenant is null) return Unauthorized();
@@ -101,6 +105,7 @@ namespace finrecon360_backend.Controllers.Admin
 
             settings.AmountTolerance = request.AmountTolerance;
             settings.DateToleranceDays = request.DateToleranceDays;
+            settings.SettlementDateWindowDays = request.SettlementDateWindowDays;
             settings.UpdatedAt = now;
 
             await tenantDb.SaveChangesAsync(cancellationToken);
@@ -109,8 +114,92 @@ namespace finrecon360_backend.Controllers.Admin
             {
                 AmountTolerance = settings.AmountTolerance,
                 DateToleranceDays = settings.DateToleranceDays,
+                SettlementDateWindowDays = settings.SettlementDateWindowDays,
                 UpdatedAt = settings.UpdatedAt,
             });
+        }
+
+        // ─── Banking Holidays (Level7 settlement-window calendar) ──────────────────
+
+        /// <summary>
+        /// Returns this tenant's admin-maintained non-business-day list, used by
+        /// BusinessDayCalculator for the Level7 T+N settlement window.
+        /// </summary>
+        [HttpGet("banking-holidays")]
+        [RequirePermission("ADMIN.RECONCILIATION.VIEW")]
+        public async Task<ActionResult<List<BankingHolidayResponse>>> GetBankingHolidays(CancellationToken cancellationToken = default)
+        {
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var holidays = await tenantDb.BankingHolidays
+                .AsNoTracking()
+                .OrderBy(h => h.Date)
+                .Select(h => new BankingHolidayResponse
+                {
+                    BankingHolidayId = h.BankingHolidayId,
+                    Date = h.Date,
+                    Description = h.Description,
+                })
+                .ToListAsync(cancellationToken);
+
+            return Ok(holidays);
+        }
+
+        [HttpPost("banking-holidays")]
+        [RequirePermission("ADMIN.RECONCILIATION.MANAGE")]
+        public async Task<ActionResult<BankingHolidayResponse>> CreateBankingHoliday(
+            [FromBody] CreateBankingHolidayRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.Description))
+                return BadRequest(new { message = "Description is required." });
+
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var exists = await tenantDb.BankingHolidays.AnyAsync(h => h.Date == request.Date, cancellationToken);
+            if (exists)
+                return Conflict(new { message = "A holiday is already recorded for this date." });
+
+            var holiday = new BankingHoliday
+            {
+                BankingHolidayId = Guid.NewGuid(),
+                Date = request.Date,
+                Description = request.Description.Trim(),
+            };
+            tenantDb.BankingHolidays.Add(holiday);
+            await tenantDb.SaveChangesAsync(cancellationToken);
+
+            return Ok(new BankingHolidayResponse
+            {
+                BankingHolidayId = holiday.BankingHolidayId,
+                Date = holiday.Date,
+                Description = holiday.Description,
+            });
+        }
+
+        [HttpDelete("banking-holidays/{id:guid}")]
+        [RequirePermission("ADMIN.RECONCILIATION.MANAGE")]
+        public async Task<IActionResult> DeleteBankingHoliday(Guid id, CancellationToken cancellationToken = default)
+        {
+            var tenant = await _tenantContext.ResolveAsync(cancellationToken);
+            if (tenant is null) return Unauthorized();
+
+            await using var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId, cancellationToken);
+
+            var holiday = await tenantDb.BankingHolidays.FirstOrDefaultAsync(h => h.BankingHolidayId == id, cancellationToken);
+            if (holiday is null)
+                return NotFound();
+
+            tenantDb.BankingHolidays.Remove(holiday);
+            await tenantDb.SaveChangesAsync(cancellationToken);
+
+            return NoContent();
         }
 
         // ─── Match Groups ────────────────────────────────────────────────────────

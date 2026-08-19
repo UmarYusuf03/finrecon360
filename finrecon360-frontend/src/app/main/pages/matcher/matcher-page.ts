@@ -15,7 +15,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { ReconciliationService } from '../../../core/admin-rbac/reconciliation.service';
@@ -42,7 +42,6 @@ import { ReconciliationMatchGroup, ReconciliationMatchedRecord } from '../../../
     MatTooltipModule,
     MatDialogModule,
     RouterLink,
-    RouterLinkActive,
     TranslateModule,
   ],
   templateUrl: './matcher-page.html',

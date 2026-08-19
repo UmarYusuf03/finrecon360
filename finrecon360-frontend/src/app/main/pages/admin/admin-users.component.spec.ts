@@ -40,6 +40,7 @@ describe('AdminUsersComponent', () => {
 
     userSpy = jasmine.createSpyObj<AdminUserService>('AdminUserService', [
       'getUsers',
+      'getCapacity',
       'createUser',
       'updateUser',
       'setUserRoles',
@@ -47,6 +48,7 @@ describe('AdminUsersComponent', () => {
       'reactivateUser',
     ]);
     userSpy.getUsers.and.returnValue(of(users));
+    userSpy.getCapacity.and.returnValue(of({ currentUsers: users.length, maxUsers: null }));
     userSpy.createUser.and.returnValue(of(users[0]));
     userSpy.updateUser.and.returnValue(of(users[0]));
     userSpy.setUserRoles.and.returnValue(of(void 0));

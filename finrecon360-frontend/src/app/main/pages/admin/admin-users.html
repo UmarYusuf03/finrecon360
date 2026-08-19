@@ -14,10 +14,26 @@
         mat-flat-button
         color="primary"
         *appHasPermission="'ADMIN.USERS.CREATE'"
+        [disabled]="isUserLimitReached"
+        [matTooltip]="isUserLimitReached ? ('ADMIN.USERS.LIMIT_REACHED' | translate: { count: capacity?.maxUsers }) : ''"
         (click)="openAdd(userDialog)"
       >
         {{ 'ADMIN.USERS.ADD' | translate }}
       </button>
+    </div>
+
+    <div
+      class="users-page__limit-banner"
+      *ngIf="isUserLimitReached"
+      role="alert"
+    >
+      <span>
+        {{ 'ADMIN.USERS.LIMIT_REACHED' | translate: { count: capacity?.maxUsers } }}
+        {{ 'ADMIN.USERS.LIMIT_UPGRADE' | translate }}
+      </span>
+      <a mat-flat-button color="primary" routerLink="/app/admin/subscription" class="users-page__upgrade-btn">
+        {{ 'COMMON.UPGRADE_NOW' | translate }}
+      </a>
     </div>
   </section>
 

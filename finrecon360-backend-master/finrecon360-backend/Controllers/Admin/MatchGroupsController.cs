@@ -1,6 +1,7 @@
 using finrecon360_backend.Authorization;
 using finrecon360_backend.Data;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Export;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -30,24 +31,49 @@ namespace finrecon360_backend.Controllers.Admin
     [Authorize]
     public class MatchGroupsController : ControllerBase
     {
+        private static readonly IReadOnlyList<ExportColumn<PendingMatchSummary>> PendingExportColumns = new List<ExportColumn<PendingMatchSummary>>
+        {
+            new("Match Level", g => g.MatchLevel),
+            new("Settlement Key", g => g.SettlementKey),
+            new("Matched Amount", g => g.MatchedAmount.ToString("0.00")),
+            new("Variance", g => g.Variance.ToString("0.00")),
+            new("Status", g => g.Status),
+            new("Created At (UTC)", g => g.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")),
+            new("Record Count", g => g.Records.Count.ToString()),
+        };
+
+        private static readonly IReadOnlyList<ExportColumn<UnmatchedQueueItem>> UnmatchedExportColumns = new List<ExportColumn<UnmatchedQueueItem>>
+        {
+            new("Date", i => i.TransactionDate.ToString("yyyy-MM-dd")),
+            new("Source", i => i.SourceType),
+            new("Match Rule", i => i.MatchRule),
+            new("Reference", i => i.ReferenceNumber),
+            new("Amount", i => i.Amount.ToString("0.00")),
+            new("Reason", i => i.UnmatchedReason),
+            new("Hint", i => i.Hint?.HintMessage),
+        };
+
         private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
         private readonly IUserContext _userContext;
         private readonly IReconciliationMatchConfirmationService _matchService;
+        private readonly IReportExporter _reportExporter;
 
         public MatchGroupsController(
             AppDbContext dbContext,
             ITenantContext tenantContext,
             ITenantDbContextFactory tenantDbContextFactory,
             IUserContext userContext,
-            IReconciliationMatchConfirmationService matchService)
+            IReconciliationMatchConfirmationService matchService,
+            IReportExporter reportExporter)
         {
             _dbContext = dbContext;
             _tenantContext = tenantContext;
             _tenantDbContextFactory = tenantDbContextFactory;
             _userContext = userContext;
             _matchService = matchService;
+            _reportExporter = reportExporter;
         }
 
         /// <summary>
@@ -82,6 +108,66 @@ namespace finrecon360_backend.Controllers.Admin
 
             var result = await _matchService.GetSummaryAsync(tenantDb, ct);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Exports the pending confirmation queue (same data as GET /pending) as CSV or XLSX.
+        /// </summary>
+        [HttpGet("pending/export")]
+        [RequirePermission("ADMIN.RECONCILIATION.CONFIRM")]
+        public async Task<IActionResult> ExportPendingMatches(
+            [FromQuery] string? format,
+            [FromQuery] string? level,
+            CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (!_reportExporter.TryParseFormat(format, out var exportFormat))
+            {
+                return BadRequest(new { message = "Unsupported export format. Use 'csv' or 'xlsx'." });
+            }
+
+            var result = await _matchService.GetPendingMatchesAsync(tenantDb, level, ct);
+            if (result.Count > _reportExporter.MaxRows)
+            {
+                return BadRequest(new { message = $"Export limited to {_reportExporter.MaxRows} rows. Narrow the level filter and try again." });
+            }
+
+            var file = _reportExporter.Export(result, PendingExportColumns, "Pending Matches", exportFormat);
+            return File(file.Content, file.ContentType, $"pending-matches-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
+        }
+
+        /// <summary>
+        /// Exports the unmatched items queue (same data as GET /unmatched) as CSV or XLSX.
+        /// </summary>
+        [HttpGet("unmatched/export")]
+        [RequirePermission("ADMIN.RECONCILIATION.CONFIRM")]
+        public async Task<IActionResult> ExportUnmatched(
+            [FromQuery] string? format,
+            [FromQuery] string? rule,
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (!_reportExporter.TryParseFormat(format, out var exportFormat))
+            {
+                return BadRequest(new { message = "Unsupported export format. Use 'csv' or 'xlsx'." });
+            }
+
+            var result = await _matchService.GetUnmatchedQueueAsync(tenantDb, rule, from, to, ct);
+            if (result.Count > _reportExporter.MaxRows)
+            {
+                return BadRequest(new { message = $"Export limited to {_reportExporter.MaxRows} rows. Narrow the rule or date range and try again." });
+            }
+
+            var file = _reportExporter.Export(result, UnmatchedExportColumns, "Unmatched Items", exportFormat);
+            return File(file.Content, file.ContentType, $"unmatched-items-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
         }
 
         /// <summary>

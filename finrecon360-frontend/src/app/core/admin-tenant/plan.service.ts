@@ -21,6 +21,10 @@ export class PlanService {
     return this.http.put<PlanSummary>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.PLANS}/${id}`, payload);
   }
 
+  deletePlan(id: string): Observable<void> {
+    return this.http.delete<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.PLANS}/${id}`);
+  }
+
   deactivatePlan(id: string): Observable<void> {
     return this.http.post<void>(`${API_BASE_URL}${API_ENDPOINTS.SYSTEM.PLANS}/${id}/deactivate`, {});
   }

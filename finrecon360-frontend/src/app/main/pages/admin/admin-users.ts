@@ -12,13 +12,15 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { Observable } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 
 import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
 import { AdminUserService } from '../../../core/admin-rbac/admin-user.service';
-import { AdminUserSummary, Role } from '../../../core/admin-rbac/models';
+import { AdminUserSummary, Role, UserCapacity } from '../../../core/admin-rbac/models';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 
 /**
@@ -42,6 +44,8 @@ import { HasPermissionDirective } from '../../../core/auth/has-permission.direct
     MatSelectModule,
     MatIconModule,
     MatChipsModule,
+    MatTooltipModule,
+    RouterLink,
     TranslateModule,
     HasPermissionDirective,
   ],
@@ -56,6 +60,11 @@ export class AdminUsersComponent implements OnInit {
   form!: FormGroup;
   editingId: string | null = null;
   saveError: string | null = null;
+  capacity: UserCapacity | null = null;
+
+  get isUserLimitReached(): boolean {
+    return this.capacity?.maxUsers != null && this.capacity.currentUsers >= this.capacity.maxUsers;
+  }
 
   constructor(
     private adminUserService: AdminUserService,
@@ -75,9 +84,14 @@ export class AdminUsersComponent implements OnInit {
 
     this.adminRoleService.getRoles().subscribe((roles) => (this.roles = roles));
     this.adminUserService.getUsers().subscribe((users) => (this.users = users));
+    this.loadCapacity();
   }
 
   openAdd(dialogTemplate: any): void {
+    if (this.isUserLimitReached) {
+      return;
+    }
+
     this.editingId = null;
     this.saveError = null;
     this.form.reset({ roles: [] });
@@ -139,10 +153,14 @@ export class AdminUsersComponent implements OnInit {
       saveRequest$ = this.adminUserService.createUser(payload);
     }
 
+    const wasCreating = !this.editingId;
     saveRequest$.subscribe({
       next: () => {
         this.dialog.closeAll();
         this.snackBar.open(this.editingId ? 'User updated successfully.' : 'User created successfully.', 'Close', { duration: 2500 });
+        if (wasCreating) {
+          this.loadCapacity();
+        }
       },
       error: (error: unknown) => {
         const message = this.extractErrorMessage(error);
@@ -164,6 +182,10 @@ export class AdminUsersComponent implements OnInit {
         error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
       });
     }
+  }
+
+  private loadCapacity(): void {
+    this.adminUserService.getCapacity().subscribe((capacity) => (this.capacity = capacity));
   }
 
   private extractErrorMessage(error: unknown): string {

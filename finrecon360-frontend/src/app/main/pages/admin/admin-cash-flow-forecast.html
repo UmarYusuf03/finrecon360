@@ -1,0 +1,89 @@
+<section class="forecast-page">
+  <header class="forecast-page__hero">
+    <div class="forecast-page__copy">
+      <span class="forecast-page__eyebrow">{{ 'CASH_FLOW.EYEBROW' | translate }}</span>
+      <h2>{{ 'CASH_FLOW.TITLE' | translate }}</h2>
+      <p>{{ 'CASH_FLOW.COPY' | translate }}</p>
+    </div>
+  </header>
+
+  <div class="forecast-page__filters">
+    <label class="forecast-field">
+      <span>{{ 'CASH_FLOW.BANK_ACCOUNT' | translate }}</span>
+      <select [(ngModel)]="selectedBankAccountId" (ngModelChange)="onFiltersChanged()">
+        <option [ngValue]="null">{{ 'CASH_FLOW.ALL_ACCOUNTS' | translate }}</option>
+        <option *ngFor="let account of bankAccounts" [ngValue]="account.bankAccountId">
+          {{ account.bankName }} · {{ account.accountNumber }}
+        </option>
+      </select>
+    </label>
+
+    <div class="forecast-field">
+      <span>{{ 'CASH_FLOW.HORIZON' | translate }}</span>
+      <div class="horizon-chips">
+        <button
+          *ngFor="let option of horizonOptions"
+          type="button"
+          class="horizon-chip"
+          [class.active]="selectedHorizon === option"
+          (click)="selectedHorizon = option; onFiltersChanged()"
+        >
+          {{ 'CASH_FLOW.DAYS_OPTION' | translate: { count: option } }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="forecast-page__state" *ngIf="loading">{{ 'CASH_FLOW.LOADING' | translate }}</div>
+  <div class="forecast-page__error" *ngIf="!loading && error" role="alert">{{ error }}</div>
+
+  <ng-container *ngIf="!loading && !error && forecast">
+    <div class="forecast-stats">
+      <article class="forecast-stat">
+        <span class="forecast-stat__label">{{ 'CASH_FLOW.DAILY_AVERAGE' | translate }}</span>
+        <strong class="forecast-stat__value" [class.positive]="forecast.dailyAverageNetFlow >= 0" [class.negative]="forecast.dailyAverageNetFlow < 0">
+          {{ forecast.dailyAverageNetFlow | number: '1.2-2' }}
+        </strong>
+        <span class="forecast-stat__meta">{{ 'CASH_FLOW.DAILY_AVERAGE_COPY' | translate }}</span>
+      </article>
+
+      <article class="forecast-stat">
+        <span class="forecast-stat__label">{{ 'CASH_FLOW.PROJECTED_CHANGE' | translate: { count: selectedHorizon } }}</span>
+        <strong class="forecast-stat__value" [class.positive]="projectedNetChange >= 0" [class.negative]="projectedNetChange < 0">
+          {{ projectedNetChange | number: '1.2-2' }}
+        </strong>
+        <span class="forecast-stat__meta">{{ 'CASH_FLOW.PROJECTED_CHANGE_COPY' | translate }}</span>
+      </article>
+
+      <article class="forecast-stat">
+        <span class="forecast-stat__label">{{ 'CASH_FLOW.SETTLEMENT_LAG' | translate }}</span>
+        <strong class="forecast-stat__value">{{ 'CASH_FLOW.DAYS_OPTION' | translate: { count: forecast.settlementLagDays } }}</strong>
+        <span class="forecast-stat__meta">{{ 'CASH_FLOW.SETTLEMENT_LAG_COPY' | translate }}</span>
+      </article>
+    </div>
+
+    <div class="forecast-chart-shell">
+      <div class="forecast-chart-shell__header">
+        <h3>{{ forecast.bankAccountName }}</h3>
+        <div class="forecast-legend">
+          <span class="forecast-legend__item"><i class="swatch swatch--history"></i>{{ 'CASH_FLOW.LEGEND_HISTORY' | translate }}</span>
+          <span class="forecast-legend__item"><i class="swatch swatch--forecast"></i>{{ 'CASH_FLOW.LEGEND_FORECAST' | translate }}</span>
+        </div>
+      </div>
+
+      <svg [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" class="forecast-chart" preserveAspectRatio="none">
+        <line [attr.x1]="0" [attr.y1]="zeroLineY" [attr.x2]="chartWidth" [attr.y2]="zeroLineY" class="chart-zero-line" />
+        <line [attr.x1]="todayX" [attr.y1]="0" [attr.x2]="todayX" [attr.y2]="chartHeight" class="chart-today-line" />
+        <path [attr.d]="historyPath" class="chart-line chart-line--history" />
+        <path [attr.d]="forecastPath" class="chart-line chart-line--forecast" />
+      </svg>
+      <div class="forecast-chart-shell__axis">
+        <span>{{ 'CASH_FLOW.AXIS_PAST' | translate: { count: forecast.lookbackDays } }}</span>
+        <span class="today-label">{{ 'CASH_FLOW.AXIS_TODAY' | translate }}</span>
+        <span>{{ 'CASH_FLOW.AXIS_FUTURE' | translate: { count: selectedHorizon } }}</span>
+      </div>
+    </div>
+
+    <p class="forecast-disclaimer">{{ 'CASH_FLOW.DISCLAIMER' | translate }}</p>
+  </ng-container>
+</section>

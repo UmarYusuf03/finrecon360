@@ -131,6 +131,26 @@ namespace finrecon360_backend.Controllers.Admin
                 plan.IsActive));
         }
 
+        [HttpDelete("{planId:guid}")]
+        public async Task<IActionResult> DeletePlan(Guid planId)
+        {
+            var plan = await _dbContext.Plans.FirstOrDefaultAsync(p => p.PlanId == planId);
+            if (plan == null)
+            {
+                return NotFound();
+            }
+
+            var hasSubscriptions = await _dbContext.Subscriptions.AsNoTracking().AnyAsync(s => s.PlanId == planId);
+            if (hasSubscriptions)
+            {
+                return Conflict(new { message = "This plan has tenant subscriptions attached to it and cannot be deleted. Deactivate it instead." });
+            }
+
+            _dbContext.Plans.Remove(plan);
+            await _dbContext.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpPost("{planId:guid}/deactivate")]
         public async Task<IActionResult> DeactivatePlan(Guid planId)
         {

@@ -39,4 +39,6 @@ namespace finrecon360_backend.Dtos.BankAccounts
         bool IsActive,
         DateTime CreatedAt,
         DateTime? UpdatedAt);
+
+    public record BankAccountCapacityResponse(int CurrentAccounts, int? MaxAccounts);
 }

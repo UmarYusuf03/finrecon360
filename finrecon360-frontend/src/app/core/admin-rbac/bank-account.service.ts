@@ -1,10 +1,11 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
 import { API_BASE_URL, USE_MOCK_API } from '../constants/api.constants';
-import { BankAccount } from './models';
+import { ExportFormat } from '../services/export.service';
+import { BankAccount, BankAccountCapacity } from './models';
 
 @Injectable({
   providedIn: 'root',
@@ -37,6 +38,22 @@ export class BankAccountService {
     return this.http.get<BankAccount[]>(this.baseUrl).pipe(
       tap((accounts) => this.accountsSubject.next(accounts)),
     );
+  }
+
+  export(format: ExportFormat): Observable<Blob> {
+    const params = new HttpParams().set('format', format);
+    return this.http.get(`${this.baseUrl}/export`, { params, responseType: 'blob' });
+  }
+
+  getCapacity(): Observable<BankAccountCapacity> {
+    if (USE_MOCK_API) {
+      return of({
+        currentAccounts: this.accountsSubject.value.filter((a) => a.isActive).length,
+        maxAccounts: null,
+      });
+    }
+
+    return this.http.get<BankAccountCapacity>(`${this.baseUrl}/capacity`);
   }
 
   getById(id: string): Observable<BankAccount> {

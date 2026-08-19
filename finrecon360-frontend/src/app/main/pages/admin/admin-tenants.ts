@@ -1,10 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 
 import { TenantService } from '../../../core/admin-tenant/tenant.service';
-import { TenantDetail, TenantSummary } from '../../../core/admin-tenant/models';
+import { TenantAdmin, TenantDetail, TenantSummary } from '../../../core/admin-tenant/models';
+import { AdminUserService } from '../../../core/admin-rbac/admin-user.service';
 
 @Component({
   selector: 'app-admin-tenants',
@@ -35,8 +37,13 @@ export class AdminTenantsComponent implements OnInit {
   deleteDialogOpen = false;
   deleteTargetName = '';
   deleteTargetId = '';
+  adminActionId: string | null = null;
 
-  constructor(private service: TenantService) {}
+  constructor(
+    private service: TenantService,
+    private userService: AdminUserService,
+    private route: ActivatedRoute,
+  ) {}
 
   ngOnInit(): void {
     this.load();
@@ -48,6 +55,12 @@ export class AdminTenantsComponent implements OnInit {
     this.service.getTenants().subscribe((items) => {
       this.tenants = items;
       this.loading = false;
+
+      const focusTenantId = this.route.snapshot.queryParamMap.get('tenantId');
+      const focusTenant = focusTenantId ? items.find((t) => t.id === focusTenantId) : null;
+      if (focusTenant) {
+        this.selectTenant(focusTenant);
+      }
     });
   }
 
@@ -82,6 +95,43 @@ export class AdminTenantsComponent implements OnInit {
   reinstate(): void {
     if (!this.selected) return;
     this.service.reinstate(this.selected.id).subscribe(() => this.reloadSelected());
+  }
+
+  suspendAdmin(admin: TenantAdmin): void {
+    if (!this.selected || this.adminActionId) return;
+    this.adminActionId = admin.userId;
+    this.userService.suspendUser(this.selected.id, admin.userId, this.enforcementReason || 'Suspended by admin').subscribe({
+      next: () => this.reloadSelected(),
+      error: (error) => this.handleAdminActionError(error),
+      complete: () => (this.adminActionId = null),
+    });
+  }
+
+  banAdmin(admin: TenantAdmin): void {
+    if (!this.selected || this.adminActionId) return;
+    this.adminActionId = admin.userId;
+    this.userService.banUser(this.selected.id, admin.userId, this.enforcementReason || 'Banned by admin').subscribe({
+      next: () => this.reloadSelected(),
+      error: (error) => this.handleAdminActionError(error),
+      complete: () => (this.adminActionId = null),
+    });
+  }
+
+  reinstateAdmin(admin: TenantAdmin): void {
+    if (!this.selected || this.adminActionId) return;
+    this.adminActionId = admin.userId;
+    this.userService.reinstateUser(this.selected.id, admin.userId).subscribe({
+      next: () => this.reloadSelected(),
+      error: (error) => this.handleAdminActionError(error),
+      complete: () => (this.adminActionId = null),
+    });
+  }
+
+  private handleAdminActionError(error: unknown): void {
+    this.adminActionId = null;
+    const message = (error as { error?: { message?: string } })?.error?.message;
+    this.actionMessage = null;
+    this.actionError = message ?? 'Unable to update user status. Please try again.';
   }
 
   deleteSelectedTenant(): void {

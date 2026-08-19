@@ -14,23 +14,28 @@ namespace finrecon360_backend.Services.Workers
     /// For each transaction in the <c>NeedsBankMatch</c> state (approved card cash-outs),
     /// the worker attempts to find a matching pair of imported records:
     ///   1. A GATEWAY record that represents the card charge (identifies the SettlementKey).
-    ///   2. A BANK record that represents the corresponding bank debit (same key, same amount).
+    ///   2. A BANK record that represents the corresponding bank debit (same key, matching amount).
     ///
     /// BANK candidates are scoped to the transaction's BankAccountId when set.
-    /// When both are found with matching amounts the worker *proposes* a match group.
-    /// It does not confirm it and does not promote the transaction. A person accepts the match on
-    /// the matcher screen, and that confirmation is what moves the transaction to
-    /// <c>JournalReady</c>.
-    /// </summary>
     ///
-    /// When both records are found with matching amounts, a pending Level4 match group is
-    /// created and linked to the transaction. The match still requires a human to confirm it
-    /// via the confirmation screen (<see cref="ReconciliationMatchConfirmationService"/>) — only
-    /// confirmation promotes the transaction to <c>JournalReady</c>.
+    /// Matching runs as a three-tier waterfall on the final BANK-amount comparison, mirroring
+    /// Level7's shape — a prior version of this worker auto-promoted every match regardless of
+    /// how it was found, which let a bad match slip through unnoticed; this replaces that blanket
+    /// policy with tiers scoped to how confidently each one reconciles, rather than removing
+    /// auto-confirmation altogether:
+    ///   Tier1 (ExactMatch)   — BANK.NetAmount reconciles with txn.Amount directly. Auto-confirms.
+    ///   Tier2 (FeeExplained) — BANK.NetAmount only reconciles once the GATEWAY record's known
+    ///                          ProcessingFee is subtracted from txn.Amount — a legitimate,
+    ///                          already-captured deduction, not an unexplained discrepancy.
+    ///                          Auto-confirms, with Variance recorded as the fee amount.
+    ///   Tier3 (RequiresReview) — ambiguous under either basis, or neither basis reconciles.
+    ///                          Stays IsConfirmed = false for a human to resolve via
+    ///                          ReconciliationMatchConfirmationService, same as before.
     ///
-    /// When there is a variance or ambiguity (2+ candidates within tolerance of each other),
-    /// the transaction remains in <c>NeedsBankMatch</c> and an exception is counted so it
-    /// surfaces in the unmatched queue for manual review.
+    /// Auto-confirmation (Tier1/Tier2) also promotes the linked transaction to JournalReady via
+    /// the shared CardCashoutPromoter — IsConfirmed alone doesn't move it; something has to run
+    /// the promotion side effect, and that's the same helper the confirmation service uses for
+    /// Tier3's human-confirmed case.
     /// </summary>
     public class BankStatementReconciliationWorker
     {
@@ -73,7 +78,6 @@ namespace finrecon360_backend.Services.Workers
 
             // 2/3. Load COMMITTED GATEWAY and BANK records still eligible for a Level-4 match.
             var gatewayRecords = await QueryMatchableBySourceAsync(tenantDb, "GATEWAY", ct);
-            var bankRecords = await QueryMatchableBySourceAsync(tenantDb, "BANK", ct);
 
             var linkedRecordIds = await tenantDb.ReconciliationMatchedRecords
                 .AsNoTracking()
@@ -126,8 +130,8 @@ namespace finrecon360_backend.Services.Workers
 
                 try
                 {
-                    var outcome = TryMatchTransaction(
-                        tenantDb, txn, gatewayRecords, bankByKey, amountTolerance);
+                    var outcome = await TryMatchTransactionAsync(
+                        tenantDb, txn, gatewayRecords, bankByKey, amountTolerance, ct);
 
                     switch (outcome)
                     {
@@ -154,7 +158,7 @@ namespace finrecon360_backend.Services.Workers
             await tenantDb.SaveChangesAsync(ct);
 
             _logger.LogInformation(
-                "BankStatementReconciliationWorker: tenant {TenantId} — proposed={Matched}, exceptions={Exceptions}, noMatch={NoMatch}",
+                "BankStatementReconciliationWorker: tenant {TenantId} — autoConfirmed={Matched}, exceptions={Exceptions}, noMatch={NoMatch}",
                 tenantId, autoMatched, exceptions, noMatch);
 
             return new BankReconciliationResult(totalCount, autoMatched, exceptions, noMatch);
@@ -162,12 +166,13 @@ namespace finrecon360_backend.Services.Workers
 
         // ── Private helpers ───────────────────────────────────────────────────────────
 
-        private MatchOutcome TryMatchTransaction(
+        private async Task<MatchOutcome> TryMatchTransactionAsync(
             TenantDbContext tenantDb,
             Transaction txn,
             List<ImportedNormalizedRecord> gatewayRecords,
             Dictionary<string, List<(ImportedNormalizedRecord Record, Guid? BatchBankAccountId)>> bankByKey,
-            decimal amountTolerance)
+            decimal amountTolerance,
+            CancellationToken ct)
         {
             // Step 1: Find the GATEWAY record for this transaction.
             var gatewayCandidates = FindGatewayCandidates(gatewayRecords, txn, amountTolerance);
@@ -246,29 +251,48 @@ namespace finrecon360_backend.Services.Workers
                 return MatchOutcome.NoMatch;
             }
 
-            // Step 5: Find best amount match among scoped candidates.
-            var matchResult = AmountMatcher.FindBestMatch(scopedCandidates, txn.Amount, amountTolerance);
+            // Step 5: Tiered amount match — exact first, then fee-explained.
+            var processingFee = gatewayRecord.ProcessingFee ?? 0m;
 
-            if (matchResult.Outcome == AmountMatcher.Outcome.Ambiguous)
+            var exactMatch = AmountMatcher.FindBestMatch(scopedCandidates, txn.Amount, amountTolerance);
+            var feeMatch = processingFee > 0m
+                ? AmountMatcher.FindBestMatch(scopedCandidates, txn.Amount - processingFee, amountTolerance)
+                : new AmountMatcher.Result(AmountMatcher.Outcome.NoMatch, null, 0);
+
+            if (exactMatch.Outcome == AmountMatcher.Outcome.Ambiguous || feeMatch.Outcome == AmountMatcher.Outcome.Ambiguous)
             {
                 _logger.LogWarning(
                     "Ambiguous BANK match for transaction {TransactionId}: {Count} candidates within tolerance of amount={Amount}",
-                    txn.TransactionId, matchResult.CandidateCount, txn.Amount);
+                    txn.TransactionId, Math.Max(exactMatch.CandidateCount, feeMatch.CandidateCount), txn.Amount);
                 return MatchOutcome.Exception;
             }
 
-            if (matchResult.Outcome == AmountMatcher.Outcome.NoMatch)
+            string ruleTriggered;
+            ImportedNormalizedRecord bankRecord;
+            decimal variance;
+
+            if (exactMatch.Outcome == AmountMatcher.Outcome.Matched)
             {
+                ruleTriggered = "Tier1_ExactMatch";
+                bankRecord = exactMatch.Best!;
+                variance = Math.Abs(bankRecord.NetAmount - txn.Amount);
+            }
+            else if (feeMatch.Outcome == AmountMatcher.Outcome.Matched)
+            {
+                ruleTriggered = "Tier2_FeeExplained";
+                bankRecord = feeMatch.Best!;
+                variance = processingFee; // the gap is the known fee, not an unexplained discrepancy
+            }
+            else
+            {
+                // Tier3: neither basis reconciles — genuine, unexplained amount variance.
                 var firstCandidate = scopedCandidates[0];
-                var variance = firstCandidate.NetAmount - txn.Amount;
+                var rawVariance = firstCandidate.NetAmount - txn.Amount;
                 _logger.LogWarning(
                     "Amount variance for transaction {TransactionId}: expected {Expected}, bank={Bank}, variance={Variance}",
-                    txn.TransactionId, txn.Amount, firstCandidate.NetAmount, variance);
+                    txn.TransactionId, txn.Amount, firstCandidate.NetAmount, rawVariance);
                 return MatchOutcome.Exception;
             }
-
-            var bankRecord = matchResult.Best!;
-            var processingFee = gatewayRecord.ProcessingFee ?? 0m;
 
             var matchGroup = new ReconciliationMatchGroup
             {
@@ -276,13 +300,13 @@ namespace finrecon360_backend.Services.Workers
                 ImportBatchId = gatewayRecord.ImportBatchId,
                 MatchLevel = "Level4",
                 SettlementKey = settlementKey,
-                IsConfirmed = false,
-                ConfirmedByUserId = null,
-                ConfirmedAt = null,
+                IsConfirmed = true,
+                ConfirmedByUserId = null, // system auto-confirm, not a human
+                ConfirmedAt = DateTime.UtcNow,
                 IsJournalPosted = false,
                 MatchedAmount = bankRecord.NetAmount,
-                Variance = Math.Abs(bankRecord.NetAmount - txn.Amount),
-                Status = "Pending",
+                Variance = variance,
+                Status = "Confirmed",
                 CreatedAt = DateTime.UtcNow,
                 MatchMetadataJson = new MatchGroupMetadata
                 {
@@ -292,8 +316,9 @@ namespace finrecon360_backend.Services.Workers
                     GatewayNetTotal = gatewayRecord.NetAmount,
                     BankNetTotal = bankRecord.NetAmount,
                     ProcessingFeeTotal = processingFee,
-                    Variance = Math.Abs(bankRecord.NetAmount - txn.Amount),
+                    Variance = variance,
                     AutoMatched = true,
+                    RuleTriggered = ruleTriggered,
                     GatewayRecordCount = 1,
                     BankRecordCount = 1,
                     MatchedAt = DateTime.UtcNow
@@ -324,9 +349,14 @@ namespace finrecon360_backend.Services.Workers
             gatewayRecord.MatchStatus = MatchStatuses.Matched;
             bankRecord.MatchStatus = MatchStatuses.Matched;
 
+            // Auto-confirmation must also promote the linked transaction — IsConfirmed alone
+            // doesn't move it out of NeedsBankMatch; this is the same side effect
+            // ReconciliationMatchConfirmationService runs for a human confirmation.
+            await CardCashoutPromoter.PromoteLinkedTransactionAsync(tenantDb, matchGroup, confirmedByUserId: null, DateTime.UtcNow, ct);
+
             _logger.LogInformation(
-                "PROPOSED match for transaction {TransactionId}: settlement key '{Key}', match group {GroupId} — awaiting confirmation",
-                txn.TransactionId, settlementKey, matchGroup.ReconciliationMatchGroupId);
+                "Level4 AUTO-CONFIRMED ({Rule}) transaction {TransactionId}: settlement key '{Key}', match group {GroupId}",
+                ruleTriggered, txn.TransactionId, settlementKey, matchGroup.ReconciliationMatchGroupId);
 
             return MatchOutcome.AutoMatched;
         }

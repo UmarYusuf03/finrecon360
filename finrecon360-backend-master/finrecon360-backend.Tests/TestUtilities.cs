@@ -23,15 +23,28 @@ namespace finrecon360_backend.Tests;
 public class FakeEmailSender : IEmailSender
 {
     public List<EmailRequest> Requests { get; } = new();
+    public List<AttachmentEmailRequest> AttachmentRequests { get; } = new();
 
     public Task SendTemplateAsync(string toEmail, long templateId, IDictionary<string, object> parameters, CancellationToken cancellationToken = default)
     {
         Requests.Add(new EmailRequest(toEmail, templateId, new Dictionary<string, object>(parameters)));
         return Task.CompletedTask;
     }
+
+    public Task SendWithAttachmentAsync(
+        string toEmail,
+        string subject,
+        string htmlBody,
+        IReadOnlyList<EmailAttachment> attachments,
+        CancellationToken cancellationToken = default)
+    {
+        AttachmentRequests.Add(new AttachmentEmailRequest(toEmail, subject, htmlBody, attachments));
+        return Task.CompletedTask;
+    }
 }
 
 public record EmailRequest(string ToEmail, long TemplateId, IDictionary<string, object> Parameters);
+public record AttachmentEmailRequest(string ToEmail, string Subject, string HtmlBody, IReadOnlyList<EmailAttachment> Attachments);
 
 public class TestWebApplicationFactory : WebApplicationFactory<Program>
 {

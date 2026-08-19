@@ -35,6 +35,8 @@ namespace finrecon360_backend.Data
         public DbSet<PaymentSession> PaymentSessions => Set<PaymentSession>();
         public DbSet<MagicLinkToken> MagicLinkTokens => Set<MagicLinkToken>();
         public DbSet<EnforcementAction> EnforcementActions => Set<EnforcementAction>();
+        public DbSet<TenantPaymentAlert> TenantPaymentAlerts => Set<TenantPaymentAlert>();
+        public DbSet<SystemBillingSettings> SystemBillingSettings => Set<SystemBillingSettings>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -56,6 +58,8 @@ namespace finrecon360_backend.Data
             modelBuilder.ApplyConfiguration(new PaymentSessionConfiguration());
             modelBuilder.ApplyConfiguration(new MagicLinkTokenConfiguration());
             modelBuilder.ApplyConfiguration(new EnforcementActionConfiguration());
+            modelBuilder.ApplyConfiguration(new TenantPaymentAlertConfiguration());
+            modelBuilder.ApplyConfiguration(new SystemBillingSettingsConfiguration());
 
             base.OnModelCreating(modelBuilder);
         }

@@ -74,7 +74,8 @@ namespace finrecon360_backend.Dtos.Admin
         bool IsActive,
         string MappingJson,
         DateTime CreatedAt,
-        DateTime? UpdatedAt);
+        DateTime? UpdatedAt,
+        string? ExtractionPatternsJson = null);
 
     public class ImportMappingTemplateCreateRequest
     {
@@ -82,6 +83,10 @@ namespace finrecon360_backend.Dtos.Admin
         public string SourceType { get; set; } = string.Empty;
         public string CanonicalSchemaVersion { get; set; } = "v1";
         public string MappingJson { get; set; } = string.Empty;
+
+        // Optional {"BatchNumber": "regex", "TerminalId": "regex", "MerchantId": "regex"} used
+        // by PosIdentifierExtractor to parse narrative BANK descriptions at commit time.
+        public string? ExtractionPatternsJson { get; set; }
     }
 
     public class ImportMappingTemplateUpdateRequest
@@ -91,5 +96,6 @@ namespace finrecon360_backend.Dtos.Admin
         public string CanonicalSchemaVersion { get; set; } = "v1";
         public string MappingJson { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
+        public string? ExtractionPatternsJson { get; set; }
     }
 }

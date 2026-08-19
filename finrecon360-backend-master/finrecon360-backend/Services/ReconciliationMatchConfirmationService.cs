@@ -1,6 +1,7 @@
 using finrecon360_backend.Data;
 using finrecon360_backend.Models;
 using Microsoft.EntityFrameworkCore;
+using ReconCanon = finrecon360_backend.Services.Reconciliation;
 
 namespace finrecon360_backend.Services
 {
@@ -172,9 +173,32 @@ namespace finrecon360_backend.Services
             group.ConfirmedAt = now;
             group.Status = "Confirmed";
 
-            // Find any transaction in NeedsBankMatch whose card cashout amount and date
-            // correspond to this match group and promote it.
-            await PromoteLinkedTransactionAsync(db, group, confirmedByUserId, now, ct);
+            if (group.MatchLevel == "Level7")
+            {
+                // POS-terminal batch settlement groups aren't linked to a Transaction row —
+                // Tier1/2 auto-confirmed matches already posted their voucher when created;
+                // this covers Tier3 (aggregated) matches, which always require a human to
+                // confirm before the GL entries are posted.
+                var posted = await ReconCanon.PosSettlementPoster.PostAsync(db, group, ct);
+                if (!posted && !group.IsJournalPosted)
+                {
+                    db.ReconciliationEvents.Add(new ReconciliationEvent
+                    {
+                        ReconciliationEventId = Guid.NewGuid(),
+                        ReconciliationMatchGroupId = group.ReconciliationMatchGroupId,
+                        EventType = "PostingFailed",
+                        MatchLevel = group.MatchLevel,
+                        Details = "Confirmed but failed to post journal voucher (metadata missing or entries didn't balance).",
+                        CreatedAt = now,
+                    });
+                }
+            }
+            else
+            {
+                // Find any transaction in NeedsBankMatch whose card cashout amount and date
+                // correspond to this match group and promote it.
+                await ReconCanon.CardCashoutPromoter.PromoteLinkedTransactionAsync(db, group, confirmedByUserId, now, ct);
+            }
 
             await db.SaveChangesAsync(ct);
             return true;
@@ -360,43 +384,6 @@ namespace finrecon360_backend.Services
         }
 
         // ── Private helpers ───────────────────────────────────────────────────────────
-
-        private static async Task PromoteLinkedTransactionAsync(
-            TenantDbContext db,
-            ReconciliationMatchGroup group,
-            Guid confirmedByUserId,
-            DateTime now,
-            CancellationToken ct)
-        {
-            // Look for a NeedsBankMatch card cashout matching this group's amount.
-            var txn = await db.Transactions
-                .Where(t =>
-                    t.TransactionState == TransactionState.NeedsBankMatch &&
-                    t.TransactionType == TransactionType.CashOut &&
-                    t.PaymentMethod == PaymentMethod.Card &&
-                    Math.Abs(t.Amount - group.MatchedAmount) < 0.01m)
-                .FirstOrDefaultAsync(ct);
-
-            if (txn == null)
-            {
-                return;
-            }
-
-            var fromState = txn.TransactionState;
-            txn.TransactionState = TransactionState.JournalReady;
-            txn.UpdatedAt = now;
-
-            db.TransactionStateHistories.Add(new TransactionStateHistory
-            {
-                TransactionStateHistoryId = Guid.NewGuid(),
-                TransactionId = txn.TransactionId,
-                FromState = fromState,
-                ToState = TransactionState.JournalReady,
-                ChangedByUserId = confirmedByUserId,
-                ChangedAt = now,
-                Note = $"Promoted to JournalReady by match group {group.ReconciliationMatchGroupId} confirmation",
-            });
-        }
 
         /// <summary>
         /// Amount tolerance for hint matching: ±1% of the bank amount.

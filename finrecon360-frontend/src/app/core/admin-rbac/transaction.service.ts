@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
 import { API_BASE_URL, USE_MOCK_API } from '../constants/api.constants';
+import { ExportFormat } from '../services/export.service';
 import {
   ApproveTransactionRequest,
   CreateTransactionRequest,
@@ -33,6 +34,18 @@ export class TransactionService {
     );
   }
 
+  export(format: ExportFormat, state?: string, search?: string): Observable<Blob> {
+    let params = new HttpParams().set('format', format);
+    if (state && state !== 'All') {
+      params = params.set('state', state);
+    }
+    if (search?.trim()) {
+      params = params.set('search', search.trim());
+    }
+
+    return this.http.get(`${this.baseUrl}/export`, { params, responseType: 'blob' });
+  }
+
   getById(id: string): Observable<Transaction> {
     if (USE_MOCK_API) {
       return of(this.transactionsSubject.value.find((item) => item.transactionId === id) as Transaction);
@@ -48,6 +61,7 @@ export class TransactionService {
         amount: data.amount,
         transactionDate: data.transactionDate,
         description: data.description,
+        referenceNumber: data.referenceNumber ?? null,
         bankAccountId: data.bankAccountId ?? null,
         transactionType: data.transactionType,
         paymentMethod: data.paymentMethod,
@@ -86,6 +100,7 @@ export class TransactionService {
             amount: data.amount,
             transactionDate: data.transactionDate,
             description: data.description,
+            referenceNumber: data.referenceNumber ?? null,
             bankAccountId: data.bankAccountId ?? null,
             transactionType: data.transactionType,
             paymentMethod: data.paymentMethod,

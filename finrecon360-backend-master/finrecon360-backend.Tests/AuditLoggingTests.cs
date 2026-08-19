@@ -9,6 +9,7 @@ using finrecon360_backend.Dtos;
 using finrecon360_backend.Dtos.Admin;
 using finrecon360_backend.Models;
 using finrecon360_backend.Services;
+using finrecon360_backend.Services.Export;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +51,8 @@ public class AuditLoggingTests
         var controller = new AdminTenantAuditLogsController(
             db,
             new StubTenantContext(tenantId),
-            new StubUserContext(userId));
+            new StubUserContext(userId),
+            new ReportExporter());
 
         var result = await controller.GetAuditLogs();
         var ok = Assert.IsType<OkObjectResult>(result.Result);
@@ -82,7 +84,7 @@ public class AuditLoggingTests
         });
         await db.SaveChangesAsync();
 
-        var controller = new AdminAuditLogsController(db);
+        var controller = new AdminAuditLogsController(db, new ReportExporter());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = BuildHttpContext(userId)
@@ -122,7 +124,7 @@ public class AuditLoggingTests
         });
         await db.SaveChangesAsync();
 
-        var controller = new AdminAuditLogsController(db);
+        var controller = new AdminAuditLogsController(db, new ReportExporter());
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = BuildHttpContext(userId)

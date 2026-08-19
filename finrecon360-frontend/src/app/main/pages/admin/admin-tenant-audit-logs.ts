@@ -5,6 +5,7 @@ import { TranslateModule } from '@ngx-translate/core';
 
 import { AuditLogService } from '../../../core/audit-logs/audit-log.service';
 import { AuditLogItem } from '../../../core/audit-logs/models';
+import { ExportFormat, ExportService } from '../../../core/services/export.service';
 
 @Component({
   selector: 'app-admin-tenant-audit-logs',
@@ -17,6 +18,8 @@ export class AdminTenantAuditLogsComponent implements OnInit {
   logs: AuditLogItem[] = [];
   loading = true;
   error = '';
+  exporting = false;
+  exportError = '';
 
   page = 1;
   pageSize = 25;
@@ -29,7 +32,10 @@ export class AdminTenantAuditLogsComponent implements OnInit {
   fromLocal = '';
   toLocal = '';
 
-  constructor(private auditLogService: AuditLogService) {}
+  constructor(
+    private auditLogService: AuditLogService,
+    private exportService: ExportService,
+  ) {}
 
   ngOnInit(): void {
     this.load();
@@ -64,6 +70,41 @@ export class AdminTenantAuditLogsComponent implements OnInit {
           this.loading = false;
           this.error =
             'Unable to load audit logs. Confirm backend endpoint /api/admin/audit-logs is available.';
+        },
+      });
+  }
+
+  exportLogs(format: ExportFormat): void {
+    if (this.exporting) {
+      return;
+    }
+
+    this.exporting = true;
+    this.exportError = '';
+    this.auditLogService
+      .exportTenantAuditLogs(
+        {
+          page: this.page,
+          pageSize: this.pageSize,
+          action: this.action,
+          entity: this.entity,
+          userId: this.userId,
+          search: this.search,
+          fromUtc: this.toUtcIso(this.fromLocal),
+          toUtc: this.toUtcIso(this.toLocal),
+        },
+        format,
+      )
+      .subscribe({
+        next: (blob) => {
+          this.exporting = false;
+          this.exportService.downloadBlob(blob, this.exportService.buildFilename('audit-logs', format));
+        },
+        error: (error: unknown) => {
+          this.exporting = false;
+          this.exportService.extractErrorMessage(error).then((message) => {
+            this.exportError = message;
+          });
         },
       });
   }

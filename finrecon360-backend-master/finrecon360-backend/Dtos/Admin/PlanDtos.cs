@@ -16,7 +16,7 @@ namespace finrecon360_backend.Dtos.Admin
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public long PriceCents { get; set; }
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "LKR";
         public int DurationDays { get; set; }
         public int MaxUsers { get; set; }
         public int MaxAccounts { get; set; }
@@ -27,7 +27,7 @@ namespace finrecon360_backend.Dtos.Admin
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public long PriceCents { get; set; }
-        public string Currency { get; set; } = "USD";
+        public string Currency { get; set; } = "LKR";
         public int DurationDays { get; set; }
         public int MaxUsers { get; set; }
         public int MaxAccounts { get; set; }
