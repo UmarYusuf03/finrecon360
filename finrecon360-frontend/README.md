@@ -56,6 +56,7 @@ Current route split:
 The frontend supports:
 
 - email/password login
+- Google single sign-on, on both the login and sign-up screens
 - user registration
 - email verification via magic link
 - password reset via magic link
@@ -63,6 +64,19 @@ The frontend supports:
 - tenant onboarding magic link verification
 
 So the current UX is not magic-link-only authentication.
+
+### Google Sign-In
+
+`GoogleSsoService` loads Google Identity Services and renders Google's own button. The browser
+never inspects the returned token — anything it concluded would be unverifiable, and the
+backend re-derives every claim from the signature. The button is only shown when
+`GET /api/auth/sso/config` reports SSO as configured, so a deployment without
+`GOOGLE_CLIENT_ID` hides it rather than offering a control that always fails.
+
+Password and Google sign-in share one post-authentication routine, so the follow-up `/api/me`
+call that resolves roles, permissions, and tenant cannot drift between them. Signing up with
+Google and signing in with Google are the same server operation: the account is provisioned on
+first arrival.
 
 ### Route Protection
 
@@ -90,7 +104,7 @@ The frontend expects the current backend onboarding flow:
 2. System-admin approval
 3. Tenant onboarding magic link
 4. Password setup
-5. Stripe checkout
+5. PayHere checkout
 6. Tenant activation
 
 The temporary tenant-admin bypass is no longer part of the supported path.

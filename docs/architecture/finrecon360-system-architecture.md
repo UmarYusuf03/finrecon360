@@ -17,8 +17,8 @@ At the current target design, the platform is built around:
 - Hybrid multi-tenancy
 - One shared control-plane database
 - One separate tenant database per tenant
-- Token-driven or magic-link based authentication today
-- Future-ready SSO path
+- Token-driven or magic-link based authentication, plus Google single sign-on
+- SSO implemented for Google; the path remains open for further providers
 - Tenant-scoped RBAC
 - ERP-agnostic import pipeline
 - Human-confirmed reconciliation
@@ -233,9 +233,9 @@ The current design assumes token-driven and magic-link based authentication hand
 
 ### Future Direction
 
-The architecture should remain compatible with:
+Google SSO is implemented. The architecture should remain compatible with:
 
-- SSO
+- further external identity providers
 - external identity providers
 - IdentityServer6 or similar orchestration
 
@@ -523,7 +523,7 @@ one is the audit trail of what was actually shipped against it.
 - token handling
 - magic-link or action-token flows
 - session or JWT issuance
-- future SSO integration
+- SSO integration (Google implemented; other providers still open)
 
 ### Module 3: Tenant Administration
 
@@ -627,7 +627,7 @@ New frontend developers should think in these zones:
 - login
 - token and session handling
 - magic-link flows
-- future SSO entry points
+- SSO entry points (Google sign-in on the login and sign-up screens)
 
 ### Shell and Navigation Zone
 
@@ -814,7 +814,7 @@ Use secure configuration for:
 - Brevo API keys
 - payment provider secrets
 - object storage credentials
-- future SSO credentials
+- SSO client configuration (GOOGLE_CLIENT_ID; not secret, but environment-supplied)
 
 Examples:
 

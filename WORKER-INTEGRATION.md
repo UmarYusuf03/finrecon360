@@ -386,9 +386,39 @@ Settlement Key:  MERCHANT_ACCT|TXN_12345
 
 All 180 tests pass (`finrecon360-backend.Tests`), including coverage for all six active matching levels (1/2/3/4/6/7 — Level5 retired), ambiguous-match detection, tenant-configurable tolerances, bank-account scoping (now including Level6, see "Level6 detail" above), balanced journal-voucher posting (including the CreditCashIn fix above), identifier extraction against real bank narrative formats and direct-column mapping (2026-08-19), business-day settlement-window arithmetic, the Level7 waterfall's tier boundaries (1:1, many:1, 1:many, variance, no-match, window-exclusion, idempotency) now running against `POS_SETTLEMENT` fixtures, Level4's Tier1/Tier2/Tier3 auto-confirm boundaries (exact match, fee-explained match, ambiguous/unexplained), and the reporting layer below (39 tests: export formatting, financial-statement sign conventions, snapshot worker idempotency, scheduled-report dispatch and cadence math).
 
+Note on an earlier version of this document: it claimed "all 68 existing tests pass" at a point
+when the test project did not compile, so none of them could run. Treat a stated pass count as
+meaningful only alongside a build that succeeds.
+
+## ⚠️ Human confirmation is required
+
+An earlier revision of the reconciliation worker set `IsConfirmed = true` on the groups it
+created, and the posting worker did not check the flag, so a card cashout could travel from
+import to posted ledger entry with nobody having reviewed it.
+
+The current behaviour:
+
+- The worker **proposes** a Level-4 match group. It is created unconfirmed and marked
+  `AutoMatched` in its metadata, so the UI can show that a machine suggested it.
+- The transaction **stays in `NeedsBankMatch`**. The worker does not promote it.
+- A person confirms the group on the matcher screen. That confirmation is what moves the
+  transaction to `JournalReady` and writes the history row naming who did it.
+- `JournalPostingExecutorWorker` refuses any group that is not confirmed.
+
+Cash transactions do not need a match group at all and post on approval — requiring one for
+every transaction previously left every cash transaction stranded in `JournalReady`.
+
 **Reporting hosted services** (added after this doc's original scope, documented in full in `docs/architecture/reporting-implementation-plan.md`): `ReconciliationSnapshotHostedService` runs once daily, staggered well clear of the two services above, and rolls up the previous day's activity from `ReconciliationMatchGroup`/`ReconciliationEvent`/`JournalEntry` into `ReconciliationDailySnapshot` and `TenantDailySnapshot` — the read side those tables feed (Financial Reports, Reconciliation Trends, the Reports Hub) never touches the transactional tables above at request time. `ReportScheduleHostedService` runs hourly and emails out any due weekly report schedule.
 
+**Worker Intervals** (if you need to tune them):
+- Reconciliation cycle: see `ReconciliationCycleHostedService`
+- JournalPosting: see `JournalPostingHostedService`
+
+Both sweep every active tenant on a timer and guard concurrency with an in-process
+dictionary, so exactly one API instance may run until that guard is distributed.
+
 ## 🚀 Next Steps / Known Follow-Ups
+
 
 1. **Consolidate the duplicate `SettlementKeyResolver`/`MatchStatuses` classes** — see "Known duplication to clean up" above. Still not done as of the Level7 addition; new Level7 code deliberately builds on the canonical `Services.Reconciliation` versions to avoid making this worse.
 2. **Level7 admin UI** — the backend (matching, `ExtractionPatternsJson` on mapping templates, `banking-holidays` CRUD, `SettlementDateWindowDays` setting) is done; no frontend surfaces it yet.
