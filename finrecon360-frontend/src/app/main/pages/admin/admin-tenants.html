@@ -70,7 +70,7 @@
                 class="warning-btn"
                 *ngIf="admin.status.toUpperCase() !== 'SUSPENDED' && admin.status.toUpperCase() !== 'BANNED'"
                 [disabled]="adminActionId === admin.userId"
-                (click)="suspendAdmin(admin)"
+                (click)="requestSuspendAdmin(admin)"
               >
                 {{ 'ADMIN.TENANTS.SUSPEND' | translate }}
               </button>
@@ -78,7 +78,7 @@
                 class="danger-btn"
                 *ngIf="admin.status.toUpperCase() !== 'BANNED'"
                 [disabled]="adminActionId === admin.userId"
-                (click)="banAdmin(admin)"
+                (click)="requestBanAdmin(admin)"
               >
                 {{ 'ADMIN.TENANTS.BAN' | translate }}
               </button>
@@ -99,8 +99,8 @@
         <label>{{ 'ADMIN.TENANTS.ENFORCEMENT_REASON' | translate }}</label>
         <input [(ngModel)]="enforcementReason" [placeholder]="'ADMIN.TENANTS.REASON' | translate" />
         <div class="actions">
-          <button class="warning-btn" (click)="suspend()">{{ 'ADMIN.TENANTS.SUSPEND' | translate }}</button>
-          <button class="danger-btn" (click)="ban()">{{ 'ADMIN.TENANTS.BAN' | translate }}</button>
+          <button class="warning-btn" (click)="requestSuspend()">{{ 'ADMIN.TENANTS.SUSPEND' | translate }}</button>
+          <button class="danger-btn" (click)="requestBan()">{{ 'ADMIN.TENANTS.BAN' | translate }}</button>
           <button class="primary-btn" (click)="reinstate()">{{ 'ADMIN.TENANTS.REINSTATE' | translate }}</button>
           <button class="danger-btn" (click)="deleteSelectedTenant()">{{ 'ADMIN.TENANTS.DELETE_TENANT' | translate }}</button>
         </div>
@@ -116,23 +116,28 @@
     </ng-template>
   </div>
 
-  <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
-    <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-tenant-title">
-      <h3 id="delete-tenant-title">{{ 'ADMIN.TENANTS.DELETE_TITLE' | translate }}</h3>
-      <p>
-        You are about to permanently remove
-        <strong>{{ deleteTargetName }}</strong>.
-      </p>
-      <p>{{ 'ADMIN.TENANTS.DELETE_NOTE' | translate }}</p>
+  <app-confirm-dialog
+    [open]="deleteDialogOpen"
+    [title]="'ADMIN.TENANTS.DELETE_TITLE' | translate"
+    [message]="'ADMIN.TENANTS.DELETE_COPY' | translate: { name: deleteTargetName }"
+    [confirmLabel]="'ADMIN.TENANTS.DELETE_TENANT' | translate"
+    [processingLabel]="'COMMON.DELETING' | translate"
+    [processing]="processing"
+    variant="danger"
+    (confirmed)="confirmDeleteTenant()"
+    (cancelled)="closeDeleteDialog()"
+  >
+    <p>{{ 'ADMIN.TENANTS.DELETE_NOTE' | translate }}</p>
+  </app-confirm-dialog>
 
-      <div class="dialog-actions">
-        <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDeleteDialog()">
-          {{ 'COMMON.CANCEL' | translate }}
-        </button>
-        <button type="button" class="danger-btn" [disabled]="processing" (click)="confirmDeleteTenant()">
-          {{ processing ? ('COMMON.DELETING' | translate) : ('ADMIN.TENANTS.DELETE_TENANT' | translate) }}
-        </button>
-      </div>
-    </div>
-  </div>
+  <app-confirm-dialog
+    [open]="confirmEnforcementOpen"
+    [title]="enforcementTitleKey | translate"
+    [message]="enforcementMessageKey | translate: { name: enforcementTargetName }"
+    [confirmLabel]="enforcementConfirmLabelKey | translate"
+    [processing]="enforcementProcessing"
+    [variant]="enforcementVariant"
+    (confirmed)="confirmEnforcement()"
+    (cancelled)="closeEnforcementDialog()"
+  ></app-confirm-dialog>
 </section>

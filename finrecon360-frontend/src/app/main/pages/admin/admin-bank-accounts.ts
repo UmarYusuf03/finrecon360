@@ -20,6 +20,7 @@ import { Observable } from 'rxjs';
 import { BankAccountService } from '../../../core/admin-rbac/bank-account.service';
 import { BankAccount, BankAccountCapacity } from '../../../core/admin-rbac/models';
 import { ExportFormat, ExportService } from '../../../core/services/export.service';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-admin-bank-accounts',
@@ -40,6 +41,7 @@ import { ExportFormat, ExportService } from '../../../core/services/export.servi
     MatTooltipModule,
     RouterLink,
     TranslateModule,
+    ConfirmDialogComponent,
   ],
   templateUrl: './admin-bank-accounts.html',
   styleUrls: ['./admin-bank-accounts.scss'],
@@ -54,6 +56,9 @@ export class AdminBankAccountsComponent implements OnInit {
   deactivatingId: string | null = null;
   saveError: string | null = null;
   capacity: BankAccountCapacity | null = null;
+
+  confirmDeactivateOpen = false;
+  confirmDeactivateTarget: BankAccount | null = null;
 
   get isAccountLimitReached(): boolean {
     return this.capacity?.maxAccounts != null && this.capacity.currentAccounts >= this.capacity.maxAccounts;
@@ -190,15 +195,30 @@ export class AdminBankAccountsComponent implements OnInit {
     });
   }
 
-  deactivate(account: BankAccount): void {
+  requestDeactivate(account: BankAccount): void {
     if (!account.isActive || this.deactivatingId) {
       return;
     }
+    this.confirmDeactivateTarget = account;
+    this.confirmDeactivateOpen = true;
+  }
+
+  cancelDeactivate(): void {
+    if (this.deactivatingId) return;
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
+  }
+
+  confirmDeactivate(): void {
+    const account = this.confirmDeactivateTarget;
+    if (!account) return;
 
     this.deactivatingId = account.bankAccountId;
     this.bankAccountService.deactivate(account.bankAccountId).subscribe({
       next: () => {
         this.deactivatingId = null;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
         this.bankAccounts = this.bankAccounts.map((item) =>
           item.bankAccountId === account.bankAccountId
             ? { ...item, isActive: false, updatedAt: new Date().toISOString() }
@@ -209,6 +229,8 @@ export class AdminBankAccountsComponent implements OnInit {
       },
       error: (error: unknown) => {
         this.deactivatingId = null;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
       },
     });

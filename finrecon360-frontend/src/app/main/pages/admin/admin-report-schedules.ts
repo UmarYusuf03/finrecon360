@@ -15,6 +15,7 @@ import { TranslateModule } from '@ngx-translate/core';
 
 import { ReportScheduleService } from '../../../core/admin-rbac/report-schedule.service';
 import { ReportSchedule } from '../../../core/admin-rbac/models';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 const WEEKDAY_KEYS = [
   'REPORT_SCHEDULES.WEEKDAYS.SUNDAY',
@@ -42,6 +43,7 @@ const WEEKDAY_KEYS = [
     MatSnackBarModule,
     MatTableModule,
     TranslateModule,
+    ConfirmDialogComponent,
   ],
   templateUrl: './admin-report-schedules.html',
   styleUrls: ['./admin-report-schedules.scss'],
@@ -57,6 +59,9 @@ export class AdminReportSchedulesComponent implements OnInit {
   loading = false;
   saving = false;
   deletingId: string | null = null;
+
+  confirmDeleteOpen = false;
+  confirmDeleteTarget: ReportSchedule | null = null;
 
   constructor(
     private scheduleService: ReportScheduleService,
@@ -130,8 +135,23 @@ export class AdminReportSchedulesComponent implements OnInit {
     });
   }
 
-  remove(schedule: ReportSchedule): void {
+  requestRemove(schedule: ReportSchedule): void {
     if (this.deletingId) {
+      return;
+    }
+    this.confirmDeleteTarget = schedule;
+    this.confirmDeleteOpen = true;
+  }
+
+  cancelRemove(): void {
+    if (this.deletingId) return;
+    this.confirmDeleteOpen = false;
+    this.confirmDeleteTarget = null;
+  }
+
+  confirmRemove(): void {
+    const schedule = this.confirmDeleteTarget;
+    if (!schedule || this.deletingId) {
       return;
     }
 
@@ -139,10 +159,14 @@ export class AdminReportSchedulesComponent implements OnInit {
     this.scheduleService.delete(schedule.reportScheduleId).subscribe({
       next: () => {
         this.deletingId = null;
+        this.confirmDeleteOpen = false;
+        this.confirmDeleteTarget = null;
         this.schedules = this.schedules.filter((s) => s.reportScheduleId !== schedule.reportScheduleId);
       },
       error: (error: unknown) => {
         this.deletingId = null;
+        this.confirmDeleteOpen = false;
+        this.confirmDeleteTarget = null;
         this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
       },
     });

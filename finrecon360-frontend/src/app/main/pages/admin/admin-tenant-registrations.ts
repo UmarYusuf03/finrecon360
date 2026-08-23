@@ -8,11 +8,12 @@ import { TranslateModule } from '@ngx-translate/core';
 
 import { TenantRegistrationService } from '../../../core/admin-tenant/tenant-registration.service';
 import { TenantRegistrationApprovalResult, TenantRegistrationSummary, TenantRegistrationDetail } from '../../../core/admin-tenant/models';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-admin-tenant-registrations',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule],
+  imports: [CommonModule, FormsModule, TranslateModule, ConfirmDialogComponent],
   templateUrl: './admin-tenant-registrations.html',
   styleUrls: ['./admin-tenant-registrations.scss'],
 })

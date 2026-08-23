@@ -239,7 +239,7 @@
                     type="button"
                     class="template-action template-action--deactivate"
                     *ngIf="template.isActive"
-                    (click)="deactivateTemplate(template)"
+                    (click)="requestDeactivateTemplate(template)"
                   >
                     {{ 'ADMIN.IMPORT_ARCHITECTURE.DEACTIVATE' | translate }}
                   </button>
@@ -266,31 +266,25 @@
     </mat-card>
   </div>
 
-  <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
-    <div
-      class="dialog-panel"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-template-title"
-    >
-      <h3 id="delete-template-title">
-        {{ 'ADMIN.IMPORT_ARCHITECTURE.DELETE_TITLE' | translate }}
-      </h3>
-      <p>
-        {{
-          'ADMIN.IMPORT_ARCHITECTURE.DELETE_COPY' | translate: { name: deleteTarget?.name || '' }
-        }}
-      </p>
-      <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.DELETE_NOTE' | translate }}</p>
+  <app-confirm-dialog
+    [open]="deleteDialogOpen"
+    [title]="'ADMIN.IMPORT_ARCHITECTURE.DELETE_TITLE' | translate"
+    [message]="'ADMIN.IMPORT_ARCHITECTURE.DELETE_COPY' | translate: { name: deleteTarget?.name || '' }"
+    [confirmLabel]="'COMMON.DELETE' | translate"
+    variant="danger"
+    (confirmed)="confirmDeleteTemplate()"
+    (cancelled)="closeDeleteDialog()"
+  >
+    <p>{{ 'ADMIN.IMPORT_ARCHITECTURE.DELETE_NOTE' | translate }}</p>
+  </app-confirm-dialog>
 
-      <div class="dialog-actions">
-        <button mat-stroked-button type="button" (click)="closeDeleteDialog()">
-          {{ 'COMMON.CANCEL' | translate }}
-        </button>
-        <button mat-flat-button color="warn" type="button" (click)="confirmDeleteTemplate()">
-          {{ 'COMMON.DELETE' | translate }}
-        </button>
-      </div>
-    </div>
-  </div>
+  <app-confirm-dialog
+    [open]="confirmDeactivateOpen"
+    [title]="'ADMIN.IMPORT_ARCHITECTURE.CONFIRM_DEACTIVATE_TITLE' | translate"
+    [message]="'ADMIN.IMPORT_ARCHITECTURE.CONFIRM_DEACTIVATE_MESSAGE' | translate: { name: confirmDeactivateTarget?.name || '' }"
+    [confirmLabel]="'ADMIN.IMPORT_ARCHITECTURE.DEACTIVATE' | translate"
+    variant="warning"
+    (confirmed)="confirmDeactivateTemplate()"
+    (cancelled)="cancelDeactivateTemplate()"
+  ></app-confirm-dialog>
 </section>

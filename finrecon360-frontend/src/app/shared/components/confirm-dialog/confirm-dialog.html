@@ -1,0 +1,16 @@
+<div class="dialog-backdrop" *ngIf="open" (click)="onCancel()">
+  <div class="dialog-panel" role="alertdialog" aria-modal="true" [attr.aria-label]="title" (click)="$event.stopPropagation()">
+    <h3>{{ title }}</h3>
+    <p *ngIf="message">{{ message }}</p>
+    <ng-content></ng-content>
+
+    <div class="dialog-actions">
+      <button type="button" class="ghost-btn" [disabled]="processing" (click)="onCancel()">
+        {{ cancelLabel || ('COMMON.CANCEL' | translate) }}
+      </button>
+      <button type="button" [class]="confirmButtonClass" [disabled]="processing" (click)="onConfirm()">
+        {{ processing ? (processingLabel || ('COMMON.PROCESSING' | translate)) : confirmLabel }}
+      </button>
+    </div>
+  </div>
+</div>

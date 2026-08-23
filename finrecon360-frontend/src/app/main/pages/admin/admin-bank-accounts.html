@@ -126,7 +126,7 @@
           mat-button
           type="button"
           class="bank-account-card__action bank-account-card__action--warn"
-          (click)="deactivate(account)"
+          (click)="requestDeactivate(account)"
           [disabled]="!account.isActive || deactivatingId === account.bankAccountId"
           [attr.aria-label]="'COMMON.DEACTIVATE' | translate"
         >
@@ -235,3 +235,25 @@
     </div>
   </div>
 </ng-template>
+
+<app-confirm-dialog
+  [open]="confirmDeactivateOpen"
+  [title]="'BANK_ACCOUNTS.CONFIRM_DEACTIVATE_TITLE' | translate"
+  [message]="'BANK_ACCOUNTS.CONFIRM_DEACTIVATE_MESSAGE' | translate: { name: confirmDeactivateTarget?.accountName }"
+  [confirmLabel]="'COMMON.DEACTIVATE' | translate"
+  [processing]="deactivatingId !== null"
+  variant="warning"
+  (confirmed)="confirmDeactivate()"
+  (cancelled)="cancelDeactivate()"
+></app-confirm-dialog>
+
+<app-confirm-dialog
+  [open]="confirmDeactivateOpen"
+  [title]="'BANK_ACCOUNTS.CONFIRM_DEACTIVATE_TITLE' | translate"
+  [message]="'BANK_ACCOUNTS.CONFIRM_DEACTIVATE_MESSAGE' | translate: { name: confirmDeactivateTarget?.accountName }"
+  [confirmLabel]="'COMMON.DEACTIVATE' | translate"
+  [processing]="deactivatingId !== null"
+  variant="warning"
+  (confirmed)="confirmDeactivate()"
+  (cancelled)="cancelDeactivate()"
+></app-confirm-dialog>

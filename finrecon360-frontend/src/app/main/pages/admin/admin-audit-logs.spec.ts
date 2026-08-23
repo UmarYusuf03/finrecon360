@@ -1,8 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
+import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 
 import { AdminAuditLogsComponent } from './admin-audit-logs';
 import { AuditLogService } from '../../../core/audit-logs/audit-log.service';
+
+class FakeLoader implements TranslateLoader {
+  getTranslation() {
+    return of({});
+  }
+}
 
 describe('AdminAuditLogsComponent', () => {
   it('loads audit logs on init', () => {
@@ -29,7 +36,12 @@ describe('AdminAuditLogsComponent', () => {
     );
 
     TestBed.configureTestingModule({
-      imports: [AdminAuditLogsComponent],
+      imports: [
+        AdminAuditLogsComponent,
+        TranslateModule.forRoot({
+          loader: { provide: TranslateLoader, useClass: FakeLoader },
+        }),
+      ],
       providers: [{ provide: AuditLogService, useValue: service }],
     });
 
@@ -46,7 +58,12 @@ describe('AdminAuditLogsComponent', () => {
     service.getAuditLogs.and.returnValue(of({ items: [], totalCount: 0, page: 1, pageSize: 25 }));
 
     TestBed.configureTestingModule({
-      imports: [AdminAuditLogsComponent],
+      imports: [
+        AdminAuditLogsComponent,
+        TranslateModule.forRoot({
+          loader: { provide: TranslateLoader, useClass: FakeLoader },
+        }),
+      ],
       providers: [{ provide: AuditLogService, useValue: service }],
     });
 

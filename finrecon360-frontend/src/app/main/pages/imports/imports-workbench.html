@@ -632,34 +632,17 @@
 
 
 
-  <div class="dialog-backdrop" *ngIf="deleteDialogOpen">
-    <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="delete-import-title">
-      <h3 id="delete-import-title">{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_TITLE' | translate }}</h3>
-      <p>
-        This will permanently remove the stored file and all parsed records for
-        <strong>{{ deleteTarget?.originalFileName || deleteTarget?.id }}</strong
-        >.
-      </p>
-      <p>{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_CONFIRM' | translate }}</p>
-
-      <div class="dialog-actions">
-        <button
-          type="button"
-          class="ghost-btn"
-          [disabled]="processing"
-          (click)="closeDeleteDialog()"
-        >
-          {{ 'COMMON.CANCEL' | translate }}
-        </button>
-        <button
-          type="button"
-          class="danger-btn"
-          [disabled]="processing"
-          (click)="confirmDeleteBatch()"
-        >
-          {{ processing ? ('COMMON.DELETING' | translate) : ('COMMON.DELETE' | translate) }}
-        </button>
-      </div>
-    </div>
-  </div>
+  <app-confirm-dialog
+    [open]="deleteDialogOpen"
+    [title]="'IMPORTS.WORKBENCH.DELETE_BATCH_TITLE' | translate"
+    [message]="'IMPORTS.WORKBENCH.DELETE_BATCH_COPY' | translate: { name: deleteTarget?.originalFileName || deleteTarget?.id }"
+    [confirmLabel]="'COMMON.DELETE' | translate"
+    [processingLabel]="'COMMON.DELETING' | translate"
+    [processing]="processing"
+    variant="danger"
+    (confirmed)="confirmDeleteBatch()"
+    (cancelled)="closeDeleteDialog()"
+  >
+    <p>{{ 'IMPORTS.WORKBENCH.DELETE_BATCH_CONFIRM' | translate }}</p>
+  </app-confirm-dialog>
 </section>

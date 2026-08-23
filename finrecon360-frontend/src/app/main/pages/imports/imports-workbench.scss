@@ -98,10 +98,6 @@
   font-size: var(--fr-text-sm);
 }
 
-.workflow-step.is-active {
-  background: rgba(14, 165, 233, 0.1);
-}
-
 .history-table tbody tr.active td,
 .history-table tbody tr.active:hover td {
   background: #1e4fa8;
@@ -117,6 +113,7 @@
 }
 
 .workflow-step.is-active {
+  background: rgba(14, 165, 233, 0.1);
   border-color: rgba(11, 132, 216, 0.22);
   color: var(--fr-text-primary);
 }
@@ -352,9 +349,7 @@
 .drop-subtitle,
 .batch-meta,
 .recon-summary-text,
-.sample-json,
-.dialog-panel h3,
-.dialog-panel p {
+.sample-json {
   margin: 0;
 }
 
@@ -374,7 +369,6 @@
 .template-actions,
 .validation-filters,
 .recon-result-actions,
-.dialog-actions,
 .file-meta,
 .batch-meta,
 .header-actions {
@@ -424,11 +418,6 @@
   background: #1e4fa8;
   color: #fff;
   border-color: #1e4fa8;
-}
-
-.history-table th,
-.history-table td {
-  padding: 14px 12px;
 }
 
 input,
@@ -686,29 +675,6 @@ select {
   gap: 6px;
   place-items: center;
   text-align: center;
-}
-
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  background: rgba(15, 23, 42, 0.14);
-  backdrop-filter: blur(4px);
-  z-index: 1300;
-}
-
-.dialog-panel {
-  width: min(520px, 100%);
-  padding: 20px;
-  border-radius: var(--fr-radius-xl);
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--fr-glass-border);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
-  display: grid;
-  gap: 10px;
 }
 
 @media (max-width: 1080px) {

@@ -122,6 +122,8 @@ describe('AdminUsersComponent', () => {
 
   it('deactivates user', () => {
     component.toggleActive(users[0]);
+    expect(component.confirmDeactivateOpen).toBeTrue();
+    component.confirmDeactivate();
     expect(userSpy.deactivateUser).toHaveBeenCalled();
   });
 });

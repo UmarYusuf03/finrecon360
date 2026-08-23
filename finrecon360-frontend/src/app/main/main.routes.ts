@@ -4,16 +4,12 @@ import { AccessGuard } from '../core/auth/access.guard';
 import { AuthGuard } from '../core/auth/auth.guard';
 import { ShellComponent } from './layout/shell/shell';
 import { AdminShellComponent } from './pages/admin/admin-shell';
-import { AdminComponentsComponent } from './pages/admin/admin-components';
 import { AdminPermissionsComponent } from './pages/admin/admin-permissions';
-import { AdminRolesComponent } from './pages/admin/admin-roles';
-import { AdminUsersComponent } from './pages/admin/admin-users';
 import { DashboardComponent } from './pages/dashboard/dashboard';
 import { ImportsShellComponent } from './pages/imports/imports-shell';
 import { MatcherPageComponent } from './pages/matcher/matcher-page';
 import { MatcherShellComponent } from './pages/matcher/matcher-shell';
 import { NotAuthorizedComponent } from './pages/not-authorized/not-authorized';
-import { ProfileComponent } from './pages/profile/profile';
 import { ReportsShellComponent } from './pages/reports/reports-shell';
 
 export const mainRoutes: Routes = [
@@ -410,7 +406,7 @@ export const mainRoutes: Routes = [
       },
       {
         path: 'profile',
-        component: ProfileComponent,
+        loadComponent: () => import('./pages/profile/profile').then((m) => m.ProfileComponent),
       },
       { path: 'not-authorized', component: NotAuthorizedComponent },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },

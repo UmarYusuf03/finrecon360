@@ -7,11 +7,14 @@ import { TranslateModule } from '@ngx-translate/core';
 import { TenantService } from '../../../core/admin-tenant/tenant.service';
 import { TenantAdmin, TenantDetail, TenantSummary } from '../../../core/admin-tenant/models';
 import { AdminUserService } from '../../../core/admin-rbac/admin-user.service';
+import { ConfirmDialogComponent, ConfirmDialogVariant } from '../../../shared/components/confirm-dialog/confirm-dialog';
+
+type EnforcementAction = 'suspend' | 'ban' | 'suspendAdmin' | 'banAdmin';
 
 @Component({
   selector: 'app-admin-tenants',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslateModule],
+  imports: [CommonModule, FormsModule, TranslateModule, ConfirmDialogComponent],
   templateUrl: './admin-tenants.html',
   styleUrls: ['./admin-tenants.scss'],
 })
@@ -38,6 +41,10 @@ export class AdminTenantsComponent implements OnInit {
   deleteTargetName = '';
   deleteTargetId = '';
   adminActionId: string | null = null;
+
+  confirmEnforcementOpen = false;
+  confirmEnforcementAction: EnforcementAction | null = null;
+  confirmEnforcementAdmin: TenantAdmin | null = null;
 
   constructor(
     private service: TenantService,
@@ -82,14 +89,18 @@ export class AdminTenantsComponent implements OnInit {
     });
   }
 
-  suspend(): void {
+  requestSuspend(): void {
     if (!this.selected) return;
-    this.service.suspend(this.selected.id, this.enforcementReason || 'Suspended by admin').subscribe(() => this.reloadSelected());
+    this.confirmEnforcementAction = 'suspend';
+    this.confirmEnforcementAdmin = null;
+    this.confirmEnforcementOpen = true;
   }
 
-  ban(): void {
+  requestBan(): void {
     if (!this.selected) return;
-    this.service.ban(this.selected.id, this.enforcementReason || 'Banned by admin').subscribe(() => this.reloadSelected());
+    this.confirmEnforcementAction = 'ban';
+    this.confirmEnforcementAdmin = null;
+    this.confirmEnforcementOpen = true;
   }
 
   reinstate(): void {
@@ -97,24 +108,18 @@ export class AdminTenantsComponent implements OnInit {
     this.service.reinstate(this.selected.id).subscribe(() => this.reloadSelected());
   }
 
-  suspendAdmin(admin: TenantAdmin): void {
+  requestSuspendAdmin(admin: TenantAdmin): void {
     if (!this.selected || this.adminActionId) return;
-    this.adminActionId = admin.userId;
-    this.userService.suspendUser(this.selected.id, admin.userId, this.enforcementReason || 'Suspended by admin').subscribe({
-      next: () => this.reloadSelected(),
-      error: (error) => this.handleAdminActionError(error),
-      complete: () => (this.adminActionId = null),
-    });
+    this.confirmEnforcementAction = 'suspendAdmin';
+    this.confirmEnforcementAdmin = admin;
+    this.confirmEnforcementOpen = true;
   }
 
-  banAdmin(admin: TenantAdmin): void {
+  requestBanAdmin(admin: TenantAdmin): void {
     if (!this.selected || this.adminActionId) return;
-    this.adminActionId = admin.userId;
-    this.userService.banUser(this.selected.id, admin.userId, this.enforcementReason || 'Banned by admin').subscribe({
-      next: () => this.reloadSelected(),
-      error: (error) => this.handleAdminActionError(error),
-      complete: () => (this.adminActionId = null),
-    });
+    this.confirmEnforcementAction = 'banAdmin';
+    this.confirmEnforcementAdmin = admin;
+    this.confirmEnforcementOpen = true;
   }
 
   reinstateAdmin(admin: TenantAdmin): void {
@@ -125,6 +130,99 @@ export class AdminTenantsComponent implements OnInit {
       error: (error) => this.handleAdminActionError(error),
       complete: () => (this.adminActionId = null),
     });
+  }
+
+  closeEnforcementDialog(): void {
+    if (this.adminActionId) return;
+    this.confirmEnforcementOpen = false;
+    this.confirmEnforcementAction = null;
+    this.confirmEnforcementAdmin = null;
+  }
+
+  confirmEnforcement(): void {
+    const action = this.confirmEnforcementAction;
+    const admin = this.confirmEnforcementAdmin;
+    this.confirmEnforcementOpen = false;
+    this.confirmEnforcementAction = null;
+    this.confirmEnforcementAdmin = null;
+
+    switch (action) {
+      case 'suspend':
+        if (!this.selected) return;
+        this.service.suspend(this.selected.id, this.enforcementReason || 'Suspended by admin').subscribe(() => this.reloadSelected());
+        break;
+      case 'ban':
+        if (!this.selected) return;
+        this.service.ban(this.selected.id, this.enforcementReason || 'Banned by admin').subscribe(() => this.reloadSelected());
+        break;
+      case 'suspendAdmin':
+        if (!this.selected || !admin) return;
+        this.adminActionId = admin.userId;
+        this.userService.suspendUser(this.selected.id, admin.userId, this.enforcementReason || 'Suspended by admin').subscribe({
+          next: () => this.reloadSelected(),
+          error: (error) => this.handleAdminActionError(error),
+          complete: () => (this.adminActionId = null),
+        });
+        break;
+      case 'banAdmin':
+        if (!this.selected || !admin) return;
+        this.adminActionId = admin.userId;
+        this.userService.banUser(this.selected.id, admin.userId, this.enforcementReason || 'Banned by admin').subscribe({
+          next: () => this.reloadSelected(),
+          error: (error) => this.handleAdminActionError(error),
+          complete: () => (this.adminActionId = null),
+        });
+        break;
+    }
+  }
+
+  get enforcementTitleKey(): string {
+    switch (this.confirmEnforcementAction) {
+      case 'suspend':
+        return 'ADMIN.TENANTS.CONFIRM_SUSPEND_TITLE';
+      case 'ban':
+        return 'ADMIN.TENANTS.CONFIRM_BAN_TITLE';
+      case 'suspendAdmin':
+        return 'ADMIN.TENANTS.CONFIRM_SUSPEND_ADMIN_TITLE';
+      case 'banAdmin':
+        return 'ADMIN.TENANTS.CONFIRM_BAN_ADMIN_TITLE';
+      default:
+        return '';
+    }
+  }
+
+  get enforcementMessageKey(): string {
+    switch (this.confirmEnforcementAction) {
+      case 'suspend':
+        return 'ADMIN.TENANTS.CONFIRM_SUSPEND_MESSAGE';
+      case 'ban':
+        return 'ADMIN.TENANTS.CONFIRM_BAN_MESSAGE';
+      case 'suspendAdmin':
+        return 'ADMIN.TENANTS.CONFIRM_SUSPEND_ADMIN_MESSAGE';
+      case 'banAdmin':
+        return 'ADMIN.TENANTS.CONFIRM_BAN_ADMIN_MESSAGE';
+      default:
+        return '';
+    }
+  }
+
+  get enforcementTargetName(): string {
+    if (this.confirmEnforcementAdmin) return this.confirmEnforcementAdmin.email;
+    return this.selected?.name ?? '';
+  }
+
+  get enforcementVariant(): ConfirmDialogVariant {
+    return this.confirmEnforcementAction === 'ban' || this.confirmEnforcementAction === 'banAdmin' ? 'danger' : 'warning';
+  }
+
+  get enforcementConfirmLabelKey(): string {
+    return this.confirmEnforcementAction === 'ban' || this.confirmEnforcementAction === 'banAdmin'
+      ? 'ADMIN.TENANTS.BAN'
+      : 'ADMIN.TENANTS.SUSPEND';
+  }
+
+  get enforcementProcessing(): boolean {
+    return this.confirmEnforcementAdmin ? this.adminActionId !== null : this.processing;
   }
 
   private handleAdminActionError(error: unknown): void {

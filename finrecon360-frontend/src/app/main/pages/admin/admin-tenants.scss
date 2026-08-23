@@ -303,7 +303,7 @@
 }
 
 .danger-btn {
-  background: #dc2626;
+  background: #be123c;
   color: #fff;
 }
 
@@ -353,33 +353,6 @@
   color: var(--fr-text-muted);
   font-size: var(--fr-text-base);
   line-height: 1.55;
-}
-
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.14);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1300;
-}
-
-.dialog-panel {
-  width: min(520px, calc(100vw - 24px));
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: var(--fr-radius-xl);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.16);
-  padding: 20px;
-  display: grid;
-  gap: 10px;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 @media (max-width: 920px) {

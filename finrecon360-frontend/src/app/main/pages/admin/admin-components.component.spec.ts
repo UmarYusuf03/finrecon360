@@ -85,6 +85,8 @@ describe('AdminComponentsComponent', () => {
 
   it('deactivates component', () => {
     component.toggleActive(comps[0]);
+    expect(component.confirmDeactivateOpen).toBeTrue();
+    component.confirmDeactivate();
     expect(serviceSpy.deactivateComponent).toHaveBeenCalled();
   });
 });

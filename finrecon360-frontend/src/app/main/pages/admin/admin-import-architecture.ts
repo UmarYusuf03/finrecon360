@@ -17,6 +17,7 @@ import {
   ImportArchitectureOverview,
   ImportMappingTemplate,
 } from '../../../core/admin-rbac/models';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-admin-import-architecture',
@@ -32,6 +33,7 @@ import {
     MatCheckboxModule,
     MatSnackBarModule,
     TranslateModule,
+    ConfirmDialogComponent,
   ],
   templateUrl: './admin-import-architecture.html',
   styleUrls: ['./admin-import-architecture.scss'],
@@ -46,6 +48,8 @@ export class AdminImportArchitectureComponent implements OnInit {
   editingTemplateId: string | null = null;
   deleteDialogOpen = false;
   deleteTarget: ImportMappingTemplate | null = null;
+  confirmDeactivateOpen = false;
+  confirmDeactivateTarget: ImportMappingTemplate | null = null;
 
   templateForm!: FormGroup;
 
@@ -178,7 +182,22 @@ export class AdminImportArchitectureComponent implements OnInit {
       });
   }
 
-  deactivateTemplate(template: ImportMappingTemplate): void {
+  requestDeactivateTemplate(template: ImportMappingTemplate): void {
+    this.confirmDeactivateTarget = template;
+    this.confirmDeactivateOpen = true;
+  }
+
+  cancelDeactivateTemplate(): void {
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
+  }
+
+  confirmDeactivateTemplate(): void {
+    const template = this.confirmDeactivateTarget;
+    if (!template) return;
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
+
     this.importArchitectureService.deactivateMappingTemplate(template.id).subscribe({
       next: () => {
         this.snackBar.open('Template deactivated.', 'Close', { duration: 2500 });

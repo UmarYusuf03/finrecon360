@@ -22,6 +22,7 @@ import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
 import { AdminUserService } from '../../../core/admin-rbac/admin-user.service';
 import { AdminUserSummary, Role, UserCapacity } from '../../../core/admin-rbac/models';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 /**
  * WHY: This component tracks tenant-level users. Crucially, it manages the linkage between 
@@ -48,6 +49,7 @@ import { HasPermissionDirective } from '../../../core/auth/has-permission.direct
     RouterLink,
     TranslateModule,
     HasPermissionDirective,
+    ConfirmDialogComponent,
   ],
   templateUrl: './admin-users.html',
   styleUrls: ['./admin-users.scss'],
@@ -61,6 +63,10 @@ export class AdminUsersComponent implements OnInit {
   editingId: string | null = null;
   saveError: string | null = null;
   capacity: UserCapacity | null = null;
+
+  confirmDeactivateOpen = false;
+  confirmDeactivateTarget: AdminUserSummary | null = null;
+  deactivating = false;
 
   get isUserLimitReached(): boolean {
     return this.capacity?.maxUsers != null && this.capacity.currentUsers >= this.capacity.maxUsers;
@@ -172,16 +178,40 @@ export class AdminUsersComponent implements OnInit {
 
   toggleActive(user: AdminUserSummary): void {
     if (user.isActive) {
-      this.adminUserService.deactivateUser(user.id).subscribe({
-        next: () => this.snackBar.open('User deactivated.', 'Close', { duration: 2500 }),
-        error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
-      });
+      this.confirmDeactivateTarget = user;
+      this.confirmDeactivateOpen = true;
     } else {
       this.adminUserService.reactivateUser(user.id).subscribe({
         next: () => this.snackBar.open('User reactivated.', 'Close', { duration: 2500 }),
         error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
       });
     }
+  }
+
+  cancelDeactivate(): void {
+    if (this.deactivating) return;
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
+  }
+
+  confirmDeactivate(): void {
+    const user = this.confirmDeactivateTarget;
+    if (!user) return;
+    this.deactivating = true;
+    this.adminUserService.deactivateUser(user.id).subscribe({
+      next: () => {
+        this.deactivating = false;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
+        this.snackBar.open('User deactivated.', 'Close', { duration: 2500 });
+      },
+      error: (error: unknown) => {
+        this.deactivating = false;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
+    });
   }
 
   private loadCapacity(): void {

@@ -152,3 +152,14 @@
     </button>
   </div>
 </ng-template>
+
+<app-confirm-dialog
+  [open]="confirmDeactivateOpen"
+  [title]="'ADMIN.USERS.CONFIRM_DEACTIVATE_TITLE' | translate"
+  [message]="'ADMIN.USERS.CONFIRM_DEACTIVATE_MESSAGE' | translate: { name: confirmDeactivateTarget?.displayName }"
+  [confirmLabel]="'COMMON.DEACTIVATE' | translate"
+  [processing]="deactivating"
+  variant="warning"
+  (confirmed)="confirmDeactivate()"
+  (cancelled)="cancelDeactivate()"
+></app-confirm-dialog>

@@ -15,6 +15,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { AdminComponentService } from '../../../core/admin-rbac/admin-component.service';
 import { AppComponentResource } from '../../../core/admin-rbac/models';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 /**
  * WHY: This component serves as the CRUD interface for tracking logical 'Components' 
@@ -37,6 +38,7 @@ import { HasPermissionDirective } from '../../../core/auth/has-permission.direct
     MatSnackBarModule,
     TranslateModule,
     HasPermissionDirective,
+    ConfirmDialogComponent,
   ],
   templateUrl: './admin-components.html',
   styleUrls: ['./admin-components.scss'],
@@ -46,6 +48,10 @@ export class AdminComponentsComponent implements OnInit {
   components: AppComponentResource[] = [];
   form!: FormGroup;
   editingId: string | null = null;
+
+  confirmDeactivateOpen = false;
+  confirmDeactivateTarget: AppComponentResource | null = null;
+  deactivating = false;
 
   constructor(
     private adminComponentService: AdminComponentService,
@@ -115,16 +121,40 @@ export class AdminComponentsComponent implements OnInit {
 
   toggleActive(component: AppComponentResource): void {
     if (component.isActive) {
-      this.adminComponentService.deactivateComponent(component.id).subscribe({
-        next: () => this.snackBar.open('Component deactivated.', 'Close', { duration: 2500 }),
-        error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
-      });
+      this.confirmDeactivateTarget = component;
+      this.confirmDeactivateOpen = true;
     } else {
       this.adminComponentService.reactivateComponent(component.id).subscribe({
         next: () => this.snackBar.open('Component reactivated.', 'Close', { duration: 2500 }),
         error: (error: unknown) => this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
       });
     }
+  }
+
+  cancelDeactivate(): void {
+    if (this.deactivating) return;
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
+  }
+
+  confirmDeactivate(): void {
+    const component = this.confirmDeactivateTarget;
+    if (!component) return;
+    this.deactivating = true;
+    this.adminComponentService.deactivateComponent(component.id).subscribe({
+      next: () => {
+        this.deactivating = false;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
+        this.snackBar.open('Component deactivated.', 'Close', { duration: 2500 });
+      },
+      error: (error: unknown) => {
+        this.deactivating = false;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
+    });
   }
 
   private extractErrorMessage(error: unknown): string {
