@@ -6,11 +6,12 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 import { PlanService } from '../../../core/admin-tenant/plan.service';
 import { PlanSummary } from '../../../core/admin-tenant/models';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-admin-plans',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, TranslateModule],
+  imports: [CommonModule, ReactiveFormsModule, TranslateModule, ConfirmDialogComponent],
   templateUrl: './admin-plans.html',
   styleUrls: ['./admin-plans.scss'],
 })
@@ -20,6 +21,11 @@ export class AdminPlansComponent implements OnInit {
   editingId: string | null = null;
   deletingId: string | null = null;
   deleteError: string | null = null;
+
+  confirmDeactivateOpen = false;
+  confirmDeactivateTarget: PlanSummary | null = null;
+  confirmDeleteOpen = false;
+  confirmDeleteTarget: PlanSummary | null = null;
 
   constructor(private service: PlanService, private fb: FormBuilder, private translate: TranslateService) {
     this.form = this.fb.group({
@@ -80,7 +86,21 @@ export class AdminPlansComponent implements OnInit {
     });
   }
 
-  deactivate(plan: PlanSummary): void {
+  requestDeactivate(plan: PlanSummary): void {
+    this.confirmDeactivateTarget = plan;
+    this.confirmDeactivateOpen = true;
+  }
+
+  cancelDeactivate(): void {
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
+  }
+
+  confirmDeactivate(): void {
+    const plan = this.confirmDeactivateTarget;
+    if (!plan) return;
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
     this.service.deactivatePlan(plan.id).subscribe(() => this.load());
   }
 
@@ -88,13 +108,23 @@ export class AdminPlansComponent implements OnInit {
     this.service.activatePlan(plan.id).subscribe(() => this.load());
   }
 
-  delete(plan: PlanSummary): void {
+  requestDelete(plan: PlanSummary): void {
     if (this.deletingId) {
       return;
     }
+    this.confirmDeleteTarget = plan;
+    this.confirmDeleteOpen = true;
+  }
 
-    const confirmMessage = this.translate.instant('ADMIN.PLANS.DELETE_CONFIRM');
-    if (!window.confirm(confirmMessage)) {
+  cancelDelete(): void {
+    if (this.deletingId) return;
+    this.confirmDeleteOpen = false;
+    this.confirmDeleteTarget = null;
+  }
+
+  confirmDelete(): void {
+    const plan = this.confirmDeleteTarget;
+    if (!plan || this.deletingId) {
       return;
     }
 
@@ -103,10 +133,14 @@ export class AdminPlansComponent implements OnInit {
     this.service.deletePlan(plan.id).subscribe({
       next: () => {
         this.deletingId = null;
+        this.confirmDeleteOpen = false;
+        this.confirmDeleteTarget = null;
         this.load();
       },
       error: (error: unknown) => {
         this.deletingId = null;
+        this.confirmDeleteOpen = false;
+        this.confirmDeleteTarget = null;
         this.deleteError = error instanceof HttpErrorResponse && error.status === 409
           ? this.translate.instant('ADMIN.PLANS.DELETE_IN_USE')
           : this.translate.instant('COMMON.REQUEST_FAILED');

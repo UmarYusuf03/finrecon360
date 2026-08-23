@@ -78,7 +78,7 @@
           <button
             mat-icon-button
             *appHasPermission="'ADMIN.ROLES.DELETE'"
-            (click)="role.isActive ? deactivate(role) : reactivate(role)"
+            (click)="role.isActive ? requestDeactivate(role) : reactivate(role)"
             [disabled]="role.isSystem"
           >
             <mat-icon>{{ role.isActive ? 'block' : 'check_circle' }}</mat-icon>
@@ -137,3 +137,14 @@
     </button>
   </div>
 </ng-template>
+
+<app-confirm-dialog
+  [open]="confirmDeactivateOpen"
+  [title]="'ADMIN.ROLES.CONFIRM_DEACTIVATE_TITLE' | translate"
+  [message]="'ADMIN.ROLES.CONFIRM_DEACTIVATE_MESSAGE' | translate: { name: confirmDeactivateTarget?.name }"
+  [confirmLabel]="'COMMON.DEACTIVATE' | translate"
+  [processing]="deactivating"
+  variant="warning"
+  (confirmed)="confirmDeactivate()"
+  (cancelled)="cancelDeactivate()"
+></app-confirm-dialog>

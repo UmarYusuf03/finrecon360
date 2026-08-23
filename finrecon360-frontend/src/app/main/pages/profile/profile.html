@@ -11,10 +11,6 @@
         <span>{{ 'PROFILE.PREFERRED_LANGUAGE' | translate }}</span>
         <strong>{{ form.get('preferredLanguage')?.value }}</strong>
       </div>
-      <div class="profile-chip" *ngIf="form.get('timeZone')?.value">
-        <span>{{ 'PROFILE.TIME_ZONE' | translate }}</span>
-        <strong>{{ form.get('timeZone')?.value }}</strong>
-      </div>
       <div class="profile-chip" *ngIf="roles.length">
         <span>{{ 'PROFILE.ROLES' | translate }}</span>
         <strong>{{ roles.length }}</strong>
@@ -47,7 +43,7 @@
               mat-icon-button
               type="button"
               class="profile__avatar-remove"
-              (click)="removeProfileImage()"
+              (click)="requestRemoveProfileImage()"
               [disabled]="profileImageRemoving"
             >
               <mat-icon>delete</mat-icon>
@@ -71,10 +67,6 @@
               <dt>{{ 'PROFILE.PREFERRED_LANGUAGE' | translate }}</dt>
               <dd>{{ form.get('preferredLanguage')?.value }}</dd>
             </div>
-            <div class="profile__meta-item" *ngIf="form.get('timeZone')?.value">
-              <dt>{{ 'PROFILE.TIME_ZONE' | translate }}</dt>
-              <dd>{{ form.get('timeZone')?.value }}</dd>
-            </div>
           </dl>
 
           <div class="profile__danger-zone">
@@ -82,7 +74,7 @@
               mat-stroked-button
               type="button"
               class="profile__delete-btn"
-              (click)="deleteAccount()"
+              (click)="requestDeleteAccount()"
               [disabled]="deleteSubmitting"
             >
               <mat-icon>delete</mat-icon>
@@ -147,17 +139,6 @@
             </mat-error>
           </mat-form-field>
 
-          <mat-form-field appearance="outline" class="profile-form__field profile-form__field--wide">
-            <mat-label>{{ 'PROFILE.TIME_ZONE' | translate }}</mat-label>
-            <mat-select formControlName="timeZone">
-              <mat-option *ngFor="let tz of timeZones" [value]="tz">
-                {{ tz }}
-              </mat-option>
-            </mat-select>
-            <mat-error *ngIf="form.get('timeZone')?.hasError('required')">
-              {{ 'PROFILE.ERRORS.REQUIRED' | translate }}
-            </mat-error>
-          </mat-form-field>
         </div>
 
         <div class="profile-form__panels">
@@ -237,4 +218,27 @@
       </a>
     </div>
   </mat-card>
+
+  <app-confirm-dialog
+    [open]="confirmRemoveImageOpen"
+    [title]="'PROFILE.REMOVE_IMAGE_TITLE' | translate"
+    [message]="'PROFILE.REMOVE_IMAGE_COPY' | translate"
+    [confirmLabel]="'COMMON.DELETE' | translate"
+    [processing]="profileImageRemoving"
+    variant="danger"
+    (confirmed)="confirmRemoveProfileImage()"
+    (cancelled)="cancelRemoveProfileImage()"
+  ></app-confirm-dialog>
+
+  <app-confirm-dialog
+    [open]="confirmDeleteAccountOpen"
+    [title]="'PROFILE.DELETE_ACCOUNT_DIALOG_TITLE' | translate"
+    [message]="'PROFILE.DELETE_ACCOUNT_DIALOG_COPY' | translate"
+    [confirmLabel]="'PROFILE.DELETE_ACCOUNT' | translate"
+    [processingLabel]="'PROFILE.DEACTIVATING' | translate"
+    [processing]="deleteSubmitting"
+    variant="danger"
+    (confirmed)="confirmDeleteAccount()"
+    (cancelled)="cancelDeleteAccount()"
+  ></app-confirm-dialog>
 </div>

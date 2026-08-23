@@ -38,8 +38,7 @@
 }
 
 .architecture-hero h1,
-.card-heading h2,
-.dialog-panel h3 {
+.card-heading h2 {
   margin: 0;
   color: var(--fr-text-primary);
   font-weight: 800;
@@ -52,8 +51,7 @@
 
 .architecture-hero p,
 .card-heading p,
-.architecture-empty p,
-.dialog-panel p {
+.architecture-empty p {
   margin: 6px 0 0;
   color: var(--fr-text-muted);
   font-size: var(--fr-text-base);
@@ -242,34 +240,10 @@
 }
 
 .table-actions,
-.form-actions,
-.dialog-actions {
+.form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  background: rgba(15, 23, 42, 0.14);
-  backdrop-filter: blur(4px);
-  z-index: 1300;
-}
-
-.dialog-panel {
-  width: min(520px, 100%);
-  padding: 20px;
-  border-radius: var(--fr-radius-xl);
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--fr-glass-border);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
-  display: grid;
-  gap: 10px;
 }
 
 @media (max-width: 960px) {

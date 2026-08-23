@@ -40,13 +40,13 @@
           </td>
           <td class="actions">
             <button class="primary-btn" (click)="edit(plan)">{{ 'COMMON.EDIT' | translate }}</button>
-            <button class="danger-btn" *ngIf="plan.isActive" (click)="deactivate(plan)">
+            <button class="danger-btn" *ngIf="plan.isActive" (click)="requestDeactivate(plan)">
               {{ 'COMMON.DEACTIVATE' | translate }}
             </button>
             <button class="primary-btn" *ngIf="!plan.isActive" (click)="activate(plan)">
               {{ 'COMMON.ACTIVATE' | translate }}
             </button>
-            <button class="danger-btn" [disabled]="deletingId === plan.id" (click)="delete(plan)">
+            <button class="danger-btn" [disabled]="deletingId === plan.id" (click)="requestDelete(plan)">
               {{ 'COMMON.DELETE' | translate }}
             </button>
           </td>
@@ -141,4 +141,26 @@
       <button class="ghost-btn" type="button" (click)="reset()">{{ 'COMMON.CLEAR' | translate }}</button>
     </div>
   </form>
+
+  <app-confirm-dialog
+    [open]="confirmDeactivateOpen"
+    [title]="'ADMIN.PLANS.CONFIRM_DEACTIVATE_TITLE' | translate"
+    [message]="'ADMIN.PLANS.CONFIRM_DEACTIVATE_MESSAGE' | translate: { name: confirmDeactivateTarget?.name }"
+    [confirmLabel]="'COMMON.DEACTIVATE' | translate"
+    variant="warning"
+    (confirmed)="confirmDeactivate()"
+    (cancelled)="cancelDeactivate()"
+  ></app-confirm-dialog>
+
+  <app-confirm-dialog
+    [open]="confirmDeleteOpen"
+    [title]="'ADMIN.PLANS.DELETE_TITLE' | translate"
+    [message]="'ADMIN.PLANS.DELETE_CONFIRM' | translate"
+    [confirmLabel]="'COMMON.DELETE' | translate"
+    [processingLabel]="'COMMON.DELETING' | translate"
+    [processing]="deletingId === confirmDeleteTarget?.id"
+    variant="danger"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  ></app-confirm-dialog>
 </section>

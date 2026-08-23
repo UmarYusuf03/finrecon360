@@ -20,6 +20,7 @@ import {
   ImportValidationRowsResponse,
   ImportValidateResponse,
 } from '../../../core/imports/imports.models';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 type ValidationSummary = {
   missingRequired: number;
@@ -32,7 +33,7 @@ type ValidationSummary = {
 @Component({
   selector: 'app-imports-workbench',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, TranslateModule],
+  imports: [CommonModule, FormsModule, DragDropModule, TranslateModule, ConfirmDialogComponent],
   templateUrl: './imports-workbench.html',
   styleUrls: ['./imports-workbench.scss'],
 })

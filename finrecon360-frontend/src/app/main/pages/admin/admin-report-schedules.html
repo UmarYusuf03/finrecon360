@@ -90,8 +90,9 @@
           <button
             mat-icon-button
             type="button"
+            color="warn"
             [disabled]="deletingId === schedule.reportScheduleId"
-            (click)="remove(schedule)"
+            (click)="requestRemove(schedule)"
             [attr.aria-label]="'COMMON.DELETE' | translate"
           >
             <mat-icon>delete</mat-icon>
@@ -108,3 +109,15 @@
     </div>
   </div>
 </mat-card>
+
+<app-confirm-dialog
+  [open]="confirmDeleteOpen"
+  [title]="'REPORT_SCHEDULES.CONFIRM_DELETE_TITLE' | translate"
+  [message]="'REPORT_SCHEDULES.CONFIRM_DELETE_MESSAGE' | translate: { email: confirmDeleteTarget?.recipientEmail }"
+  [confirmLabel]="'COMMON.DELETE' | translate"
+  [processingLabel]="'COMMON.DELETING' | translate"
+  [processing]="deletingId === confirmDeleteTarget?.reportScheduleId"
+  variant="danger"
+  (confirmed)="confirmRemove()"
+  (cancelled)="cancelRemove()"
+></app-confirm-dialog>

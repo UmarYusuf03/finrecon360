@@ -16,6 +16,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
 import { AdminRoleService } from '../../../core/admin-rbac/admin-role.service';
 import { Role } from '../../../core/admin-rbac/models';
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 /**
  * WHY: This component serves as the CRUD interface for Roles.
@@ -39,6 +40,7 @@ import { Role } from '../../../core/admin-rbac/models';
     MatSlideToggleModule,
     TranslateModule,
     HasPermissionDirective,
+    ConfirmDialogComponent,
   ],
   templateUrl: './admin-roles.html',
   styleUrls: ['./admin-roles.scss'],
@@ -49,6 +51,10 @@ export class AdminRolesComponent implements OnInit {
   form!: FormGroup;
   editingId: string | null = null;
   private editingRoleIsSystem = false;
+
+  confirmDeactivateOpen = false;
+  confirmDeactivateTarget: Role | null = null;
+  deactivating = false;
 
   constructor(
     private adminRoleService: AdminRoleService,
@@ -136,12 +142,35 @@ export class AdminRolesComponent implements OnInit {
    * WHY: System roles are intrinsic to the operational logic of the platform
    * (e.g., hardcoded checks for Super Admin). Deactivating them would break core workflows.
    */
-  deactivate(role: Role): void {
+  requestDeactivate(role: Role): void {
     if (role.isSystem) return; // avoid switching off built-ins
+    this.confirmDeactivateTarget = role;
+    this.confirmDeactivateOpen = true;
+  }
+
+  cancelDeactivate(): void {
+    if (this.deactivating) return;
+    this.confirmDeactivateOpen = false;
+    this.confirmDeactivateTarget = null;
+  }
+
+  confirmDeactivate(): void {
+    const role = this.confirmDeactivateTarget;
+    if (!role) return;
+    this.deactivating = true;
     this.adminRoleService.deactivateRole(role.id).subscribe({
-      next: () => this.snackBar.open('Role deactivated.', 'Close', { duration: 2500 }),
-      error: (error: unknown) =>
-        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 }),
+      next: () => {
+        this.deactivating = false;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
+        this.snackBar.open('Role deactivated.', 'Close', { duration: 2500 });
+      },
+      error: (error: unknown) => {
+        this.deactivating = false;
+        this.confirmDeactivateOpen = false;
+        this.confirmDeactivateTarget = null;
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
     });
   }
 

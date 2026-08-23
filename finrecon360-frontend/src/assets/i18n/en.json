@@ -95,7 +95,8 @@
     "EXPORT_CSV": "Export CSV",
     "EXPORT_XLSX": "Export Excel",
     "EXPORTING": "Exporting...",
-    "EXPORT_FAILED": "Export failed. Please try again."
+    "EXPORT_FAILED": "Export failed. Please try again.",
+    "CONFIRM": "Confirm"
   },
   "ERRORS": {
     "EMAIL_REQUIRED": "Valid email is required."
@@ -215,7 +216,9 @@
       "COUNT": "{{count}} roles",
       "EMPTY_COPY": "Create a custom role to shape tenant access.",
       "EMPTY_TITLE": "No roles available",
-      "EYEBROW": "Access design"
+      "EYEBROW": "Access design",
+      "CONFIRM_DEACTIVATE_TITLE": "Deactivate Role",
+      "CONFIRM_DEACTIVATE_MESSAGE": "You are about to deactivate the role {{name}}. Users assigned to it will lose the permissions it grants."
     },
     "COMPONENTS": {
       "TITLE": "Components",
@@ -238,7 +241,9 @@
       "EMPTY_COPY": "Add a component to manage module-level permissions.",
       "EMPTY_TITLE": "No components registered",
       "EYEBROW": "Component registry",
-      "GENERAL": "General"
+      "GENERAL": "General",
+      "CONFIRM_DEACTIVATE_TITLE": "Deactivate Component",
+      "CONFIRM_DEACTIVATE_MESSAGE": "You are about to deactivate {{name}}. It will stop being available until reactivated."
     },
     "PERMISSIONS": {
       "TITLE": "Permissions",
@@ -287,7 +292,9 @@
       "EMPTY_TITLE": "No users yet",
       "EYEBROW": "Identity administration",
       "LIMIT_REACHED": "User limit reached ({{count}}).",
-      "LIMIT_UPGRADE": "Upgrade the subscription package to add more users."
+      "LIMIT_UPGRADE": "Upgrade the subscription package to add more users.",
+      "CONFIRM_DEACTIVATE_TITLE": "Deactivate User",
+      "CONFIRM_DEACTIVATE_MESSAGE": "You are about to deactivate {{name}}. They will lose access until reactivated."
     },
     "IMPORT_ARCHITECTURE": {
       "TITLE": "Import Architecture",
@@ -326,7 +333,9 @@
       "INVENTORY_COPY": "Review status, version, and source coverage for all reusable mappings.",
       "INVENTORY_TITLE": "Template Inventory",
       "SCHEMA_BADGE": "Schema {{version}}",
-      "TEMPLATE_COPY": "Create, update, or reuse mapping templates without changing import behavior."
+      "TEMPLATE_COPY": "Create, update, or reuse mapping templates without changing import behavior.",
+      "CONFIRM_DEACTIVATE_TITLE": "Deactivate Template",
+      "CONFIRM_DEACTIVATE_MESSAGE": "You are about to deactivate {{name}}. It will no longer be available for new imports."
     },
     "IMPORT_HISTORY": {
       "TITLE": "Import History",
@@ -383,7 +392,15 @@
       "SELECTED_COPY": "Selected tenant profile and control actions.",
       "SUSPEND": "Suspend",
       "TENANT_ADMINS": "Tenant Admins (comma separated emails)",
-      "UPDATE_ADMINS": "Update Admins"
+      "UPDATE_ADMINS": "Update Admins",
+      "CONFIRM_SUSPEND_TITLE": "Suspend Tenant",
+      "CONFIRM_SUSPEND_MESSAGE": "You are about to suspend {{name}}. They will lose access until reinstated.",
+      "CONFIRM_BAN_TITLE": "Ban Tenant",
+      "CONFIRM_BAN_MESSAGE": "You are about to ban {{name}}. This is a severe enforcement action.",
+      "CONFIRM_SUSPEND_ADMIN_TITLE": "Suspend Admin",
+      "CONFIRM_SUSPEND_ADMIN_MESSAGE": "You are about to suspend {{name}}. They will lose access until reinstated.",
+      "CONFIRM_BAN_ADMIN_TITLE": "Ban Admin",
+      "CONFIRM_BAN_ADMIN_MESSAGE": "You are about to ban {{name}}. This is a severe enforcement action."
     },
     "PLANS": {
       "TITLE": "Subscription Plans",
@@ -419,7 +436,10 @@
       "PRICE": "Price",
       "PRICE_CENTS": "Price (Cents)",
       "PRICE_HINT": "Use cents, e.g. 1999 = 19.99.",
-      "PRICE_REQUIRED": "Price must be 0 or higher."
+      "PRICE_REQUIRED": "Price must be 0 or higher.",
+      "DELETE_TITLE": "Delete Plan",
+      "CONFIRM_DEACTIVATE_TITLE": "Deactivate Plan",
+      "CONFIRM_DEACTIVATE_MESSAGE": "You are about to deactivate {{name}}. New tenants won't be able to subscribe to it until it's reactivated."
     },
     "ENFORCEMENT": {
       "TITLE": "Enforcement",
@@ -653,7 +673,11 @@
     "SENDING": "Sending...",
     "SENDING_LINK": "Sending link...",
     "SEND_LINK": "Send Link",
-    "UPLOADING": "Uploading..."
+    "UPLOADING": "Uploading...",
+    "REMOVE_IMAGE_TITLE": "Remove Profile Photo",
+    "REMOVE_IMAGE_COPY": "You are about to remove your profile photo.",
+    "DELETE_ACCOUNT_DIALOG_TITLE": "Deactivate Account",
+    "DELETE_ACCOUNT_DIALOG_COPY": "You are about to deactivate your account. You will be signed out and lose access until it is reactivated."
   },
   "BANK_ACCOUNTS": {
     "ACCOUNT_NAME": "Account name",
@@ -689,7 +713,9 @@
     "SAVING": "Saving...",
     "SUBTITLE": "Manage the accounts available for transaction capture and reconciliation.",
     "TITLE": "Bank Accounts",
-    "COPY": "Bank accounts that card transactions are settled against."
+    "COPY": "Bank accounts that card transactions are settled against.",
+    "CONFIRM_DEACTIVATE_TITLE": "Deactivate Bank Account",
+    "CONFIRM_DEACTIVATE_MESSAGE": "You are about to deactivate {{name}}. It will no longer be usable for new transactions."
   },
   "IMPORTS": {
     "HISTORY": {
@@ -790,7 +816,8 @@
       "VIEW_EVENTS_TIMELINE": "View Events Timeline",
       "VIEW_IN_MATCHER": "View in Matcher",
       "WAITING_FOR_SETTLEMENT": "Waiting for Settlement ID",
-      "WORKFLOW_ARIA": "Import workflow"
+      "WORKFLOW_ARIA": "Import workflow",
+      "DELETE_BATCH_COPY": "This will permanently remove the stored file and all parsed records for {{name}}."
     }
   },
   "TRANSACTIONS": {
@@ -1034,6 +1061,8 @@
       "THURSDAY": "Thursday",
       "FRIDAY": "Friday",
       "SATURDAY": "Saturday"
-    }
+    },
+    "CONFIRM_DELETE_TITLE": "Delete Report Schedule",
+    "CONFIRM_DELETE_MESSAGE": "You are about to permanently delete the schedule sending to {{email}}. This cannot be undone."
   }
 }

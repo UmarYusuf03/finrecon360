@@ -84,7 +84,9 @@ describe('AdminRolesComponent', () => {
   });
 
   it('deactivates role', () => {
-    component.deactivate(roles[0]);
+    component.requestDeactivate(roles[0]);
+    expect(component.confirmDeactivateOpen).toBeTrue();
+    component.confirmDeactivate();
     expect(serviceSpy.deactivateRole).toHaveBeenCalled();
   });
 });

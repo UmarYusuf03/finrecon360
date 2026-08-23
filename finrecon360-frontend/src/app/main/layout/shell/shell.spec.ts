@@ -29,7 +29,6 @@ describe('ShellComponent', () => {
         phoneNumber: null,
         roles: [],
         preferredLanguage: 'en',
-        timeZone: 'UTC',
         emailNotifications: true,
         hasProfileImage: false,
       }),

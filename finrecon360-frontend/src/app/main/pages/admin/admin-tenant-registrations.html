@@ -92,45 +92,26 @@
     </ng-template>
   </div>
 
-  <div class="dialog-backdrop" *ngIf="confirmDialogOpen">
-    <div class="dialog-panel">
-      <h3>{{
-        confirmAction === 'approve'
-          ? ('ADMIN.TENANT_REGISTRATIONS.APPROVE_TITLE' | translate)
-          : ('ADMIN.TENANT_REGISTRATIONS.REJECT_TITLE' | translate)
-      }}</h3>
-      <p *ngIf="selectedRegistration">
-        <strong>{{ selectedRegistration.businessName }}</strong>
-        <span>({{ selectedRegistration.adminEmail }})</span>
-      </p>
+  <app-confirm-dialog
+    [open]="confirmDialogOpen"
+    [title]="(confirmAction === 'approve' ? 'ADMIN.TENANT_REGISTRATIONS.APPROVE_TITLE' : 'ADMIN.TENANT_REGISTRATIONS.REJECT_TITLE') | translate"
+    [confirmLabel]="(confirmAction === 'approve' ? 'ADMIN.TENANT_REGISTRATIONS.CONFIRM_APPROVE' : 'ADMIN.TENANT_REGISTRATIONS.CONFIRM_REJECT') | translate"
+    [processing]="processing"
+    [variant]="confirmAction === 'approve' ? 'primary' : 'danger'"
+    (confirmed)="submitReview()"
+    (cancelled)="closeDialog()"
+  >
+    <p *ngIf="selectedRegistration">
+      <strong>{{ selectedRegistration.businessName }}</strong>
+      <span>({{ selectedRegistration.adminEmail }})</span>
+    </p>
 
-      <label for="review-note">{{ 'ADMIN.TENANT_REGISTRATIONS.NOTE_OPTIONAL' | translate }}</label>
-      <textarea
-        id="review-note"
-        rows="4"
-        [(ngModel)]="reviewNote"
-        [placeholder]="'ADMIN.TENANT_REGISTRATIONS.NOTE_PLACEHOLDER' | translate"
-      ></textarea>
-
-      <div class="dialog-actions">
-        <button type="button" class="ghost-btn" [disabled]="processing" (click)="closeDialog()">
-          {{ 'COMMON.CANCEL' | translate }}
-        </button>
-        <button
-          type="button"
-          [class]="confirmAction === 'approve' ? 'primary-btn' : 'danger-btn'"
-          [disabled]="processing"
-          (click)="submitReview()"
-        >
-          {{
-            processing
-              ? ('COMMON.PROCESSING' | translate)
-              : (confirmAction === 'approve'
-                  ? ('ADMIN.TENANT_REGISTRATIONS.CONFIRM_APPROVE' | translate)
-                  : ('ADMIN.TENANT_REGISTRATIONS.CONFIRM_REJECT' | translate))
-          }}
-        </button>
-      </div>
-    </div>
-  </div>
+    <label for="review-note">{{ 'ADMIN.TENANT_REGISTRATIONS.NOTE_OPTIONAL' | translate }}</label>
+    <textarea
+      id="review-note"
+      rows="4"
+      [(ngModel)]="reviewNote"
+      [placeholder]="'ADMIN.TENANT_REGISTRATIONS.NOTE_PLACEHOLDER' | translate"
+    ></textarea>
+  </app-confirm-dialog>
 </section>

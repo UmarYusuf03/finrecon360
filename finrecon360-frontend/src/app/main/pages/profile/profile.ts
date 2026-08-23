@@ -18,8 +18,7 @@ import { SUPPORTED_LANGUAGES } from '../../../core/constants/languages';
 import { UserProfileDetails } from '../../models/profile.models';
 import { ProfileService } from '../../services/profile.service';
 import { HasPermissionDirective } from '../../../core/auth/has-permission.directive';
-
-const TIME_ZONES = ['UTC', 'America/New_York', 'Europe/London', 'Asia/Colombo'];
+import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-profile',
@@ -38,6 +37,7 @@ const TIME_ZONES = ['UTC', 'America/New_York', 'Europe/London', 'Asia/Colombo'];
     RouterModule,
     TranslateModule,
     HasPermissionDirective,
+    ConfirmDialogComponent,
   ],
   templateUrl: './profile.html',
   styleUrls: ['./profile.scss'],
@@ -46,7 +46,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   form!: FormGroup;
   roles: string[] = [];
   languages = SUPPORTED_LANGUAGES;
-  timeZones = TIME_ZONES;
 
   changePasswordStatus: string | null = null;
   changePasswordSubmitting = false;
@@ -61,6 +60,9 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   deleteStatus: string | null = null;
   deleteSubmitting = false;
+  confirmDeleteAccountOpen = false;
+
+  confirmRemoveImageOpen = false;
 
   private destroy$ = new Subject<void>();
 
@@ -80,7 +82,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
       email: [{ value: '', disabled: true }],
       phoneNumber: [''],
       preferredLanguage: ['', Validators.required],
-      timeZone: ['', Validators.required],
       emailNotifications: [true],
     });
 
@@ -114,7 +115,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
       phoneNumber: this.form.get('phoneNumber')?.value || null,
       roles: this.roles,
       preferredLanguage: this.form.get('preferredLanguage')?.value,
-      timeZone: this.form.get('timeZone')?.value,
       emailNotifications: this.form.get('emailNotifications')?.value,
       hasProfileImage: this.profileImageUrl !== null,
     };
@@ -195,38 +195,56 @@ export class ProfileComponent implements OnInit, OnDestroy {
     });
   }
 
-  removeProfileImage(): void {
+  requestRemoveProfileImage(): void {
+    this.confirmRemoveImageOpen = true;
+  }
+
+  cancelRemoveProfileImage(): void {
+    if (this.profileImageRemoving) return;
+    this.confirmRemoveImageOpen = false;
+  }
+
+  confirmRemoveProfileImage(): void {
     this.profileImageRemoving = true;
     this.profileService.deleteProfileImage().subscribe({
       next: () => {
         this.profileImageRemoving = false;
+        this.confirmRemoveImageOpen = false;
         this.profileImageStatus = 'Profile image removed.';
         this.clearProfileImageUrl();
       },
       error: () => {
         this.profileImageRemoving = false;
+        this.confirmRemoveImageOpen = false;
         this.profileImageStatus = 'Failed to remove profile image.';
       },
     });
   }
 
-  deleteAccount(): void {
-    if (!confirm('Are you sure you want to deactivate your account?')) {
-      return;
-    }
+  requestDeleteAccount(): void {
+    this.confirmDeleteAccountOpen = true;
+  }
 
+  cancelDeleteAccount(): void {
+    if (this.deleteSubmitting) return;
+    this.confirmDeleteAccountOpen = false;
+  }
+
+  confirmDeleteAccount(): void {
     this.deleteSubmitting = true;
     this.deleteStatus = null;
 
     this.profileService.deleteAccount().subscribe({
       next: () => {
         this.deleteSubmitting = false;
+        this.confirmDeleteAccountOpen = false;
         this.deleteStatus = 'Your account has been deactivated.';
         this.authService.logout();
         this.router.navigateByUrl('/auth/login');
       },
       error: () => {
         this.deleteSubmitting = false;
+        this.confirmDeleteAccountOpen = false;
         this.deleteStatus = 'Unable to deactivate your account. Please try again.';
       },
     });
@@ -285,7 +303,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
       email: profile.email,
       phoneNumber: profile.phoneNumber ?? '',
       preferredLanguage: profile.preferredLanguage,
-      timeZone: profile.timeZone,
       emailNotifications: profile.emailNotifications,
     });
   }

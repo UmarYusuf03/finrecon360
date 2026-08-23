@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
 import { of, throwError } from 'rxjs';
@@ -29,7 +31,11 @@ describe('LoginComponent', () => {
           loader: { provide: TranslateLoader, useClass: FakeLoader },
         }),
       ],
-      providers: [{ provide: AuthService, useValue: authSpy }],
+      providers: [
+        { provide: AuthService, useValue: authSpy },
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginComponent);
@@ -79,7 +85,7 @@ describe('LoginComponent', () => {
         email: 'user@finrecon.local',
         displayName: 'User',
         roles: ['ACCOUNTANT'],
-        permissions: ['MATCHER.VIEW'],
+        permissions: ['MATCHER.VIEW', 'ADMIN.DASHBOARD.VIEW'],
         token: 't',
       } as any)
     );

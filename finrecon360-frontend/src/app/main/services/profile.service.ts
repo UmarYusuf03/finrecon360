@@ -42,7 +42,6 @@ export class ProfileService {
         phoneNumber: null,
         roles: current?.roles ?? [],
         preferredLanguage: 'en',
-        timeZone: 'UTC',
         emailNotifications: true,
         hasProfileImage: false,
       };
@@ -124,7 +123,6 @@ export class ProfileService {
       phoneNumber: dto.phoneNumber,
       roles: [],
       preferredLanguage: 'en',
-      timeZone: 'UTC',
       emailNotifications: true,
       hasProfileImage: dto.hasProfileImage,
     };
