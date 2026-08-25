@@ -203,6 +203,7 @@
       "LOADING": "Loading applications...",
       "NOTE_OPTIONAL": "Note (optional)",
       "NOTE_PLACEHOLDER": "Add a comment for audit trail",
+      "NOTES": "Applicant Notes",
       "ONBOARDING_LINK": "Onboarding link",
       "OPEN_LINK": "Open link",
       "REGISTRATION_NUMBER": "Registration No.",
@@ -1036,9 +1037,10 @@
   "FINANCIAL_REPORTS": {
     "EYEBROW": "Accounting",
     "TITLE": "Financial Reports",
-    "COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet, computed from posted journal entries.",
+    "COPY": "பதிவு செய்யப்பட்ட பதிவேடு உள்ளீடுகளிலிருந்து கணக்கிடப்பட்ட பணப் புழக்கம், பொது கணக்குப் பதிவேடு, வருமான அறிக்கை, மற்றும் இருப்புநிலைக் குறிப்பு, மேலும் இரண்டாம்-நிலை கணக்கியல் ஏற்றுமதி காட்சியாக சோதனைச் சமன்பாட்டு அறிக்கை.",
     "NAV_ARIA": "Financial report sections",
     "NAV": {
+      "CASH_FLOW": "பணப் புழக்கம்",
       "GENERAL_LEDGER": "General Ledger",
       "TRIAL_BALANCE": "Trial Balance",
       "INCOME_STATEMENT": "Income Statement",
@@ -1052,6 +1054,18 @@
     "ACCOUNT_NAME": "Account Name",
     "ACCOUNT_TYPE": "Account Type",
     "UNCLASSIFIED_NOTE": "{{amount}} in journal activity has no chart-of-account mapping and is excluded from this report. See the General Ledger's Unclassified account for detail.",
+    "CASH_FLOW": {
+      "TOTAL_CASH_IN": "மொத்த பண வரவு",
+      "TOTAL_CASH_OUT": "மொத்த பண செலவு",
+      "NET_CHANGE": "நிகர மாற்றம்",
+      "DATE": "தேதி",
+      "OPENING_BALANCE": "ஆரம்ப இருப்பு",
+      "CASH_IN": "பண வரவு",
+      "CASH_OUT": "பண செலவு",
+      "CLOSING_BALANCE": "இறுதி இருப்பு",
+      "EMPTY": "இந்த தேதி வரம்பில் பண நடவடிக்கை இல்லை.",
+      "UNCLASSIFIED_NOTE": "மேலே உள்ள பண நகர்வில் {{amount}} கணக்கு வரைபடம் இணைக்கப்படாத பதிவேடு உள்ளீடுகளிலிருந்து வந்தது. விவரங்களுக்கு பொது கணக்குப் பதிவேட்டின் 'வகைப்படுத்தப்படாத' கணக்கைப் பார்க்கவும்."
+    },
     "GENERAL_LEDGER": {
       "EMPTY": "No journal activity in this date range.",
       "OPENING": "Opening",
@@ -1100,7 +1114,7 @@
     "EYEBROW": "Reporting",
     "TITLE": "Reports",
     "COPY": "One place to reach every report and analytics page: financial statements, reconciliation trends, cash flow forecasting, the live dashboard, and scheduled report emails.",
-    "FINANCIAL_REPORTS_COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet.",
+    "FINANCIAL_REPORTS_COPY": "பணப் புழக்கம், பொது கணக்குப் பதிவேடு, வருமான அறிக்கை, மற்றும் இருப்புநிலைக் குறிப்பு, மேலும் இரண்டாம்-நிலை ஏற்றுமதியாக சோதனைச் சமன்பாட்டு அறிக்கை.",
     "RECONCILIATION_TRENDS_COPY": "Daily match, confirmation, exception, and backlog trends.",
     "CASH_FLOW_COPY": "Projected cash position based on confirmed and pending transactions.",
     "DASHBOARD_TITLE": "Dashboard",

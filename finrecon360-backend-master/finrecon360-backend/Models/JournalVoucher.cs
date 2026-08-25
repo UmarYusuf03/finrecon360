@@ -20,5 +20,11 @@ namespace finrecon360_backend.Models
         public Guid? PostedByUserId { get; set; }
 
         public ICollection<JournalEntry> Entries { get; set; } = new List<JournalEntry>();
+
+        // Navigation — lets EF's change tracker fix up and order INSERTs against these FKs even
+        // when the referenced row is new in the same SaveChanges batch (see PosSettlementPoster,
+        // which stages a JournalVoucher and its ReconciliationMatchGroup together).
+        public Transaction? Transaction { get; set; }
+        public ReconciliationMatchGroup? ReconciliationMatchGroup { get; set; }
     }
 }

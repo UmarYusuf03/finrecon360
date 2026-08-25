@@ -31,7 +31,6 @@ describe('TenantRegisterComponent', () => {
       phoneNumber: '+1 555 123 4567',
       businessRegistrationNumber: 'BRN-778899',
       businessType: 'ACCOMMODATION',
-      bankAccounts: 3,
       notes: 'Handles multi-bank reconciliation',
     });
 
@@ -44,7 +43,6 @@ describe('TenantRegisterComponent', () => {
       businessRegistrationNumber: 'BRN-778899',
       businessType: 'ACCOMMODATION',
       onboardingMetadata: {
-        bankAccounts: 3,
         notes: 'Handles multi-bank reconciliation',
       },
     });

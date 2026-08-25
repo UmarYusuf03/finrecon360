@@ -33,7 +33,6 @@ export class TenantRegisterComponent {
       phoneNumber: ['', [Validators.required, Validators.pattern(/^[0-9+\-\s()]{7,32}$/)]],
       businessRegistrationNumber: ['', Validators.required],
       businessType: ['', Validators.required],
-      bankAccounts: [1, [Validators.required, Validators.min(1)]],
       notes: [''],
     });
   }
@@ -54,7 +53,6 @@ export class TenantRegisterComponent {
       businessRegistrationNumber: this.form.value.businessRegistrationNumber,
       businessType: this.form.value.businessType,
       onboardingMetadata: {
-        bankAccounts: this.form.value.bankAccounts,
         notes: this.form.value.notes,
       },
     };

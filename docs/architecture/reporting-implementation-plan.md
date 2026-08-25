@@ -324,3 +324,287 @@ is a nav-level sibling to the former, not a drill-down like the latter.
 - Weekly-only cadence (`DayOfWeek` + a fixed 06:00 UTC delivery hour), no PUT-update
   on an existing schedule's report type/format/day/recipient (delete and recreate
   instead) — both explicit scope simplifications for a "stretch" phase, not oversights.
+
+## 7. Post-launch fix — Balance Sheet retained-earnings roll-up (2026-08-25)
+
+Section 6's Phase 2 log entry above recorded, as a conscious decision, that "Balance
+Sheet deliberately does not assert Assets = Liabilities + Equity (no
+retained-earnings roll-up exists in this ledger yet; asserting it would be dishonest,
+not just incomplete)." That gap is closed as of this fix — the identity now holds.
+
+**Why it has to hold**: a trial balance across *all* accounts (Asset, Liability,
+Equity, Revenue, Expense) balances to zero by construction — every `JournalVoucher`
+is required to sum to zero before it's allowed to post, so total debits equal total
+credits across the whole chart of accounts, always. A Balance Sheet is not that full
+trial balance; it's a *subset* — Asset/Liability/Equity only, with Revenue/Expense
+reported separately on the Income Statement instead. `BalanceSheetService` was
+building that subset by dropping every `JournalEntry` whose account resolved to
+Revenue or Expense (`accountsById` was pre-filtered to only the three balance-sheet
+types, so any Revenue/Expense entry silently missed the dictionary lookup and hit a
+`continue`). Removing entries from one side of an equation that balanced before you
+removed them is exactly how you stop it balancing — the shortfall was always
+precisely equal to net income/loss for the period, because that's what Revenue minus
+Expense *is*.
+
+**The standard accounting fix — closing entries**: a real general ledger handles this
+by *closing the books* at period end: Revenue and Expense are temporary ("nominal")
+accounts that get zeroed out via closing journal entries, with their net effect
+(Net Income = Revenue − Expenses) swept into a permanent equity account called
+Retained Earnings. That's not an approximation of the identity — it *is* the
+identity; Retained Earnings exists specifically so Assets = Liabilities + Equity
+keeps holding once Revenue/Expense drop off the Balance Sheet.
+
+**What changed**: this ledger has no separate closing-entry posting step (Revenue and
+Expense accounts are never actually zeroed out in the data), so `BalanceSheetService`
+now computes the equivalent roll-up dynamically at read time — sum every Revenue and
+Expense account's net activity from inception through `asOfUtc`, and surface it as
+one synthetic `RETAINED-EARNINGS` line in the Equity section (new constant in
+`Dtos/Reporting/FinancialReportDtos.cs`, alongside the existing `UnclassifiedAccount`
+synthetic-line pattern from Phase 2). Same-pass fix: a `JournalEntry` whose
+`ChartOfAccountId` no longer resolves to a real row (e.g. a deleted account) now
+falls into the existing `Unclassified` bucket instead of being silently dropped —
+the account-type filter that caused the Revenue/Expense bug was the same filter
+masking this case.
+
+**Verified** against the QA tenant (`qa-test-02@example.com`): before the fix,
+Assets 364,476 vs. Liabilities+Equity 372,526 (short by exactly 8,050, the tenant's
+net loss for the period per the Income Statement). After: Equity now includes
+`RETAINED-EARNINGS: -8,050`, and Assets (364,476) = Liabilities (372,526) + Equity
+(-8,050) exactly. `dotnet test` unaffected (180/180 passing).
+
+## 8. Phase 6 — Cash Flow Report (actual) & Trial Balance demotion (✅ Done, 2026-08-25)
+
+**Status: implemented.** Written so a fresh session with no prior
+chat history can execute this without re-deriving the reasoning below.
+
+### Why
+
+This tenant's product is a cash/settlement reconciliation system — POS terminals,
+bank deposits, card-gateway settlements, cash agents — not a company running debt,
+equity, inventory, or payroll through a full general ledger. Trial Balance's premise
+(does the whole multi-account chart sum to zero) is real and correct today (see
+Section 6/7 above), but it isn't something an operator running this kind of business
+actually checks day to day. What they'd actually look at is **cash flow**: how much
+money moved into and out of the bank account, by day and by channel, and what the
+running cash position is. That's the report this phase adds, and it demotes Trial
+Balance to a secondary/export-only view rather than a headline report.
+
+This does **not** touch journal posting. `JournalEntry`/`JournalVoucher` stay exactly
+as they are — they remain the audit-trail source of truth every report (including
+this new one) reads from. See `WORKER-INTEGRATION.md` for the posting pipeline itself
+if changes there ever become relevant.
+
+Do not confuse this with `CashFlowForecastController`/`CashFlowForecastService`
+(already shipped, lives at `/app/reports/cash-flow-forecast`) — that's a **forward-looking
+projection** of upcoming settlements. This phase is a **historical/actual** statement
+of cash already moved, and belongs alongside General Ledger/Income Statement/Balance
+Sheet in the Financial Reports shell, not next to the forecast page.
+
+### Scope
+
+1. New backend report: actual Cash Flow, sourced from posted `JournalEntry` rows
+   against Asset-type ("cash") accounts.
+2. Demote Trial Balance in the frontend nav — keep the backend endpoint, service, and
+   tests untouched (the data is correct and useful as an accountant-facing export).
+3. Update every doc that currently describes the reporting feature set (checklist at
+   the end of this section) — **do not consider this phase done until that checklist
+   is complete.**
+
+### Backend implementation
+
+Mirror the existing `Services/Reporting/*` pattern exactly — same folder, same
+constructor-injection style as `GeneralLedgerService`/`TrialBalanceService`.
+
+- **`Dtos/Reporting/FinancialReportDtos.cs`** — add:
+  ```csharp
+  public record CashFlowDayDto(DateTime Date, decimal OpeningBalance, decimal CashIn, decimal CashOut, decimal ClosingBalance);
+
+  public record CashFlowResponse(
+      DateTime FromUtc, DateTime ToUtc, IReadOnlyList<CashFlowDayDto> Days,
+      decimal TotalCashIn, decimal TotalCashOut, decimal NetChange, decimal UnclassifiedAmount);
+  ```
+- **`Services/Reporting/CashFlowReportService.cs`** (new — `ICashFlowReportService`/`CashFlowReportService`):
+  - Source: `JournalEntry` rows whose `ChartOfAccountId` resolves to an
+    `AccountType.Asset` account. Filter by `AccountType.Asset` the way
+    `BalanceSheetService` does — don't hardcode `1000-BANK` — so a tenant with more
+    than one cash/bank account still works correctly.
+  - Opening balance for the range = sum of all matching entries with
+    `PostedAt < fromUtc` (same opening-balance approach as
+    `GeneralLedgerService.GetAsync` — reuse that logic rather than re-deriving it if
+    it extracts cleanly; don't force a shared helper if the grouping keys end up
+    different enough to make it awkward).
+  - Group remaining entries by calendar day (`PostedAt.Date`) within
+    `[fromUtc, toUtc]`. Per day: `CashIn` = sum of positive `Amount` values (Asset
+    accounts are debit-normal, so a debit is cash arriving); `CashOut` = sum of the
+    absolute value of negative `Amount` values. `ClosingBalance` = previous day's
+    closing + that day's net; `OpeningBalance` = previous day's closing.
+  - **Include days with zero activity** inside the range (`CashIn = 0, CashOut = 0`,
+    balance carried forward unchanged) — a cash flow report with silent gaps in the
+    day sequence reads as "we don't know," not "nothing happened."
+  - Decide explicitly whether `Unclassified` (null `ChartOfAccountId`) entries count
+    toward cash in/out. Recommendation: **include them** — a cash account is defined
+    by what actually happened to cash, not by whether someone remembered to map an
+    account code — and surface the total separately via `UnclassifiedAmount` on the
+    response, following this file's own established Unclassified-bucket convention
+    (Section 6, Phase 2) rather than silently dropping or silently including without
+    disclosure.
+- **`Controllers/Admin/FinancialReportsController.cs`** — add `GET /cash-flow`
+  (`fromUtc`/`toUtc` query params, same default-range logic as `general-ledger`) and
+  `GET /cash-flow/export` (same shape as the other `/export` endpoints via
+  `IReportExporter`). Reuses the existing `ADMIN.FINANCIAL_REPORTS.VIEW` permission —
+  no new permission needed.
+- **`Services/Reporting/ScheduledReportRenderer.cs`** — add a `"CashFlow"` case to
+  both `IsKnownReportType` and the `RenderAsync` switch (mirror the `"TrialBalance"`
+  case: call the new service with `(weekAgo, now)`, export via `IReportExporter`) so
+  it's schedulable like the other statements. Update the `<summary>` doc comment that
+  lists recognized values.
+- Register `ICashFlowReportService`/`CashFlowReportService` in DI — find the spot by
+  grepping `AddScoped<ITrialBalanceService` in `Program.cs` and add the new service
+  alongside it.
+- **Tests**: add `CashFlowReportServiceTests.cs` (or extend an existing reporting
+  test file) covering: opening balance carries in correctly across the range
+  boundary, a zero-activity day still appears in the output, the Unclassified
+  decision above is actually implemented as decided, and multi-day running-balance
+  math is correct. Full suite must stay green — baseline is 180/180 (see
+  `WORKER-INTEGRATION.md`); this phase should only add tests, never remove or weaken
+  one.
+
+### Frontend implementation
+
+- **Models** (wherever `GeneralLedgerReport`/`TrialBalanceReport` interfaces live,
+  likely `core/admin-rbac/models.ts`) — add `CashFlowDay`/`CashFlowReport`
+  interfaces matching the new DTOs.
+- **`core/admin-rbac/financial-reports.service.ts`** — add `getCashFlow(fromUtc,
+  toUtc)` and `exportCashFlow(fromUtc, toUtc, format)`, mirroring
+  `getGeneralLedger`/`exportGeneralLedger` (lines 20-28 today) exactly.
+- **New page** `main/pages/admin/admin-cash-flow-report.{ts,html}` — start from a
+  copy of `admin-general-ledger.ts`/`.html` (date-range picker, load/export,
+  `admin-financial-reports.scss`), since Cash Flow is date-range-based like General
+  Ledger and Income Statement, not as-of-date like Trial Balance/Balance Sheet.
+- **`main.routes.ts`** (financial-reports children, currently ~lines 195-224): add a
+  `cash-flow` route pointing at the new component; change the shell's default
+  redirect from `redirectTo: 'general-ledger'` to `redirectTo: 'cash-flow'` — it's
+  now the featured report, so it's what a tenant should land on first.
+- **`admin-financial-reports-shell.html`** nav (lines 10-15 today) — reorder so Cash
+  Flow leads and Trial Balance trails, visually demoted:
+  ```html
+  <a routerLink="cash-flow" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.CASH_FLOW' | translate }}</a>
+  <a routerLink="general-ledger" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.GENERAL_LEDGER' | translate }}</a>
+  <a routerLink="income-statement" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.INCOME_STATEMENT' | translate }}</a>
+  <a routerLink="balance-sheet" routerLinkActive="active">{{ 'FINANCIAL_REPORTS.NAV.BALANCE_SHEET' | translate }}</a>
+  <a routerLink="trial-balance" routerLinkActive="active" class="reports-nav__secondary">{{ 'FINANCIAL_REPORTS.NAV.TRIAL_BALANCE' | translate }}</a>
+  ```
+  Add a `.reports-nav__secondary` style (visually muted/smaller) in
+  `admin-financial-reports.scss`. **Do not delete** the Trial Balance route,
+  component, or backend endpoint — it stays reachable, just no longer a peer to the
+  other three.
+- **i18n** — this app ships three locales: `src/assets/i18n/en.json`, `si.json`
+  (Sinhala), `ta.json` (Tamil). Add `FINANCIAL_REPORTS.NAV.CASH_FLOW` and any new
+  column/label keys to **all three** files, not just `en.json` — copy the existing
+  `TRIAL_BALANCE` key as the pattern. Get an actual Sinhala/Tamil translation; if
+  none is available, ask the user rather than leaving the English string in those
+  files.
+- **`admin-reports-hub.{ts,html}`** — if it links directly to `trial-balance` as the
+  headline Financial Reports link, repoint it to `cash-flow`.
+
+### Verification
+
+Same method used earlier in this project to verify the Balance Sheet fix — don't
+just rely on `dotnet test`:
+
+- `cd finrecon360-backend-master && dotnet test` — must stay green, count ≥ 180.
+- `cd finrecon360-frontend && ng build --configuration development` clean; `ng test
+  --watch=false` — same 8 pre-existing unrelated failures noted throughout this file,
+  never more.
+- Live check against the QA tenant (`qa-test-02@example.com` / `TestPass!2026`,
+  tenant "QA Test Co 2"): log in via `POST /api/auth/login`, call `GET
+  /api/admin/financial-reports/cash-flow`, and confirm `TotalCashIn - TotalCashOut`
+  for the full range matches the `1000-BANK` account's net (debit − credit) on the
+  Trial Balance report for the same period — same underlying ledger data, just
+  reshaped, so they must agree exactly.
+
+### Post-implementation doc checklist — required, not optional
+
+The user has explicitly asked that this not be skipped. Do not end the session until
+every item below is done:
+
+1. **This file** — flip this section's heading to `✅ Done` and append a completion
+   log entry below it, in the style of Section 6: what shipped, any deviations from
+   this plan and why, test counts before/after.
+2. **`DEVREADME.md`** (repo root, "What is already implemented" bullet list) —
+   currently: "...financial statements (General Ledger, Trial Balance, Income
+   Statement, Balance Sheet)...". Update to name Cash Flow as a headline statement
+   and Trial Balance as secondary, e.g.: "...financial statements (General Ledger,
+   Cash Flow, Income Statement, Balance Sheet, plus Trial Balance as a secondary
+   accounting-export view)...".
+3. **`finrecon360-frontend/README.md`** (line ~29) — same list currently reads
+   "(General Ledger, Trial Balance, Income Statement, Balance Sheet)"; update the
+   same way as item 2.
+4. **`finrecon360-backend-master/finrecon360-backend/README.md`** (line ~30) — same
+   list, same update.
+5. **`README.md`** (repo root, line ~28) — already generic ("financial statements,
+   reconciliation trend charts...") and names no individual reports; confirmed no
+   edit needed here as of this writing, but re-check it hasn't changed since.
+6. Grep the repo for `"Trial Balance"` and `"trial-balance"` across `*.md` files one
+   more time before finishing, to catch anything this list missed.
+
+## 9. Phase 6 completion log (2026-08-25)
+
+Built as specified, with two notes.
+
+**Backend**: `Dtos/Reporting/FinancialReportDtos.cs` (`CashFlowDayDto`/`CashFlowResponse`),
+`Services/Reporting/CashFlowReportService.cs`, two new endpoints on
+`FinancialReportsController` (`GET cash-flow`, `GET cash-flow/export`), a `"CashFlow"`
+case added to `ScheduledReportRenderer` (`IsKnownReportType` and `RenderAsync`, plus the
+`ReportSchedule.ReportType` doc comment and the frontend schedule-type dropdown so it's
+actually reachable end-to-end, not just accepted by the renderer), and DI registration in
+`Program.cs`. Four new tests in `FinancialReportingServicesTests.cs` covering opening-balance
+carry-across-the-boundary, zero-activity days, Unclassified entries counting toward daily
+totals while being disclosed separately, and multi-day running-balance math; two more
+`InlineData("CashFlow", ...)` cases added to the pre-existing
+`ScheduledReportRendererTests.cs` (its `CreateRenderer()` helper already took a
+`CashFlowReportService` argument when this phase started — found only via `dotnet build`
+succeeding despite my search missing the file initially — but its parameterized cases hadn't
+been extended to actually exercise the new type). `dotnet test`: 180 → 186, all green.
+
+**Frontend**: `CashFlowDay`/`CashFlowReport` models, `getCashFlow`/`exportCashFlow` on
+`FinancialReportsService`, new `admin-cash-flow-report.{ts,html}` page (copied from
+General Ledger's date-range shape), `cash-flow` route added as the shell's default
+redirect target, nav reordered with Trial Balance visually demoted via a new
+`.reports-nav__secondary` style, `CashFlow` added to the report-schedules type dropdown.
+`ng build --configuration development`: clean. `ng test --watch=false`: 76/76 passing —
+the 8 pre-existing unrelated failures this file previously tracked as baseline (Login/
+ShellComponent/AdminAuditLogs DI/directive gaps) are gone as of this session, resolved by
+work elsewhere in the branch, not by this phase. No new failures either way.
+
+**Deviation — si/ta translations**: the plan asked for real Sinhala/Tamil translations of
+the new Cash Flow strings rather than the usual English-placeholder fallback used
+elsewhere in `si.json`/`ta.json`. Asked the user directly; they chose best-effort machine
+translation over the English placeholder or supplying their own strings. The Sinhala and
+Tamil text now in both locale files for the `CASH_FLOW` keys, the `NAV.CASH_FLOW` label,
+and the two updated `COPY` strings is machine-translated and **not verified by a native
+speaker** — flag for review before this ships to Sinhala/Tamil-speaking users, particularly
+the accounting terminology (opening/closing balance, unclassified-entries note).
+
+**Verification**: `dotnet test` and `ng build`/`ng test` bars above, plus the two checks
+the plan specified against the QA tenant (`qa-test-02@example.com`, tenant "QA Test Co 2")
+and one beyond it:
+- `GET /api/admin/financial-reports/cash-flow` over the tenant's full history:
+  `TotalCashIn − TotalCashOut = 364,476.00`, `UnclassifiedAmount = 0`, exactly matching
+  `1000-BANK`'s net (debit − credit) on the Trial Balance report for the same period.
+- `GET /api/admin/financial-reports/cash-flow/export?format=csv` returns a 200 with one
+  row per day, zero-activity days included.
+- Browser-driven check (Playwright against the running dev server, not in the plan's
+  ask but done for a UI-affecting change per this project's own verification norms):
+  logged in as the QA tenant, confirmed `/app/reports/financial-reports` redirects to
+  `cash-flow`, the nav renders Cash Flow first/active and Trial Balance last/muted, the
+  stat tiles and day-by-day table render the same figures as the API check above, and
+  zero browser console or network errors.
+
+**Doc checklist**: all six items done — this file, `DEVREADME.md`,
+`finrecon360-frontend/README.md`, `finrecon360-backend-master/finrecon360-backend/README.md`
+updated to name Cash Flow as a headline statement and Trial Balance as secondary; root
+`README.md` re-checked and confirmed still generic, no edit needed; final repo-wide grep
+for `"Trial Balance"`/`"trial-balance"` found one file outside this list,
+`.implementation-roadmap.md` — a dated 2026-08-18 status log, left untouched as a frozen
+historical record (same treatment this plan file gives its own Section 6 log).

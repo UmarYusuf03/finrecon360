@@ -375,3 +375,6 @@ FodyWeavers.xsd
 .env
 .env.*
 !.env.example
+
+# Local app configuration (may get real secrets pasted in for local testing)
+appsettings.json

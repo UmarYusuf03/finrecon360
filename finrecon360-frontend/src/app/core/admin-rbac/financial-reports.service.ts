@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../constants/api.constants';
 import { ExportFormat } from '../services/export.service';
 import {
   BalanceSheetReport,
+  CashFlowReport,
   GeneralLedgerReport,
   IncomeStatementReport,
   TrialBalanceReport,
@@ -55,5 +56,15 @@ export class FinancialReportsService {
   exportBalanceSheet(asOfUtc: string, format: ExportFormat): Observable<Blob> {
     const params = new HttpParams().set('asOfUtc', asOfUtc).set('format', format);
     return this.http.get(`${this.baseUrl}/balance-sheet/export`, { params, responseType: 'blob' });
+  }
+
+  getCashFlow(fromUtc: string, toUtc: string): Observable<CashFlowReport> {
+    const params = new HttpParams().set('fromUtc', fromUtc).set('toUtc', toUtc);
+    return this.http.get<CashFlowReport>(`${this.baseUrl}/cash-flow`, { params });
+  }
+
+  exportCashFlow(fromUtc: string, toUtc: string, format: ExportFormat): Observable<Blob> {
+    const params = new HttpParams().set('fromUtc', fromUtc).set('toUtc', toUtc).set('format', format);
+    return this.http.get(`${this.baseUrl}/cash-flow/export`, { params, responseType: 'blob' });
   }
 }

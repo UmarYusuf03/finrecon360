@@ -458,6 +458,24 @@ export interface BalanceSheetReport {
   unclassifiedAmount: number;
 }
 
+export interface CashFlowDay {
+  date: string;
+  openingBalance: number;
+  cashIn: number;
+  cashOut: number;
+  closingBalance: number;
+}
+
+export interface CashFlowReport {
+  fromUtc: string;
+  toUtc: string;
+  days: CashFlowDay[];
+  totalCashIn: number;
+  totalCashOut: number;
+  netChange: number;
+  unclassifiedAmount: number;
+}
+
 export interface ReconciliationTrendDay {
   snapshotDate: string;
   matchLevel: string;

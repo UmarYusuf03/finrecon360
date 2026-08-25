@@ -61,6 +61,15 @@ namespace finrecon360_backend.Controllers.Public
                 return Conflict(new { message = "A pending request already exists for this email." });
             }
 
+            var existingRegistrationNumber = await _dbContext.TenantRegistrationRequests
+                .AsNoTracking()
+                .AnyAsync(r => r.BusinessRegistrationNumber == businessRegistrationNumber && r.Status == "PENDING_REVIEW");
+
+            if (existingRegistrationNumber)
+            {
+                return Conflict(new { message = "A pending request already exists for this business registration number." });
+            }
+
             var metadata = request.OnboardingMetadata.HasValue
                 ? JsonSerializer.Serialize(request.OnboardingMetadata.Value)
                 : null;

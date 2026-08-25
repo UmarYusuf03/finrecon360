@@ -68,6 +68,7 @@
       <p *ngIf="selectedDetail.phoneNumber"><strong>{{ 'PROFILE.PHONE_NUMBER' | translate }}:</strong> {{ selectedDetail.phoneNumber }}</p>
       <p *ngIf="selectedDetail.businessRegistrationNumber"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.REGISTRATION_NUMBER' | translate }}:</strong> {{ selectedDetail.businessRegistrationNumber }}</p>
       <p *ngIf="selectedDetail.businessType"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.BUSINESS_TYPE' | translate }}:</strong> {{ selectedDetail.businessType }}</p>
+      <p *ngIf="selectedNotes"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.NOTES' | translate }}:</strong> {{ selectedNotes }}</p>
       <p><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.SUBMITTED_AT' | translate }}:</strong> {{ selectedDetail.submittedAt | date: 'short' }}</p>
       <p *ngIf="selectedDetail.reviewedAt"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.REVIEWED_AT' | translate }}:</strong> {{ selectedDetail.reviewedAt | date: 'short' }}</p>
       <p *ngIf="selectedDetail.reviewedByEmail"><strong>{{ 'ADMIN.TENANT_REGISTRATIONS.REVIEWED_BY' | translate }}:</strong> {{ selectedDetail.reviewedByEmail }}</p>

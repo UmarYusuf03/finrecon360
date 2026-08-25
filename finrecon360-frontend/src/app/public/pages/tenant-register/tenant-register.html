@@ -51,15 +51,9 @@
         </select>
       </div>
 
-      <div class="form-row">
-        <div class="form-col">
-          <label class="field-label">Number of Bank Accounts</label>
-          <input class="auth-input" type="number" formControlName="bankAccounts" min="1" />
-        </div>
-        <div class="form-col">
-          <label class="field-label">Notes</label>
-          <input class="auth-input" formControlName="notes" placeholder="Optional notes" />
-        </div>
+      <div class="form-group">
+        <label class="field-label">Notes</label>
+        <input class="auth-input" formControlName="notes" placeholder="Optional notes" />
       </div>
 
       <button class="primary-btn" type="submit" [disabled]="submitting || form.invalid">

@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using finrecon360_backend.Dtos.Public;
 using FluentValidation;
 
@@ -10,6 +11,8 @@ namespace finrecon360_backend.Validators
             "VEHICLE_RENTAL",
             "ACCOMMODATION"
         };
+
+        private static readonly Regex PhoneNumberPattern = new(@"^[0-9+\-\s()]{7,32}$", RegexOptions.Compiled);
 
         public TenantRegistrationCreateRequestValidator()
         {
@@ -24,7 +27,9 @@ namespace finrecon360_backend.Validators
 
             RuleFor(request => request.PhoneNumber)
                 .NotEmpty()
-                .MaximumLength(32);
+                .MaximumLength(32)
+                .Matches(PhoneNumberPattern)
+                .WithMessage("Phone number may only contain digits, spaces, and + - ( ) characters.");
 
             RuleFor(request => request.BusinessRegistrationNumber)
                 .NotEmpty()

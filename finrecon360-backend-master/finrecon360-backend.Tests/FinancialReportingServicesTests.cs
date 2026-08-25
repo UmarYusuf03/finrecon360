@@ -198,4 +198,111 @@ public class FinancialReportingServicesTests
         Assert.Equal(200m, result.TotalEquity);
         Assert.Equal(10m, result.UnclassifiedAmount);
     }
+
+    [Fact]
+    public async Task CashFlow_carries_opening_balance_across_the_range_boundary()
+    {
+        using var db = CreateTenantDb();
+        var bank = Account("1000-BANK", "Bank", AccountType.Asset);
+        db.ChartOfAccounts.Add(bank);
+
+        var from = new DateTime(2026, 4, 10, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 4, 12, 0, 0, 0, DateTimeKind.Utc);
+        // Before the range: contributes to opening balance only.
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, 1000m, from.AddDays(-1)));
+        // Inside the range, day 1: cash in and cash out both occur.
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, 200m, from));
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, -50m, from));
+        await db.SaveChangesAsync();
+
+        var service = new CashFlowReportService();
+        var result = await service.GetAsync(db, from, to);
+
+        Assert.Equal(3, result.Days.Count);
+        var day1 = result.Days[0];
+        Assert.Equal(from.Date, day1.Date);
+        Assert.Equal(1000m, day1.OpeningBalance);
+        Assert.Equal(200m, day1.CashIn);
+        Assert.Equal(50m, day1.CashOut);
+        Assert.Equal(1150m, day1.ClosingBalance);
+    }
+
+    [Fact]
+    public async Task CashFlow_includes_zero_activity_days_carrying_the_balance_forward()
+    {
+        using var db = CreateTenantDb();
+        var bank = Account("1000-BANK", "Bank", AccountType.Asset);
+        db.ChartOfAccounts.Add(bank);
+
+        var from = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 5, 4, 0, 0, 0, DateTimeKind.Utc);
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, 300m, from));
+        // Nothing posted on day 2 or day 3 — must still appear with zero activity.
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, -100m, to));
+        await db.SaveChangesAsync();
+
+        var service = new CashFlowReportService();
+        var result = await service.GetAsync(db, from, to);
+
+        Assert.Equal(4, result.Days.Count);
+        var quietDay = result.Days[1];
+        Assert.Equal(from.AddDays(1).Date, quietDay.Date);
+        Assert.Equal(0m, quietDay.CashIn);
+        Assert.Equal(0m, quietDay.CashOut);
+        Assert.Equal(300m, quietDay.OpeningBalance);
+        Assert.Equal(300m, quietDay.ClosingBalance);
+    }
+
+    [Fact]
+    public async Task CashFlow_includes_unclassified_entries_in_daily_totals_and_discloses_them_separately()
+    {
+        using var db = CreateTenantDb();
+        var bank = Account("1000-BANK", "Bank", AccountType.Asset);
+        var revenue = Account("4000-FEE", "Fee Revenue", AccountType.Revenue);
+        db.ChartOfAccounts.AddRange(bank, revenue);
+
+        var from = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, 100m, from));
+        db.JournalEntries.Add(Entry(null, 25m, from));
+        // A Revenue-type account is not cash — must not appear in cash in/out.
+        db.JournalEntries.Add(Entry(revenue.ChartOfAccountId, -100m, from));
+        await db.SaveChangesAsync();
+
+        var service = new CashFlowReportService();
+        var result = await service.GetAsync(db, from, to);
+
+        var day = Assert.Single(result.Days);
+        Assert.Equal(125m, day.CashIn);
+        Assert.Equal(0m, day.CashOut);
+        Assert.Equal(25m, result.UnclassifiedAmount);
+        Assert.Equal(125m, result.TotalCashIn);
+        Assert.Equal(125m, result.NetChange);
+    }
+
+    [Fact]
+    public async Task CashFlow_running_balance_is_correct_across_multiple_days()
+    {
+        using var db = CreateTenantDb();
+        var bank = Account("1000-BANK", "Bank", AccountType.Asset);
+        db.ChartOfAccounts.Add(bank);
+
+        var from = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 7, 3, 0, 0, 0, DateTimeKind.Utc);
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, 500m, from));
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, -200m, from.AddDays(1)));
+        db.JournalEntries.Add(Entry(bank.ChartOfAccountId, 50m, from.AddDays(2)));
+        await db.SaveChangesAsync();
+
+        var service = new CashFlowReportService();
+        var result = await service.GetAsync(db, from, to);
+
+        Assert.Equal(3, result.Days.Count);
+        Assert.Equal(500m, result.Days[0].ClosingBalance);
+        Assert.Equal(300m, result.Days[1].ClosingBalance);
+        Assert.Equal(350m, result.Days[2].ClosingBalance);
+        Assert.Equal(550m, result.TotalCashIn);
+        Assert.Equal(200m, result.TotalCashOut);
+        Assert.Equal(350m, result.NetChange);
+    }
 }

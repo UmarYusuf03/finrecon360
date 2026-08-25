@@ -44,6 +44,7 @@ namespace finrecon360_backend.Services
         private const string MigrationReportSchedules = "202608190003_TenantReportSchedules";
         private const string MigrationMatcherReconciliationViewGrant = "202608190004_TenantMatcherReconciliationViewGrant";
         private const string MigrationReconciliationEventsImportBatchIdNull = "202608190005_TenantReconciliationEventsImportBatchIdNull";
+        private const string MigrationReconciliationEventsRecordFieldsNull = "202608250002_TenantReconciliationEventsRecordFieldsNull";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -88,6 +89,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationReportSchedules, BuildTenantReportSchedulesSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationMatcherReconciliationViewGrant, BuildTenantMatcherReconciliationViewGrantSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEventsImportBatchIdNull, BuildTenantReconciliationEventsImportBatchIdNullSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEventsRecordFieldsNull, BuildTenantReconciliationEventsRecordFieldsNullSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -1631,6 +1633,63 @@ namespace finrecon360_backend.Services
                 IF COL_LENGTH(N'dbo.ReconciliationEvents', N'ImportBatchId') IS NOT NULL
                 BEGIN
                     ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN ImportBatchId uniqueidentifier NULL;
+                END
+            END
+            """;
+
+        // WHY: dbo.ReconciliationEvents' CREATE TABLE above already declares ImportedNormalizedRecordId,
+        // SourceType, Stage and Status as NULL, matching the nullable Guid?/string? properties on the
+        // ReconciliationEvent model — MatchNotFound events legitimately have no imported record to
+        // point at (e.g. OperationalMatchWorker, ErpGatewaySalesMatchWorker), and the model has always
+        // allowed that. But that CREATE TABLE only runs for a tenant that doesn't have the table yet
+        // (IF OBJECT_ID ... IS NULL) — a tenant database provisioned before these columns were made
+        // nullable (found via a live DbUpdateException: one tenant's table still had
+        // ImportedNormalizedRecordId/SourceType/Stage/Status as NOT NULL with Stage additionally
+        // undersized at nvarchar(20) instead of nvarchar(50)) throws on every worker cycle that logs a
+        // recordless MatchNotFound event. Same ALTER COLUMN retrofit pattern as
+        // MigrationReconciliationEventsImportBatchIdNull above, for every column that migration didn't
+        // cover — re-widening Stage back to its CREATE TABLE size at the same time.
+        private static string BuildTenantReconciliationEventsRecordFieldsNullSql() =>
+            """
+            IF OBJECT_ID(N'dbo.ReconciliationEvents', N'U') IS NOT NULL
+            BEGIN
+                -- A single-column, non-unique index on the target column doesn't normally block
+                -- ALTER COLUMN in SQL Server, but the legacy tenant this migration targets has one
+                -- on each of these four columns and SQL Server refused the ALTER on at least one of
+                -- them ("is dependent on column") — none of the four are part of the canonical
+                -- CREATE TABLE index list above (only EventType/MatchLevel/CreatedAt/GroupId are), so
+                -- dropping them here brings the table in line with current schema instead of
+                -- reconstructing indexes that were never meant to exist.
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.ReconciliationEvents') AND name = N'IX_ReconciliationEvents_ImportedNormalizedRecordId')
+                    DROP INDEX IX_ReconciliationEvents_ImportedNormalizedRecordId ON dbo.ReconciliationEvents;
+
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.ReconciliationEvents') AND name = N'IX_ReconciliationEvents_SourceType')
+                    DROP INDEX IX_ReconciliationEvents_SourceType ON dbo.ReconciliationEvents;
+
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.ReconciliationEvents') AND name = N'IX_ReconciliationEvents_Stage')
+                    DROP INDEX IX_ReconciliationEvents_Stage ON dbo.ReconciliationEvents;
+
+                IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.ReconciliationEvents') AND name = N'IX_ReconciliationEvents_Status')
+                    DROP INDEX IX_ReconciliationEvents_Status ON dbo.ReconciliationEvents;
+
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'ImportedNormalizedRecordId') IS NOT NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN ImportedNormalizedRecordId uniqueidentifier NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'SourceType') IS NOT NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN SourceType nvarchar(100) NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'Stage') IS NOT NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN Stage nvarchar(50) NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.ReconciliationEvents', N'Status') IS NOT NULL
+                BEGIN
+                    ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN Status nvarchar(30) NULL;
                 END
             END
             """;

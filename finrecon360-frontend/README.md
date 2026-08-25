@@ -26,7 +26,7 @@ Implemented frontend areas:
 - dashboard, matcher placeholder, and profile surfaces
 - permission-aware navigation and route guards
 
-Reporting and analytics surfaces are now implemented: export buttons (CSV/XLSX) on Transactions, Bank Accounts, Audit Logs, and Match Groups; a Financial Reports section (General Ledger, Trial Balance, Income Statement, Balance Sheet); a Reconciliation Trends page under Matcher; a Reports Hub landing page (`/app/admin/reports`); and a Report Schedules page for weekly emailed reports. See `../docs/architecture/reporting-implementation-plan.md`.
+Reporting and analytics surfaces are now implemented: export buttons (CSV/XLSX) on Transactions, Bank Accounts, Audit Logs, and Match Groups; a Financial Reports section (General Ledger, Cash Flow, Income Statement, Balance Sheet, plus Trial Balance as a secondary accounting-export view); a Reconciliation Trends page under Matcher; a Reports Hub landing page (`/app/admin/reports`); and a Report Schedules page for weekly emailed reports. See `../docs/architecture/reporting-implementation-plan.md`.
 
 Not yet implemented as full production workflows:
 

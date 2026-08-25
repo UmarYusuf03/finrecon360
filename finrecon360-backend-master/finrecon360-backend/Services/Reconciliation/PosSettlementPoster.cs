@@ -48,6 +48,10 @@ namespace finrecon360_backend.Services.Reconciliation
             {
                 JournalVoucherId = Guid.NewGuid(),
                 ReconciliationMatchGroupId = group.ReconciliationMatchGroupId,
+                // Setting the navigation (not just the scalar FK) lets EF's change tracker fix up
+                // and order this INSERT after the match group's even though group is new/unsaved
+                // in this same SaveChanges call — see the relationship config in TenantDbContext.
+                ReconciliationMatchGroup = group,
                 Status = "Posted",
                 PostedAt = DateTime.UtcNow,
             };

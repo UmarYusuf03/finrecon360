@@ -11,6 +11,56 @@ data instead of extracting it from POS EOD narrative text. See "Level6 detail" a
 detail" below for the full explanation, and the "Known Follow-Ups" section for what this
 touched versus what it deliberately left alone.
 
+**2026-08-25**: found while checking whether a QA tenant's Level4 matches were actually
+progressing — three bugs, all now fixed:
+- **Level4's Tier3 path never persisted anything.** `BankStatementReconciliationWorker`'s
+  ambiguous-BANK-match and unexplained-variance branches logged a warning and returned
+  `Exception`, but never created the `IsConfirmed = false` match group the class's own doc
+  comment (and this file's "Level4 detail" above) already described — so those transactions
+  had no route to a human reviewer and just silently retried every cycle forever. Fixed by
+  extracting the group-creation logic (previously only reachable from the Tier1/Tier2
+  auto-confirm path) into a shared `AddMatchGroupAsync` helper used by all four outcomes
+  (Tier1, Tier2, Tier3-ambiguous, Tier3-unreconciled), so Tier3 now produces a real pending
+  group that shows up in `GET /api/admin/match-groups/pending?matchLevel=Level4` for a human
+  to confirm or reject, exactly as documented.
+- **`JournalVoucher`'s FKs weren't declared in the EF model.** `ReconciliationMatchGroupId`
+  and `TransactionId` on `JournalVoucher` were plain scalar columns as far as EF's model was
+  concerned — no `HasOne().WithForeignKey()`, unlike the equivalent `JournalEntry`
+  relationships a few lines below in `TenantDbContext`. Harmless whenever the referenced row
+  was already persisted, but `PosSettlementPoster.PostAsync` stages a `JournalVoucher` in the
+  same `SaveChangesAsync` call as a brand-new Level7 match group (the Tier1/Tier2 auto-confirm
+  path), and without a declared relationship EF has no basis for ordering the two INSERTs —
+  intermittently hit the real `FK_JournalVouchers_MatchGroups_GroupId` / `..._Transactions_...`
+  constraints in the DB. Fixed by adding the navigation properties and Fluent API config EF was
+  missing (`JournalVoucher.cs`, `TenantDbContext.cs`).
+- **`IReconciliationMatchConfirmationService` was never registered in `Program.cs`.** Every
+  route on `MatchGroupsController` — the pending-match queue, confirm, reject, the matcher
+  summary — threw a DI resolution error on every call, in every tenant, regardless of the two
+  fixes above. Without this, the Tier3 fix above would have created correct data with no way
+  for anyone to see or act on it through the API. One-line fix alongside the other reconciliation
+  service registrations.
+
+Verified together end-to-end against a live tenant: a Tier3 group appeared in the pending queue,
+`POST .../confirm` promoted its linked transaction to `JournalReady`, and the next
+`JournalPostingHostedService` cycle posted it — the same path a Tier1/Tier2 auto-confirm and a
+Tier3 human confirmation both rely on. All 180 existing backend tests still pass unchanged.
+
+**Also 2026-08-25, found while checking a different tenant**: Level1 (`OperationalMatchWorker`)
+and Level3 (`ErpGatewaySalesMatchWorker`) were throwing `DbUpdateException` on every cycle for a
+tenant provisioned before `dbo.ReconciliationEvents.ImportedNormalizedRecordId`/`SourceType` were
+made nullable — the current `CREATE TABLE` in `TenantSchemaMigrator` already declares them (and
+`Stage`/`Status`) `NULL`, matching the `Guid?`/`string?` model, but that statement only runs for a
+tenant that doesn't have the table yet, so a tenant provisioned from an older revision keeps
+whatever nullability it was first created with forever. Fixed with a new retrofit migration
+(`202608250002_TenantReconciliationEventsRecordFieldsNull`, same pattern as the existing
+`...ImportBatchIdNull` one) that widens all four columns to `NULL` on every tenant database —
+first had to drop four non-canonical single-column indexes on that legacy tenant's table
+(`IX_ReconciliationEvents_{ImportedNormalizedRecordId,SourceType,Stage,Status}` — not part of the
+current index list above, presumably from an even older schema revision) that were blocking the
+`ALTER COLUMN`. Runs automatically for every tenant on their next `TenantDbContextFactory.CreateAsync`
+call — no manual per-tenant intervention needed. Verified live: the previously-failing tenant now
+completes Level1/Level3 cleanly and its `MatchNotFound` events persist.
+
 ### Components
 
 1. **The six matching-level workers** (`Services/Workers/*.cs`), all sharing the signature `Task<TResult> ExecuteAsync(Guid tenantId, TenantDbContext tenantDb, CancellationToken ct)`:
@@ -132,13 +182,15 @@ touched versus what it deliberately left alone.
 
 3. **JournalPostingHostedService**
    - Location: `BackgroundServices/JournalPostingHostedService.cs`
-   - Runs every 5 minutes (30-second startup delay so it runs after a reconciliation cycle)
+   - Runs every 1 minute (30-second startup delay so it runs after a reconciliation cycle) —
+     tightened from 5 minutes on 2026-08-25, see item 3 under "Known Follow-Ups" below
    - Iterates through all active tenants
    - Safe concurrent execution with tenant-level locking
 
 4. **ReconciliationCycleHostedService** (new — replaces the old single-worker `BankReconciliationHostedService`)
    - Location: `BackgroundServices/ReconciliationCycleHostedService.cs`
-   - Runs every 5 minutes; for each active tenant, runs the six active matching-level workers in Level1→2→3→4→6→7 order against one `TenantDbContext` (Level5 retired — see the level table above)
+   - Runs every 1 minute (tightened from 5 minutes on 2026-08-25 — see item 3 under "Known
+     Follow-Ups" below); for each active tenant, runs the six active matching-level workers in Level1→2→3→4→6→7 order against one `TenantDbContext` (Level5 retired — see the level table above)
    - Each worker runs in its own try/catch so one worker's failure doesn't block the rest of the cycle
    - `BankReconciliationHostedService` (which only ever ran Level4) was deleted — its job is now one step of this cycle
 
@@ -368,6 +420,8 @@ Settlement Key:  MERCHANT_ACCT|TXN_12345
 - Workers detect already-processed transactions
 - Safe to run repeatedly without duplicating entries
 - Concurrent executions per tenant prevented by locking
+- This guarantee was write-side only until 2026-08-25 — see Known Follow-Ups item 8 for the
+  matching read-side gap (the "what's still pending" queue didn't share it)
 
 ### Audit Trail
 - State history recorded in `TransactionStateHistories`
@@ -422,7 +476,7 @@ dictionary, so exactly one API instance may run until that guard is distributed.
 
 1. **Consolidate the duplicate `SettlementKeyResolver`/`MatchStatuses` classes** — see "Known duplication to clean up" above. Still not done as of the Level7 addition; new Level7 code deliberately builds on the canonical `Services.Reconciliation` versions to avoid making this worse.
 2. **Level7 admin UI** — the backend (matching, `ExtractionPatternsJson` on mapping templates, `banking-holidays` CRUD, `SettlementDateWindowDays` setting) is done; no frontend surfaces it yet.
-3. **Configure worker intervals** (if needed): both `ReconciliationCycleHostedService` and `JournalPostingHostedService` currently hardcode a 5-minute `RunInterval` (a `static readonly TimeSpan` at the top of each class) — not yet tenant-configurable.
+3. **Configure worker intervals** (if needed): both `ReconciliationCycleHostedService` and `JournalPostingHostedService` currently hardcode a 1-minute `RunInterval` (a `static readonly TimeSpan` at the top of each class, tightened from 5 minutes on 2026-08-25 — a QA tenant's Level4 matching had gone stale for days because the local SQL Server container had been restarting and nobody had restarted the API process alongside it) — not yet tenant-configurable. **This is not a fix for the actual gap**: the outer loop in both services already retries on its own interval after a failed cycle (see the `catch (Exception ex)` around each `while` loop), so a live process rides out a transient DB outage regardless of the interval's length — what a shorter interval buys is less matching lag *once the process is back up*. It does nothing if the API process itself isn't running (e.g. it failed to start because SQL Server was down, or crashed and nobody restarted it) — that failure mode needs process supervision (a restart policy on the API container/service, or at minimum `docker update --restart unless-stopped sql_server` so the DB container itself comes back without manual intervention), not a shorter poll interval.
 4. **Monitor Posting Events**:
    - Check transaction state transitions
    - Verify GL entries created
@@ -450,3 +504,24 @@ dictionary, so exactly one API instance may run until that guard is distributed.
    per entry in that array, so this was the only missing piece — `ImportNormalizationService` and
    the mapping-save endpoint already handled the key). Placed alongside `ReferenceNumber`, matching
    the field order in `AdminImportArchitectureController`'s canonical schema docs.
+8. ~~`GET /api/admin/transactions/journal-ready` never stops listing a transaction once it's been
+   posted~~ — **fixed 2026-08-25.** Root cause: `TransactionState` has no terminal "Posted" value
+   (see "Human confirmation is required" above) — `JournalReady` is the transaction's resting state
+   forever after promotion, by design, because it also doubles as the input filter for
+   `OperationalMatchWorker`, `CashFlowForecastService`, and the other Level1–7 matchers, which must
+   keep seeing a transaction there regardless of whether journal posting has already happened to
+   it. Both posting paths (`ReconciliationController.PostJournalFromTransaction` and
+   `JournalPostingExecutorWorker`) already had their own idempotency guard against
+   double-*posting* (checking `JournalEntries` for an existing row before creating another), but
+   nothing used that same fact to decide whether a transaction still belonged in the "needs
+   posting" queue — so a fully-posted transaction stayed visible in `AdminJournalReadyComponent`
+   indefinitely, and clicking "Post" on it just produced a confusing 409 Conflict instead of the
+   queue having already dropped it. Considered and rejected: adding a real terminal `Posted` enum
+   value — it would have silently broken every matcher above that filters on `JournalReady` still
+   holding after posting. Fix instead reuses the existing write-side idempotency signal on the read
+   side: `TransactionService.GetJournalReadyAsync` now excludes any transaction that already has a
+   `JournalEntry` row, via the same `TransactionId` check the posting endpoints use, rather than
+   introducing a second, inconsistent notion of "already posted." Verified against the QA tenant:
+   the 13 transactions the background worker had already posted across earlier cycles (all still
+   showing `JournalReady`) dropped out of the queue immediately after the fix, with zero change to
+   `dotnet test` (180/180 still green) or to the Level1–7 matching pipeline.

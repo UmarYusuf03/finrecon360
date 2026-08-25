@@ -203,6 +203,7 @@
       "LOADING": "Loading applications...",
       "NOTE_OPTIONAL": "Note (optional)",
       "NOTE_PLACEHOLDER": "Add a comment for audit trail",
+      "NOTES": "Applicant Notes",
       "ONBOARDING_LINK": "Onboarding link",
       "OPEN_LINK": "Open link",
       "REGISTRATION_NUMBER": "Registration No.",
@@ -1036,9 +1037,10 @@
   "FINANCIAL_REPORTS": {
     "EYEBROW": "Accounting",
     "TITLE": "Financial Reports",
-    "COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet, computed from posted journal entries.",
+    "COPY": "පළ කරන ලද දිනපොත් සටහන් වලින් ගණනය කරන ලද මුදල් ප්‍රවාහය, පොදු ලෙජරය, ආදායම් ප්‍රකාශනය, සහ තුලන පත්‍රය, තවද ද්විතීයික ගිණුම්කරණ අපනයන දසුනක් ලෙස තුලන පරීක්ෂණ පත්‍රිකාව.",
     "NAV_ARIA": "Financial report sections",
     "NAV": {
+      "CASH_FLOW": "මුදල් ප්‍රවාහය",
       "GENERAL_LEDGER": "General Ledger",
       "TRIAL_BALANCE": "Trial Balance",
       "INCOME_STATEMENT": "Income Statement",
@@ -1052,6 +1054,18 @@
     "ACCOUNT_NAME": "Account Name",
     "ACCOUNT_TYPE": "Account Type",
     "UNCLASSIFIED_NOTE": "{{amount}} in journal activity has no chart-of-account mapping and is excluded from this report. See the General Ledger's Unclassified account for detail.",
+    "CASH_FLOW": {
+      "TOTAL_CASH_IN": "මුළු මුදල් ලැබීම්",
+      "TOTAL_CASH_OUT": "මුළු මුදල් ගෙවීම්",
+      "NET_CHANGE": "ශුද්ධ වෙනස",
+      "DATE": "දිනය",
+      "OPENING_BALANCE": "ආරම්භක ශේෂය",
+      "CASH_IN": "මුදල් ලැබීම්",
+      "CASH_OUT": "මුදල් ගෙවීම්",
+      "CLOSING_BALANCE": "අවසාන ශේෂය",
+      "EMPTY": "මෙම දින පරාසය තුළ මුදල් ක්‍රියාකාරකම් නොමැත.",
+      "UNCLASSIFIED_NOTE": "ඉහත මුදල් චලනයෙන් {{amount}} ක් ගිණුම් සටහන් සම්බන්ධතාවයක් නොමැති දිනපොත් ප්‍රවේශයන්ගෙන් පැමිණේ. විස්තර සඳහා පොදු ලෙජරයේ 'වර්ගීකරණය නොකළ' ගිණුම බලන්න."
+    },
     "GENERAL_LEDGER": {
       "EMPTY": "No journal activity in this date range.",
       "OPENING": "Opening",
@@ -1100,7 +1114,7 @@
     "EYEBROW": "Reporting",
     "TITLE": "Reports",
     "COPY": "One place to reach every report and analytics page: financial statements, reconciliation trends, cash flow forecasting, the live dashboard, and scheduled report emails.",
-    "FINANCIAL_REPORTS_COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet.",
+    "FINANCIAL_REPORTS_COPY": "මුදල් ප්‍රවාහය, පොදු ලෙජරය, ආදායම් ප්‍රකාශනය, සහ තුලන පත්‍රය, තවද ද්විතීයික අපනයනයක් ලෙස තුලන පරීක්ෂණ පත්‍රිකාව.",
     "RECONCILIATION_TRENDS_COPY": "Daily match, confirmation, exception, and backlog trends.",
     "CASH_FLOW_COPY": "Projected cash position based on confirmed and pending transactions.",
     "DASHBOARD_TITLE": "Dashboard",

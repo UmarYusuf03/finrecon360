@@ -194,6 +194,13 @@ export const mainRoutes: Routes = [
             data: { permissions: ['ADMIN.FINANCIAL_REPORTS.VIEW'] },
             children: [
               {
+                path: 'cash-flow',
+                loadComponent: () =>
+                  import('./pages/admin/admin-cash-flow-report').then(
+                    (m) => m.AdminCashFlowReportComponent,
+                  ),
+              },
+              {
                 path: 'general-ledger',
                 loadComponent: () =>
                   import('./pages/admin/admin-general-ledger').then(
@@ -221,7 +228,7 @@ export const mainRoutes: Routes = [
                     (m) => m.AdminBalanceSheetComponent,
                   ),
               },
-              { path: '', pathMatch: 'full', redirectTo: 'general-ledger' },
+              { path: '', pathMatch: 'full', redirectTo: 'cash-flow' },
             ],
           },
           {

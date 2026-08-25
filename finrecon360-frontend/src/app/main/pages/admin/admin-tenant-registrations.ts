@@ -32,6 +32,20 @@ export class AdminTenantRegistrationsComponent implements OnInit {
   }
 
   selectedDetail: TenantRegistrationDetail | null = null;
+
+  get selectedNotes(): string | null {
+    const raw = this.selectedDetail?.onboardingMetadata;
+    if (!raw) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw) as { notes?: string };
+      return parsed.notes?.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
   loading = true;
   processing = false;
   statusFilter = 'PENDING_REVIEW';

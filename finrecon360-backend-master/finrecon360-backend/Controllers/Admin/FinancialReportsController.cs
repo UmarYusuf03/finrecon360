@@ -27,6 +27,8 @@ namespace finrecon360_backend.Controllers.Admin
 
     public record BalanceSheetExportRow(string Section, string AccountCode, string AccountName, decimal Amount);
 
+    public record CashFlowExportRow(DateTime Date, decimal OpeningBalance, decimal CashIn, decimal CashOut, decimal ClosingBalance);
+
     [ApiController]
     [Route("api/admin/financial-reports")]
     [Authorize]
@@ -69,6 +71,15 @@ namespace finrecon360_backend.Controllers.Admin
             new("Amount", r => r.Amount.ToString("0.00")),
         };
 
+        private static readonly IReadOnlyList<ExportColumn<CashFlowExportRow>> CashFlowExportColumns = new List<ExportColumn<CashFlowExportRow>>
+        {
+            new("Date", r => r.Date.ToString("yyyy-MM-dd")),
+            new("Opening Balance", r => r.OpeningBalance.ToString("0.00")),
+            new("Cash In", r => r.CashIn.ToString("0.00")),
+            new("Cash Out", r => r.CashOut.ToString("0.00")),
+            new("Closing Balance", r => r.ClosingBalance.ToString("0.00")),
+        };
+
         private readonly AppDbContext _dbContext;
         private readonly ITenantContext _tenantContext;
         private readonly ITenantDbContextFactory _tenantDbContextFactory;
@@ -77,6 +88,7 @@ namespace finrecon360_backend.Controllers.Admin
         private readonly ITrialBalanceService _trialBalanceService;
         private readonly IIncomeStatementService _incomeStatementService;
         private readonly IBalanceSheetService _balanceSheetService;
+        private readonly ICashFlowReportService _cashFlowReportService;
         private readonly IReportExporter _reportExporter;
 
         public FinancialReportsController(
@@ -88,6 +100,7 @@ namespace finrecon360_backend.Controllers.Admin
             ITrialBalanceService trialBalanceService,
             IIncomeStatementService incomeStatementService,
             IBalanceSheetService balanceSheetService,
+            ICashFlowReportService cashFlowReportService,
             IReportExporter reportExporter)
         {
             _dbContext = dbContext;
@@ -98,6 +111,7 @@ namespace finrecon360_backend.Controllers.Admin
             _trialBalanceService = trialBalanceService;
             _incomeStatementService = incomeStatementService;
             _balanceSheetService = balanceSheetService;
+            _cashFlowReportService = cashFlowReportService;
             _reportExporter = reportExporter;
         }
 
@@ -281,6 +295,56 @@ namespace finrecon360_backend.Controllers.Admin
 
             var file = _reportExporter.Export(rows, BalanceSheetExportColumns, "Balance Sheet", exportFormat);
             return File(file.Content, file.ContentType, $"balance-sheet-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
+        }
+
+        [HttpGet("cash-flow")]
+        public async Task<ActionResult<CashFlowResponse>> GetCashFlow(
+            [FromQuery] DateTime? fromUtc,
+            [FromQuery] DateTime? toUtc,
+            CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            var range = ResolveGeneralLedgerRange(fromUtc, toUtc);
+            if (range.Error != null) return range.Error;
+
+            var result = await _cashFlowReportService.GetAsync(tenantDb, range.From, range.To, ct);
+            return Ok(result);
+        }
+
+        [HttpGet("cash-flow/export")]
+        public async Task<IActionResult> ExportCashFlow(
+            [FromQuery] string? format,
+            [FromQuery] DateTime? fromUtc,
+            [FromQuery] DateTime? toUtc,
+            CancellationToken ct)
+        {
+            var auth = await AuthorizeTenantUserAsync(ct);
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (!_reportExporter.TryParseFormat(format, out var exportFormat))
+            {
+                return BadRequest(new { message = "Unsupported export format. Use 'csv' or 'xlsx'." });
+            }
+
+            var range = ResolveGeneralLedgerRange(fromUtc, toUtc);
+            if (range.Error != null) return range.Error;
+
+            var result = await _cashFlowReportService.GetAsync(tenantDb, range.From, range.To, ct);
+            var rows = result.Days
+                .Select(d => new CashFlowExportRow(d.Date, d.OpeningBalance, d.CashIn, d.CashOut, d.ClosingBalance))
+                .ToList();
+
+            if (rows.Count > _reportExporter.MaxRows)
+            {
+                return BadRequest(new { message = $"Export limited to {_reportExporter.MaxRows} rows. Narrow the date range and try again." });
+            }
+
+            var file = _reportExporter.Export(rows, CashFlowExportColumns, "Cash Flow", exportFormat);
+            return File(file.Content, file.ContentType, $"cash-flow-{DateTime.UtcNow:yyyyMMddHHmmss}.{file.FileExtension}");
         }
 
         private static (DateTime From, DateTime To, ActionResult? Error) ResolveGeneralLedgerRange(DateTime? fromUtc, DateTime? toUtc)

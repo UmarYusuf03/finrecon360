@@ -13,7 +13,7 @@ namespace finrecon360_backend.Services.Reporting
     /// </summary>
     public interface IScheduledReportRenderer
     {
-        /// <summary>Recognized values: TrialBalance, IncomeStatement, BalanceSheet, ReconciliationTrend.</summary>
+        /// <summary>Recognized values: TrialBalance, IncomeStatement, BalanceSheet, CashFlow, ReconciliationTrend.</summary>
         bool IsKnownReportType(string reportType);
 
         Task<ExportFile> RenderAsync(
@@ -54,26 +54,38 @@ namespace finrecon360_backend.Services.Reporting
             new("Avg Time To Match (hrs)", d => d.AverageTimeToMatchHours?.ToString("0.00")),
         };
 
+        private static readonly IReadOnlyList<ExportColumn<CashFlowDayDto>> CashFlowColumns = new List<ExportColumn<CashFlowDayDto>>
+        {
+            new("Date", d => d.Date.ToString("yyyy-MM-dd")),
+            new("Opening Balance", d => d.OpeningBalance.ToString("0.00")),
+            new("Cash In", d => d.CashIn.ToString("0.00")),
+            new("Cash Out", d => d.CashOut.ToString("0.00")),
+            new("Closing Balance", d => d.ClosingBalance.ToString("0.00")),
+        };
+
         private readonly ITrialBalanceService _trialBalanceService;
         private readonly IIncomeStatementService _incomeStatementService;
         private readonly IBalanceSheetService _balanceSheetService;
+        private readonly ICashFlowReportService _cashFlowReportService;
         private readonly IReportExporter _reportExporter;
 
         public ScheduledReportRenderer(
             ITrialBalanceService trialBalanceService,
             IIncomeStatementService incomeStatementService,
             IBalanceSheetService balanceSheetService,
+            ICashFlowReportService cashFlowReportService,
             IReportExporter reportExporter)
         {
             _trialBalanceService = trialBalanceService;
             _incomeStatementService = incomeStatementService;
             _balanceSheetService = balanceSheetService;
+            _cashFlowReportService = cashFlowReportService;
             _reportExporter = reportExporter;
         }
 
         public bool IsKnownReportType(string reportType) => reportType switch
         {
-            "TrialBalance" or "IncomeStatement" or "BalanceSheet" or "ReconciliationTrend" => true,
+            "TrialBalance" or "IncomeStatement" or "BalanceSheet" or "CashFlow" or "ReconciliationTrend" => true,
             _ => false,
         };
 
@@ -109,6 +121,11 @@ namespace finrecon360_backend.Services.Reporting
                         .Concat(report.EquityLines.Select(l => ("Equity", l.AccountCode, l.AccountName, l.Amount)))
                         .ToList();
                     return _reportExporter.Export(rows, SectionedLineColumns, "Balance Sheet", format);
+                }
+                case "CashFlow":
+                {
+                    var report = await _cashFlowReportService.GetAsync(db, weekAgo, now, ct);
+                    return _reportExporter.Export(report.Days, CashFlowColumns, "Cash Flow", format);
                 }
                 case "ReconciliationTrend":
                 {

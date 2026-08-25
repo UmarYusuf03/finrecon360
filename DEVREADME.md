@@ -124,7 +124,7 @@ What is already implemented beyond tenancy/onboarding/RBAC:
 - canonical import foundation in backend and frontend (`/app/imports` and `/app/admin/import-architecture`)
 - import pipeline stages: upload -> parse -> field mapping -> validation -> normalization commit
 - canonical schema and mapping-template management APIs for tenant-admin users
-- reporting: CSV/XLSX export on every list screen, financial statements (General Ledger, Trial Balance, Income Statement, Balance Sheet), reconciliation trend charts, a tenant-wide daily KPI snapshot pipeline, a Reports Hub landing page, and weekly emailed report schedules — see `docs/architecture/reporting-implementation-plan.md` for the phase-by-phase detail
+- reporting: CSV/XLSX export on every list screen, financial statements (General Ledger, Cash Flow, Income Statement, Balance Sheet, plus Trial Balance as a secondary accounting-export view), reconciliation trend charts, a tenant-wide daily KPI snapshot pipeline, a Reports Hub landing page, and weekly emailed report schedules — see `docs/architecture/reporting-implementation-plan.md` for the phase-by-phase detail
 
 What remains target-state:
 

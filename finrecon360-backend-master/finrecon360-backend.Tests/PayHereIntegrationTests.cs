@@ -257,14 +257,22 @@ public class PayHereIntegrationTests : IClassFixture<TestWebApplicationFactory>
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            // Program.cs reads ConnectionStrings:DefaultConnection and Jwt:Key/Issuer/Audience synchronously
+            // before WebApplicationFactory's ConfigureAppConfiguration delegate below is merged in, so they
+            // must arrive as real environment variables (read eagerly by WebApplication.CreateBuilder) rather
+            // than via that delegate. This factory intentionally uses "Production" (not "Testing") to exercise
+            // Program.cs's real production guard, so it doesn't get Program.cs's Testing-only Jwt fallback either.
+            // The connection string value is never actually opened: ConfigureServices further down replaces it
+            // with UseInMemoryDatabase before any request is served.
+            Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", "Server=localhost;Database=ProdGuardDb;Trusted_Connection=True;TrustServerCertificate=True;");
+            Environment.SetEnvironmentVariable("Jwt__Key", "test-signing-key-should-be-long-32chars");
+            Environment.SetEnvironmentVariable("Jwt__Issuer", "test-issuer");
+            Environment.SetEnvironmentVariable("Jwt__Audience", "test-audience");
             builder.UseEnvironment("Production");
             builder.ConfigureAppConfiguration((_, config) =>
             {
                 var settings = new Dictionary<string, string?>
                 {
-                    ["Jwt:Key"] = "test-signing-key-should-be-long-32chars",
-                    ["Jwt:Issuer"] = "test-issuer",
-                    ["Jwt:Audience"] = "test-audience",
                     ["Jwt:ExpiresMinutes"] = "60",
                     ["FRONTEND_BASE_URL"] = "http://localhost:4200",
                     ["PAYHERE_MERCHANT_ID"] = string.Empty,

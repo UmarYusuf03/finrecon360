@@ -261,38 +261,94 @@ namespace finrecon360_backend.Services.Workers
 
             if (exactMatch.Outcome == AmountMatcher.Outcome.Ambiguous || feeMatch.Outcome == AmountMatcher.Outcome.Ambiguous)
             {
+                var ambiguous = exactMatch.Outcome == AmountMatcher.Outcome.Ambiguous ? exactMatch : feeMatch;
                 _logger.LogWarning(
                     "Ambiguous BANK match for transaction {TransactionId}: {Count} candidates within tolerance of amount={Amount}",
                     txn.TransactionId, Math.Max(exactMatch.CandidateCount, feeMatch.CandidateCount), txn.Amount);
+
+                // Tier3: a candidate exists but isn't confidently the only one — per the documented
+                // tiered design (class doc above, WORKER-INTEGRATION.md "Level4 detail"), this still
+                // gets routed to a human instead of being dropped with nothing for anyone to act on.
+                var ambiguousBank = ambiguous.Best!;
+                await AddMatchGroupAsync(
+                    tenantDb, txn, gatewayRecord, ambiguousBank, settlementKey, processingFee,
+                    variance: Math.Abs(ambiguousBank.NetAmount - txn.Amount),
+                    ruleTriggered: "Tier3_AmbiguousBankMatch",
+                    autoConfirm: false, ct);
+
                 return MatchOutcome.Exception;
             }
 
             string ruleTriggered;
             ImportedNormalizedRecord bankRecord;
             decimal variance;
+            bool autoConfirm;
 
             if (exactMatch.Outcome == AmountMatcher.Outcome.Matched)
             {
                 ruleTriggered = "Tier1_ExactMatch";
                 bankRecord = exactMatch.Best!;
                 variance = Math.Abs(bankRecord.NetAmount - txn.Amount);
+                autoConfirm = true;
             }
             else if (feeMatch.Outcome == AmountMatcher.Outcome.Matched)
             {
                 ruleTriggered = "Tier2_FeeExplained";
                 bankRecord = feeMatch.Best!;
                 variance = processingFee; // the gap is the known fee, not an unexplained discrepancy
+                autoConfirm = true;
             }
             else
             {
-                // Tier3: neither basis reconciles — genuine, unexplained amount variance.
-                var firstCandidate = scopedCandidates[0];
-                var rawVariance = firstCandidate.NetAmount - txn.Amount;
+                // Tier3: neither basis reconciles — genuine, unexplained amount variance. Still
+                // routed to a human for review rather than dropped; see the ambiguous branch above
+                // for why (same tiered-design contract, same fix).
+                ruleTriggered = "Tier3_RequiresReview";
+                bankRecord = scopedCandidates[0];
+                variance = Math.Abs(bankRecord.NetAmount - txn.Amount);
+                autoConfirm = false;
+
                 _logger.LogWarning(
                     "Amount variance for transaction {TransactionId}: expected {Expected}, bank={Bank}, variance={Variance}",
-                    txn.TransactionId, txn.Amount, firstCandidate.NetAmount, rawVariance);
-                return MatchOutcome.Exception;
+                    txn.TransactionId, txn.Amount, bankRecord.NetAmount, variance);
             }
+
+            await AddMatchGroupAsync(
+                tenantDb, txn, gatewayRecord, bankRecord, settlementKey, processingFee, variance, ruleTriggered, autoConfirm, ct);
+
+            if (autoConfirm)
+            {
+                _logger.LogInformation(
+                    "Level4 AUTO-CONFIRMED ({Rule}) transaction {TransactionId}: settlement key '{Key}'",
+                    ruleTriggered, txn.TransactionId, settlementKey);
+                return MatchOutcome.AutoMatched;
+            }
+
+            _logger.LogInformation(
+                "Level4 PENDING-REVIEW ({Rule}) transaction {TransactionId}: settlement key '{Key}'",
+                ruleTriggered, txn.TransactionId, settlementKey);
+            return MatchOutcome.Exception;
+        }
+
+        /// <summary>
+        /// Creates the match group + linked GATEWAY/BANK records for either an auto-confirmed
+        /// (Tier1/Tier2) or pending-review (Tier3) outcome, and promotes the transaction only for
+        /// the auto-confirmed case — a human does that via ReconciliationMatchConfirmationService
+        /// for Tier3, same as ConfirmMatchAsync already does once this group exists for it to find.
+        /// </summary>
+        private static async Task AddMatchGroupAsync(
+            TenantDbContext tenantDb,
+            Transaction txn,
+            ImportedNormalizedRecord gatewayRecord,
+            ImportedNormalizedRecord bankRecord,
+            string settlementKey,
+            decimal processingFee,
+            decimal variance,
+            string ruleTriggered,
+            bool autoConfirm,
+            CancellationToken ct)
+        {
+            var now = DateTime.UtcNow;
 
             var matchGroup = new ReconciliationMatchGroup
             {
@@ -300,14 +356,14 @@ namespace finrecon360_backend.Services.Workers
                 ImportBatchId = gatewayRecord.ImportBatchId,
                 MatchLevel = "Level4",
                 SettlementKey = settlementKey,
-                IsConfirmed = true,
-                ConfirmedByUserId = null, // system auto-confirm, not a human
-                ConfirmedAt = DateTime.UtcNow,
+                IsConfirmed = autoConfirm,
+                ConfirmedByUserId = null, // system auto-confirm, not a human; null either way pre-review
+                ConfirmedAt = autoConfirm ? now : null,
                 IsJournalPosted = false,
                 MatchedAmount = bankRecord.NetAmount,
                 Variance = variance,
-                Status = "Confirmed",
-                CreatedAt = DateTime.UtcNow,
+                Status = autoConfirm ? "Confirmed" : "Pending",
+                CreatedAt = now,
                 MatchMetadataJson = new MatchGroupMetadata
                 {
                     TransactionId = txn.TransactionId,
@@ -317,11 +373,11 @@ namespace finrecon360_backend.Services.Workers
                     BankNetTotal = bankRecord.NetAmount,
                     ProcessingFeeTotal = processingFee,
                     Variance = variance,
-                    AutoMatched = true,
+                    AutoMatched = autoConfirm,
                     RuleTriggered = ruleTriggered,
                     GatewayRecordCount = 1,
                     BankRecordCount = 1,
-                    MatchedAt = DateTime.UtcNow
+                    MatchedAt = now
                 }.Serialize()
             };
             tenantDb.ReconciliationMatchGroups.Add(matchGroup);
@@ -333,7 +389,7 @@ namespace finrecon360_backend.Services.Workers
                 ImportedNormalizedRecordId = gatewayRecord.ImportedNormalizedRecordId,
                 SourceType = "GATEWAY",
                 MatchAmount = gatewayRecord.NetAmount,
-                LinkedAt = DateTime.UtcNow,
+                LinkedAt = now,
             });
 
             tenantDb.ReconciliationMatchedRecords.Add(new ReconciliationMatchedRecord
@@ -343,22 +399,23 @@ namespace finrecon360_backend.Services.Workers
                 ImportedNormalizedRecordId = bankRecord.ImportedNormalizedRecordId,
                 SourceType = "BANK",
                 MatchAmount = bankRecord.NetAmount,
-                LinkedAt = DateTime.UtcNow,
+                LinkedAt = now,
             });
 
+            // Claimed by this group either way — pending-review is still a claim, so a later cycle
+            // (or another transaction's candidate search) doesn't propose the same BANK/GATEWAY
+            // record again while this one awaits a human. RejectMatchAsync resets MatchStatus back
+            // to PENDING if a reviewer decides this pairing was wrong.
             gatewayRecord.MatchStatus = MatchStatuses.Matched;
             bankRecord.MatchStatus = MatchStatuses.Matched;
 
-            // Auto-confirmation must also promote the linked transaction — IsConfirmed alone
-            // doesn't move it out of NeedsBankMatch; this is the same side effect
-            // ReconciliationMatchConfirmationService runs for a human confirmation.
-            await CardCashoutPromoter.PromoteLinkedTransactionAsync(tenantDb, matchGroup, confirmedByUserId: null, DateTime.UtcNow, ct);
-
-            _logger.LogInformation(
-                "Level4 AUTO-CONFIRMED ({Rule}) transaction {TransactionId}: settlement key '{Key}', match group {GroupId}",
-                ruleTriggered, txn.TransactionId, settlementKey, matchGroup.ReconciliationMatchGroupId);
-
-            return MatchOutcome.AutoMatched;
+            if (autoConfirm)
+            {
+                // Auto-confirmation must also promote the linked transaction — IsConfirmed alone
+                // doesn't move it out of NeedsBankMatch; this is the same side effect
+                // ReconciliationMatchConfirmationService runs for a human confirmation.
+                await CardCashoutPromoter.PromoteLinkedTransactionAsync(tenantDb, matchGroup, confirmedByUserId: null, now, ct);
+            }
         }
 
         private static List<ImportedNormalizedRecord> FindGatewayCandidates(
