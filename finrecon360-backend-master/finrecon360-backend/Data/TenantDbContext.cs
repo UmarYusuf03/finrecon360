@@ -488,6 +488,24 @@ namespace finrecon360_backend.Data
                     .HasDefaultValueSql("SYSUTCDATETIME()");
                 entity.HasIndex(x => x.TransactionId);
                 entity.HasIndex(x => x.ReconciliationMatchGroupId);
+
+                // Without these, EF has no model-level knowledge that these scalar FK columns
+                // reference other tracked entities, so it can't order INSERTs against them —
+                // harmless when the referenced row is already persisted (the usual cash/card
+                // cashout path), but PosSettlementPoster stages a JournalVoucher and its
+                // ReconciliationMatchGroup in the same SaveChanges call for an auto-confirmed
+                // Level7 match, and without a declared relationship EF has a 50/50 chance of
+                // emitting the INSERT in the wrong order, hitting the real DB-level
+                // FK_JournalVouchers_MatchGroups_GroupId constraint.
+                entity.HasOne(x => x.Transaction)
+                    .WithMany()
+                    .HasForeignKey(x => x.TransactionId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(x => x.ReconciliationMatchGroup)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReconciliationMatchGroupId)
+                    .OnDelete(DeleteBehavior.NoAction);
             });
 
             modelBuilder.Entity<ReconciliationSettings>(entity =>

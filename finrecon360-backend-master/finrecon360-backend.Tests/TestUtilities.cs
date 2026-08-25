@@ -53,6 +53,12 @@ public class TestWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Program.cs reads ConnectionStrings:DefaultConnection synchronously before WebApplicationFactory's
+        // ConfigureAppConfiguration delegate below is merged in, so it must arrive as a real environment
+        // variable (read eagerly by WebApplication.CreateBuilder) rather than via that delegate. The value
+        // is never actually opened: ConfigureServices further down replaces this with UseInMemoryDatabase
+        // before any request is served.
+        Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", "Server=localhost;Database=TestDb;Trusted_Connection=True;TrustServerCertificate=True;");
         builder.UseEnvironment("Testing");
         builder.ConfigureAppConfiguration((_, config) =>
         {

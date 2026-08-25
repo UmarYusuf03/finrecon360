@@ -49,7 +49,7 @@ const WEEKDAY_KEYS = [
   styleUrls: ['./admin-report-schedules.scss'],
 })
 export class AdminReportSchedulesComponent implements OnInit {
-  readonly reportTypes = ['TrialBalance', 'IncomeStatement', 'BalanceSheet', 'ReconciliationTrend'];
+  readonly reportTypes = ['CashFlow', 'TrialBalance', 'IncomeStatement', 'BalanceSheet', 'ReconciliationTrend'];
   readonly formats = ['csv', 'xlsx'];
   readonly weekdayKeys = WEEKDAY_KEYS;
   readonly displayedColumns = ['reportType', 'format', 'dayOfWeek', 'recipientEmail', 'nextRunAt', 'lastRunAt', 'active', 'actions'];

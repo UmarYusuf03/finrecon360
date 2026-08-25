@@ -11,6 +11,15 @@ namespace finrecon360_backend.Dtos.Reporting
         public const string Name = "Unclassified (no chart of account mapping)";
     }
 
+    // Synthetic equity line on the Balance Sheet representing cumulative Revenue minus Expense
+    // account activity as of the report date — the standard retained-earnings roll-up needed for
+    // Assets == Liabilities + Equity to hold. Not backed by a real ChartOfAccount row.
+    public static class RetainedEarningsAccount
+    {
+        public const string Code = "RETAINED-EARNINGS";
+        public const string Name = "Retained Earnings (Net Income)";
+    }
+
     public record GeneralLedgerEntryDto(
         DateTime PostedAt,
         Guid JournalEntryId,
@@ -72,4 +81,10 @@ namespace finrecon360_backend.Dtos.Reporting
         decimal TotalLiabilities,
         decimal TotalEquity,
         decimal UnclassifiedAmount);
+
+    public record CashFlowDayDto(DateTime Date, decimal OpeningBalance, decimal CashIn, decimal CashOut, decimal ClosingBalance);
+
+    public record CashFlowResponse(
+        DateTime FromUtc, DateTime ToUtc, IReadOnlyList<CashFlowDayDto> Days,
+        decimal TotalCashIn, decimal TotalCashOut, decimal NetChange, decimal UnclassifiedAmount);
 }

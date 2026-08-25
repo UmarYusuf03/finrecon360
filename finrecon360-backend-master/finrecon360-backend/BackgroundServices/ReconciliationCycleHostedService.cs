@@ -22,7 +22,10 @@ namespace finrecon360_backend.BackgroundServices
     /// rows may still exist in tenant databases).
     ///
     /// Behavior:
-    /// - Runs on an interval (default: every 5 minutes)
+    /// - Runs on an interval (default: every 1 minute — tightened 2026-08-25 from the original
+    ///   5 minutes so a transient SQL Server outage costs at most ~1 minute of matching lag once
+    ///   the API process is back up; the outer loop already retries on this same interval after
+    ///   a failed cycle, so this doesn't change failure handling, only how quickly it recovers)
     /// - For each active tenant, runs the matching workers in Level order using one
     ///   TenantDbContext per cycle
     /// - Each worker runs in its own try/catch so one worker's failure doesn't block the rest
@@ -35,7 +38,7 @@ namespace finrecon360_backend.BackgroundServices
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<ReconciliationCycleHostedService> _logger;
 
-        private static readonly TimeSpan RunInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan RunInterval = TimeSpan.FromMinutes(1);
         private static readonly Dictionary<Guid, bool> RunningTenants = new();
 
         public ReconciliationCycleHostedService(

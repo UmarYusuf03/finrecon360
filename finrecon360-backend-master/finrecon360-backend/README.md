@@ -27,7 +27,7 @@ Implemented backend areas:
 - needs-bank-match transaction queue
 - `api/me` tenant resolution and permission hydration
 - six-level reconciliation matching chain (Operational/Sync-Audit/Sales/Expense/Collection/Settlement) running on a background cycle, plus automated journal posting — see `../../WORKER-INTEGRATION.md`
-- reporting: `Services/Export/ReportExporter.cs` (CSV/XLSX, shared by every export endpoint), `Services/Reporting/*` (General Ledger, Trial Balance, Income Statement, Balance Sheet), `ReconciliationDailySnapshot`/`TenantDailySnapshot` tables populated daily by `BackgroundServices/ReconciliationSnapshotHostedService.cs`, and `ReportSchedule` + `BackgroundServices/ReportScheduleHostedService.cs` for weekly emailed reports — see `../../docs/architecture/reporting-implementation-plan.md` for the phase-by-phase detail
+- reporting: `Services/Export/ReportExporter.cs` (CSV/XLSX, shared by every export endpoint), `Services/Reporting/*` (General Ledger, Cash Flow, Income Statement, Balance Sheet, plus Trial Balance as a secondary accounting-export view), `ReconciliationDailySnapshot`/`TenantDailySnapshot` tables populated daily by `BackgroundServices/ReconciliationSnapshotHostedService.cs`, and `ReportSchedule` + `BackgroundServices/ReportScheduleHostedService.cs` for weekly emailed reports — see `../../docs/architecture/reporting-implementation-plan.md` for the phase-by-phase detail
 
 Not yet implemented as finance-operational modules:
 

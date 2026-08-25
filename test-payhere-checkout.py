@@ -5,6 +5,7 @@ Tests if merchant credentials work with PayHere sandbox
 """
 
 import hashlib
+import os
 import sys
 from urllib.parse import urlencode
 
@@ -66,9 +67,13 @@ def main():
     print("PayHere Sandbox Checkout Verification")
     print("=" * 80)
     
-    # Your credentials
-    merchant_id = "1235059"
-    merchant_secret = "2062380248294231799519543775622691672540"
+    # Credentials are read from the environment, never hardcoded here.
+    merchant_id = os.environ.get("PAYHERE_MERCHANT_ID")
+    merchant_secret = os.environ.get("PAYHERE_MERCHANT_SECRET")
+    if not merchant_id or not merchant_secret:
+        print("ERROR: set PAYHERE_MERCHANT_ID and PAYHERE_MERCHANT_SECRET in your environment before running this script.")
+        print("  e.g. export PAYHERE_MERCHANT_ID=... PAYHERE_MERCHANT_SECRET=...")
+        sys.exit(1)
     order_id = "TEST-ORDER-001"
     amount = "0.50"  # 50 cents in LKR
     currency = "LKR"

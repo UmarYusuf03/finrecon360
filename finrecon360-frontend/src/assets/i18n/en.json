@@ -359,6 +359,7 @@
       "LOADING": "Loading applications...",
       "NOTE_OPTIONAL": "Note (optional)",
       "NOTE_PLACEHOLDER": "Add a comment for audit trail",
+      "NOTES": "Applicant Notes",
       "ONBOARDING_LINK": "Onboarding link",
       "OPEN_LINK": "Open link",
       "REGISTRATION_NUMBER": "Registration No.",
@@ -970,9 +971,10 @@
   "FINANCIAL_REPORTS": {
     "EYEBROW": "Accounting",
     "TITLE": "Financial Reports",
-    "COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet, computed from posted journal entries.",
+    "COPY": "Cash Flow, General Ledger, Income Statement, and Balance Sheet, computed from posted journal entries, plus Trial Balance as a secondary accounting-export view.",
     "NAV_ARIA": "Financial report sections",
     "NAV": {
+      "CASH_FLOW": "Cash Flow",
       "GENERAL_LEDGER": "General Ledger",
       "TRIAL_BALANCE": "Trial Balance",
       "INCOME_STATEMENT": "Income Statement",
@@ -986,6 +988,18 @@
     "ACCOUNT_NAME": "Account Name",
     "ACCOUNT_TYPE": "Account Type",
     "UNCLASSIFIED_NOTE": "{{amount}} in journal activity has no chart-of-account mapping and is excluded from this report. See the General Ledger's Unclassified account for detail.",
+    "CASH_FLOW": {
+      "TOTAL_CASH_IN": "Total Cash In",
+      "TOTAL_CASH_OUT": "Total Cash Out",
+      "NET_CHANGE": "Net Change",
+      "DATE": "Date",
+      "OPENING_BALANCE": "Opening Balance",
+      "CASH_IN": "Cash In",
+      "CASH_OUT": "Cash Out",
+      "CLOSING_BALANCE": "Closing Balance",
+      "EMPTY": "No cash activity in this date range.",
+      "UNCLASSIFIED_NOTE": "{{amount}} of the cash movement above came from journal entries with no chart-of-account mapping. See the General Ledger's Unclassified account for detail."
+    },
     "GENERAL_LEDGER": {
       "EMPTY": "No journal activity in this date range.",
       "OPENING": "Opening",
@@ -1034,7 +1048,7 @@
     "EYEBROW": "Reporting",
     "TITLE": "Reports",
     "COPY": "One place to reach every report and analytics page: financial statements, reconciliation trends, cash flow forecasting, the live dashboard, and scheduled report emails.",
-    "FINANCIAL_REPORTS_COPY": "General Ledger, Trial Balance, Income Statement, and Balance Sheet.",
+    "FINANCIAL_REPORTS_COPY": "Cash Flow, General Ledger, Income Statement, and Balance Sheet, plus Trial Balance as a secondary export.",
     "RECONCILIATION_TRENDS_COPY": "Daily match, confirmation, exception, and backlog trends.",
     "CASH_FLOW_COPY": "Projected cash position based on confirmed and pending transactions.",
     "DASHBOARD_TITLE": "Dashboard",

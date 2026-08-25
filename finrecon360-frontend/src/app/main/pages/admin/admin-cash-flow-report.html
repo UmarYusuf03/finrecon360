@@ -1,0 +1,71 @@
+<div class="reports-toolbar">
+  <label class="reports-field">
+    <span>{{ 'FINANCIAL_REPORTS.FROM' | translate }}</span>
+    <input type="date" [(ngModel)]="fromDate" (ngModelChange)="onFiltersChanged()" />
+  </label>
+  <label class="reports-field">
+    <span>{{ 'FINANCIAL_REPORTS.TO' | translate }}</span>
+    <input type="date" [(ngModel)]="toDate" (ngModelChange)="onFiltersChanged()" />
+  </label>
+
+  <div class="reports-toolbar__actions">
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('csv')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_CSV') | translate }}
+    </button>
+    <button type="button" class="reports-btn" [disabled]="exporting || loading" (click)="exportReport('xlsx')">
+      {{ (exporting ? 'COMMON.EXPORTING' : 'COMMON.EXPORT_XLSX') | translate }}
+    </button>
+  </div>
+</div>
+
+<div class="reports-state" *ngIf="loading">{{ 'FINANCIAL_REPORTS.LOADING' | translate }}</div>
+<div class="reports-state reports-state--error" *ngIf="!loading && error" role="alert">{{ error }}</div>
+
+<ng-container *ngIf="!loading && !error && report">
+  <div class="reports-stats">
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.CASH_FLOW.TOTAL_CASH_IN' | translate }}</span>
+      <strong class="positive">{{ report.totalCashIn | number: '1.2-2' }}</strong>
+    </article>
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.CASH_FLOW.TOTAL_CASH_OUT' | translate }}</span>
+      <strong class="negative">{{ report.totalCashOut | number: '1.2-2' }}</strong>
+    </article>
+    <article class="reports-stat">
+      <span>{{ 'FINANCIAL_REPORTS.CASH_FLOW.NET_CHANGE' | translate }}</span>
+      <strong [class.positive]="report.netChange >= 0" [class.negative]="report.netChange < 0">
+        {{ report.netChange | number: '1.2-2' }}
+      </strong>
+    </article>
+  </div>
+
+  <div class="reports-table-wrap">
+    <table class="reports-table">
+      <thead>
+        <tr>
+          <th>{{ 'FINANCIAL_REPORTS.CASH_FLOW.DATE' | translate }}</th>
+          <th class="numeric">{{ 'FINANCIAL_REPORTS.CASH_FLOW.OPENING_BALANCE' | translate }}</th>
+          <th class="numeric">{{ 'FINANCIAL_REPORTS.CASH_FLOW.CASH_IN' | translate }}</th>
+          <th class="numeric">{{ 'FINANCIAL_REPORTS.CASH_FLOW.CASH_OUT' | translate }}</th>
+          <th class="numeric">{{ 'FINANCIAL_REPORTS.CASH_FLOW.CLOSING_BALANCE' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let day of report.days">
+          <td>{{ day.date | date: 'yyyy-MM-dd' : 'UTC' }}</td>
+          <td class="numeric">{{ day.openingBalance | number: '1.2-2' }}</td>
+          <td class="numeric">{{ day.cashIn | number: '1.2-2' }}</td>
+          <td class="numeric">{{ day.cashOut | number: '1.2-2' }}</td>
+          <td class="numeric">{{ day.closingBalance | number: '1.2-2' }}</td>
+        </tr>
+        <tr *ngIf="report.days.length === 0">
+          <td colspan="5" class="reports-state">{{ 'FINANCIAL_REPORTS.CASH_FLOW.EMPTY' | translate }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="reports-note" *ngIf="report.unclassifiedAmount !== 0">
+    {{ 'FINANCIAL_REPORTS.CASH_FLOW.UNCLASSIFIED_NOTE' | translate: { amount: (report.unclassifiedAmount | number: '1.2-2') } }}
+  </p>
+</ng-container>

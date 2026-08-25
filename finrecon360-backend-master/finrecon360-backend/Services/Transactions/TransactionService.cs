@@ -126,9 +126,14 @@ namespace finrecon360_backend.Services.Transactions
         public async Task<List<TransactionResponse>> GetJournalReadyAsync(TenantDbContext db, CancellationToken ct)
         {
             // Intentionally excludes NeedsBankMatch items; those must be matched before journal posting.
+            // TransactionState has no terminal "Posted" value (JournalReady is also the input queue
+            // several reconciliation match workers key off), so "still needs posting" is determined
+            // the same way the posting endpoints already guard against double-posting: by the
+            // absence of a JournalEntry, not by transaction state.
             var items = await db.Transactions
                 .AsNoTracking()
-                .Where(x => x.TransactionState == TransactionState.JournalReady)
+                .Where(x => x.TransactionState == TransactionState.JournalReady
+                    && !db.JournalEntries.Any(j => j.TransactionId == x.TransactionId))
                 .OrderBy(x => x.TransactionDate)
                 .ThenBy(x => x.CreatedAt)
                 .ToListAsync(ct);

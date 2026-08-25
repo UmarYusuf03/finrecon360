@@ -205,6 +205,7 @@ namespace finrecon360_backend.Controllers.Admin
                     LastName = string.Empty,
                     Country = string.Empty,
                     Gender = string.Empty,
+                    PhoneNumber = registration.PhoneNumber,
                     PasswordHash = _passwordHasher.Hash(Guid.NewGuid().ToString()),
                     CreatedAt = DateTime.UtcNow,
                     EmailConfirmed = false,

@@ -19,15 +19,16 @@ public class ScheduledReportRendererTests
     }
 
     private static ScheduledReportRenderer CreateRenderer() =>
-        new(new TrialBalanceService(), new IncomeStatementService(), new BalanceSheetService(), new ReportExporter());
+        new(new TrialBalanceService(), new IncomeStatementService(), new BalanceSheetService(), new CashFlowReportService(), new ReportExporter());
 
     [Theory]
     [InlineData("TrialBalance", true)]
     [InlineData("IncomeStatement", true)]
     [InlineData("BalanceSheet", true)]
+    [InlineData("CashFlow", true)]
     [InlineData("ReconciliationTrend", true)]
     [InlineData("SomethingElse", false)]
-    public void IsKnownReportType_recognizes_the_four_supported_types_only(string reportType, bool expected)
+    public void IsKnownReportType_recognizes_the_five_supported_types_only(string reportType, bool expected)
     {
         var renderer = CreateRenderer();
         Assert.Equal(expected, renderer.IsKnownReportType(reportType));
@@ -37,6 +38,7 @@ public class ScheduledReportRendererTests
     [InlineData("TrialBalance")]
     [InlineData("IncomeStatement")]
     [InlineData("BalanceSheet")]
+    [InlineData("CashFlow")]
     [InlineData("ReconciliationTrend")]
     public async Task RenderAsync_produces_a_non_empty_csv_with_a_header_row_for_every_known_type(string reportType)
     {

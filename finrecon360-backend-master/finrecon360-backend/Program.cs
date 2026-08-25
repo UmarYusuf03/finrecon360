@@ -76,8 +76,11 @@ builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("Jwt"));
 
 // 2. Add DbContext (SQL Server)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("DefaultConnection is not configured.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("DefaultConnection is not configured.");
+}
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
@@ -171,9 +174,11 @@ builder.Services.AddScoped<IGeneralLedgerService, GeneralLedgerService>();
 builder.Services.AddScoped<ITrialBalanceService, TrialBalanceService>();
 builder.Services.AddScoped<IIncomeStatementService, IncomeStatementService>();
 builder.Services.AddScoped<IBalanceSheetService, BalanceSheetService>();
+builder.Services.AddScoped<ICashFlowReportService, CashFlowReportService>();
 builder.Services.AddScoped<IScheduledReportRenderer, ScheduledReportRenderer>();
 
 builder.Services.AddScoped<IReconciliationSettingsProvider, ReconciliationSettingsProvider>();
+builder.Services.AddScoped<IReconciliationMatchConfirmationService, ReconciliationMatchConfirmationService>();
 builder.Services.AddScoped<OperationalMatchWorker>();
 builder.Services.AddScoped<PosErpSyncAuditWorker>();
 builder.Services.AddScoped<ErpGatewaySalesMatchWorker>();

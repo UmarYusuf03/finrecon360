@@ -13,7 +13,10 @@ namespace finrecon360_backend.BackgroundServices
     /// in JournalReady state and automatically posts journal entries to the GL.
     /// 
     /// Behavior:
-    /// - Runs on an interval (default: every 5 minutes, staggered after bank reconciliation)
+    /// - Runs on an interval (default: every 1 minute, staggered after bank reconciliation —
+    ///   tightened 2026-08-25 alongside ReconciliationCycleHostedService's interval so posting
+    ///   still trails matching by roughly the same 20s gap each cycle instead of lagging behind
+    ///   a matching cycle that now runs 5x more often)
     /// - For each active tenant, executes one cycle of journal posting
     /// - Safely handles concurrent execution; skips tenants if a cycle is already running
     /// - Logs all activities and exceptions
@@ -23,7 +26,7 @@ namespace finrecon360_backend.BackgroundServices
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<JournalPostingHostedService> _logger;
 
-        private static readonly TimeSpan RunInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan RunInterval = TimeSpan.FromMinutes(1);
         private static readonly Dictionary<Guid, bool> RunningTenants = new();
 
         public JournalPostingHostedService(

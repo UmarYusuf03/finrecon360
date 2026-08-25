@@ -8,7 +8,7 @@ namespace finrecon360_backend.Models
     {
         public Guid ReportScheduleId { get; set; }
 
-        // TrialBalance | IncomeStatement | BalanceSheet | ReconciliationTrend
+        // TrialBalance | IncomeStatement | BalanceSheet | CashFlow | ReconciliationTrend
         public string ReportType { get; set; } = string.Empty;
 
         // csv | xlsx
