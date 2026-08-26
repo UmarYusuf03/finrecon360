@@ -147,7 +147,7 @@ export const mainRoutes: Routes = [
                 (m) => m.AdminTenantAuditLogsComponent,
               ),
             canActivate: [AccessGuard],
-            data: { permissions: ['ADMIN.USERS.VIEW'] },
+            data: { permissions: ['ADMIN.AUDIT_LOGS.VIEW'] },
           },
         ],
       },

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using finrecon360_backend.Authorization;
 using finrecon360_backend.Data;
 using finrecon360_backend.Dtos.Imports;
 using finrecon360_backend.Models;
@@ -56,7 +57,7 @@ namespace finrecon360_backend.Controllers
             [FromForm] string? sourceType = null,
             [FromForm] Guid? bankAccountId = null)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: false);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -76,6 +77,11 @@ namespace finrecon360_backend.Controllers
             var normalizedSourceType = string.IsNullOrWhiteSpace(sourceType)
                 ? extension.TrimStart('.').ToUpperInvariant()
                 : sourceType.Trim().ToUpperInvariant();
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "CREATE", normalizedSourceType))
+            {
+                return Forbid();
+            }
 
             if (bankAccountId.HasValue)
             {
@@ -133,14 +139,25 @@ namespace finrecon360_backend.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: false);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
+
+            if (!auth.IsTenantAdmin && !auth.Permissions.Contains("ADMIN.IMPORT_WORKBENCH.VIEW", StringComparer.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
 
             page = Math.Max(1, page);
             pageSize = Math.Clamp(pageSize, 1, 200);
 
             var query = tenantDb.ImportBatches.AsNoTracking();
+
+            var allowedSourceTypes = AllowedImportHistorySourceTypes(auth.IsTenantAdmin, auth.Permissions);
+            if (allowedSourceTypes != null)
+            {
+                query = query.Where(x => allowedSourceTypes.Contains(x.SourceType));
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -187,7 +204,7 @@ namespace finrecon360_backend.Controllers
             Guid id,
             [FromQuery] string? status = null)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -196,6 +213,11 @@ namespace finrecon360_backend.Controllers
             if (batch == null)
             {
                 return NotFound();
+            }
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "EDIT", batch.SourceType))
+            {
+                return Forbid();
             }
 
             if (!batch.MappingTemplateId.HasValue)
@@ -262,7 +284,7 @@ namespace finrecon360_backend.Controllers
             Guid rawRecordId,
             [FromBody] ImportUpdateRawRecordRequest request)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -271,6 +293,11 @@ namespace finrecon360_backend.Controllers
             if (batch == null)
             {
                 return NotFound();
+            }
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "EDIT", batch.SourceType))
+            {
+                return Forbid();
             }
 
             if (!batch.MappingTemplateId.HasValue)
@@ -334,7 +361,7 @@ namespace finrecon360_backend.Controllers
         [HttpGet("active-template")]
         public async Task<ActionResult<ImportMappingTemplateSummaryDto>> GetActiveTemplate([FromQuery] string? sourceType)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -344,6 +371,11 @@ namespace finrecon360_backend.Controllers
             }
 
             var sourceTypeValue = sourceType.Trim();
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "EDIT", sourceTypeValue))
+            {
+                return Forbid();
+            }
 
             var template = await tenantDb.ImportMappingTemplates.AsNoTracking()
                 .Where(x => x.IsActive && x.SourceType == sourceTypeValue)
@@ -370,7 +402,7 @@ namespace finrecon360_backend.Controllers
         [HttpPost("{id:guid}/parse")]
         public async Task<ActionResult<ImportParseResponseDto>> Parse(Guid id)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -378,6 +410,11 @@ namespace finrecon360_backend.Controllers
             if (batch == null)
             {
                 return NotFound();
+            }
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "EDIT", batch.SourceType))
+            {
+                return Forbid();
             }
 
             var filePath = ResolveStoredFilePath(auth.TenantId!.Value, id);
@@ -437,7 +474,7 @@ namespace finrecon360_backend.Controllers
         [HttpPost("{id:guid}/mapping")]
         public async Task<ActionResult<ImportMappingSavedResponseDto>> SaveMapping(Guid id, [FromBody] SaveImportMappingRequest request)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -445,6 +482,11 @@ namespace finrecon360_backend.Controllers
             if (batch == null)
             {
                 return NotFound();
+            }
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "EDIT", batch.SourceType))
+            {
+                return Forbid();
             }
 
             if (request.FieldMappings == null || request.FieldMappings.Count == 0)
@@ -512,7 +554,7 @@ namespace finrecon360_backend.Controllers
         [HttpPost("{id:guid}/validate")]
         public async Task<ActionResult<ImportValidateResponseDto>> Validate(Guid id)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -520,6 +562,11 @@ namespace finrecon360_backend.Controllers
             if (batch == null)
             {
                 return NotFound();
+            }
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "EDIT", batch.SourceType))
+            {
+                return Forbid();
             }
 
             if (!batch.MappingTemplateId.HasValue)
@@ -584,7 +631,7 @@ namespace finrecon360_backend.Controllers
         [HttpPost("{id:guid}/commit")]
         public async Task<ActionResult<ImportCommitResponseDto>> Commit(Guid id)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
 
@@ -592,6 +639,11 @@ namespace finrecon360_backend.Controllers
             if (batch == null)
             {
                 return NotFound();
+            }
+
+            if (!CanActOnImportSourceType(auth.IsTenantAdmin, auth.Permissions, "COMMIT", batch.SourceType))
+            {
+                return Forbid();
             }
 
             if (!batch.MappingTemplateId.HasValue)
@@ -677,9 +729,17 @@ namespace finrecon360_backend.Controllers
         [HttpDelete("{id:guid}")]
         public async Task<ActionResult<ImportDeleteResponseDto>> Delete(Guid id)
         {
-            var auth = await AuthorizeTenantUserAsync(requireAdmin: true);
+            var auth = await AuthorizeTenantUserAsync();
             if (auth.Error != null) return auth.Error;
             await using var tenantDb = auth.Db!;
+
+            // WHY: Deleting an import batch has no scoped grant in the permission matrix (only
+            // Upload/Parse-Map-Validate/Commit are exposed there) — kept as TenantAdmin-only
+            // rather than inventing an ungranted capability.
+            if (!auth.IsTenantAdmin)
+            {
+                return Forbid();
+            }
 
             var batch = await tenantDb.ImportBatches
                 .FirstOrDefaultAsync(x => x.ImportBatchId == id);
@@ -718,22 +778,30 @@ namespace finrecon360_backend.Controllers
             return Ok(new ImportDeleteResponseDto(id, fileDeleted, DateTime.UtcNow));
         }
 
-        private async Task<(TenantDbContext? Db, Guid? TenantId, ActionResult? Error)> AuthorizeTenantUserAsync(bool requireAdmin)
+        /// <summary>
+        /// WHY: Every import endpoint used to gate on the coarse TenantAdmin flag alone, so the
+        /// granular ADMIN.IMPORTS.&lt;SOURCE&gt;.&lt;ACTION&gt; grants the permission matrix's
+        /// "Scoped Permissions" section offers (e.g. a cashier limited to POS files) were never
+        /// actually checked here. TenantAdmin stays a full bypass — existing tenants see no
+        /// behavior change — but non-admin members are now authorized per action via
+        /// SourceTypeScope against their granted permissions instead of being rejected outright.
+        /// </summary>
+        private async Task<(TenantDbContext? Db, Guid? TenantId, bool IsTenantAdmin, IReadOnlyCollection<string> Permissions, ActionResult? Error)> AuthorizeTenantUserAsync()
         {
             if (_userContext.UserId is not { } userId)
             {
-                return (null, null, Unauthorized());
+                return (null, null, false, Array.Empty<string>(), Unauthorized());
             }
 
             if (!_userContext.IsActive || _userContext.Status == UserStatus.Suspended || _userContext.Status == UserStatus.Banned)
             {
-                return (null, null, Forbid());
+                return (null, null, false, Array.Empty<string>(), Forbid());
             }
 
             var tenant = await _tenantContext.ResolveAsync();
             if (tenant == null || tenant.Status != TenantStatus.Active)
             {
-                return (null, null, Forbid());
+                return (null, null, false, Array.Empty<string>(), Forbid());
             }
 
             var tenantMembership = await _dbContext.TenantUsers
@@ -742,12 +810,7 @@ namespace finrecon360_backend.Controllers
 
             if (tenantMembership == null)
             {
-                return (null, null, Forbid());
-            }
-
-            if (requireAdmin && tenantMembership.Role != TenantUserRole.TenantAdmin)
-            {
-                return (null, null, Forbid());
+                return (null, null, false, Array.Empty<string>(), Forbid());
             }
 
             var tenantDb = await _tenantDbContextFactory.CreateAsync(tenant.TenantId);
@@ -755,10 +818,72 @@ namespace finrecon360_backend.Controllers
             if (!isActiveInTenant)
             {
                 await tenantDb.DisposeAsync();
-                return (null, null, Forbid());
+                return (null, null, false, Array.Empty<string>(), Forbid());
             }
 
-            return (tenantDb, tenant.TenantId, null);
+            var isTenantAdmin = tenantMembership.Role == TenantUserRole.TenantAdmin;
+            IReadOnlyCollection<string> permissions = Array.Empty<string>();
+            if (!isTenantAdmin)
+            {
+                var rawPermissions = await tenantDb.UserRoles
+                    .AsNoTracking()
+                    .Where(ur => ur.UserId == userId && ur.Role.IsActive)
+                    .SelectMany(ur => ur.Role.RolePermissions.Select(rp => rp.Permission.Code))
+                    .Distinct()
+                    .ToListAsync();
+                permissions = PermissionHandler.ExpandPermissions(rawPermissions);
+            }
+
+            return (tenantDb, tenant.TenantId, isTenantAdmin, permissions, null);
+        }
+
+        /// <summary>
+        /// True when the caller may perform <paramref name="action"/> (CREATE/EDIT/COMMIT) on
+        /// <paramref name="sourceType"/> — either as a TenantAdmin (unrestricted), via the full
+        /// ADMIN.IMPORTS.&lt;ACTION&gt; grant, or via the source-type-scoped
+        /// ADMIN.IMPORTS.&lt;SOURCE&gt;.&lt;ACTION&gt; equivalent.
+        /// </summary>
+        private static bool CanActOnImportSourceType(bool isTenantAdmin, IReadOnlyCollection<string> permissions, string action, string sourceType)
+            => isTenantAdmin || SourceTypeScope.IsAllowed(permissions, "IMPORTS", action, sourceType);
+
+        /// <summary>
+        /// Source types visible in import history: null means unrestricted (TenantAdmin, or a
+        /// full unscoped grant on any action); otherwise the union of source types the caller
+        /// holds any CREATE/EDIT/COMMIT grant for. Mirrors the "cashier can see their own
+        /// uploads" intent behind PermissionHandler synthesizing ADMIN.IMPORT_WORKBENCH.VIEW
+        /// from a scoped import grant.
+        /// </summary>
+        private static HashSet<string>? AllowedImportHistorySourceTypes(bool isTenantAdmin, IReadOnlyCollection<string> permissions)
+        {
+            if (isTenantAdmin)
+            {
+                return null;
+            }
+
+            var union = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var action in new[] { "CREATE", "EDIT", "COMMIT" })
+            {
+                // WHY check the full grant ourselves rather than trust a null from
+                // AllowedSourceTypes: that helper returns null both when the caller holds the
+                // unrestricted ADMIN.IMPORTS.<ACTION> grant *and* when they hold no grant at all
+                // for that action — its one existing caller (ReconciliationController.GetEvents)
+                // never hits the second case because it only runs behind a coarse permission
+                // gate that already guarantees some grant exists. Here there's no such guarantee,
+                // so treating every null as "unrestricted" would show a scoped-only cashier every
+                // batch instead of just their own.
+                if (permissions.Contains($"ADMIN.IMPORTS.{action}", StringComparer.OrdinalIgnoreCase))
+                {
+                    return null;
+                }
+
+                var allowed = SourceTypeScope.AllowedSourceTypes(permissions, "IMPORTS", action);
+                if (allowed != null)
+                {
+                    union.UnionWith(allowed);
+                }
+            }
+
+            return union;
         }
 
         private static Dictionary<string, string> DeserializeMappings(string json)

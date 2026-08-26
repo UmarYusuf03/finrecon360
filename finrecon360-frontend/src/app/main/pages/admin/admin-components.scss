@@ -81,7 +81,6 @@
 }
 
 .code-pill,
-.route-pill,
 .category-pill,
 .status-pill {
   display: inline-flex;
@@ -100,13 +99,14 @@
   color: var(--fr-primary);
 }
 
-.route-pill {
-  background: rgba(241, 245, 249, 0.92);
+.components-table__description {
   color: var(--fr-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: var(--fr-text-xs);
-  letter-spacing: 0;
-  text-transform: none;
+  font-size: var(--fr-text-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 320px;
 }
 
 .category-pill {

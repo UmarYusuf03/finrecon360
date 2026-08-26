@@ -20,13 +20,6 @@ describe('AdminComponentService', () => {
     });
   });
 
-  it('creates a component', (done) => {
-    service.createComponent({ code: 'TEST', name: 'Test', routePath: '/test' }).subscribe((cmp) => {
-      expect(cmp.code).toBe('TEST');
-      done();
-    });
-  });
-
   it('updates a component', (done) => {
     service.updateComponent('cmp-dashboard', { name: 'Updated' }).subscribe((cmp) => {
       expect(cmp.name).toBe('Updated');

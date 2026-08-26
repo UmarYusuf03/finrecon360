@@ -45,6 +45,7 @@ namespace finrecon360_backend.Services
         private const string MigrationMatcherReconciliationViewGrant = "202608190004_TenantMatcherReconciliationViewGrant";
         private const string MigrationReconciliationEventsImportBatchIdNull = "202608190005_TenantReconciliationEventsImportBatchIdNull";
         private const string MigrationReconciliationEventsRecordFieldsNull = "202608250002_TenantReconciliationEventsRecordFieldsNull";
+        private const string MigrationImportsScopedPermissions = "202608260001_TenantImportsScopedPermissions";
         private const string SchemaLockResource = "finrecon360:tenant-schema-migrator";
 
         public async Task ApplyAsync(string tenantConnectionString, CancellationToken cancellationToken = default)
@@ -90,6 +91,7 @@ namespace finrecon360_backend.Services
             await ApplyMigrationIfMissingAsync(connection, MigrationMatcherReconciliationViewGrant, BuildTenantMatcherReconciliationViewGrantSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEventsImportBatchIdNull, BuildTenantReconciliationEventsImportBatchIdNullSql(), cancellationToken);
             await ApplyMigrationIfMissingAsync(connection, MigrationReconciliationEventsRecordFieldsNull, BuildTenantReconciliationEventsRecordFieldsNullSql(), cancellationToken);
+            await ApplyMigrationIfMissingAsync(connection, MigrationImportsScopedPermissions, BuildTenantImportsScopedPermissionsSql(), cancellationToken);
         }
 
         private static async Task AcquireSchemaLockAsync(SqlConnection connection, CancellationToken cancellationToken)
@@ -1692,6 +1694,53 @@ namespace finrecon360_backend.Services
                     ALTER TABLE dbo.ReconciliationEvents ALTER COLUMN Status nvarchar(30) NULL;
                 END
             END
+            """;
+
+        // The frontend permission matrix has offered these source-type-scoped Imports grants
+        // (and ImportsController/SourceTypeScope has been written to check them) since the
+        // Imports scoped permissions section shipped, but no tenant schema ever actually seeded
+        // the Permission rows themselves — the matrix's "Scoped Permissions" checkboxes for
+        // Imports could never be saved (ADMIN.RolesController rejects unknown codes) and
+        // ImportsController fell back to gating everything on TenantAdmin instead. This closes
+        // that gap the same way MigrationTransactionCreatePermission did for ADMIN.TRANSACTIONS.CREATE.
+        private static string BuildTenantImportsScopedPermissionsSql() =>
+            """
+            INSERT INTO dbo.Permissions (PermissionId, Code, Name, Description, Module)
+            SELECT NEWID(), v.Code, v.Name, v.Description, v.Module
+            FROM (VALUES
+                (N'ADMIN.IMPORTS.POS.CREATE', N'POS Import Upload', N'Upload POS import files only', N'Imports'),
+                (N'ADMIN.IMPORTS.POS.EDIT', N'POS Import Edit', N'Parse, map and validate POS import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.POS.COMMIT', N'POS Import Commit', N'Commit validated POS import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.POS_SETTLEMENT.CREATE', N'POS Settlement Import Upload', N'Upload POS terminal/acquirer settlement import files only', N'Imports'),
+                (N'ADMIN.IMPORTS.POS_SETTLEMENT.EDIT', N'POS Settlement Import Edit', N'Parse, map and validate POS settlement import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.POS_SETTLEMENT.COMMIT', N'POS Settlement Import Commit', N'Commit validated POS settlement import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.ERP.CREATE', N'ERP Import Upload', N'Upload ERP import files only', N'Imports'),
+                (N'ADMIN.IMPORTS.ERP.EDIT', N'ERP Import Edit', N'Parse, map and validate ERP import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.ERP.COMMIT', N'ERP Import Commit', N'Commit validated ERP import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.GATEWAY.CREATE', N'Gateway Import Upload', N'Upload Gateway import files only', N'Imports'),
+                (N'ADMIN.IMPORTS.GATEWAY.EDIT', N'Gateway Import Edit', N'Parse, map and validate Gateway import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.GATEWAY.COMMIT', N'Gateway Import Commit', N'Commit validated Gateway import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.BANK.CREATE', N'Bank Import Upload', N'Upload Bank import files only', N'Imports'),
+                (N'ADMIN.IMPORTS.BANK.EDIT', N'Bank Import Edit', N'Parse, map and validate Bank import batches', N'Imports'),
+                (N'ADMIN.IMPORTS.BANK.COMMIT', N'Bank Import Commit', N'Commit validated Bank import batches', N'Imports')
+            ) v(Code, Name, Description, Module)
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.Permissions p WHERE p.Code = v.Code);
+
+            INSERT INTO dbo.RolePermissions (RoleId, PermissionId)
+            SELECT r.RoleId, p.PermissionId
+            FROM dbo.Roles r
+            INNER JOIN dbo.Permissions p ON p.Code IN (
+                N'ADMIN.IMPORTS.POS.CREATE', N'ADMIN.IMPORTS.POS.EDIT', N'ADMIN.IMPORTS.POS.COMMIT',
+                N'ADMIN.IMPORTS.POS_SETTLEMENT.CREATE', N'ADMIN.IMPORTS.POS_SETTLEMENT.EDIT', N'ADMIN.IMPORTS.POS_SETTLEMENT.COMMIT',
+                N'ADMIN.IMPORTS.ERP.CREATE', N'ADMIN.IMPORTS.ERP.EDIT', N'ADMIN.IMPORTS.ERP.COMMIT',
+                N'ADMIN.IMPORTS.GATEWAY.CREATE', N'ADMIN.IMPORTS.GATEWAY.EDIT', N'ADMIN.IMPORTS.GATEWAY.COMMIT',
+                N'ADMIN.IMPORTS.BANK.CREATE', N'ADMIN.IMPORTS.BANK.EDIT', N'ADMIN.IMPORTS.BANK.COMMIT'
+            )
+            WHERE r.Code = N'ADMIN'
+              AND NOT EXISTS (
+                  SELECT 1 FROM dbo.RolePermissions rp
+                  WHERE rp.RoleId = r.RoleId AND rp.PermissionId = p.PermissionId
+              );
             """;
 
         private static async Task ExecuteNonQueryAsync(
