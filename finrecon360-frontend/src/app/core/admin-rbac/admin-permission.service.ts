@@ -207,7 +207,9 @@ export class AdminPermissionService {
       return of(void 0);
     }
 
-    const permissionCodes = assignments.map((assignment) => assignment.permissionCode);
+    const permissionCodes = Array.from(
+      new Set([...assignments.map((assignment) => assignment.permissionCode), ...scopedCodes]),
+    );
     return this.http.put<void>(
       `${API_BASE_URL}${API_ENDPOINTS.ADMIN.ROLES}/${roleId}/permissions`,
       {

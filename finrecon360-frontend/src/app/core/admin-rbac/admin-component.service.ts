@@ -60,33 +60,6 @@ export class AdminComponentService {
   }
 
   /**
-   * WHY: Appends the successfully created component to the active subject stream, 
-   * averting a full refresh and allowing downstream observers (like the matrix) to immediately react.
-   */
-  createComponent(payload: Partial<AppComponentResource>): Observable<AppComponentResource> {
-    if (USE_MOCK_API) {
-      const newComponent: AppComponentResource = {
-        id: `cmp-${Date.now()}-${Math.random()}`,
-        code: payload.code ?? 'NEW_COMPONENT',
-        name: payload.name ?? 'New component',
-        routePath: payload.routePath ?? '/',
-        category: payload.category,
-        description: payload.description,
-        isActive: true,
-      };
-      this.componentsSubject.next([...this.componentsSubject.value, newComponent]);
-      return of(newComponent);
-    }
-
-    return this.http
-      .post<ComponentDto>(`${API_BASE_URL}${API_ENDPOINTS.ADMIN.COMPONENTS}`, payload)
-      .pipe(
-        map((dto) => this.mapComponent(dto)),
-        tap((component) => this.componentsSubject.next([...this.componentsSubject.value, component]))
-      );
-  }
-
-  /**
    * WHY: Inline stream mutation provides immediate UI feedback across all component views 
    * when a component descriptor (like its Name or Category) is altered.
    */

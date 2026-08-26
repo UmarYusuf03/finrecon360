@@ -20,3 +20,4 @@
 *.log
 finrecon.session.sql
 .claude/
+MY_SCOPE.md

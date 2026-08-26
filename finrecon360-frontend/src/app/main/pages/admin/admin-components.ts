@@ -44,7 +44,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
   styleUrls: ['./admin-components.scss'],
 })
 export class AdminComponentsComponent implements OnInit {
-  displayedColumns = ['code', 'name', 'route', 'category', 'status', 'actions'];
+  displayedColumns = ['code', 'name', 'description', 'category', 'status', 'actions'];
   components: AppComponentResource[] = [];
   form!: FormGroup;
   editingId: string | null = null;
@@ -72,12 +72,6 @@ export class AdminComponentsComponent implements OnInit {
     this.adminComponentService.getComponents().subscribe((components) => (this.components = components));
   }
 
-  openAdd(dialogTemplate: any): void {
-    this.editingId = null;
-    this.form.reset();
-    this.dialog.open(dialogTemplate);
-  }
-
   openEdit(component: AppComponentResource, dialogTemplate: any): void {
     this.editingId = component.id;
     this.form.patchValue({
@@ -91,32 +85,19 @@ export class AdminComponentsComponent implements OnInit {
   }
 
   save(): void {
-    if (this.form.invalid) {
+    if (this.form.invalid || !this.editingId) {
       this.form.markAllAsTouched();
       return;
     }
-    const payload = this.form.value;
-    if (this.editingId) {
-      this.adminComponentService.updateComponent(this.editingId, payload).subscribe({
-        next: () => {
-          this.dialog.closeAll();
-          this.snackBar.open('Component updated successfully.', 'Close', { duration: 2500 });
-        },
-        error: (error: unknown) => {
-          this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
-        },
-      });
-    } else {
-      this.adminComponentService.createComponent(payload).subscribe({
-        next: () => {
-          this.dialog.closeAll();
-          this.snackBar.open('Component created successfully.', 'Close', { duration: 2500 });
-        },
-        error: (error: unknown) => {
-          this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
-        },
-      });
-    }
+    this.adminComponentService.updateComponent(this.editingId, this.form.value).subscribe({
+      next: () => {
+        this.dialog.closeAll();
+        this.snackBar.open('Component updated successfully.', 'Close', { duration: 2500 });
+      },
+      error: (error: unknown) => {
+        this.snackBar.open(this.extractErrorMessage(error), 'Close', { duration: 3500 });
+      },
+    });
   }
 
   toggleActive(component: AppComponentResource): void {

@@ -37,13 +37,11 @@ describe('AdminComponentsComponent', () => {
 
     serviceSpy = jasmine.createSpyObj<AdminComponentService>('AdminComponentService', [
       'getComponents',
-      'createComponent',
       'updateComponent',
       'deactivateComponent',
       'reactivateComponent',
     ]);
     serviceSpy.getComponents.and.returnValue(of(comps));
-    serviceSpy.createComponent.and.returnValue(of(comps[0]));
     serviceSpy.updateComponent.and.returnValue(of(comps[0]));
     serviceSpy.deactivateComponent.and.returnValue(of(void 0));
     serviceSpy.reactivateComponent.and.returnValue(of(comps[0]));
@@ -70,10 +68,11 @@ describe('AdminComponentsComponent', () => {
     expect(component.components.length).toBe(1);
   });
 
-  it('calls createComponent on save when adding', () => {
+  it('does not save when no component is being edited', () => {
+    component.editingId = null;
     component.form.setValue({ code: 'TEST', name: 'Test', routePath: '/t', category: '', description: '' });
     component.save();
-    expect(serviceSpy.createComponent).toHaveBeenCalled();
+    expect(serviceSpy.updateComponent).not.toHaveBeenCalled();
   });
 
   it('calls updateComponent on save when editing', () => {
