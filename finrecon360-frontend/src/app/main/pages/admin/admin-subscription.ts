@@ -22,6 +22,7 @@ export class AdminSubscriptionComponent implements OnInit {
   overview: SubscriptionOverview | null = null;
   plans: SubscriptionPlanOption[] = [];
   selectedPlanId = '';
+  currentPlanId: string | null = null;
   loading = true;
   busy = false;
   error: string | null = null;
@@ -41,6 +42,8 @@ export class AdminSubscriptionComponent implements OnInit {
         const currentPlan = overview.currentSubscription
           ? this.plans.find((plan) => plan.code === overview.currentSubscription?.planCode)
           : undefined;
+        this.currentPlanId = currentPlan?.id ?? null;
+        
         const firstEligiblePlan = this.plans.find((plan) => plan.isEligible);
 
         // Never land the selection on a plan the tenant can no longer fit into — pick their

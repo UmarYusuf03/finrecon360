@@ -3,6 +3,7 @@ using System.Text;
 using System.Web;
 using finrecon360_backend.Options;
 using finrecon360_backend.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Tests;
@@ -44,7 +45,7 @@ public class PayHereCheckoutServiceTests
             CheckoutBaseUrl = checkoutBaseUrl ?? string.Empty,
             Currency = currency ?? "LKR"
         });
-        return new PayHereCheckoutService(options);
+        return new PayHereCheckoutService(options, new MemoryCache(new MemoryCacheOptions()));
     }
 
     // ──────────────────────────────────────────────
@@ -190,6 +191,84 @@ public class PayHereCheckoutServiceTests
         var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         Assert.StartsWith(TestCheckoutBaseUrl, session.CheckoutUrl);
+    }
+
+    [Fact]
+    public async Task CreateCheckoutSession_defaults_to_options_currency_when_none_passed()
+    {
+        var service = CreateService();
+
+        var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        Assert.Contains("currency=LKR", session.CheckoutUrl);
+    }
+
+    [Fact]
+    public async Task CreateCheckoutSession_uses_explicit_currency_when_passed()
+    {
+        // A caller-supplied currency (e.g. the plan's own currency) must override the
+        // PAYHERE_CURRENCY default, and the hash must be computed from that same value —
+        // otherwise the currency actually charged silently diverges from what a plan configures.
+        var service = CreateService();
+        var subscriptionId = Guid.NewGuid();
+        var orderId = subscriptionId.ToString("N");
+        var amount = "150.00";
+
+        var session = await service.CreateCheckoutSessionAsync(
+            "Test Plan", 15000, Guid.NewGuid(), subscriptionId, Guid.NewGuid(), currency: "usd");
+
+        Assert.Contains("currency=USD", session.CheckoutUrl);
+
+        var merchantSecretHash = ComputeMd5Hex(TestMerchantSecret).ToUpperInvariant();
+        var hashInput = $"{TestMerchantId}{orderId}{amount}USD{merchantSecretHash}";
+        var expectedHash = ComputeMd5Hex(hashInput).ToUpperInvariant();
+        Assert.Contains($"hash={expectedHash}", session.CheckoutUrl);
+    }
+
+    // ──────────────────────────────────────────────
+    // TryGetCheckoutLaunchHtml tests
+    //
+    // PayHere's /pay/checkout endpoint only reads form-POST fields; a GET query string (i.e.
+    // CheckoutUrl above) is invisible to it and falls through to the public payhere.lk homepage.
+    // The launch HTML must POST the exact same fields instead.
+    // ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task TryGetCheckoutLaunchHtml_returns_form_that_posts_to_checkout_base_url()
+    {
+        var service = CreateService();
+        var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        var found = service.TryGetCheckoutLaunchHtml(session.OrderId, out var launchHtml);
+
+        Assert.True(found);
+        Assert.NotNull(launchHtml);
+        Assert.Contains($"action=\"{TestCheckoutBaseUrl}\"", launchHtml);
+        Assert.Contains("method=\"POST\"", launchHtml);
+    }
+
+    [Fact]
+    public async Task TryGetCheckoutLaunchHtml_includes_merchant_id_and_hash_as_hidden_fields()
+    {
+        var service = CreateService();
+        var session = await service.CreateCheckoutSessionAsync("Test Plan", 15000, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        service.TryGetCheckoutLaunchHtml(session.OrderId, out var launchHtml);
+
+        Assert.Contains($"name=\"merchant_id\" value=\"{TestMerchantId}\"", launchHtml);
+        Assert.Contains($"name=\"order_id\" value=\"{session.OrderId}\"", launchHtml);
+        Assert.Contains("name=\"hash\" value=\"", launchHtml);
+    }
+
+    [Fact]
+    public void TryGetCheckoutLaunchHtml_returns_false_for_unknown_order_id()
+    {
+        var service = CreateService();
+
+        var found = service.TryGetCheckoutLaunchHtml(Guid.NewGuid().ToString("N"), out var launchHtml);
+
+        Assert.False(found);
+        Assert.Null(launchHtml);
     }
 
     // ──────────────────────────────────────────────

@@ -1,8 +1,10 @@
 using System.Globalization;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using finrecon360_backend.Options;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace finrecon360_backend.Services
@@ -26,6 +28,7 @@ namespace finrecon360_backend.Services
             Guid tenantId,
             Guid subscriptionId,
             Guid userId,
+            string? currency = null,
             CancellationToken cancellationToken = default);
 
         PayHereCallbackResult ParseCallback(IFormCollection form);
@@ -41,11 +44,19 @@ namespace finrecon360_backend.Services
     /// </summary>
     public class PayHereCheckoutService : IPayHereCheckoutService
     {
-        private readonly PayHereOptions _options;
+        // PayHere's /pay/checkout endpoint only reads form-POST fields — a GET query string is
+        // invisible to it and falls through to the public payhere.lk homepage. Browsers can't be
+        // redirected straight there with a POST body, so CreateCheckoutSessionAsync's field set is
+        // cached here and replayed by TryGetCheckoutLaunchHtml as an auto-submitting HTML form.
+        private static readonly TimeSpan LaunchCacheDuration = TimeSpan.FromMinutes(20);
 
-        public PayHereCheckoutService(IOptions<PayHereOptions> options)
+        private readonly PayHereOptions _options;
+        private readonly IMemoryCache _cache;
+
+        public PayHereCheckoutService(IOptions<PayHereOptions> options, IMemoryCache cache)
         {
             _options = options.Value;
+            _cache = cache;
         }
 
         public Task<PayHereCheckoutSession> CreateCheckoutSessionAsync(
@@ -54,6 +65,7 @@ namespace finrecon360_backend.Services
             Guid tenantId,
             Guid subscriptionId,
             Guid userId,
+            string? currency = null,
             CancellationToken cancellationToken = default)
         {
             if (!IsConfigured())
@@ -63,10 +75,12 @@ namespace finrecon360_backend.Services
 
             var orderId = subscriptionId.ToString("N");
             var amount = (amountCents / 100m).ToString("0.00", CultureInfo.InvariantCulture);
-            var currency = string.IsNullOrWhiteSpace(_options.Currency) ? "LKR" : _options.Currency.ToUpperInvariant();
+            var resolvedCurrency = !string.IsNullOrWhiteSpace(currency)
+                ? currency.ToUpperInvariant()
+                : (string.IsNullOrWhiteSpace(_options.Currency) ? "LKR" : _options.Currency.ToUpperInvariant());
 
             var merchantSecretHash = ToMd5Hex(ResolveMerchantSecret()).ToUpperInvariant();
-            var hashInput = $"{_options.MerchantId}{orderId}{amount}{currency}{merchantSecretHash}";
+            var hashInput = $"{_options.MerchantId}{orderId}{amount}{resolvedCurrency}{merchantSecretHash}";
             var hash = ToMd5Hex(hashInput).ToUpperInvariant();
 
             var query = new Dictionary<string, string>
@@ -77,7 +91,7 @@ namespace finrecon360_backend.Services
                 ["notify_url"] = _options.NotifyUrl,
                 ["order_id"] = orderId,
                 ["items"] = name,
-                ["currency"] = currency,
+                ["currency"] = resolvedCurrency,
                 ["amount"] = amount,
                 ["first_name"] = "Tenant",
                 ["last_name"] = "Admin",
@@ -90,6 +104,8 @@ namespace finrecon360_backend.Services
                 ["custom_2"] = tenantId.ToString(),
                 ["hash"] = hash
             };
+
+            _cache.Set(LaunchCacheKey(orderId), query, LaunchCacheDuration);
 
             var checkoutUrl = BuildUrl(_options.CheckoutBaseUrl, query);
             return Task.FromResult(new PayHereCheckoutSession(orderId, checkoutUrl));
@@ -163,8 +179,36 @@ namespace finrecon360_backend.Services
         public bool TryGetCheckoutLaunchHtml(string orderId, out string? launchHtml)
         {
             launchHtml = null;
-            return false;
+
+            if (!_cache.TryGetValue(LaunchCacheKey(orderId), out Dictionary<string, string>? fields) || fields == null)
+            {
+                return false;
+            }
+
+            var inputs = string.Join(
+                "\n",
+                fields
+                    .Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
+                    .Select(kv => $"<input type=\"hidden\" name=\"{WebUtility.HtmlEncode(kv.Key)}\" value=\"{WebUtility.HtmlEncode(kv.Value)}\">"));
+
+            launchHtml = $"""
+                <!DOCTYPE html>
+                <html>
+                <head><meta charset="utf-8"><title>Redirecting to PayHere...</title></head>
+                <body onload="document.forms[0].submit()">
+                    <form method="POST" action="{WebUtility.HtmlEncode(_options.CheckoutBaseUrl)}">
+                        {inputs}
+                        <noscript><button type="submit">Continue to PayHere</button></noscript>
+                    </form>
+                    <p>Redirecting to PayHere&hellip;</p>
+                </body>
+                </html>
+                """;
+
+            return true;
         }
+
+        private static string LaunchCacheKey(string orderId) => $"payhere:checkout-launch:{orderId}";
 
         private static string BuildUrl(string baseUrl, IReadOnlyDictionary<string, string> query)
         {

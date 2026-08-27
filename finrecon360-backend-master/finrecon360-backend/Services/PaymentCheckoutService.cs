@@ -48,9 +48,14 @@ namespace finrecon360_backend.Services
                 tenantId,
                 subscriptionId,
                 userId,
+                currency,
                 cancellationToken);
 
-            return new PaymentCheckoutSession("PayHere", session.OrderId, null, session.CheckoutUrl);
+            // PayHere's checkout endpoint only accepts a form POST, so callers are sent through our
+            // own launch page (which auto-submits the real PayHere request) rather than session.CheckoutUrl
+            // directly — a GET navigation to that URL just bounces to PayHere's public homepage.
+            var launchUrl = $"/api/payments/payhere/checkout/{session.OrderId}";
+            return new PaymentCheckoutSession("PayHere", session.OrderId, null, launchUrl);
         }
 
         public bool IsConfigured()

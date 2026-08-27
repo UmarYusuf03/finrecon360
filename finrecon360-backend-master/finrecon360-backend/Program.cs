@@ -161,6 +161,7 @@ builder.Services.AddScoped<ITenantUserDirectoryService, TenantUserDirectoryServi
 builder.Services.AddScoped<ISystemEnforcementService, SystemEnforcementService>();
 builder.Services.AddScoped<IOnboardingTokenService, OnboardingTokenService>();
 builder.Services.AddScoped<IOnboardingMagicLinkService, OnboardingMagicLinkService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IPayHereCheckoutService, PayHereCheckoutService>();
 builder.Services.AddScoped<IPaymentCheckoutService, PaymentCheckoutService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();

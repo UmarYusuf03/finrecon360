@@ -31,11 +31,13 @@
     accounts, or contact support for a custom plan.
   </div>
 
-  <div *ngIf="!loading" class="plan-grid">
+  <div *ngIf="!loading" class="plan-grid" role="radiogroup" aria-label="Subscription plans">
     <button
       type="button"
       class="plan-card"
       *ngFor="let plan of plans"
+      role="radio"
+      [attr.aria-checked]="plan.id === selectedPlanId"
       [class.active]="plan.id === selectedPlanId"
       [class.disabled]="!plan.isEligible"
       [disabled]="!plan.isEligible"
@@ -43,10 +45,17 @@
       [attr.title]="plan.isEligible ? null : plan.ineligibleReason"
       (click)="selectPlan(plan)"
     >
-      <span class="plan-card__badge" *ngIf="!plan.isEligible">
-        <mat-icon>lock</mat-icon>
-        Not available
-      </span>
+      <div class="plan-card__header">
+        <span class="plan-card__badge" *ngIf="!plan.isEligible">
+          <mat-icon>lock</mat-icon>
+          Not available
+        </span>
+        <span class="plan-card__badge current" *ngIf="plan.id === currentPlanId && plan.isEligible">
+          Current
+        </span>
+        <mat-icon *ngIf="plan.id === selectedPlanId" class="plan-selected-icon">check_circle</mat-icon>
+        <mat-icon *ngIf="plan.id !== selectedPlanId && plan.isEligible" class="plan-unselected-icon">radio_button_unchecked</mat-icon>
+      </div>
       <span class="plan-name">{{ plan.name }}</span>
       <span class="plan-price">{{ plan.currency }} {{ plan.priceCents / 100 | number : '1.2-2' }}</span>
       <span class="plan-meta">{{ plan.durationDays }} days</span>
@@ -57,7 +66,7 @@
   </div>
 
   <div class="actions">
-    <button class="primary-btn" type="button" [disabled]="busy || !selectedPlanId" (click)="changePlan()">
+    <button class="primary-btn change-plan-btn" type="button" [disabled]="busy || !selectedPlanId" (click)="changePlan()">
       {{ busy ? 'Starting checkout...' : 'Change plan' }}
     </button>
   </div>
