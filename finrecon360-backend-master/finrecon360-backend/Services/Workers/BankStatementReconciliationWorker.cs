@@ -421,11 +421,39 @@ namespace finrecon360_backend.Services.Workers
         private static List<ImportedNormalizedRecord> FindGatewayCandidates(
             List<ImportedNormalizedRecord> gatewayRecords,
             Transaction txn,
-            decimal amountTolerance) =>
-            gatewayRecords
+            decimal amountTolerance)
+        {
+            var candidates = gatewayRecords
                 .Where(r => Math.Abs(r.NetAmount - txn.Amount) < amountTolerance
                     && r.TransactionDate.Date == txn.TransactionDate.Date)
                 .ToList();
+
+            if (candidates.Count > 1 && !string.IsNullOrWhiteSpace(txn.ReferenceNumber))
+            {
+                var refMatches = candidates
+                    .Where(r => string.Equals(r.ReferenceNumber, txn.ReferenceNumber, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (refMatches.Count > 0)
+                {
+                    candidates = refMatches;
+                }
+            }
+
+            if (candidates.Count > 1)
+            {
+                var withKeys = candidates
+                    .Where(r => !string.IsNullOrWhiteSpace(SettlementKeyResolver.Resolve(r)))
+                    .ToList();
+
+                if (withKeys.Count > 0 && withKeys.Count < candidates.Count)
+                {
+                    candidates = withKeys;
+                }
+            }
+
+            return candidates;
+        }
 
         private static Task<List<ImportedNormalizedRecord>> QueryMatchableBySourceAsync(
             TenantDbContext tenantDb,
