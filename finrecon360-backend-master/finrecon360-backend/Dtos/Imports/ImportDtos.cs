@@ -22,7 +22,8 @@ namespace finrecon360_backend.Dtos.Imports
         IReadOnlyList<ImportHistoryItemDto> Items,
         int Total,
         int Page,
-        int PageSize);
+        int PageSize,
+        bool CanDelete);
 
     public record ImportUploadResponseDto(
         Guid Id,
@@ -30,6 +31,8 @@ namespace finrecon360_backend.Dtos.Imports
         string SourceType,
         string OriginalFileName,
         DateTime ImportedAt);
+
+    public record RenameImportRequest(string? OriginalFileName);
 
     public class SaveImportMappingRequest
     {

@@ -17,6 +17,7 @@ export interface ImportHistoryResponse {
   total: number;
   page: number;
   pageSize: number;
+  canDelete: boolean;
 }
 
 export interface ImportUploadResponse {
