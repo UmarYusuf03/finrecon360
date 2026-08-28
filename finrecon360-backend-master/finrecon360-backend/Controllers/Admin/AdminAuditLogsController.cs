@@ -65,6 +65,7 @@ namespace finrecon360_backend.Controllers.Admin
             var totalCount = await query.CountAsync();
             var items = await query
                 .OrderByDescending(a => a.CreatedAt)
+                .ThenByDescending(a => a.AuditLogId)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(a => new AuditLogSummaryDto(
@@ -133,6 +134,7 @@ namespace finrecon360_backend.Controllers.Admin
 
             var entities = await query
                 .OrderByDescending(a => a.CreatedAt)
+                .ThenByDescending(a => a.AuditLogId)
                 .ToListAsync();
             var items = entities.Select(a => new AuditLogSummaryDto(
                     a.AuditLogId,
