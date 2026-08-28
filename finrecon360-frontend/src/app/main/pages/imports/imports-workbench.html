@@ -121,7 +121,9 @@
         class="bank-account-select"
         [(ngModel)]="selectedBankAccountId"
       >
-        <option [ngValue]="null" disabled>{{ 'IMPORTS.WORKBENCH.SELECT_BANK_ACCOUNT_PLACEHOLDER' | translate }}</option>
+        <option [ngValue]="null" disabled>
+          {{ 'IMPORTS.WORKBENCH.SELECT_BANK_ACCOUNT_PLACEHOLDER' | translate }}
+        </option>
         <option *ngFor="let account of bankAccounts" [ngValue]="account.bankAccountId">
           {{ account.bankName }} — {{ account.accountName }} ({{ account.accountNumber }})
         </option>
@@ -232,7 +234,22 @@
               [class.active]="selectedBatch?.id === item.id"
               (click)="selectBatch(item)"
             >
-              <td>{{ item.originalFileName || ('COMMON.NOT_AVAILABLE' | translate) }}</td>
+              <td>
+                <ng-container *ngIf="renamingBatchId !== item.id; else renameEditor">
+                  {{ item.originalFileName || ('COMMON.NOT_AVAILABLE' | translate) }}
+                </ng-container>
+                <ng-template #renameEditor>
+                  <input
+                    class="rename-input"
+                    type="text"
+                    [(ngModel)]="renameValue"
+                    (click)="$event.stopPropagation()"
+                    (keyup.enter)="saveRename(item, $event)"
+                    (keyup.escape)="cancelRename($event)"
+                    [disabled]="renameProcessing"
+                  />
+                </ng-template>
+              </td>
               <td>
                 <span
                   class="source-pill"
@@ -250,14 +267,44 @@
               <td>{{ item.normalizedRecordCount }}</td>
               <td>{{ item.importedAt | date: 'short' }}</td>
               <td *ngIf="canDeleteImport">
-                <button
-                  class="ghost-btn danger-ghost"
-                  type="button"
-                  [disabled]="processing"
-                  (click)="deleteBatch(item, $event)"
-                >
-                  {{ 'COMMON.DELETE' | translate }}
-                </button>
+                <div class="import-row-actions">
+                  <ng-container *ngIf="renamingBatchId === item.id; else rowActions">
+                    <button
+                      class="ghost-btn"
+                      type="button"
+                      [disabled]="renameProcessing || !renameValue.trim()"
+                      (click)="saveRename(item, $event)"
+                    >
+                      Save
+                    </button>
+                    <button
+                      class="ghost-btn"
+                      type="button"
+                      [disabled]="renameProcessing"
+                      (click)="cancelRename($event)"
+                    >
+                      Cancel
+                    </button>
+                  </ng-container>
+                  <ng-template #rowActions>
+                    <button
+                      class="ghost-btn rename-btn"
+                      type="button"
+                      [disabled]="processing"
+                      (click)="startRename(item, $event)"
+                    >
+                      Rename
+                    </button>
+                    <button
+                      class="ghost-btn danger-ghost"
+                      type="button"
+                      [disabled]="processing"
+                      (click)="deleteBatch(item, $event)"
+                    >
+                      {{ 'COMMON.DELETE' | translate }}
+                    </button>
+                  </ng-template>
+                </div>
               </td>
             </tr>
             <tr *ngIf="history.length === 0">
@@ -630,12 +677,13 @@
     </ng-template>
   </div>
 
-
-
   <app-confirm-dialog
     [open]="deleteDialogOpen"
     [title]="'IMPORTS.WORKBENCH.DELETE_BATCH_TITLE' | translate"
-    [message]="'IMPORTS.WORKBENCH.DELETE_BATCH_COPY' | translate: { name: deleteTarget?.originalFileName || deleteTarget?.id }"
+    [message]="
+      'IMPORTS.WORKBENCH.DELETE_BATCH_COPY'
+        | translate: { name: deleteTarget?.originalFileName || deleteTarget?.id }
+    "
     [confirmLabel]="'COMMON.DELETE' | translate"
     [processingLabel]="'COMMON.DELETING' | translate"
     [processing]="processing"

@@ -196,7 +196,50 @@ namespace finrecon360_backend.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            return Ok(new ImportHistoryResponseDto(items, total, page, pageSize));
+            return Ok(new ImportHistoryResponseDto(items, total, page, pageSize, auth.IsTenantAdmin));
+        }
+
+        [HttpPatch("{id:guid}/name")]
+        public async Task<IActionResult> Rename(Guid id, [FromBody] RenameImportRequest request)
+        {
+            var auth = await AuthorizeTenantUserAsync();
+            if (auth.Error != null) return auth.Error;
+            await using var tenantDb = auth.Db!;
+
+            if (!auth.IsTenantAdmin)
+            {
+                return Forbid();
+            }
+
+            var newName = request.OriginalFileName?.Trim();
+            if (string.IsNullOrWhiteSpace(newName) || newName != Path.GetFileName(newName))
+            {
+                return BadRequest(new { message = "A valid file name is required." });
+            }
+
+            if (newName.Length > 260)
+            {
+                return BadRequest(new { message = "The file name cannot exceed 260 characters." });
+            }
+
+            var batch = await tenantDb.ImportBatches.FirstOrDefaultAsync(x => x.ImportBatchId == id);
+            if (batch == null)
+            {
+                return NotFound();
+            }
+
+            var previousName = batch.OriginalFileName;
+            batch.OriginalFileName = newName;
+            await tenantDb.SaveChangesAsync();
+
+            await _auditLogger.LogAsync(
+                _userContext.UserId,
+                "ImportRenamed",
+                "ImportBatch",
+                id.ToString(),
+                $"previousName={previousName};newName={newName}");
+
+            return Ok(new { id, originalFileName = batch.OriginalFileName });
         }
 
         [HttpGet("{id:guid}/validation-rows")]
@@ -821,7 +864,12 @@ namespace finrecon360_backend.Controllers
                 return (null, null, false, Array.Empty<string>(), Forbid());
             }
 
-            var isTenantAdmin = tenantMembership.Role == TenantUserRole.TenantAdmin;
+            var isSystemAdmin = await _dbContext.Users
+                .AsNoTracking()
+                .Where(u => u.UserId == userId)
+                .Select(u => u.IsSystemAdmin)
+                .FirstOrDefaultAsync();
+            var isTenantAdmin = tenantMembership.Role == TenantUserRole.TenantAdmin || isSystemAdmin;
             IReadOnlyCollection<string> permissions = Array.Empty<string>();
             if (!isTenantAdmin)
             {

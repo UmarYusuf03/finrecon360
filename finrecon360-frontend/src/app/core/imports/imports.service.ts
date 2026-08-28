@@ -127,6 +127,14 @@ export class ImportsService {
       `${API_BASE_URL}${API_ENDPOINTS.IMPORTS.DELETE(id)}`,
     );
   }
+
+  renameImport(
+    id: string,
+    originalFileName: string,
+  ): Observable<{ id: string; originalFileName: string }> {
+    return this.http.patch<{ id: string; originalFileName: string }>(
+      `${API_BASE_URL}${API_ENDPOINTS.IMPORTS.RENAME(id)}`,
+      { originalFileName },
+    );
+  }
 }
-
-

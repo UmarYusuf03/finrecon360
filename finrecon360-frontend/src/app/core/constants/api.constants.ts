@@ -6,7 +6,6 @@ import { environment } from '../../../environments/environment';
  * Centralized location for all API-related configuration.
  */
 
-
 /**
  * Base URL for the backend API.
  * For production, override via environment files.
@@ -55,6 +54,7 @@ export const API_ENDPOINTS = {
       `/api/imports/${id}/raw-records/${rawRecordId}`,
     COMMIT: (id: string) => `/api/imports/${id}/commit`,
     DELETE: (id: string) => `/api/imports/${id}`,
+    RENAME: (id: string) => `/api/imports/${id}/name`,
   },
   ME: '/api/me',
   ME_SUBSCRIPTION: '/api/me/subscription',

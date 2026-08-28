@@ -100,7 +100,9 @@ export class ImportsWorkbenchComponent implements OnInit {
   selectedBankAccountId: string | null = null;
 
   get requiresBankAccount(): boolean {
-    return !!this.importSourceType && this.sourceTypesRequiringBankAccount.has(this.importSourceType);
+    return (
+      !!this.importSourceType && this.sourceTypesRequiringBankAccount.has(this.importSourceType)
+    );
   }
 
   loading = false;
@@ -199,9 +201,7 @@ export class ImportsWorkbenchComponent implements OnInit {
     );
   }
 
-  get canDeleteImport(): boolean {
-    return this.has('ADMIN.IMPORTS.DELETE');
-  }
+  canDeleteImport = false;
 
   // VIEW of architecture templates (needed to load existing templates into workbench).
   get canViewArchitecture(): boolean {
@@ -234,6 +234,9 @@ export class ImportsWorkbenchComponent implements OnInit {
   private authRetryInProgress = false;
   deleteDialogOpen = false;
   deleteTarget: ImportHistoryItem | null = null;
+  renamingBatchId: string | null = null;
+  renameValue = '';
+  renameProcessing = false;
 
   constructor(
     private readonly importsService: ImportsService,
@@ -260,6 +263,7 @@ export class ImportsWorkbenchComponent implements OnInit {
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.item(0) ?? null;
+    input.value = '';
     this.setSelectedFile(file);
   }
 
@@ -299,7 +303,11 @@ export class ImportsWorkbenchComponent implements OnInit {
     this.processing = true;
     this.clearAlerts();
     this.importsService
-      .uploadImport(this.selectedFile, this.importSourceType, this.selectedBankAccountId ?? undefined)
+      .uploadImport(
+        this.selectedFile,
+        this.importSourceType,
+        this.selectedBankAccountId ?? undefined,
+      )
       .subscribe({
         next: (result) => {
           this.processing = false;
@@ -370,6 +378,7 @@ export class ImportsWorkbenchComponent implements OnInit {
           this.historyTotal = res.total;
           this.historyPage = res.page;
           this.history = res.items;
+          this.canDeleteImport = res.canDelete;
           if (this.selectedBatch) {
             this.selectedBatch =
               this.history.find((h) => h.id === this.selectedBatch?.id) ?? this.selectedBatch;
@@ -581,6 +590,45 @@ export class ImportsWorkbenchComponent implements OnInit {
   closeDeleteDialog(): void {
     this.deleteDialogOpen = false;
     this.deleteTarget = null;
+  }
+
+  startRename(item: ImportHistoryItem, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.canDeleteImport) {
+      return;
+    }
+
+    this.renamingBatchId = item.id;
+    this.renameValue = item.originalFileName ?? '';
+  }
+
+  cancelRename(event?: Event): void {
+    event?.stopPropagation();
+    this.renamingBatchId = null;
+    this.renameValue = '';
+  }
+
+  saveRename(item: ImportHistoryItem, event?: Event): void {
+    event?.stopPropagation();
+    const newName = this.renameValue.trim();
+    if (!newName || this.renameProcessing) {
+      return;
+    }
+
+    this.renameProcessing = true;
+    this.importsService.renameImport(item.id, newName).subscribe({
+      next: (result) => {
+        item.originalFileName = result.originalFileName;
+        this.renameProcessing = false;
+        this.renamingBatchId = null;
+        this.renameValue = '';
+        this.actionMessage = 'Import file renamed.';
+      },
+      error: (error) => {
+        this.renameProcessing = false;
+        this.actionError = this.getErrorMessage(error, 'Rename failed.');
+      },
+    });
   }
 
   useActiveTemplate(): void {

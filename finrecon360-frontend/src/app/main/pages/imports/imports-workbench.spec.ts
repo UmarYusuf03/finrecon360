@@ -37,7 +37,7 @@ describe('ImportsWorkbenchComponent', () => {
       'getImportHistory',
     ]);
     importsService.getImportHistory.and.returnValue(
-      of({ items: [], total: 0, page: 1, pageSize: 100 }),
+      of({ items: [], total: 0, page: 1, pageSize: 100, canDelete: false }),
     );
 
     TestBed.configureTestingModule({
@@ -83,6 +83,7 @@ describe('ImportsWorkbenchComponent', () => {
         total: 1,
         page: 1,
         pageSize: 100,
+        canDelete: false,
       }),
     );
 
