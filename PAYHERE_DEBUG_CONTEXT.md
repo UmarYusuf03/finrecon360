@@ -102,14 +102,57 @@ Diagnostics performed:
 Ask: Every merchant-authenticated payment method (Checkout API, Authorize API, JS SDK) is rejected before any request content is even evaluated, while PayHere-generated Payment Links work fine on the same account. This strongly suggests an account-level flag gating merchant-initiated payment requests specifically — separate from whatever "Active" Domain/App status reflects. Can you check what's different about this account relative to one where Checkout API works normally? The correlation ID above should locate the exact rejected request in your logs.
 ```
 
-### Open thread at end of last session
-User was testing whether a *real public domain* (vs. `localhost`/`127.0.0.1`, both private/loopback addresses) behaves differently — reasoning: everything tested so far used private addresses; a real domain is untested. Cheapest way to test this without a full deployment: register the existing ngrok tunnel domain (`leverage-baggie-circular.ngrok-free.dev` — already real and public) as a new Domain/App entry.
+### PayHere support's reply
 
-- Tried adding it as **"Domain" type** → rejected: "sub domains not allowed or invalid domain" (same restrictive validation the Domain-type field showed before, rejecting anything that isn't a clean top-level domain).
-- Was told to switch the dropdown to **"App" type** instead (which previously accepted `127.0.0.1:5279` when Domain-type rejected it) and retry the ngrok domain there.
-- **This was not yet completed as of end of session — that's the immediate next step**, if the ngrok tunnel is still the same one (check `.env`'s `PAYHERE_NOTIFY_URL` — ngrok free-tier domains rotate on restart, so verify it's still live/matches before testing).
+From Yasith Chandula, Bhasha Support:
 
-**My assessment going in:** based on the evidence (hash never validated regardless of which domain's secret is used; 2 different domain registrations already failed identically), a real public domain is *unlikely* to fix it — the rejection appears to happen before domain-specific validation is even reached. But it's not fully ruled out since only private/loopback addresses have been tested so far.
+```
+The error has occurred due to either an invalid hash code or an unrecognized domain.
+
+Please verify the following.
+
+Hash Generation Accuracy
+Ensure that the hash is being generated correctly at the time of sending the payload. The parameter values used for generating the hash must exactly match the parameter values included in the payload.
+
+Correct Domain Usage
+Confirm that the PayHere Payment Gateway is being initiated from the same domain registered in the Integration section of your PayHere Merchant Portal.
+
+Valid Merchant Secret
+Ensure that you are using the correct Merchant Secret associated with the registered domain. To avoid formatting issues, use the copy button next to the Merchant Secret when copying it.
+
+Referer Header Presence
+We have received reports from other merchants where the Referer header was not present in the request. Please note that PayHere relies on the Referer header to validate requests against the configured domain.
+Ensure that the Referer header is included in your request headers.
+Avoid using HTML meta tags such as,
+<meta name="referrer" content="no-referrer" />
+<meta name="referrer" content="no-referrer-when-downgrade" />
+as these may suppress the Referer header.
+If the referrer is not present in the request header, PayHere will look for the notify_url domain to determine the origin. Setting the notify_url domain to match the request origin URL fixed the issue, confirming that the problem was related to the referrer.
+
+Single Domain Record Enforcement
+Please ensure that only one record per domain exists in the Integration section of the PayHere Merchant Portal. Multiple entries for the same domain are not supported and may lead to validation issues.
+
+--
+Regards,
+Yasith Chandula
+Bhasha Support
+```
+
+### Our follow-up reply (drafted — confirm whether sent)
+
+```
+Thanks for the detailed checklist — I went through all four points specifically:
+
+1. Hash accuracy — reconfirmed correct, byte-for-byte, using the exact algorithm you specified.
+
+2. Domain usage — found and removed a duplicate localhost record, exactly matching your point about single-record enforcement. Rejection was identical before and after removing it.
+
+3. Merchant Secret — reconfirmed fresh via the copy button each time. Tested with 4 separate secrets across 4 different domain/app registrations total (localhost ×2, 127.0.0.1:5279, and localhost:5279 — the exact host:port my request actually originates from).
+
+4. Referer header — tested extensively with an explicit, exactly-matching Referer and Origin header (http://localhost:5279) set on the request. Identical "Unauthorized payment request" with or without it present, and regardless of which of the 4 registered domains' secret is used.
+
+All four combinations, with and without a matching Referer, return the exact same rejection — before any request content appears to be evaluated (confirmed separately: a deliberately wrong hash returns a byte-identical response to a correct one, and a deliberately wrong merchant_id returns a completely different, specific error, so the account is clearly being identified correctly). Could someone check server-side whether there's an account-level flag blocking this merchant from initiating payments, separate from domain/app registration status? Happy to provide a fresh correlation ID from a live request if that helps you look it up.
+```
 
 ### Still not done (once Bug #3 is resolved)
 - Full payment → webhook (`PayHereWebhooksController`) → subscription activation flow has never been tested end-to-end (no checkout has ever succeeded to trigger it).
